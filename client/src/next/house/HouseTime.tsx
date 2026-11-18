@@ -1,7 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api, type HouseBeats, type HouseCheckin } from '../../api/client';
-import type { CheckinPart } from '../../api/types';
 import { ScrollArea } from '../shell/ScrollArea';
 import { allZones, deviceZone, isTime } from '../time/rules';
 import * as css from '../time/time.css';
@@ -25,7 +24,7 @@ export function HouseTime() {
         {checkins.data && (
           <>
             <p className={css.note}>Every time here is the house's, in {zone}.</p>
-            <Checkins checkins={checkins.data.checkins} catalog={checkins.data.parts ?? []} zone={zone} />
+            <Checkins checkins={checkins.data.checkins} />
           </>
         )}
         {beats.data && <Now b={beats.data} />}
@@ -55,44 +54,20 @@ const keyOf = (label: string) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 40);
 
-/** Today on the house's clock, as the check-ins' days are kept. */
-function today(zone: string): string {
-  try {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: zone, year: 'numeric', month: '2-digit', day: '2-digit' }).format(new Date());
-  } catch {
-    return new Date().toISOString().slice(0, 10);
-  }
-}
-
-/** The next to fire on the house's clock, as a resident's Rhythm says it. */
-function nextOf(checkins: HouseCheckin[], zone: string): string | null {
-  if (checkins.length === 0) return null;
-  let now = '';
-  try {
-    now = new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date());
-  } catch {
-    now = new Date().toISOString().slice(11, 16);
-  }
-  const sorted = [...checkins].sort((a, b) => a.time.localeCompare(b.time));
-  const next = sorted.find((c) => c.time > now);
-  return next ? `${next.label} at ${next.time}` : `${sorted[0].label} at ${sorted[0].time} tomorrow`;
-}
-
-function Checkins({ checkins, catalog, zone }: { checkins: HouseCheckin[]; catalog: CheckinPart[]; zone: string }) {
+function Checkins({ checkins }: { checkins: HouseCheckin[] }) {
   const [label, setLabel] = useState('');
   const [time, setTime] = useState('');
   const add = useHouseWrite(() => api.setHouseCheckin(keyOf(label), label.trim(), time));
-  const next = nextOf(checkins, zone);
   return (
     <section className={css.section} aria-label="House check-ins">
       <h2 className={css.headingWitness}>HOUSE CHECK-INS</h2>
       <p className={css.note}>
-        Each opens a thread once a day at its time and wakes every resident at once. Its note carries your words for the house, her own part in the words you set for her
-        on her Rhythm, and the parts you check, read for each of them. Her one answer waits on no turn; your reply wakes everyone again. Quiet hours do not hold them.
+        Each opens a thread once a day at its time and wakes every resident at once, each with the words you set for her on her Rhythm. Her one answer waits on no turn;
+        your reply wakes everyone again. Quiet hours do not hold them.
       </p>
-      <p className={css.note}>{next ? `Next: ${next}.` : 'None set.'}</p>
+      {checkins.length === 0 && <p className={css.note}>None set.</p>}
       {checkins.map((c) => (
-        <Checkin key={c.key} c={c} catalog={catalog} day={today(zone)} />
+        <Checkin key={c.key} c={c} />
       ))}
       <form
         className={css.addRow}
@@ -118,91 +93,39 @@ function Checkins({ checkins, catalog, zone }: { checkins: HouseCheckin[]; catal
   );
 }
 
-/**
- * One house check-in, configured as a resident's own is (gaia#48; the
- * witness, 2026-11-17): Change in place for its label, time, your words
- * and the parts read when it fires; Delete confirmed once, in place.
- */
-function Checkin({ c, catalog, day }: { c: HouseCheckin; catalog: CheckinPart[]; day: string }) {
-  const [editing, setEditing] = useState(false);
-  const [confirming, setConfirming] = useState(false);
-  const [label, setLabel] = useState(c.label);
-  const [time, setTime] = useState(c.time);
-  const [prompt, setPrompt] = useState(c.prompt ?? '');
-  const [parts, setParts] = useState<string[]>(c.parts ?? ['dates']);
-  const save = useHouseWrite(() =>
-    api.setHouseCheckin(c.key, label.trim(), time, {
-      prompt,
-      parts: catalog.map((p) => p.key).filter((k) => parts.includes(k)),
-    }),
-  );
-  const remove = useHouseWrite(() => api.removeHouseCheckin(c.key, 'deleted from the house\'s Time'));
-  const carries = catalog.filter((p) => (c.parts ?? ['dates']).includes(p.key)).map((p) => p.label);
-  if (c.prompt) carries.unshift('your words');
-  const status = c.last_day === day ? 'TODAY: FIRED' : c.last_day ? `LAST FIRED ${c.last_day}` : 'NOT RUN YET';
-
+function Checkin({ c }: { c: HouseCheckin }) {
+  const [removing, setRemoving] = useState(false);
+  const [note, setNote] = useState('');
+  const remove = useHouseWrite(() => api.removeHouseCheckin(c.key, note.trim()));
   return (
     <div className={css.card}>
       <div className={css.cardHead}>
-        <span>
-          {c.label}
-          <span className={css.meta}> · {status}</span>
+        <span>{c.label}</span>
+        <span className={css.meta}>
+          {c.time} · {c.last_day ? `last ${c.last_day}` : 'not run yet'}
         </span>
-        <span className={css.meta}>{c.time}</span>
       </div>
-      <p className={css.note}>Carries: {carries.length > 0 ? carries.join(', ') : 'only the check-in line'}, with each resident's own part.</p>
-      {editing ? (
+      {removing ? (
         <form
-          className={css.form}
-          aria-label={`Change ${c.label}`}
+          className={css.addRow}
+          aria-label={`Remove ${c.label}`}
           onSubmit={(e) => {
             e.preventDefault();
-            save.mutate(undefined, { onSuccess: () => setEditing(false) });
+            remove.mutate(undefined);
           }}
         >
-          <div className={css.addRow}>
-            <input className={css.time} value={label} maxLength={60} onChange={(e) => setLabel(e.target.value)} aria-label="Label" />
-            <input type="time" className={css.time} value={time} onChange={(e) => setTime(e.target.value)} aria-label="Time" />
-          </div>
-          <textarea
-            className={css.text}
-            rows={3}
-            maxLength={4000}
-            value={prompt}
-            onChange={(e) => setPrompt(e.target.value)}
-            placeholder="Anything you want the whole house to start from at this check-in"
-            aria-label="Your words"
-          />
-          <fieldset className={css.fieldset}>
-            <legend className={css.meta}>PARTS, READ FOR EACH RESIDENT WHEN IT FIRES</legend>
-            {catalog.map((p) => (
-              <label key={p.key} className={css.check}>
-                <input type="checkbox" checked={parts.includes(p.key)} onChange={() => setParts((x) => (x.includes(p.key) ? x.filter((k) => k !== p.key) : [...x, p.key]))} />
-                <span>
-                  {p.label}
-                  <span className={css.note}> — {p.about}</span>
-                </span>
-              </label>
-            ))}
-          </fieldset>
-          <div className={css.addRow}>
-            <button type="submit" className={css.addButton} disabled={!label.trim() || !isTime(time) || save.isPending}>
-              Save
-            </button>
-            <button type="button" className={css.quiet} onClick={() => setEditing(false)}>
-              Cancel
-            </button>
-          </div>
-          <Failed error={save.error} />
+          <input className={css.time} value={note} onChange={(e) => setNote(e.target.value)} placeholder="Why remove it" aria-label="Why remove it" />
+          <button type="submit" className={css.addButton} disabled={!note.trim() || remove.isPending}>
+            Remove {c.label}
+          </button>
+          <button type="button" className={css.quiet} onClick={() => setRemoving(false)}>
+            Keep it
+          </button>
         </form>
       ) : (
-        <div className={css.addRow}>
-          <button type="button" className={css.quiet} onClick={() => setEditing(true)}>
-            Change
-          </button>
-          {/* A removal confirms once, in place, as a resident's own does. */}
-          <button type="button" className={css.quiet} disabled={remove.isPending} onClick={() => (confirming ? remove.mutate(undefined) : setConfirming(true))} onBlur={() => setConfirming(false)}>
-            {confirming ? `Delete ${c.label}` : 'Delete'}
+        <div>
+          <button type="button" className={css.quiet} onClick={() => setRemoving(true)}>
+            Remove
           </button>
         </div>
       )}

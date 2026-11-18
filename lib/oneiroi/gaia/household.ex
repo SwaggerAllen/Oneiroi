@@ -792,14 +792,12 @@ defmodule Oneiroi.Gaia.Household do
 
   defp house_checkin(h, %Commands.SetHouseCheckin{} = c) do
     cond do
-      not checkin_shape?(c) ->
+      not (is_binary(c.key) and Regex.match?(@checkin_key, c.key)) or
+        not (is_binary(c.time) and Regex.match?(@checkin_time, c.time)) or
+          not (is_binary(c.label) and String.trim(c.label) != "") ->
         {:error, Error.new(:gaia_checkin_invalid, :gaia_household_checkin_invalid)}
 
-      not carries_ok?(c) ->
-        {:error, Error.new(:gaia_checkin_invalid, :gaia_household_checkin_parts)}
-
-      Map.get(h.checkins, c.key) ==
-          %{label: String.trim(c.label), time: c.time, prompt: c.prompt, parts: c.parts} ->
+      Map.get(h.checkins, c.key) == %{label: String.trim(c.label), time: c.time} ->
         []
 
       true ->
@@ -809,9 +807,7 @@ defmodule Oneiroi.Gaia.Household do
           id: c.id,
           key: c.key,
           label: String.trim(c.label),
-          time: c.time,
-          prompt: c.prompt,
-          parts: c.parts
+          time: c.time
         }
     end
   end
@@ -929,16 +925,7 @@ defmodule Oneiroi.Gaia.Household do
   def apply(%__MODULE__{} = h, %Events.HouseholdNamed{} = e), do: %{h | slug: e.slug}
 
   def apply(%__MODULE__{} = h, %Events.HouseCheckinSet{} = e),
-    do: %{
-      h
-      | checkins:
-          Map.put(h.checkins, e.key, %{
-            label: e.label,
-            time: e.time,
-            prompt: e.prompt,
-            parts: e.parts
-          })
-    }
+    do: %{h | checkins: Map.put(h.checkins, e.key, %{label: e.label, time: e.time})}
 
   def apply(%__MODULE__{} = h, %Events.HouseCheckinRemoved{} = e),
     do: %{h | checkins: Map.delete(h.checkins, e.key)}
@@ -1028,18 +1015,4 @@ defmodule Oneiroi.Gaia.Household do
 
   defp signed(h, _member, nil), do: h
   defp signed(h, member, version), do: %{h | signatures: Map.put(h.signatures, member, version)}
-
-  defp checkin_shape?(c),
-    do:
-      is_binary(c.key) and Regex.match?(@checkin_key, c.key) and is_binary(c.time) and
-        Regex.match?(@checkin_time, c.time) and is_binary(c.label) and String.trim(c.label) != ""
-
-  defp carries_ok?(c), do: parts_ok?(c.parts) and (is_nil(c.prompt) or is_binary(c.prompt))
-
-  # Keys of the catalog (sunna#28), held to it where it is known
-  # (`Seshat.HouseCheckins`), or nil for the default.
-  defp parts_ok?(nil), do: true
-  defp parts_ok?(parts) when is_list(parts), do: Enum.all?(parts, &is_binary/1)
-
-  defp parts_ok?(_other), do: false
 end

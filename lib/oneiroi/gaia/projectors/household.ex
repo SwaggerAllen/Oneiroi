@@ -255,15 +255,8 @@ defmodule Oneiroi.Gaia.Projectors.Household do
     Multi.insert(
       multi,
       :checkin,
-      %HouseCheckin{
-        household_id: e.id,
-        key: e.key,
-        label: e.label,
-        time: e.time,
-        prompt: e.prompt,
-        parts: e.parts
-      },
-      on_conflict: [set: [label: e.label, time: e.time, prompt: e.prompt, parts: e.parts]],
+      %HouseCheckin{household_id: e.id, key: e.key, label: e.label, time: e.time},
+      on_conflict: [set: [label: e.label, time: e.time]],
       conflict_target: [:household_id, :key]
     )
   end)

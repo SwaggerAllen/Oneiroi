@@ -810,18 +810,11 @@ defmodule Oneiroi.Gaia do
     do: Households.set_clock(household_id, zone, actor)
   )
 
-  @doc "A witness sets a house check-in (gaia#41), with its words and parts (gaia#48): `prompt:`, `parts:`."
-  @spec set_house_checkin(
-          String.t(),
-          String.t(),
-          String.t(),
-          String.t(),
-          keyword(),
-          Oneiroi.Actor.t()
-        ) ::
+  @doc "A witness sets a house check-in (gaia#41)."
+  @spec set_house_checkin(String.t(), String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
-  defexport(set_house_checkin(household_id, key, label, time, opts, actor),
-    do: Households.set_house_checkin(household_id, key, label, time, opts, actor)
+  defexport(set_house_checkin(household_id, key, label, time, actor),
+    do: Households.set_house_checkin(household_id, key, label, time, actor)
   )
 
   @doc "A witness removes a house check-in, with a note (gaia#41)."

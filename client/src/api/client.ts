@@ -2,7 +2,6 @@ import type { Gift } from '../screens/creation-flow/CreationFlow';
 import type { ReportDetail } from '../screens/more/Reports';
 import type {
   Adapter,
-  CheckinPart,
   Ask,
   WorkQueue,
   NeedsYouEntry,
@@ -327,18 +326,13 @@ export interface HouseCheckin {
   last_day: string | null;
   last_thread: string | null;
   last_fired_at: string | null;
-  // On the house's Time: the witness's words for the whole house; on a
-  // resident's Rhythm page: her own words for it (gaia#48).
+  // On a resident's Rhythm page: her own words for it.
   prompt?: string | null;
-  /** What its note carries for each resident, the catalog's keys (gaia#48). */
-  parts?: string[];
 }
 
 export interface HouseCheckins {
   zone: string | null;
   checkins: HouseCheckin[];
-  /** The parts a note can carry (sunna#28), on the house's Time. */
-  parts?: CheckinPart[];
 }
 
 export interface ResidentRecord extends Resident {
@@ -613,8 +607,8 @@ export const api = {
   houseCheckins: () => call<HouseCheckins>('GET', '/v1/household/checkins'),
   setHouseClock: (zone: string) => call<HouseCheckins>('PUT', '/v1/household/clock', { zone }),
   nameHousehold: (slug: string) => call<HouseShelf>('PUT', '/v1/household/name', { slug }),
-  setHouseCheckin: (key: string, label: string, time: string, carries?: { prompt: string; parts: string[] }) =>
-    call<HouseCheckins>('PUT', `/v1/household/checkins/${encodeURIComponent(key)}`, { label, time, ...carries }),
+  setHouseCheckin: (key: string, label: string, time: string) =>
+    call<HouseCheckins>('PUT', `/v1/household/checkins/${encodeURIComponent(key)}`, { label, time }),
   removeHouseCheckin: (key: string, note: string) => call<HouseCheckins>('DELETE', `/v1/household/checkins/${encodeURIComponent(key)}`, { note }),
   houseForResident: (residentId: string) => call<HouseCheckins>('GET', `/v1/residents/${residentId}/schedule/house`),
   setHousePrompt: (residentId: string, key: string, prompt: string) =>

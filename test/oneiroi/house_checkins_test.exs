@@ -86,23 +86,6 @@ defmodule Oneiroi.HouseCheckinsTest do
     {:ok, %{zone: "America/Los_Angeles", checkins: [%{key: "morning", time: "07:30"}]}} =
       Seshat.set_house_checkin(ctx.andrew, "morning", "Morning check-in", "07:30")
 
-    # Configured as a resident's own check-in is (gaia#48): his words for
-    # the whole house and the parts, kept through a change of label.
-    assert {:error, %{kind: :seshat_household_invalid}} =
-             Seshat.set_house_checkin(ctx.andrew, "morning", "Morning", "07:30", parts: ["tarot"])
-
-    {:ok,
-     %{checkins: [%{prompt: "Bring one thing you finished.", parts: ["dates"]}], parts: catalog}} =
-      Seshat.set_house_checkin(ctx.andrew, "morning", "Morning", "07:30",
-        prompt: "Bring one thing you finished.",
-        parts: ["dates"]
-      )
-
-    assert Enum.any?(catalog, &(&1.key == "plan"))
-
-    {:ok, %{checkins: [%{label: "Morning check-in", prompt: "Bring one thing you finished."}]}} =
-      Seshat.set_house_checkin(ctx.andrew, "morning", "Morning check-in", "07:30")
-
     :ok =
       Sunna.set_house_prompt(
         ctx.lily.id,
@@ -135,11 +118,6 @@ defmodule Oneiroi.HouseCheckinsTest do
     assert notes[ctx.lily.id] =~ "Your part: Report the writing and the outreach."
     assert notes[ctx.scarlett.id] =~ "Your part: Report the trials you ran."
     assert notes[ctx.lily.id] =~ "threads/checkin-2026-11-16-morning"
-
-    assert notes[ctx.lily.id] =~
-             "From the person who looks after the house:\n\nBring one thing you finished."
-
-    assert notes[ctx.scarlett.id] =~ "Bring one thing you finished."
 
     assert {:ok,
             %{

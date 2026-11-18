@@ -355,16 +355,8 @@ defmodule Oneiroi.Gaia.Events do
 
   defmodule HouseCheckinSet do
     # A check-in for the whole house: a key, its label, and the time
-    # (HH:MM) on the household's clock it fires each day. Version 2 adds
-    # what its note carries as a resident's own check-in's does (gaia#48):
-    # `prompt`, the witness's words for the whole house, and `parts`, the
-    # catalog's keys; nil on every version 1, which reads as no words and
-    # the dates (sunna#28's default).
-    use Oneiroi.Event, version: 2, fields: [:id, :key, :label, :time, :prompt, :parts]
-  end
-
-  defimpl Commanded.Event.Upcaster, for: Oneiroi.Gaia.Events.HouseCheckinSet do
-    def upcast(event, _metadata), do: event
+    # (HH:MM) on the household's clock it fires each day.
+    use Oneiroi.Event, version: 1, fields: [:id, :key, :label, :time]
   end
 
   defmodule HouseCheckinRemoved do

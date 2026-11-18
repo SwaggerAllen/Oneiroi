@@ -226,7 +226,7 @@ defmodule Oneiroi.Gaia.Commands do
   end
 
   defmodule SetHouseCheckin do
-    use Oneiroi.Command, fields: [:id, :key, :label, :time, :prompt, :parts]
+    use Oneiroi.Command, fields: [:id, :key, :label, :time]
   end
 
   defmodule RemoveHouseCheckin do

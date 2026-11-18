@@ -618,12 +618,6 @@ defmodule Oneiroi.Sunna do
   @spec dates_text(String.t()) :: String.t()
   defexport(dates_text(resident_id), do: Schedules.dates_text(resident_id))
 
-  @doc "A check-in note's parts, read for this resident now, in the catalog's order (sunna#28; gaia#48 for the house's)."
-  @spec checkin_part_texts(String.t(), [String.t()] | nil) :: [String.t()]
-  defexport(checkin_part_texts(resident_id, parts),
-    do: Schedules.part_texts(resident_id, parts)
-  )
-
   @doc "Every firing over the last `days` days in the resident's zone, for the audits."
   @spec firings(String.t(), pos_integer()) :: [Oneiroi.Sunna.Store.Firing.t()]
   defexport(firings(resident_id, days), do: Schedules.firings(resident_id, days))

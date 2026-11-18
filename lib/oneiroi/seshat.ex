@@ -744,13 +744,6 @@ defmodule Oneiroi.Seshat do
     do: HouseCheckins.set(actor, key, label, time)
   )
 
-  @doc "The witness sets or changes a house check-in with its words and parts (gaia#48): `prompt:`, `parts:`."
-  @spec set_house_checkin(Oneiroi.Actor.t(), String.t(), String.t(), String.t(), keyword()) ::
-          {:ok, map()} | {:error, term()}
-  defexport(set_house_checkin(actor, key, label, time, opts),
-    do: HouseCheckins.set(actor, key, label, time, opts)
-  )
-
   @doc "The witness removes a house check-in, with a note (seshat#75)."
   @spec remove_house_checkin(Oneiroi.Actor.t(), String.t(), String.t()) ::
           {:ok, map()} | {:error, term()}
