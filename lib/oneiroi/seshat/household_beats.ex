@@ -26,6 +26,7 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.Jobs
   alias Oneiroi.Gaia
@@ -198,7 +199,8 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
     for %Events.HouseholdBeatClosed{beat_top: top} <- events,
         DateTime.compare(top, just_ended) == :eq,
         p <- Gaia.household_beats(household_id, Clock.now()).profiles,
-        p.kind == "resident" and p.profile == "every_beat" do
+        p.kind == "resident" and p.profile == "every_beat",
+        not AgathosDaimon.held?(p.id) do
       {:ok, _} =
         Jobs.enqueue(@turn_worker, %{
           "household_id" => household_id,

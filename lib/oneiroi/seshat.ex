@@ -598,6 +598,11 @@ defmodule Oneiroi.Seshat do
           {:ok, map()} | {:error, term()}
   defexport(household_read(actor, path, opts \\ []), do: Household.read(actor, path, opts))
 
+  @doc "The house searched (seshat#80): threads, records and the charter, every term of q; only what the member may read."
+  @spec household_search(Oneiroi.Actor.t(), String.t(), String.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(household_search(actor, q, scope), do: Household.search(actor, q, scope))
+
   @doc "A witness names the house for citations (gaia#44), once; answers the shelf."
   @spec household_name(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}
   defexport(household_name(actor, slug), do: Household.name(actor, slug))

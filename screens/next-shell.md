@@ -29,7 +29,9 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
   - The header carries:
     - the subject's name and initial, with the connection dot;
     - the presence line (main thread only: queued, thinking, writing,
-      a tool's name, each with its timer; last reply when idle);
+      a tool's name, each with its timer; last reply when idle). It is
+      the subject's own: another resident's turn never shows on her
+      screens, and leaving a resident's chat ends her indicator;
     - search, the bell with its count (`needs_you`), and settings.
   - Four tabs: a bottom bar on a phone, a left rail at 900px and up.
   - Every tab stays mounted, with its own stack. The URL hash tracks the

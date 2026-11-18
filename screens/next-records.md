@@ -32,6 +32,10 @@ at `/client/#/records`. Built 2026-11-10.
   - Unshelved files are counted.
   - On a wide screen the tree stays beside the page; on a phone the page
     takes the screen, and Back pops the stack.
+  - The viewer and a record's history keep a back bar at the top however
+    far down the page is read (2026-11-17): "‹ <where it goes>" steps back
+    one (a record by its name, a folder by its own), and "Records", when
+    that step is not already the root, goes straight there.
 - **The viewer** (`doc/<path>`):
   - The citation the document is cited by, its version count, when it
     was written and by whom, and its title.

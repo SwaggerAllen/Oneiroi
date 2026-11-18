@@ -119,6 +119,36 @@ export const back = style({
   '@media': { [wide]: { display: 'none' } },
 });
 
+// Back, kept at the top of a long record as it scrolls (2026-11-17).
+export const backBar = style({
+  position: 'sticky',
+  top: 0,
+  zIndex: 2,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+  gap: 8,
+  margin: '0 -20px',
+  padding: '0 10px',
+  background: vars.color.ground,
+  borderBottom: `1px solid ${vars.color.border}`,
+});
+
+const backButton = {
+  minHeight: 40,
+  padding: '0 10px',
+  border: 'none',
+  background: 'none',
+  font: `500 14px ${font.ui}`,
+  cursor: 'pointer',
+  overflow: 'hidden',
+  textOverflow: 'ellipsis',
+  whiteSpace: 'nowrap',
+} as const;
+
+export const backStep = style({ ...backButton, minWidth: 0, color: vars.color.witness.accent, textAlign: 'left' });
+export const backRoot = style({ ...backButton, flex: 'none', color: vars.color.textMuted });
+
 export const viewer = style({ display: 'flex', flexDirection: 'column', gap: 12, padding: '4px 20px 32px', maxWidth: 720, width: '100%', margin: '0 auto' });
 export const meta = style({ font: `500 11px ${font.mono}`, color: vars.color.textMuted, textTransform: 'uppercase', overflowWrap: 'anywhere' });
 export const title = style({ margin: 0, fontFamily: font.voice, fontWeight: 500, fontSize: 32, lineHeight: '38px', color: vars.color.text });

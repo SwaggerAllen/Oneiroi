@@ -95,6 +95,7 @@ defmodule OneiroiWeb.Router do
       get("/household", HouseholdController, :shelf)
       get("/household/read", HouseholdController, :read)
       get("/household/files", HouseholdController, :files)
+      get("/household/search", HouseholdController, :search)
       get("/household/contract", HouseholdController, :contract)
       post("/household/contract", HouseholdController, :propose)
       post("/household/contract/signature", HouseholdController, :sign)

@@ -148,6 +148,22 @@ defmodule OneiroiWeb.HouseholdController do
 
   def checkins(conn, _params), do: house(conn, Seshat.house_checkins(actor(conn)))
 
+  operation(:search,
+    summary:
+      "Search the house (seshat#80): every term of q, case aside, in its threads (trunk and replies), its records and its charter; scope everything, threads, records or charter. Only what this member may read. Best match first, at most fifty",
+    parameters: [q: [in: :query, type: :string], scope: [in: :query, type: :string]],
+    responses: [ok: {"the hits", "application/json", %Schema{type: :object}}]
+  )
+
+  def search(conn, params) do
+    scope =
+      if params["scope"] in ~w(everything threads records charter),
+        do: params["scope"],
+        else: "everything"
+
+    house(conn, Seshat.household_search(actor(conn), to_string(params["q"] || ""), scope))
+  end
+
   operation(:name,
     summary:
       "Name the house for citations (gaia#44): a slug, lowercase, 2 to 40 characters, set once and never changed, unique among houses; a witness's. Answers the shelf, its slug in it",

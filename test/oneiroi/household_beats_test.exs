@@ -61,6 +61,7 @@ defmodule Oneiroi.HouseholdBeatsTest do
     slug = "#{String.downcase(name)}-#{System.unique_integer([:positive])}"
     actor = Actor.new(:witness, witness.id)
     {:ok, id} = AgathosDaimon.create(name, slug, witness.id, actor)
+    Fixtures.agreed!(id, witness.id)
     :ok = AgathosDaimon.set_timezone(id, @zone, actor)
     {:ok, chat} = Kumbukumbu.main_session(id, witness.id, actor)
     Clock.Fake.advance(1)

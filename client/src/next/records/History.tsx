@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { api, type DocumentVersion } from '../../api/client';
 import { ScrollArea } from '../shell/ScrollArea';
 import { useSubject } from '../state/resident';
+import { BackBar } from './BackBar';
 import * as css from './records.css';
 
 const ACT: Record<DocumentVersion['act'], string> = {
@@ -48,9 +49,7 @@ export function History({ residentId, path, onBack }: { residentId: string; path
   return (
     <ScrollArea label={`History of ${path}`}>
       <div className={css.viewer}>
-        <button type="button" className={css.back} onClick={onBack}>
-          ‹ {path.split('/').pop()}
-        </button>
+        <BackBar onBack={onBack} />
         <h1 className={css.title}>History</h1>
         <p className={css.meta}>{path}</p>
         {versions.isPending && <p className={css.note}>Reading the history…</p>}

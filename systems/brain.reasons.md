@@ -934,3 +934,9 @@ session thousands of messages long or sending the oracle. A turn, not a
 message, because the ref names the turn and its messages (the prompt,
 the tools, the reply) share it. The neighbours come cut because they
 are there for orientation, not for reading.
+
+## #105
+The seed was one dyad's vocabulary, ⚜️ being Lily's own emoji, so any
+resident without a file of her own wore it. A seed is a starting point
+for a pair who have not yet said what their reacts mean; it carries no
+one's words, and the pair write theirs.

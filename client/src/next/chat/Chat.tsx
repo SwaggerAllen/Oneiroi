@@ -1,10 +1,9 @@
-import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { Message } from '../../api/types';
 import { toolSummary } from '../../screens/chat/page';
 import type { Live } from '../live/live';
 import { ScrollArea, type Edges } from '../shell/ScrollArea';
-import { elapsed, useNow } from '../shell/presence';
-import { useShell } from '../state/store';
+import { elapsed, useNow, usePresence } from '../shell/presence';
 import type { Citation } from './cite';
 import * as css from './chat.css';
 import { Markdown } from './Markdown';
@@ -57,7 +56,7 @@ export function Chat({
 }) {
   const chat = useChat(residentId, live);
   const reacts = useReacts(residentId, chat.key);
-  const presence = useShell((s) => s.presence);
+  const presence = usePresence();
   const scroller = useRef<HTMLDivElement>(null);
   const [atBottom, setAtBottom] = useState(true);
   const [atTop, setAtTop] = useState(false);
@@ -68,17 +67,39 @@ export function Chat({
   const [placeAt, setPlaceAt] = useState<string | null>(null);
   const jumpTarget = useRef<string | null>(null);
 
-  // Where the reader left off, read once the session is known.
+  // Where the reader left off, read once the session is known: the
+  // divider stays there for this visit. What has been seen moves on as
+  // the reader does (the witness, 2026-11-17: "N new" ran tens behind,
+  // since the count read the mark the visit opened with and never the
+  // one scrolling saved).
+  const [seenAt, setSeenAt] = useState<string | null>(null);
   useEffect(() => {
-    if (chat.key) setReadMarkAt(readMark(chat.key));
+    if (!chat.key) return;
+    const mark = readMark(chat.key);
+    setReadMarkAt(mark);
+    setSeenAt(mark);
   }, [chat.key]);
 
-  const isUnread = useCallback(
-    (m: Message) => m.role === 'assistant' && m.cursor !== undefined && readMarkAt !== null && chat.compareCursor(m.cursor, readMarkAt) > 0,
-    [readMarkAt, chat],
+  const after = useCallback(
+    (m: Message, mark: string | null) => m.role === 'assistant' && m.cursor !== undefined && mark !== null && chat.compareCursor(m.cursor, mark) > 0,
+    [chat],
   );
-  const firstUnread = chat.messages.findIndex(isUnread);
-  const unreadCount = chat.messages.filter(isUnread).length;
+  const firstUnread = chat.messages.findIndex((m) => after(m, readMarkAt));
+  const unreadCount = chat.messages.filter((m) => after(m, seenAt)).length;
+
+  // Seen: any message whose top has been on screen, scrolled past or in
+  // view, not only the bottom reached. Kept for the next visit too.
+  const markSeen = useCallback(
+    (cursor: string | null | undefined) => {
+      if (!cursor || !chat.key) return;
+      setSeenAt((seen) => {
+        if (seen !== null && chat.compareCursor(cursor, seen) <= 0) return seen;
+        saveReadMark(chat.key as string, cursor);
+        return cursor;
+      });
+    },
+    [chat],
+  );
 
   // Opening: land on the first unread message, or at the bottom.
   useLayoutEffect(() => {
@@ -91,9 +112,23 @@ export function Chat({
 
   // At the bottom: what is there has been read, and new words follow.
   useEffect(() => {
-    if (!atBottom || !opened || !chat.key || !chat.newestCursor) return;
-    saveReadMark(chat.key, chat.newestCursor);
-  }, [atBottom, opened, chat.key, chat.newestCursor]);
+    if (!atBottom || !opened) return;
+    markSeen(chat.newestCursor);
+  }, [atBottom, opened, chat.newestCursor, markSeen]);
+
+  // Scrolling: the last message whose top is above the view's bottom.
+  useEffect(() => {
+    const el = scroller.current;
+    if (!el || !opened) return;
+    const onScroll = () => {
+      const bottom = el.getBoundingClientRect().bottom;
+      const seen = [...el.querySelectorAll<HTMLElement>('[data-cursor]')].filter((n) => n.getBoundingClientRect().top < bottom).pop();
+      markSeen(seen?.dataset.cursor);
+    };
+    onScroll();
+    el.addEventListener('scroll', onScroll, { passive: true });
+    return () => el.removeEventListener('scroll', onScroll);
+  }, [opened, chat.messages.length, markSeen]);
 
   useLayoutEffect(() => {
     const el = scroller.current;
@@ -174,8 +209,10 @@ export function Chat({
       setAtBottom(true);
       return;
     }
-    const rule = el.querySelector('[data-unread-rule]');
-    if (rule && unreadCount > 0) rule.scrollIntoView({ block: 'start', behavior: 'smooth' });
+    // To the first message not yet seen, below where the reader is; else the bottom.
+    const next = chat.messages.find((m) => after(m, seenAt))?.cursor;
+    const target = next ? el.querySelector(`[data-cursor="${CSS.escape(next)}"]`) : null;
+    if (target && unreadCount > 0) target.scrollIntoView({ block: 'start', behavior: 'smooth' });
     else el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
   };
 
@@ -220,6 +257,16 @@ export function Chat({
   const now = useNow(chat.stream !== null);
   const stepLabel =
     presence.state === 'tool' ? `TOOL · ${presence.detail ?? ''}` : presence.state === 'thinking' ? 'THINKING' : 'WRITING';
+  const answering = chat.stream !== null && chat.pending.some((p) => p.ref === chat.stream?.turnRef);
+  const streamView = chat.stream && (
+    <div className={css.hers} data-live="true" aria-live="polite">
+      <div className={css.step}>
+        <span>{stepLabel}</span>
+        <span>{presence.since !== undefined ? elapsed(now - presence.since) : ''}</span>
+      </div>
+      <Markdown text={chat.stream.text} onCite={openCite} />
+    </div>
+  );
 
   return (
     <div className={css.column}>
@@ -254,15 +301,10 @@ export function Chat({
               }
             />
           ))}
-          {chat.stream && (
-            <div className={css.hers} data-live="true" aria-live="polite">
-              <div className={css.step}>
-                <span>{stepLabel}</span>
-                <span>{presence.since !== undefined ? elapsed(now - presence.since) : ''}</span>
-              </div>
-              <Markdown text={chat.stream.text} onCite={openCite} />
-            </div>
-          )}
+          {/* A reply streams under the message it answers (the witness,
+              2026-11-17: it showed above it, then jumped below at the end).
+              A wake answers no message here, and streams after the list. */}
+          {chat.stream && !answering && streamView}
           {chat.unanswered.map((f) => (
             <div key={`failed-${f.turn_ref}`} className={css.failedTurn} role="status">
               <span>
@@ -288,7 +330,8 @@ export function Chat({
             </div>
           ))}
           {chat.pending.map((p) => (
-            <div key={p.ref} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <Fragment key={p.ref}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <div className={css.mine} style={{ opacity: p.state === 'sending' || p.state === 'unsent' ? 0.7 : 1 }}>
                 {p.text}
               </div>
@@ -313,6 +356,8 @@ export function Chat({
                 </div>
               )}
             </div>
+            {chat.stream?.turnRef === p.ref && streamView}
+            </Fragment>
           ))}
         </div>
       </ScrollArea>

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { Presence } from '../state/store';
+import { useSubject } from '../state/resident';
+import { type Presence, useShell } from '../state/store';
 
 /** "0:14" from milliseconds. */
 export function elapsed(ms: number): string {
@@ -44,3 +45,16 @@ export function useNow(active: boolean): number {
   }, [active]);
   return now;
 }
+
+/**
+ * The working indicator for the subject on screen: a resident's own turn,
+ * and idle for anyone else's, since one resident's "Thinking…" never
+ * belongs on another's screen (2026-11-17).
+ */
+export function usePresence(): Presence {
+  const presence = useShell((s) => s.presence);
+  const { id } = useSubject();
+  return presence.residentId === undefined || presence.residentId === id ? presence : IDLE;
+}
+
+const IDLE: Presence = { state: 'idle' };

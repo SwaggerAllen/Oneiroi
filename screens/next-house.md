@@ -64,6 +64,10 @@ server.
   then any household document by kind. A record opens beside the tree
   on a wide screen and over it on a phone, its front matter left off;
   a thread reads whole.
+- **Search** (seshat#80): the header's icon (⌘K on a wide screen) opens
+  the same sheet a resident's does, "Search the house", scoped to
+  Everything, Threads, Records and Charter; each hit names its kind,
+  title and day with the words around the match, and opens in Records.
 - **Charter: the household contract** (gaia#27 to #31).
   - **The house's name** (gaia#44): unnamed, a field (lowercase letters,
     digits and hyphens) and **Name the house**, which is set once and

@@ -396,3 +396,12 @@ and IDENTITY.md stay because a turn without them has no one in it. Per
 resident because the platform's newer residents still have USER.md as
 their only profile; the first resident to migrate should not take it from
 the rest.
+
+## #51
+
+The household is a commons made under a contract, and a member joins it
+by a signature; a resident who has agreed nothing with her own witness
+has not yet agreed to anything with the house either. Holding the house
+alone, and not her own letters, keeps the rule to what it is about: a
+resident made outside the creation flow is already open to her witness
+and her own conversations, and the house is the part that waits.

@@ -24,4 +24,32 @@ defmodule Oneiroi.Fixtures do
 
     %{id: id, slug: slug, witness: account_id}
   end
+
+  @doc """
+  Puts a first agreement in force for a resident, proposed by her witness
+  and agreed by her: a resident with none is held from her household
+  (agathos-daimon#51), so a test of the house agrees one first.
+  """
+  def agreed!(resident_id, witness_account_id) do
+    witness = Actor.new(:witness, witness_account_id)
+
+    {:ok, v} =
+      Oneiroi.AgathosDaimon.propose_contract(
+        resident_id,
+        %{},
+        "A first agreement.",
+        "for the house",
+        witness
+      )
+
+    :ok =
+      Oneiroi.AgathosDaimon.agree_contract(
+        resident_id,
+        v,
+        "yes",
+        Actor.new(:resident, resident_id)
+      )
+
+    resident_id
+  end
 end

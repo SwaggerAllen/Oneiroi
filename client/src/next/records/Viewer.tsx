@@ -7,6 +7,7 @@ import { targetsFor, type Citation } from '../chat/cite';
 import * as reactCss from '../chat/reacts.css';
 import { ScrollArea } from '../shell/ScrollArea';
 import { useSubject } from '../state/resident';
+import { BackBar } from './BackBar';
 import * as css from './records.css';
 
 /**
@@ -55,9 +56,7 @@ export function Viewer({
   return (
     <ScrollArea label={path}>
       <div className={css.viewer}>
-        <button type="button" className={css.back} onClick={onBack}>
-          ‹ {folder}
-        </button>
+        <BackBar onBack={onBack} />
         <div className={css.meta}>
           {targets[targets.length - 1]}
           {doc ? ` · v${doc.versions}` : ''}
