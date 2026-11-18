@@ -1743,10 +1743,20 @@ defmodule Oneiroi.Seshat.Household do
     end
   end
 
+  # A witness, who is never fired a turn (gaia#47; design/workspaces.md
+  # §7, "under the same rules as the residents'"): `per_beat`, a turn's
+  # allowance each beat, once in each thread and to each document;
+  # `queue_emptied`, the same, and again once the queue has emptied (no
+  # turn open, no one waiting), starvation measured as opportunities as
+  # the residents' is; `unbounded`, the small household's, no bound and
+  # no quota.
+  defp window(%Actor{kind: :witness}, _household_id, %{witness_rule: "unbounded"}, _w, _t, _n),
+    do: :ok
+
   defp window(%Actor{kind: :witness} = actor, household_id, shape, writes, target, now) do
     top = Beats.top(household_id, shape, now)
 
-    if touched?(writes, actor, target, top) do
+    if touched?(writes, actor, target, top) and not emptied?(household_id, shape, now) do
       next = Beats.ends(top, shape)
 
       {:error,
@@ -1754,8 +1764,7 @@ defmodule Oneiroi.Seshat.Household do
          Error.new(:seshat_household_beat_spent, :seshat_household_witness_thread_twice,
            path: target
          )
-         | remedy:
-             "You have posted in #{target} this beat; the next beat begins at #{iso(next)}, and a vote is never held to it."
+         | remedy: witness_remedy(shape.witness_rule, next)
        }}
     else
       :ok
@@ -1763,6 +1772,21 @@ defmodule Oneiroi.Seshat.Household do
   end
 
   defp window(%Actor{}, _household_id, _shape, _writes, _target, _now), do: :ok
+
+  defp emptied?(household_id, %{witness_rule: "queue_emptied"}, now) do
+    beats = Gaia.household_beats(household_id, now)
+    is_nil(beats.open_turn) and beats.queue == []
+  end
+
+  defp emptied?(_household_id, _shape, _now), do: false
+
+  defp witness_remedy("queue_emptied", next),
+    do:
+      "You have posted here this beat, and residents are still waiting in its queue; you post here again once it has emptied, or when the next beat begins at #{iso(next)}. A vote is never held to it."
+
+  defp witness_remedy(_per_beat, next),
+    do:
+      "You have posted in this thread or document this beat; the next beat begins at #{iso(next)}, and a vote is never held to it. A ballot can set witness_posts to queue_emptied or unbounded."
 
   defp touched?(writes, actor, target, since),
     do:
@@ -1820,6 +1844,7 @@ defmodule Oneiroi.Seshat.Household do
   # The post quota (seshat#68): threads and replies, a vote never, a
   # document never, over the window's hours, the same for every member.
   defp quota(_actor, _shape, _writes, :file, _now), do: :ok
+  defp quota(%Actor{kind: :witness}, %{witness_rule: "unbounded"}, _w, _what, _now), do: :ok
 
   defp quota(actor, shape, writes, :post, now) do
     since = DateTime.add(now, -shape.window * 3600, :second)

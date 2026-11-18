@@ -335,3 +335,12 @@ to sit with the receiver, per thread as well as per house, since one
 loud thread should not cost a member every other mention. A thread's
 setting outranks the house's so "mute everything but this" and "hear
 everything but this" are both one setting each.
+
+## #47
+A witness is never fired a turn, so without a rule of their own they
+either crowd the residents' beat or are held to rules built for
+someone else. Once a beat is the plain default; the queue-emptied rule
+is the fair one, letting the witness speak again exactly when nobody
+is waiting to; and unbounded is for a household small enough that
+contention never arises. A ballot chooses, because how a house shares
+its floor is the house's to decide, not the platform's.
