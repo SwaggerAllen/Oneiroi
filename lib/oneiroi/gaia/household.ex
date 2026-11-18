@@ -137,7 +137,7 @@ defmodule Oneiroi.Gaia.Household do
 
   def execute(%__MODULE__{} = h, %Commands.ProposeHouseholdContract{} = c) do
     cond do
-      not (match?(%{kind: :witness}, c.actor) and c.actor.id == h.founder) ->
+      not founder?(h, c.actor) ->
         {:error, Error.new(:gaia_not_the_founder, :gaia_household_contract_not_founder)}
 
       h.contract != nil ->
@@ -713,6 +713,8 @@ defmodule Oneiroi.Gaia.Household do
       missed: Map.get(h.missed, resident_id, 0),
       opened_by: by
     }
+
+  defp founder?(h, actor), do: match?(%{kind: :witness}, actor) and actor.id == h.founder
 
   defp founding_refused(_h, nil), do: nil
   defp founding_refused(_h, []), do: nil
