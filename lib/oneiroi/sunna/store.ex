@@ -12,6 +12,7 @@ defmodule Oneiroi.Sunna.Store do
       field(:resident_id, :binary_id, primary_key: true)
       field(:key, :string, primary_key: true)
       field(:prompt, :string)
+      field(:parts, {:array, :string})
       field(:set_at, :utc_datetime_usec)
     end
 
@@ -333,4 +334,12 @@ defmodule Oneiroi.Sunna.Store do
   @doc "Every house prompt set, as {key, words}."
   def house_prompts,
     do: Repo.all(from(p in HousePrompt, where: not is_nil(p.prompt), select: {p.key, p.prompt}))
+
+  @doc "A house check-in's parts for her, by its key (sunna#68), or nil."
+  def house_parts(key),
+    do: Repo.one(from(p in HousePrompt, where: p.key == ^key, select: p.parts))
+
+  @doc "Every house check-in's parts for her, as {key, parts}."
+  def house_parts_all,
+    do: Repo.all(from(p in HousePrompt, where: not is_nil(p.parts), select: {p.key, p.parts}))
 end

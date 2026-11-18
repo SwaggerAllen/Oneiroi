@@ -1,6 +1,6 @@
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
-import { registerWorker } from '../app/push';
+import { registerWorker } from './shell/push';
 import { App } from './App';
 // Fonts bundled, not fetched: the server's CSP allows only its own origin,
 // and a third-party font request on every load is a leak worth avoiding.

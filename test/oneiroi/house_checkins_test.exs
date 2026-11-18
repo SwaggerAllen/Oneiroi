@@ -97,6 +97,31 @@ defmodule Oneiroi.HouseCheckinsTest do
     :ok =
       Sunna.set_house_prompt(ctx.scarlett.id, "morning", "Report the trials you ran.", ctx.andrew)
 
+    # Her parts, as her own check-ins have them (sunna#68): the dates for
+    # Lily alone; Scarlett's words kept when only parts change.
+    {:ok, _} =
+      Sunna.set_date(
+        ctx.lily.id,
+        nil,
+        %{title: "The YC answer", on: ~U[2026-12-11 17:00:00Z], kind: "deadline"},
+        ctx.andrew
+      )
+
+    assert {:error, %{kind: :sunna_parts_invalid}} =
+             Sunna.set_house_prompt(ctx.lily.id, "morning", "x", ctx.andrew, parts: ["tarot"])
+
+    :ok =
+      Sunna.set_house_prompt(
+        ctx.lily.id,
+        "morning",
+        "Report the writing and the outreach.",
+        ctx.andrew,
+        parts: ["dates"]
+      )
+
+    assert Sunna.house_parts(ctx.lily.id, "morning") == ["dates"]
+    assert Sunna.house_parts(ctx.scarlett.id, "morning") == []
+
     assert {:error, %{kind: :sunna_not_allowed}} =
              Sunna.set_house_prompt(ctx.lily.id, "morning", "mine", ctx.lily.actor)
 
@@ -118,6 +143,8 @@ defmodule Oneiroi.HouseCheckinsTest do
     assert notes[ctx.lily.id] =~ "Your part: Report the writing and the outreach."
     assert notes[ctx.scarlett.id] =~ "Your part: Report the trials you ran."
     assert notes[ctx.lily.id] =~ "threads/checkin-2026-11-16-morning"
+    assert notes[ctx.lily.id] =~ "The YC answer"
+    refute notes[ctx.scarlett.id] =~ "# Dates"
 
     assert {:ok,
             %{

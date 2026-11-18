@@ -33,7 +33,7 @@
     "docs/*.md"
   ],
   "componentPaths": [
-    "client/src/components/**"
+    "client/src/next/**/*.tsx"
   ],
   "nonAsksPath": "non-asks.md",
   "citationShorthands": {

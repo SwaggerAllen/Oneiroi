@@ -51,8 +51,22 @@ defmodule Oneiroi.Sunna.Schedule do
   def execute(%__MODULE__{}, %Commands.SetHousePrompt{actor: %{kind: k}}) when k != :witness,
     do: {:error, Error.new(:sunna_not_allowed, :sunna_house_prompt_party)}
 
-  def execute(%__MODULE__{}, %Commands.SetHousePrompt{} = c),
-    do: %Events.HousePromptSet{actor: c.actor, at: c.at, id: c.id, key: c.key, prompt: c.prompt}
+  def execute(%__MODULE__{}, %Commands.SetHousePrompt{} = c) do
+    if is_nil(c.parts) or parts_ok?(c.parts),
+      do: %Events.HousePromptSet{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        key: c.key,
+        prompt: c.prompt,
+        parts: c.parts
+      },
+      else:
+        {:error,
+         Error.new(:sunna_parts_invalid, :sunna_house_prompt_parts_invalid,
+           parts: CheckinParts.keys()
+         )}
+  end
 
   def execute(%__MODULE__{checkins: checkins}, %Commands.SetCheckin{} = c) do
     # A command that says nothing of its parts carries the dates, the

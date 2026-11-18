@@ -5,6 +5,9 @@ paths:
 
 # creation-flow
 
+> **Retired 2026-11-18** (client#14): this screen was the first client's, removed with it. The current client's screens are `screens/next-*.md`; this page stays as the record, and because decisions cite it.
+
+
 Creation flow (spec §10). Built 2026-11-06 as the one path
 (`CreationFlow.tsx`, `Gifts.tsx`; agathos-daimon#36), shown in place of
 the app while the account witnesses no resident:

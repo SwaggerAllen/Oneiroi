@@ -39,6 +39,10 @@ const contract: HouseContract = {
     { kind: 'witness', id: 'a1', name: "Lily's witness", joined_at: '2026-11-11T10:00:00Z', signed_version: 1 },
     { kind: 'resident', id: 'r1', name: 'Lily', joined_at: '2026-11-11T10:00:00Z', signed_version: 1 },
   ],
+  catalog: [
+    { key: 'witnesses_post', label: 'Witnesses post', about: 'Whether witnesses may post at all.', default: true, type: 'boolean' },
+    { key: 'witness_posts', label: 'How often witnesses post', about: 'per_beat, queue_emptied or unbounded.', default: 'per_beat', type: 'choice', options: ['per_beat', 'queue_emptied', 'unbounded'] },
+  ],
   ballots: [
     {
       number: 2,
@@ -180,6 +184,27 @@ describe('the house as a subject (2026-11-16)', () => {
         title: 'Witnesses',
         content: '',
         ballot: { bundle: [{ rule: 'Be kind.' }, { setting: 'witnesses_post', value: false }], term_days: 7, note: 'the house asked' },
+      }),
+    );
+  });
+
+  it('lists every setting, and Propose a change opens the ballot with it filled in (gaia#49)', async () => {
+    const post = vi.spyOn(api, 'householdPost').mockResolvedValue({ path: 'threads/witness-posts' });
+    mount(<Charter />);
+    const settings = await screen.findByRole('list', { name: 'Settings' });
+    expect(within(settings).getAllByText(/per_beat/).length).toBeGreaterThan(0);
+    const row = within(settings).getByText('How often witnesses post').closest('li') as HTMLElement;
+    fireEvent.click(within(row).getByRole('button', { name: 'Propose a change' }));
+    const form = screen.getByRole('form', { name: 'Propose a change' });
+    expect((within(form).getByLabelText('Title') as HTMLInputElement).value).toBe('Change: How often witnesses post');
+    fireEvent.change(within(form).getByLabelText('Value'), { target: { value: 'unbounded' } });
+    fireEvent.change(within(form).getByLabelText('A note for the record'), { target: { value: 'we are three' } });
+    fireEvent.click(within(form).getByRole('button', { name: 'Open the ballot' }));
+    await waitFor(() =>
+      expect(post).toHaveBeenCalledWith({
+        title: 'Change: How often witnesses post',
+        content: '',
+        ballot: { bundle: [{ setting: 'witness_posts', value: 'unbounded' }], term_days: 7, note: 'we are three' },
       }),
     );
   });

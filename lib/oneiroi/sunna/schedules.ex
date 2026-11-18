@@ -61,14 +61,34 @@ defmodule Oneiroi.Sunna.Schedules do
     resident_id |> Scope.resident(fn -> Store.house_prompts() end) |> Map.new()
   end
 
-  @doc "The witness sets a resident's words for a house check-in; blank clears."
-  def set_house_prompt(resident_id, key, prompt, %Actor{} = actor) do
+  @doc "A resident's parts for a house check-in (sunna#68): the catalog's keys, none when unset."
+  def house_parts(resident_id, key) do
+    Scope.resident(resident_id, fn -> Store.house_parts(key) end) || []
+  end
+
+  @doc "Every house check-in's parts for her, key to parts."
+  def house_parts_all(resident_id) do
+    resident_id |> Scope.resident(fn -> Store.house_parts_all() end) |> Map.new()
+  end
+
+  @doc """
+  The witness sets a resident's words for a house check-in, blank
+  clearing, and with `parts:` what her note carries (sunna#68); parts
+  left out keep what they were.
+  """
+  def set_house_prompt(resident_id, key, prompt, %Actor{} = actor, opts \\ []) do
+    key = to_string(key)
+
     command = %Commands.SetHousePrompt{
       actor: actor,
       at: Clock.now(),
       id: resident_id,
-      key: to_string(key),
-      prompt: blank_nil(prompt)
+      key: key,
+      prompt: blank_nil(prompt),
+      parts:
+        Keyword.get_lazy(opts, :parts, fn ->
+          Scope.resident(resident_id, fn -> Store.house_parts(key) end)
+        end)
     }
 
     with {:ok, _} <- dispatch(command), do: :ok
@@ -1371,6 +1391,20 @@ defmodule Oneiroi.Sunna.Schedules do
       end
 
     Enum.join([String.trim(frame) | words] ++ Enum.reject(sections, &(&1 in [nil, ""])), "\n\n")
+  end
+
+  @doc """
+  The parts of a check-in note, read for this resident now (sunna#28):
+  each key of the catalog's in `parts`, in the catalog's order, a part
+  with nothing to say saying so; what a house check-in carries for her
+  (sunna#68).
+  """
+  def part_texts(resident_id, parts) do
+    for key <- CheckinParts.keys(),
+        key in (parts || []),
+        text = part_text(resident_id, key),
+        text not in [nil, ""],
+        do: text
   end
 
   defp part_text(resident_id, "dates"), do: dates_text(resident_id)

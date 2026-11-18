@@ -5,7 +5,7 @@ import type { Resident } from '../../api/types';
 import { Discard } from '../settings/Discard';
 import { Regression } from '../settings/Regression';
 import { SubjectContext } from '../state/resident';
-import { slugOf, type Gift } from '../../screens/creation-flow/CreationFlow';
+import { slugOf, type Gift } from './gift';
 import { DaysGift, MeansGift, TrialsGift, VowsGift } from './Gifts';
 import { SIGN_OFF } from './Landing';
 import * as css from './onboarding.css';

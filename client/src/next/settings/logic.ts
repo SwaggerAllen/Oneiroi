@@ -1,7 +1,7 @@
 // The settings pages' logic, apart from their components (screens/next-settings.md).
 import { RequestFailed } from '../../api/client';
 import type { BudgetLine, KindEntry, ProfileEntry, RegressionCard, RegressionRun, RegressionRunDetail, RouteEntry, RoutesData, WorkItem, WorkQueue } from '../../api/types';
-import { sortCards } from '../../screens/regression/deck';
+import { sortCards } from './deck';
 
 /** What a refusal says: the server's meaning and remedy when it sent them, else the plain fact. */
 export function saidOf(e: unknown): string {

@@ -255,6 +255,12 @@ defmodule Oneiroi.Sunna.Events do
   defmodule HousePromptSet do
     # What this resident reports when the house checks in (sunna#65):
     # the witness's words for her, by the house check-in's key; nil clears.
-    use Oneiroi.Event, version: 1, fields: [:id, :key, :prompt]
+    # Version 2 adds `parts` (sunna#68): the catalog's keys her note
+    # carries, as her own check-in's does; nil on version 1, read as none.
+    use Oneiroi.Event, version: 2, fields: [:id, :key, :prompt, :parts]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: Oneiroi.Sunna.Events.HousePromptSet do
+    def upcast(event, _metadata), do: event
   end
 end

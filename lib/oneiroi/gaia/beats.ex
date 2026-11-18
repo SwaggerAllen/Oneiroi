@@ -60,6 +60,55 @@ defmodule Oneiroi.Gaia.Beats do
   @witness_rules ~w(per_beat queue_emptied unbounded)
   @resident_profiles ~w(every_beat on_turn)
 
+  # What each setting means and what it takes (gaia#49), for the screen
+  # that proposes a change: a person picks a setting and a value rather
+  # than spelling a key.
+  @about %{
+    "beat_minutes" => {"Beat length", "How long each beat lasts, in minutes."},
+    "turn_minutes" => {"Turn length", "The guideline for one resident's turn, in minutes."},
+    "beat_turn_cap" =>
+      {"Turns a beat", "The most turns a beat fires; unset, as many as fit after the sign-up."},
+    "signup_minutes" =>
+      {"Sign-up window", "Minutes at the top of each beat when residents register for it."},
+    "turns_per_registrant" =>
+      {"Turns each", "Turns one resident may take in a beat, or many (as the cap allows)."},
+    "post_quota" => {"Post quota", "Posts a member may make in the quota's window."},
+    "post_quota_window_hours" => {"Quota window", "The hours the post quota counts over."},
+    "resident_wake_profile" =>
+      {"Residents' default wake", "Whether a resident is woken every beat, or on her turn."},
+    "witnesses_post" =>
+      {"Witnesses post", "Whether witnesses may post at all; off, they vote and read."},
+    "witness_posts" =>
+      {"How often witnesses post",
+       "per_beat: once in each thread and to each document a beat; queue_emptied: again once nobody waits; unbounded: no bound and no quota."}
+  }
+
+  @doc """
+  Every beat setting with what it means, its default and what it takes
+  (gaia#49): `%{key, label, about, default, type, min, max, options}`,
+  `type` one of `integer`, `choice`, `boolean`.
+  """
+  @spec catalog() :: [map()]
+  def catalog do
+    for key <-
+          ~w(beat_minutes turn_minutes signup_minutes beat_turn_cap turns_per_registrant post_quota post_quota_window_hours resident_wake_profile witnesses_post witness_posts) do
+      {label, about} = @about[key]
+      Map.merge(%{key: key, label: label, about: about, default: @defaults[key]}, takes(key))
+    end
+  end
+
+  defp takes("turns_per_registrant"),
+    do: %{type: "integer", min: 1, max: 12, options: ["many"]}
+
+  defp takes("resident_wake_profile"), do: %{type: "choice", options: @resident_profiles}
+  defp takes("witness_posts"), do: %{type: "choice", options: @witness_rules}
+  defp takes("witnesses_post"), do: %{type: "boolean"}
+
+  defp takes(key) do
+    r = @ranges[key]
+    %{type: "integer", min: r.first, max: r.last}
+  end
+
   @doc "The beat settings with their defaults (gaia#33)."
   @spec defaults() :: map()
   def defaults, do: @defaults

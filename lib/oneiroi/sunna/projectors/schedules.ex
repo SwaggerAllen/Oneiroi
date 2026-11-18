@@ -57,9 +57,10 @@ defmodule Oneiroi.Sunna.Projectors.Schedules do
         resident_id: e.id,
         key: e.key,
         prompt: e.prompt,
+        parts: e.parts,
         set_at: e.at
       },
-      on_conflict: [set: [prompt: e.prompt, set_at: e.at]],
+      on_conflict: [set: [prompt: e.prompt, parts: e.parts, set_at: e.at]],
       conflict_target: [:resident_id, :key]
     )
   end)

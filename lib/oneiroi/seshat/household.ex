@@ -938,7 +938,7 @@ defmodule Oneiroi.Seshat.Household do
     by = author(household_id, actor)
     meta = thread_meta(title || Path.basename(path, ".md"), by, actor) ++ sharing
 
-    with :ok <- gate(actor, household_id, view, path, :file),
+    with :ok <- document_gate(actor, household_id, view, path),
          false <- has?(view, path),
          changes = [{:create, path, render(meta, text)} | descriptor(view, Kinds.kind_of(path))],
          {:ok, _} <- commit(view, changes, "Post: #{path}", by) do
@@ -1152,7 +1152,7 @@ defmodule Oneiroi.Seshat.Household do
          {:ok, given, source} <- words_from(actor, attrs),
          words = given || body,
          :ok <- worded(words, false),
-         :ok <- gate(actor, household_id, view, path, :file),
+         :ok <- document_gate(actor, household_id, view, path),
          by = author(household_id, actor),
          meta =
            meta
@@ -1713,6 +1713,26 @@ defmodule Oneiroi.Seshat.Household do
   end
 
   # ---- the beats' gate (seshat#67 to #69) ----
+
+  # A witness's own documents, in their name-folder, are theirs to write
+  # and rewrite whenever they like (seshat#87; the witness, 2026-11-18:
+  # "humans shouldn't be bound by beats when updating their own documents
+  # in their witness folder"). Every other document write goes through
+  # the beats.
+  defp document_gate(%Actor{kind: :witness, id: id} = actor, household_id, view, path) do
+    case Gaia.witness_folder(id) do
+      folder when is_binary(folder) ->
+        if String.starts_with?(path, "human/#{folder}/"),
+          do: :ok,
+          else: gate(actor, household_id, view, path, :file)
+
+      nil ->
+        gate(actor, household_id, view, path, :file)
+    end
+  end
+
+  defp document_gate(actor, household_id, view, path),
+    do: gate(actor, household_id, view, path, :file)
 
   # Every household write but a vote passes here, inside the household's
   # lock so two writes cannot both pass on one count: a resident only in

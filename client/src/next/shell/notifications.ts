@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
-import { pushState } from '../../app/push';
+import { pushState } from './push';
 
 /**
  * Whether to ask about notifications: until the witness's account answers,

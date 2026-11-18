@@ -7,6 +7,9 @@ paths:
 
 # more
 
+> **Retired 2026-11-18** (client#14): this screen was the first client's, removed with it. The current client's screens are `screens/next-*.md`; this page stays as the record, and because decisions cite it.
+
+
 More (spec §10), partly built: `client/src/screens/more/` (`More.tsx`,
 its stories and tests), the fifth bottom-nav destination, rendered by
 `App` in `client/src/app/App.tsx` with no data of its own. The state

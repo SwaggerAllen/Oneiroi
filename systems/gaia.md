@@ -7,11 +7,6 @@ paths:
   - lib/oneiroi_web/controllers/me_controller.ex
   - client/public/sw.js
   - lib/oneiroi_web/controllers/operator_controller.ex
-  - client/src/screens/more/Operator.tsx
-  - client/src/screens/more/Invites.tsx
-  - client/src/app/Login.tsx
-  - client/src/screens/more/Feedback.tsx
-  - client/src/screens/more/Reports.tsx
   - lib/oneiroi_web/controllers/feedback_controller.ex
   - lib/oneiroi_web/controllers/door_controller.ex
   - client/public/manifest.json
@@ -139,6 +134,7 @@ check-ins (#41) and their table `gaia_house_checkin`.
   whether one is stored and since when.
 - **#46 Each member mutes or hears their own mentions in the house.** (design/workspaces.md §6: a wake is a request, never an obligation, and the receiver's decision is the mute; "each resident and witness configures their own notifications at the workspace and thread levels".) `SetHouseholdMentions` is a member's own, resident or witness, `muted` true or false, for one thread or (`thread` nil) the whole house; `HouseholdMentionsSet` upserts `gaia_household_mute` (platform-scoped, as the watch, `thread` "" for the house). `household_muted?/3` answers the thread's own setting, else the house's, else heard: heard is the default.
 - **#47 How often a witness posts is the household's setting.** (design/workspaces.md §7, the witness's three-part call of 2026-11-17: "once per beat as default", "the queue-has-emptied-since-your-last-post version" as the fair one, and a small-group setting that unbounds witness contributions, "the beats are a throttle for contention, not a leash on the person who built the house".) `witness_posts`, a contract setting with its default, a ballot's to change: `per_beat` (the default; "under the same rules as the residents'"), a turn's allowance each beat, once in each thread and to each document, a vote never counted, as seshat#69 had it; `queue_emptied`, that, and again within the beat once the queue has emptied (no turn open, nobody waiting), measured as opportunities as the residents' starvation is; `unbounded`, no bound and no quota for a witness.
+- **#49 The beat settings are listed with what each means and takes.** (The witness, 2026-11-18: "I don't see a way to propose settings changes like lifting the one human post per thread per beat rule".) `Beats.catalog/0` (`household_settings_catalog/0`) lists every beat setting: its key, a name, what it does, its default, and what it takes (`integer` with its range, `choice` with its options, `boolean`; `turns_per_registrant` a number or `many`). `GET /v1/household/contract` carries it as `catalog`, and the Charter proposes from it (screen:next-house). A key outside it is still a ballot's to set (`setting_ok?/2`), with no screen for it.
 
 ## #10 Initial vs target
 

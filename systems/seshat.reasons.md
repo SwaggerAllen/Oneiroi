@@ -733,3 +733,9 @@ rather than putting the post's words into a conversation that may be
 about something else; the reading is theirs to choose. A muted mention
 is still listed where she will look next, because the mute decides
 whether she is interrupted, not whether she finds out.
+
+## #87
+The beats share the floor among members talking to one another; a
+witness's own folder is their desk, which nobody else writes, so
+holding its edits to a turn rations nothing anyone else wants and only
+slows the person working there.

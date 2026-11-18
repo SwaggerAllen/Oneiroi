@@ -147,12 +147,19 @@ defmodule OneiroiWeb.ScheduleController do
 
   def house(conn, %{"id" => id}) do
     prompts = Sunna.house_prompts(id)
+    parts = Sunna.house_parts_all(id)
 
     case Oneiroi.Seshat.house_checkins(actor(conn)) do
       {:ok, %{zone: zone, checkins: checkins}} ->
         json(conn, %{
           zone: zone,
-          checkins: Enum.map(checkins, &Map.put(&1, :prompt, Map.get(prompts, &1.key)))
+          checkins:
+            Enum.map(
+              checkins,
+              &(&1
+                |> Map.put(:prompt, Map.get(prompts, &1.key))
+                |> Map.put(:parts, Map.get(parts, &1.key, [])))
+            )
         })
 
       {:error, _not_a_member} ->
@@ -161,16 +168,25 @@ defmodule OneiroiWeb.ScheduleController do
   end
 
   operation(:set_house_prompt,
-    summary: "Set this resident's own words for a house check-in (sunna#65); empty clears",
+    summary:
+      "Set this resident's own words for a house check-in (sunna#65), empty clearing, and her parts, the check-in catalog's keys (sunna#68); parts left out keep what they were",
     parameters: [id: [in: :path, type: :string], key: [in: :path, type: :string]],
     request_body:
       {"the words", "application/json",
-       %Schema{type: :object, properties: %{prompt: %Schema{type: :string}}}},
+       %Schema{
+         type: :object,
+         properties: %{
+           prompt: %Schema{type: :string},
+           parts: %Schema{type: :array, items: %Schema{type: :string}}
+         }
+       }},
     responses: [no_content: "set"]
   )
 
   def set_house_prompt(conn, %{"id" => id, "key" => key} = params) do
-    case Sunna.set_house_prompt(id, key, params["prompt"], actor(conn)) do
+    opts = if Map.has_key?(params, "parts"), do: [parts: params["parts"]], else: []
+
+    case Sunna.set_house_prompt(id, key, params["prompt"], actor(conn), opts) do
       :ok -> send_resp(conn, 204, "")
       other -> respond(conn, other)
     end

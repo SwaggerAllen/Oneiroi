@@ -1,5 +1,4 @@
-import type { Gift } from '../screens/creation-flow/CreationFlow';
-import type { ReportDetail } from '../screens/more/Reports';
+import type { Gift } from '../next/onboarding/gift';
 import type {
   Adapter,
   Ask,
@@ -293,6 +292,19 @@ export interface HouseContract {
   versions: HouseVersion[];
   members: HouseMember[];
   ballots: HouseBallot[];
+  /** Every setting a ballot can change, with what it means and takes (gaia#49). */
+  catalog?: HouseSetting[];
+}
+
+export interface HouseSetting {
+  key: string;
+  label: string;
+  about: string;
+  default: string | number | boolean | null;
+  type: 'integer' | 'choice' | 'boolean';
+  min?: number;
+  max?: number;
+  options?: string[];
 }
 
 export interface HouseTurn {
@@ -326,8 +338,9 @@ export interface HouseCheckin {
   last_day: string | null;
   last_thread: string | null;
   last_fired_at: string | null;
-  // On a resident's Rhythm page: her own words for it.
+  // On a resident's Rhythm page: her own words for it, and her parts (sunna#68).
   prompt?: string | null;
+  parts?: string[];
 }
 
 export interface HouseCheckins {
@@ -611,8 +624,8 @@ export const api = {
     call<HouseCheckins>('PUT', `/v1/household/checkins/${encodeURIComponent(key)}`, { label, time }),
   removeHouseCheckin: (key: string, note: string) => call<HouseCheckins>('DELETE', `/v1/household/checkins/${encodeURIComponent(key)}`, { note }),
   houseForResident: (residentId: string) => call<HouseCheckins>('GET', `/v1/residents/${residentId}/schedule/house`),
-  setHousePrompt: (residentId: string, key: string, prompt: string) =>
-    call<void>('PUT', `/v1/residents/${residentId}/schedule/house/${encodeURIComponent(key)}`, { prompt }),
+  setHousePrompt: (residentId: string, key: string, prompt: string, parts?: string[]) =>
+    call<void>('PUT', `/v1/residents/${residentId}/schedule/house/${encodeURIComponent(key)}`, { prompt, ...(parts ? { parts } : {}) }),
   householdRead: (path: string) => call<HouseDoc>('GET', `/v1/household/read?path=${encodeURIComponent(path)}`),
   householdEdit: (path: string, edit: { content?: string; mode?: 'owner' | 'open' }) =>
     call<{ path: string; mode: string; commit: string }>('PUT', '/v1/household/documents', { path, ...edit }),
@@ -892,7 +905,7 @@ export const api = {
     call<{ number: number }>('POST', '/v1/feedback', r),
   myFeedback: () => call<FeedbackReport[]>('GET', '/v1/me/feedback'),
   allFeedback: () => call<FeedbackReport[]>('GET', '/v1/platform/feedback'),
-  feedbackReport: (n: number) => call<ReportDetail>('GET', `/v1/platform/feedback/${n}`),
+  feedbackReport: (n: number) => call<FeedbackReport & { failures: { at: string; level: string; component: string | null; error_kind: string | null; error_site: string | null; message: string }[] }>('GET', `/v1/platform/feedback/${n}`),
   moveFeedback: (n: number, status: string, note: string) => call<void>('POST', `/v1/platform/feedback/${n}/status`, { status, note }),
   stopTurn: (residentId: string, sessionKey: string) => call<void>('POST', `/v1/residents/${residentId}/sessions/${sessionKey}/stop`),
   work: (residentId: string) => call<WorkQueue>('GET', `/v1/residents/${residentId}/work`),

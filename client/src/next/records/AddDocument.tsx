@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api/client';
-import { humanPath } from '../../screens/library/paths';
+import { humanPath } from './paths';
 import { ScrollArea } from '../shell/ScrollArea';
 import { useSubject } from '../state/resident';
 import * as css from './records.css';

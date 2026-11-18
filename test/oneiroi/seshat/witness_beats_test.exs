@@ -47,6 +47,26 @@ defmodule Oneiroi.Seshat.WitnessBeatsTest do
     refute Beats.setting_ok?("witness_posts", "always")
   end
 
+  # gaia#49: the catalog the Charter proposes from is every setting the
+  # beats read, each taking what setting_ok? takes.
+  test "the settings catalog names every beat setting, with what it takes" do
+    catalog = Beats.catalog()
+    assert Enum.sort(Enum.map(catalog, & &1.key)) == Enum.sort(Beats.keys())
+
+    for k <- catalog do
+      assert is_binary(k.label) and is_binary(k.about)
+
+      case k.type do
+        "integer" -> assert Beats.setting_ok?(k.key, k.min) and Beats.setting_ok?(k.key, k.max)
+        "choice" -> assert Enum.all?(k.options, &Beats.setting_ok?(k.key, &1))
+        "boolean" -> assert Beats.setting_ok?(k.key, true)
+      end
+    end
+
+    assert %{type: "choice", options: ["per_beat", "queue_emptied", "unbounded"]} =
+             Enum.find(catalog, &(&1.key == "witness_posts"))
+  end
+
   test "by default a turn's allowance each beat: once in each thread; the next beat, again",
        ctx do
     assert {:ok, %{path: first}} = post(ctx, "First")

@@ -344,3 +344,9 @@ is the fair one, letting the witness speak again exactly when nobody
 is waiting to; and unbounded is for a household small enough that
 contention never arises. A ballot chooses, because how a house shares
 its floor is the house's to decide, not the platform's.
+
+## #49
+A setting that can only be changed by spelling its key is a setting
+nobody changes: the ballot form took any key and value, and nothing on
+the screen said which keys existed or what they took. Listing them from
+the module that validates them keeps the list and the rules one thing.

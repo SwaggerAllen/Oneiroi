@@ -2,7 +2,6 @@
 paths:
   - client/next.html
   - client/index.html
-  - client/classic.html
   - client/src/next/*.tsx
   - client/src/next/shell/**
   - client/src/next/state/**

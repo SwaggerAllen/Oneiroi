@@ -5,6 +5,9 @@ paths:
 
 # library
 
+> **Retired 2026-11-18** (client#14): this screen was the first client's, removed with it. The current client's screens are `screens/next-*.md`; this page stays as the record, and because decisions cite it.
+
+
 Library (spec §10), partly built 2026-11-02: `client/src/screens/library/`
 (`Library.tsx`, `paths.ts`, stories and tests), under More, loaded by
 `LibraryContainer` in `client/src/app/App.tsx` from

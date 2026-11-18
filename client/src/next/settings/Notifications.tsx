@@ -1,6 +1,6 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../api/client';
-import { pushState, turnOff, turnOn, type PushState } from '../../app/push';
+import { pushState, turnOff, turnOn, type PushState } from '../shell/push';
 import { useNotificationsAsk } from '../shell/notifications';
 import { useSubject } from '../state/resident';
 import { useShell } from '../state/store';
