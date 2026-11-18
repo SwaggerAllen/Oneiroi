@@ -915,7 +915,8 @@ defmodule Oneiroi.Seshat.Household do
   defp post_document(actor, household_id, _view, attrs) do
     title = one_line(attrs["title"])
 
-    with {:ok, path} <- household_path(attrs["path"] || ""),
+    with :ok <- path_given(attrs["path"]),
+         {:ok, path} <- household_path(attrs["path"]),
          false <- Kinds.container?(Kinds.kind_of(path)),
          :ok <- own_folder(actor, path),
          {:ok, sharing} <- sharing(attrs, actor),
@@ -1217,6 +1218,15 @@ defmodule Oneiroi.Seshat.Household do
     do:
       {:error,
        Error.new(:seshat_household_no_such_document, :seshat_household_edit_absent, path: path)}
+
+  # A document posted with no path is told so first (2026-11-18, Lily's
+  # letter #1175: the path's format, given alone, read as a format fault
+  # through eight tries).
+  defp path_given(path) do
+    if is_binary(path) and String.trim(path) != "",
+      do: :ok,
+      else: {:error, Error.new(:seshat_household_no_path, :seshat_household_document_no_path)}
+  end
 
   # Whose folder a household document goes in (seshat#81): a witness's
   # in human/<their name>/, made by its first file; a resident's in a

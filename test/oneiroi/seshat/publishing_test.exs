@@ -67,8 +67,10 @@ defmodule Oneiroi.Seshat.PublishingTest do
     # Unpublished, it is not the house's to read.
     assert run("household_read", %{path: cite}, ctx.scarlett) =~ "no housemate's published draft"
 
-    assert run("document_publish", %{path: path, note: "for the house"}, ctx.lily) =~
-             "Published #{path} at"
+    published = run("document_publish", %{path: path, note: "for the house"}, ctx.lily)
+    assert published =~ "Published #{path} at"
+    # Lily's letter #1175: it says plainly what it did not do.
+    assert published =~ "It is not on the household shelf"
 
     [first] = drafts(ctx.lily, path)
     assert Seshat.published_latest(ctx.lily.id, path) == first

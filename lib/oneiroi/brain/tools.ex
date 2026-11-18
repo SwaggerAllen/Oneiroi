@@ -3360,7 +3360,8 @@ defmodule Oneiroi.Brain.Tools do
            turn.resident
          ) do
       {:ok, p} ->
-        "Published #{p.path} at #{String.slice(p.commit, 0, 12)}: your housemates read it as #{own_slug(turn)}:#{p.path}."
+        "Published #{p.path} at #{String.slice(p.commit, 0, 12)}: your housemates can read it by citation, as #{own_slug(turn)}:#{p.path}. " <>
+          "It is not on the household shelf: household_post with path (in your turn) puts a copy there, and from: #{p.path} names this file as its source."
 
       other ->
         other

@@ -341,6 +341,10 @@ defmodule Oneiroi.Seshat do
       {:seshat_household_quota_spent,
        "the household's post quota is spent for now: threads and replies over its window, the same for every member (seshat#68); a vote never counts",
        remedy: "wait for the oldest post in the window to leave it"},
+      {:seshat_household_no_path,
+       "missing: path. A household document needs a path of its own, as <kind>/<name>.md under a household kind's folder (design/, or a witness's human/<name>/)",
+       remedy:
+         "add path, e.g. design/<name>.md; with from: <a path of yours>, its words are copied from your own records"},
       {:seshat_household_invalid,
        "a household post is a thread with a one-line title (at most 200 characters) and words (at most 64,000), or a document of a household kind at a path of its own; a ballot carries its bundle and its term",
        remedy:
