@@ -859,7 +859,7 @@ defmodule Oneiroi.Sunna.Schedules do
              )
            ) do
       recorded = record_free_time(resident_id, {day, slot}, key, nil, actor)
-      if result, do: carry_on(resident_id, key, result, 2)
+      if result, do: carry_on(resident_id, key, result, 2, run_of(day, slot))
       recorded
     else
       {:error, %{site: _} = e} ->
@@ -1010,7 +1010,7 @@ defmodule Oneiroi.Sunna.Schedules do
   conversation while the free-time budget line has money left and the
   slot's turns are not spent, the note saying how much is left.
   """
-  def continue_free_time(resident_id, key, n) do
+  def continue_free_time(resident_id, key, n, run \\ nil) do
     with %{left: left} <- free_time_budget(resident_id),
          true <- n <= Config.fetch!(:sunna, :free_time_turns),
          {:ok, result} <-
@@ -1024,17 +1024,25 @@ defmodule Oneiroi.Sunna.Schedules do
              }),
              :free_time
            ) do
-      carry_on(resident_id, key, result, n + 1)
+      carry_on(resident_id, key, result, n + 1, run)
       :ok
     else
       {:error, _} = failed ->
         failed
 
       _done ->
-        free_time_worker().enqueue_plan(resident_id, key)
+        free_time_worker().enqueue_plan(resident_id, key, run)
         :ok
     end
   end
+
+  # Which run of a conversation a job belongs to (sunna#69): a slot's,
+  # or a letter's wake resuming the same conversation later. A job is
+  # once per run, never once per conversation: keyed by conversation
+  # alone, a woken run's turns and its planning turn were the slot's
+  # already, dropped as duplicates, and its record stayed open, holding
+  # the work line three hours (2026-11-18, the 09:35 wake).
+  defp run_of(day, label), do: "#{day} #{label}"
 
   # A turn that ran out of tool rounds is woken again, in a job of its
   # own; one that ended in words with nothing to call is her being done.
@@ -1042,18 +1050,18 @@ defmodule Oneiroi.Sunna.Schedules do
   # the planning turn comes next (sunna#31).
   # A turn stopped by her safe word or the witness's Stop (brain#61)
   # ends the slot there: nothing carries it on, not even the plan.
-  defp carry_on(_resident_id, _key, %{stopped: _by}, _n), do: :ok
+  defp carry_on(_resident_id, _key, %{stopped: _by}, _n, _run), do: :ok
 
-  defp carry_on(resident_id, key, %{rounds_spent: true}, n) do
+  defp carry_on(resident_id, key, %{rounds_spent: true}, n, run) do
     if free_time_budget(resident_id) && n <= Config.fetch!(:sunna, :free_time_turns),
-      do: free_time_worker().enqueue(resident_id, key, n),
-      else: free_time_worker().enqueue_plan(resident_id, key)
+      do: free_time_worker().enqueue(resident_id, key, n, run),
+      else: free_time_worker().enqueue_plan(resident_id, key, run)
 
     :ok
   end
 
-  defp carry_on(resident_id, key, _result, _n) do
-    free_time_worker().enqueue_plan(resident_id, key)
+  defp carry_on(resident_id, key, _result, _n, run) do
+    free_time_worker().enqueue_plan(resident_id, key, run)
     :ok
   end
 
@@ -1218,7 +1226,7 @@ defmodule Oneiroi.Sunna.Schedules do
     case wake(resident_id, key, letters_note(letters, Enum.map(letters, & &1.number)), :free_time) do
       {:ok, result} ->
         recorded = record_free_time(resident_id, {day, label}, key, nil, actor)
-        carry_on(resident_id, key, result, 2)
+        carry_on(resident_id, key, result, 2, run_of(day, label))
         recorded
 
       {:error, %{site: _} = e} ->

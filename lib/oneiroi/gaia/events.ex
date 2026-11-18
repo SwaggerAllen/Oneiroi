@@ -175,7 +175,17 @@ defmodule Oneiroi.Gaia.Events do
   # founding witness proposes version 1, prose alone; it is in force at
   # once, and proposing it is the founder's signature.
   defmodule HouseholdContractProposed do
-    use Oneiroi.Event, version: 1, fields: [:id, :version, :prose], decision: true
+    # Version 2 adds the founding version's own rules and settings
+    # (gaia#50): a charter can open with the house's settings rather than
+    # waiting on a ballot for them; nil on version 1, read as none.
+    use Oneiroi.Event,
+      version: 2,
+      fields: [:id, :version, :prose, :rules, :settings],
+      decision: true
+  end
+
+  defimpl Commanded.Event.Upcaster, for: Oneiroi.Gaia.Events.HouseholdContractProposed do
+    def upcast(event, _metadata), do: event
   end
 
   # A member's signature of the version in force, for a member who joined

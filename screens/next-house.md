@@ -107,7 +107,10 @@ server.
     new thread. A setting is chosen from the list by name, with what it
     does and its value now under it, and its value from what it takes: a
     list for a choice or yes/no, a number in its range otherwise.
-  - With no version yet, **Found the charter**: version 1, prose alone.
+  - With no version yet, **Found the charter**: version 1, its prose and,
+    with the ballot form's own rule and setting rows (settings from the
+    list), the rules and settings it starts with (gaia#50); in force once
+    proposed.
   - Every version, newest first, with the ballot and bundle that made it.
 
 ## Not built

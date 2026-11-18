@@ -23,8 +23,8 @@ defmodule Oneiroi.Sunna.FreeTimeWorker do
   def run(%{"resident_id" => resident_id, "session_key" => key, "turn" => "plan"}),
     do: Schedules.plan_free_time(resident_id, key)
 
-  def run(%{"resident_id" => resident_id, "session_key" => key, "turn" => n}),
-    do: Schedules.continue_free_time(resident_id, key, n)
+  def run(%{"resident_id" => resident_id, "session_key" => key, "turn" => n} = args),
+    do: Schedules.continue_free_time(resident_id, key, n, args["run"])
 
   @doc "Enqueues turn `n` of the bedtime scene pass before `slot` (sunna#34), once a day a turn."
   def enqueue_scene(resident_id, day, slot, key, n) do
@@ -58,13 +58,19 @@ defmodule Oneiroi.Sunna.FreeTimeWorker do
     )
   end
 
-  @doc "Enqueues the slot's planning turn (sunna#31), once per conversation."
-  def enqueue_plan(resident_id, key), do: enqueue(resident_id, key, "plan")
+  @doc "Enqueues a run's planning turn (sunna#31), once per run of the conversation (sunna#69)."
+  def enqueue_plan(resident_id, key, run \\ nil), do: enqueue(resident_id, key, "plan", run)
 
-  @doc "Enqueues turn `n` of the free-time pass in `key`."
-  def enqueue(resident_id, key, n) do
-    Jobs.enqueue(__MODULE__, %{"resident_id" => resident_id, "session_key" => key, "turn" => n},
-      unique: [period: :infinity, keys: [:session_key, :turn]]
+  @doc """
+  Enqueues turn `n` of the free-time pass in `key`, once per run
+  (sunna#69): a slot's run, or a letter's wake resuming the same
+  conversation later, each with its own turns and planning turn.
+  """
+  def enqueue(resident_id, key, n, run \\ nil) do
+    Jobs.enqueue(
+      __MODULE__,
+      %{"resident_id" => resident_id, "session_key" => key, "turn" => n, "run" => run},
+      unique: [period: :infinity, keys: [:session_key, :run, :turn]]
     )
   end
 end

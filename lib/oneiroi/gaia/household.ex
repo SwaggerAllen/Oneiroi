@@ -137,7 +137,7 @@ defmodule Oneiroi.Gaia.Household do
 
   def execute(%__MODULE__{} = h, %Commands.ProposeHouseholdContract{} = c) do
     cond do
-      not (match?(%{kind: :witness}, c.actor) and c.actor.id == h.founder) ->
+      not founder?(h, c.actor) ->
         {:error, Error.new(:gaia_not_the_founder, :gaia_household_contract_not_founder)}
 
       h.contract != nil ->
@@ -146,7 +146,14 @@ defmodule Oneiroi.Gaia.Household do
       not prose?(c.prose) ->
         {:error, Error.new(:gaia_household_contract_invalid, :gaia_household_contract_prose)}
 
+      # Its own rules and settings (gaia#50), held to a ballot's checks:
+      # each setting in its bounds, and the beats still beats.
+      refused = founding_refused(h, c.bundle) ->
+        refused
+
       true ->
+        bundle = c.bundle || []
+
         [
           %Events.HouseholdContractProposed{
             actor: c.actor,
@@ -154,6 +161,8 @@ defmodule Oneiroi.Gaia.Household do
             id: c.id,
             version: 1,
             prose: c.prose,
+            rules: for(%{"rule" => r} <- bundle, do: r),
+            settings: for(%{"setting" => k, "value" => v} <- bundle, into: %{}, do: {k, v}),
             note: c.note
           },
           # Proposing is the founder's signature.
@@ -705,6 +714,18 @@ defmodule Oneiroi.Gaia.Household do
       opened_by: by
     }
 
+  defp founder?(h, actor), do: match?(%{kind: :witness}, actor) and actor.id == h.founder
+
+  defp founding_refused(_h, nil), do: nil
+  defp founding_refused(_h, []), do: nil
+
+  defp founding_refused(h, bundle) do
+    case bundle_refused(h, bundle) do
+      nil -> nil
+      {:error, %{kind: kind}} -> {:error, Error.new(kind, :gaia_household_founding_bundle)}
+    end
+  end
+
   defp bundle_refused(h, bundle) do
     cond do
       not bundle?(bundle) ->
@@ -875,7 +896,15 @@ defmodule Oneiroi.Gaia.Household do
       )
 
   def apply(%__MODULE__{} = h, %Events.HouseholdContractProposed{} = e),
-    do: %{h | contract: %{version: e.version, prose: e.prose, rules: [], settings: %{}}}
+    do: %{
+      h
+      | contract: %{
+          version: e.version,
+          prose: e.prose,
+          rules: e.rules || [],
+          settings: e.settings || %{}
+        }
+    }
 
   def apply(%__MODULE__{} = h, %Events.HouseholdContractSigned{} = e),
     do: signed(h, {e.member_kind, e.member_id}, e.version)

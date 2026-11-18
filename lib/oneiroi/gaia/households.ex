@@ -360,13 +360,14 @@ defmodule Oneiroi.Gaia.Households do
   end
 
   @doc "The founding witness proposes version 1, prose alone, with a note (gaia#27); proposing is the founder's signature."
-  def propose_contract(household_id, prose, note, %Actor{} = actor) do
+  def propose_contract(household_id, prose, note, %Actor{} = actor, bundle \\ nil) do
     dispatch(%Commands.ProposeHouseholdContract{
       actor: actor,
       at: Clock.now(),
       id: household_id,
       prose: prose,
-      note: note
+      note: note,
+      bundle: bundle
     })
   end
 

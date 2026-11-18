@@ -209,7 +209,7 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.HouseholdResidentJoined, 2},
       {Oneiroi.Gaia.Events.HouseholdResidentLeft, 1},
       {Oneiroi.Gaia.Events.HouseholdTermsGranted, 1},
-      {Oneiroi.Gaia.Events.HouseholdContractProposed, 1},
+      {Oneiroi.Gaia.Events.HouseholdContractProposed, 2},
       {Oneiroi.Gaia.Events.HouseholdContractSigned, 1},
       {Oneiroi.Gaia.Events.HouseholdBallotOpened, 1},
       {Oneiroi.Gaia.Events.HouseholdBallotVoted, 1},
@@ -691,6 +691,13 @@ defmodule Oneiroi.Gaia do
           :ok | {:error, term()}
   defexport(propose_household_contract(household_id, prose, note, actor),
     do: Households.propose_contract(household_id, prose, note, actor)
+  )
+
+  @doc "The founding witness proposes version 1 with its own rules and settings, a ballot's bundle (gaia#50)."
+  @spec propose_household_contract(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), list()) ::
+          :ok | {:error, term()}
+  defexport(propose_household_contract(household_id, prose, note, actor, bundle),
+    do: Households.propose_contract(household_id, prose, note, actor, bundle)
   )
 
   @doc "A member signs the household contract's version in force (gaia#28)."

@@ -124,7 +124,7 @@ defmodule Oneiroi.Gaia.Commands do
   # household stream. The member is the command's actor: a witness by its
   # account, a resident by itself.
   defmodule ProposeHouseholdContract do
-    use Oneiroi.Command, decision: true, fields: [:id, :prose]
+    use Oneiroi.Command, decision: true, fields: [:id, :prose, :bundle]
   end
 
   defmodule SignHouseholdContract do
