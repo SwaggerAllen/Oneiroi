@@ -16,7 +16,9 @@ defmodule Oneiroi.Sunna.FreeTimeWakeTest do
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake
   alias Oneiroi.Sunna
+  alias Oneiroi.Scope
   alias Oneiroi.Sunna.FreeTimeWorker
+  alias Oneiroi.Sunna.Store
 
   # The fake clock's epoch, 2026-10-26 12:00Z, is 08:00 in New York.
   @zone "America/New_York"
