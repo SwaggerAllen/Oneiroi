@@ -222,7 +222,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
       end)
 
     cond do
-      stalled?(state) or orphaned?(state, items) or dead?(state) ->
+      left_behind?(state, items) ->
         end_stalled(resident_id, state)
 
       state && state.running ->
@@ -425,7 +425,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
       # A run left behind is asked about armed or not (sunna#41): the
       # check is the only place that ends it.
-      (state != nil and (stalled?(state) or orphaned?(state, items) or dead?(state))) or
+      (state != nil and left_behind?(state, items)) or
         (state != nil and state.armed and is_nil(state.running) and
            state.rested_reason != Work.stopped_rest() and
            Enum.any?(items, &(&1.status == "open")))
@@ -457,6 +457,12 @@ defmodule Oneiroi.Sunna.WorkLoop do
   end
 
   defp stalled?(_state), do: false
+
+  # A run the check ends rather than waits on: stalled past the bound
+  # (#37), its item no longer in work (#41), or no job left to carry it
+  # (#70).
+  defp left_behind?(state, items),
+    do: stalled?(state) or orphaned?(state, items) or dead?(state)
 
   # A run with no job left to carry it (sunna#70): a restart killed its
   # turn mid-call, and a work job has one attempt, so nothing will end
