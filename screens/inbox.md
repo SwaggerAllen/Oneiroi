@@ -5,6 +5,9 @@ paths:
 
 # inbox
 
+> **Retired 2026-11-18** (client#14): this screen was the first client's, removed with it. The current client's screens are `screens/next-*.md`; this page stays as the record, and because decisions cite it.
+
+
 Writing (seshat#42), first when there is any: each piece marked for review as a card ("For review: …") with the last decision if it had one, a required note, Approve and Decline; an approved piece saying the reader drafts it next and it is never published without him; a drafted one with "Open the draft on Substack" and a line to press Publish there. (`Pieces.tsx`)
 
 **Waiting on you** (brain#65), first on the screen: the server's `needs_you` list (`GET .../needs_you`), oldest first, one line each (a reply to approve, an approved reply to send, an ask, a piece to review or to publish, a work item held for your word, with its ask ("Work item #25 held: …", sunna#54), a work item blocked before sunna#42, on the words it was blocked on; work blocked on other work is the queue's, never listed here), how long it has waited, and "a long time" past two days; each a link to the card below where it is decided, or the screen it is decided on (Work, for work: sunna#38). The same list is its own page, Waiting on you, under More, whose entries open the thing itself (`screens/more.md`). The card has no button: nothing on it decides, sends or approves, and an old entry is only marked. (`Waiting.tsx`, `queue.ts`)

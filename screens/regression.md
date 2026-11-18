@@ -5,6 +5,9 @@ paths:
 
 # regression
 
+> **Retired 2026-11-18** (client#14): this screen was the first client's, removed with it. The current client's screens are `screens/next-*.md`; this page stays as the record, and because decisions cite it.
+
+
 Regression (spec §10). Built as `Regression` with `RegressionContainer`
 in the shell, under More, from `.../regression/tests` and
 `.../regression/runs`: the tests, written and edited as three texts side by side;

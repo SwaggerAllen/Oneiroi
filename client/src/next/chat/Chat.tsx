@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
 import type { Message } from '../../api/types';
-import { toolSummary } from '../../screens/chat/page';
+import { toolSummary } from './page';
 import type { Live } from '../live/live';
 import { ScrollArea, type Edges } from '../shell/ScrollArea';
 import { elapsed, useNow, usePresence } from '../shell/presence';
@@ -9,7 +9,7 @@ import * as css from './chat.css';
 import { Markdown } from './Markdown';
 import { FirstDay } from './FirstDay';
 import { Navigator } from './Navigator';
-import { creditRefusal, failureWords } from '../../screens/chat/outbox';
+import { creditRefusal, failureWords } from './outbox';
 import { TurnTools } from './TurnTools';
 import { Reacts } from './Reacts';
 import { useReacts } from './useReacts';

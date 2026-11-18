@@ -8,8 +8,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import type { Message } from '../../api/types';
-import { batched, failedFrom, loadOutbox, newRef, remove, saveOutbox, settle, stuck, update, underWay, type Outgoing } from '../../screens/chat/outbox';
-import { compareCursor, mergeNewest, newestCursor } from '../../screens/chat/page';
+import { batched, failedFrom, loadOutbox, newRef, remove, saveOutbox, settle, stuck, update, underWay, type Outgoing } from './outbox';
+import { compareCursor, mergeNewest, newestCursor } from './page';
 import type { Live } from '../live/live';
 import { useShell } from '../state/store';
 

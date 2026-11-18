@@ -1787,8 +1787,11 @@ Owns `client/**`, `storybook/**` (design-owned), `screens/*.md`.
   components (`Button`, `ActorChip`, `Citation`, `TagChip`, `ApprovalBar`,
   `RefusalBlock`, `StatusLight`, `BudgetLine`, `EventRow`, `BookmarkCard`,
   `DiffView`, `Field`, `Toggle`, `Tabs`, `ListRow`, `Card`, `EmptyState`,
-  `TopBar`, `BottomNav`, `Icon`) are `client/src/components/`, the only
-  source for those patterns. Five rules the components enforce and the
+  `TopBar`, `BottomNav`, `Icon`) were `client/src/components/`, the only
+  source for those patterns in the first client; that client and its
+  components were removed on 2026-11-18 (client#14), and the current
+  client under `client/src/next/` keeps the patterns and the rules below
+  in its own styles. Five rules the components enforce and the
   product depends on: attribute everything with an actor chip and a model
   slug; the resident's words are never editable by the witness; every
   approval carries a note the resident reads first and the action stays

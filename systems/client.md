@@ -13,19 +13,17 @@ decisions the spec records, and what is built against them.
 
 ## #1 Owns
 
-`client/**`: the shell (`src/app/App.tsx`, `Login.tsx`, the channel
-client `socket.ts`), the JSON client and its types (`src/api/client.ts`,
-`src/api/types.ts`), the components under `src/components/` (`ActorChip`,
-`BookmarkCard`, `BottomNav`, `BudgetLine`, `Button`, `Card`,
-`ConnectionDot`, `EmptyState`, `ErrorNotice`, `Field`, `RefusalBlock`,
-`Tabs`, `TagChip`, `TimeField`, `TopBar`), the tokens (`src/tokens.json`,
-`src/theme.css` generated from it by `scripts-tokens-to-css.mjs`, the
-`Swatch` story), and the screens under `src/screens/`: chat (Chat,
-Conversations, the outbox and paging), memory, schedule, inbox (with
-Needs you), more, library, connections, ledger and regression. Storybook's
-config is `client/.storybook/`; the stories sit beside what they render
-(eleven files). `vite build` writes `priv/static/client/`. `storybook/**`
-holds nothing; the stories are under `client/`.
+`client/**`: one client, at `index.html` (`next.html` an alias for links
+made before the switch), its code under `src/next/` (the shell, the
+state, the live channel client `live/socket.ts`, the push worker
+`shell/push.ts`, and each tab's screens, each described in its
+`screens/next-*.md`), the JSON client and its types (`src/api/client.ts`,
+`src/api/types.ts`), and the tokens (`src/tokens.json`, `src/theme.css`
+generated from it by `scripts-tokens-to-css.mjs`, which Storybook loads).
+Storybook's config is `client/.storybook/`; the stories sit beside what
+they render. `vite build` writes `priv/static/client/`. `storybook/**`
+holds nothing. The old client (`classic.html`, `src/app/`,
+`src/screens/`, `src/components/`) is gone (#14).
 
 ## #2 Standing decisions
 
@@ -39,6 +37,7 @@ Carried from spec §6.15; the reason for each is there.
 - **#10 Memory opens on Every turn.** Its tabs are Every turn (what the server says is in front of every turn, with the server's own description as a caption), All, Pinned, Use when a retrieval is shown, and one per tag in use.
 - **#11 The Library's shelf is the server's.** One tab per kind across the top, in the order and under the names the server's shelf gives (seshat#35); a kind the shelf does not name comes last under its own name. A find field narrows the tab by title and path as you type, and a search asks the server for passages, nearest first.
 - **#12 Schedule's times are the resident's zone, and a time is chosen from selects.** A Time zone card names the zone every time on the screen is read in, offers the device's zone when it differs, and sets it (`PUT /v1/residents/:id/timezone`). (2026-11-03: the resident's zone was never set, so free time set for 14:30 and 22:30 ran at 6:30 and 14:30 Pacific.) `TimeField` picks hour and five-minute step from two selects rather than `<input type="time">`, which on iPhone Safari shows a time while its value is empty.
+- **#14 One client: the old one is removed.** (The witness, 2026-11-18: "we can delete the old client, we're too far along in the new one to go back".) `classic.html`, `src/main.tsx`, `src/app/`, `src/screens/` and `src/components/` are deleted, and Settings no longer offers "Open the old client". The pure helpers the new client still used moved under `src/next/`: the outbox and paging (`chat/outbox.ts`, `chat/page.ts`, #9, brain#45), the letters and threads of Mail (`inbox/`), the human/ path (`records/paths.ts`), the regression deck (`settings/deck.ts`), the push worker (`shell/push.ts`), the channel client (`live/socket.ts`), and the creation flow's gift type and slug (`onboarding/gift.ts`). Decisions #5 (the twenty components as the only source of their patterns) and #8, #10 to #13 described the old client and are superseded by this one; their rules live on in the new client's screens, each in its `screens/next-*.md`. The old screens' docs stay, marked retired, because decisions and code cite them.
 - **#13 Coming back to the page reads it again.** (The witness, 2026-11-03: "I hop around a lot and I think I'm missing updates.") `app/refocus.ts`'s `useRefocus` calls a screen back when the page is shown again (`visibilitychange`), its window focused, the network back (`online`), or the page restored from the back-forward cache (`pageshow` persisted), once per return, with how long it was away. The chat reads the open conversation and the list again, and joins its stream again with a fresh socket token when it was not connected or the page was away more than thirty seconds: the token lasts five minutes and the socket's own retries reuse it, so a phone that slept left the stream refused until a reload. Memory, Inbox, Connections, Schedule and Ledger read themselves again. Library and Regression do not, so a search or an open run is not reset under the reader.
 
 ## #6 Initial vs target

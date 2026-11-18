@@ -5,6 +5,9 @@ paths:
 
 # schedule
 
+> **Retired 2026-11-18** (client#14): this screen was the first client's, removed with it. The current client's screens are `screens/next-*.md`; this page stays as the record, and because decisions cite it.
+
+
 Schedule (spec §10), built 2026-11-02: `client/src/screens/schedule/`
 (`Schedule.tsx`, its stories and tests), reached from the bottom nav and
 loaded by `ScheduleContainer` in `client/src/app/App.tsx` from

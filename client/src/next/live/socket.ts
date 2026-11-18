@@ -1,5 +1,5 @@
 import { Socket } from 'phoenix';
-import type { RegressionCard, RunEnd } from '../api/types';
+import type { RegressionCard, RunEnd } from '../../api/types';
 
 // The streamed conversation (spec §5): the session channel delivers
 // deltas and the turn as it lands. The socket takes a five-minute token

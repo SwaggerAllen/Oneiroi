@@ -3,7 +3,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { api } from '../../api/client';
 import type { NeedsYouEntry } from '../../api/types';
-import { turnOn } from '../../app/push';
+import { turnOn } from './push';
 import { HOUSE_SUBJECT, useSubject } from '../state/resident';
 import type { SettingsSection } from '../state/routes';
 import { useShell } from '../state/store';
@@ -413,7 +413,6 @@ function Settings() {
       <nav className={css.group} aria-label="You">
         <Row label="Send feedback" onClick={() => setOverlay('feedback')} />
         {operator && <Row href="#/operator" label="Operator" onClick={() => setOverlay(null)} />}
-        <Row href="/client/classic.html" label="Open the old client" />
       </nav>
       <div className={css.account}>
         <span className={css.note}>{me.data?.email} · witness</span>

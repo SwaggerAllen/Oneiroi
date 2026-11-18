@@ -5,6 +5,9 @@ paths:
 
 # ledger
 
+> **Retired 2026-11-18** (client#14): this screen was the first client's, removed with it. The current client's screens are `screens/next-*.md`; this page stays as the record, and because decisions cite it.
+
+
 Ledger (spec §10). Built (P1, slice 5) as `Ledger` with `LedgerContainer` in the shell, under More, from `GET /v1/residents/:id/ledger`: the OpenRouter key's status (stored since a day, or none) with store or rotate (`PUT /v1/me/key`, a password field); budget lines, each its spend of its cap a day, week or month, "no limit" when it has none and "stopped" when exceeded; setting a line (`PUT .../ledger/budgets/:purpose`) by purpose, a cap in dollars (blank for no limit) and a period; and spend since the start of the month by purpose, by model and by actor, each with calls and cost. The purposes are the server's list in its order (`Nisaba.Purpose`: chat, free_time, judge, hands, embeddings, oracle, drafting, regression), so a purpose the server adds, such as `oracle` (brain#49), is offered with no change here. Not built: platform token balance and markup, buying tokens. The state list lives in the stories alone (DESIGN §4); nothing here names a state.
 
 ## #1 Shows

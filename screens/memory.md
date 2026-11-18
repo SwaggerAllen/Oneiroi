@@ -5,6 +5,9 @@ paths:
 
 # memory
 
+> **Retired 2026-11-18** (client#14): this screen was the first client's, removed with it. The current client's screens are `screens/next-*.md`; this page stays as the record, and because decisions cite it.
+
+
 Memory (bookmarks) (spec §10). Built (P1, slice 5) as `Memory` with `MemoryContainer` in the shell: rows as `BookmarkCard` with the number, the line, the summary, pinned and "every turn" markers, the day and span, who bookmarked, "proposed by you", who pinned, when a turn last listed it, and tags; tabs Every turn (with the server's description as a caption), All, Pinned, Use (once the server has answered), one per active tag, each with its count; search over the line and summary; pin and unpin.
 
 Every turn lists what the server says is in front of every turn (`GET /v1/residents/:id/index`, kumbukumbu#38, #45): the bookmark numbers `index_now` returns, in its order, which since kumbukumbu#45 are the pins of the common room (since kumbukumbu#72, the pins in no domain) (the rest are ranked against each turn's words, #46, so none of them is in front of every turn). The caption is the server's sentence; the client holds no budget, order or filter of its own. A row's "every turn" marker is that list; "last listed in a turn" beside it is the row's `last_indexed_at`, a fact and never the filter. Use (`GET .../retrieval`, kumbukumbu#43) lists each target retrieval touched with considered, returned and used counts and the day last used, under a caption saying what each count means and that nothing is reweighted from them until both have looked; it is absent when the route fails.

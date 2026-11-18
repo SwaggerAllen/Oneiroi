@@ -5,6 +5,9 @@ paths:
 
 # kinds
 
+> **Retired 2026-11-18** (client#14): this screen was the first client's, removed with it. The current client's screens are `screens/next-*.md`; this page stays as the record, and because decisions cite it.
+
+
 Kinds (seshat#51), built: `client/src/screens/kinds/` (`Kinds.tsx`, its
 stories and tests), a page of its own opened from More, rendered by
 `KindsContainer` in `client/src/app/App.tsx` from

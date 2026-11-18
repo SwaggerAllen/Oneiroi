@@ -6,6 +6,9 @@ paths:
 
 # settings-agreement
 
+> **Retired 2026-11-18** (client#14): this screen was the first client's, removed with it. The current client's screens are `screens/next-*.md`; this page stays as the record, and because decisions cite it.
+
+
 Settings: agreement and custody (spec §10). Built 2026-11-05, as
 `client/src/screens/settings-agreement/Agreement.tsx` under More
 ("Agreement"), from `GET /v1/residents/:id/agreement` and its
