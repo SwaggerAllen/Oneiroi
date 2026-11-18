@@ -93,6 +93,8 @@ defmodule Oneiroi.SimaQian.GiteaTest do
     assert org in state.orgs
     assert "#{org}/house" in state.repos
     assert {"#{org}/house", login} in state.grants
+    # Main protected (sima-qian#64): no force-push, no deletion.
+    assert "#{org}/house" in state.protected
 
     # The commits arrived.
     {log, 0} =
@@ -111,6 +113,9 @@ defmodule Oneiroi.SimaQian.GiteaTest do
     assert :ok = GiteaMigration.run([pending(:resident, ctx.wren)])
     assert "#{org}/#{ctx.slug}" in Fake.state().repos
     assert {"#{org}/#{ctx.slug}", Gitea.login(ctx.witness.id)} in Fake.state().grants
+    assert "#{org}/#{ctx.slug}" in Fake.state().protected
+    # Repeating protects every repository again, and nothing fails.
+    assert Gitea.protect_all() == []
 
     {count, 0} =
       System.cmd("git", ["--git-dir", Fake.bare(org, ctx.slug), "rev-list", "--count", "main"])

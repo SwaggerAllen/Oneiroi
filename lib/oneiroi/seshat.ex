@@ -66,6 +66,7 @@ defmodule Oneiroi.Seshat do
       Commands.WriteDocument,
       Commands.AdoptDocument,
       Commands.PublishPiece,
+      Commands.PublishDocument,
       Commands.OpenDiscussion,
       Commands.NoteKeepsake,
       Commands.RegisterKeepsake,
@@ -78,6 +79,7 @@ defmodule Oneiroi.Seshat do
       Events.DocumentWritten,
       Events.DocumentAdopted,
       Events.PiecePublished,
+      Events.DocumentPublished,
       Events.PieceReviewed,
       Events.PieceDrafted,
       PieceReviews,
@@ -171,6 +173,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Pastes
   alias Oneiroi.Seshat.PieceReviews
   alias Oneiroi.Seshat.PluginFiles
+  alias Oneiroi.Seshat.Published
   alias Oneiroi.Seshat.Researches
   alias Oneiroi.Seshat.Scenes
   alias Oneiroi.Seshat.Theme
@@ -279,6 +282,7 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.DocumentWritten, 2},
       {Oneiroi.Seshat.Events.DocumentAdopted, 2},
       {Oneiroi.Seshat.Events.PiecePublished, 1},
+      {Oneiroi.Seshat.Events.DocumentPublished, 1},
       {Oneiroi.Seshat.Events.PieceReviewed, 1},
       {Oneiroi.Seshat.Events.PieceDrafted, 1},
       {Oneiroi.Seshat.Events.KindDefined, 1},
@@ -353,6 +357,31 @@ defmodule Oneiroi.Seshat do
        "a path is relative, under a registered kind's folder, with plain segments and no `..`, or a text file's name alone at the root (a root document, or a keepsake once registered)",
        remedy:
          "name the file as `<kind>/<name>.md`, or `<name>.md` at the root; the kinds are the registry's"},
+      {:seshat_household_unpublished,
+       "that is no housemate's published draft: a housemate's file is the house's to read only at a commit she published",
+       remedy:
+         "cite a published draft (<slug>:<path>, or @ a published commit), or ask her, in a letter, to publish it"},
+      {:seshat_publish_not_yours,
+       "a draft is published by whoever owns the file: the resident her own records, a witness his own name-folder (human/<name>/)",
+       remedy: "publish your own files; ask the resident to publish hers"},
+      {:seshat_publish_no_such_draft,
+       "that commit is not a draft of this file: no commit that changed it starts so",
+       remedy:
+         "name a commit from the file's history, seven characters or more, or none for its latest draft"},
+      {:seshat_publish_already,
+       "that draft is the one published, or an earlier one; only a later draft can be published",
+       remedy:
+         "to make an earlier draft public again, restore it (a new commit with its words), then publish that"},
+      {:seshat_household_not_owner,
+       "this household document is its owner's to edit, or to change the mode of; in owner mode another member's edit is feedback",
+       remedy:
+         "reply with your edit as feedback in a document post on it (household_post with doc: its path), for the owner to make; or ask the owner to open it (mode open)"},
+      {:seshat_witness_unnamed,
+       "a witness's documents go in a folder named for them, and this witness has no name yet",
+       remedy: "set the name you go by in Settings (PUT /v1/me/name), then add the document"},
+      {:seshat_not_your_folder,
+       "a witness's new documents go in their own name-folder, human/<name>/",
+       remedy: "write the document under the folder named in the error"},
       {:seshat_kind_not_writable,
        "that kind is written by the platform (mail, feeds, correspondence, the journal, the scenes) or is the originals import's read-only copy (memory), never through a document write",
        remedy:
@@ -618,6 +647,48 @@ defmodule Oneiroi.Seshat do
   @doc "A resident posts a thread, a ballot's thread, or a document of a household kind (seshat#59, #63)."
   @spec household_post(Oneiroi.Actor.t(), map()) :: {:ok, map()} | {:error, term()}
   defexport(household_post(actor, attrs), do: Household.post(actor, attrs))
+
+  @doc "A member edits a household document: its owner in owner mode, anyone in open mode (seshat#82)."
+  @spec household_edit(Oneiroi.Actor.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}
+  defexport(household_edit(actor, path, attrs), do: Household.edit(actor, path, attrs))
+
+  @doc "Publishes a draft of a file to the household, at one commit (seshat#85): the resident her own, a witness his name-folder's."
+  @spec publish(String.t(), String.t(), String.t() | nil, String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(publish(resident_id, path, commit, note, actor),
+    do: Published.publish(resident_id, path, commit, note, actor)
+  )
+
+  @doc "A housemate's published draft, read by its citation `<slug>:<path>[@commit]` (seshat#85)."
+  @spec household_read_published(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_read_published(actor, cite), do: Household.read_published(actor, cite))
+
+  @doc "Whether a path reads as a housemate's citation (seshat#85)."
+  @spec housemate_cite?(term()) :: boolean()
+  defexport(housemate_cite?(cite), do: Household.housemate_cite?(cite))
+
+  @doc "A member mutes or hears their mentions in the house, one thread or all of it (seshat#86)."
+  @spec household_mute(Oneiroi.Actor.t(), String.t() | nil, boolean()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(household_mute(actor, thread, muted), do: Household.mute(actor, thread, muted))
+
+  @doc "A member's mention settings in the house (seshat#86)."
+  @spec household_mutes(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_mutes(actor), do: Household.mutes(actor))
+
+  @doc "Every draft published in the resident's repository, oldest first (seshat#85)."
+  @spec published(String.t()) :: [map()]
+  defexport(published(resident_id), do: Published.all(resident_id))
+
+  @doc "The commit of a file published last, or nil (seshat#85)."
+  @spec published_latest(String.t(), String.t()) :: String.t() | nil
+  defexport(published_latest(resident_id, path),
+    do: Published.latest(resident_id, path)
+  )
+
+  @doc "The household documents shared from a file of the resident's own, with the posts on each (seshat#84)."
+  @spec household_shared_from(Oneiroi.Actor.t(), String.t()) :: [map()]
+  defexport(household_shared_from(actor, path), do: Household.shared_from(actor, path))
 
   @doc "A member appends to a thread: a resident's words or vote, a witness's vote (seshat#59, #60, #63)."
   @spec household_reply(Oneiroi.Actor.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}

@@ -113,7 +113,10 @@ defmodule Oneiroi.SimaQian.BackupTest do
     {:ok, "field-notes"} =
       Oneiroi.Seshat.define_kind(r.id, %{"kind" => "field-notes"}, nil, actor)
 
-    for folder <- ~w(scratch human field-notes),
+    # A witness's own go in the folder named for them (seshat#81).
+    :ok = Oneiroi.Gaia.name_witness(actor.id, "Andrew", actor)
+
+    for folder <- ~w(scratch human/andrew field-notes),
         do: {:ok, _} = Oneiroi.Seshat.write(r.id, "#{folder}/a.md", "# A\n", actor)
 
     {:ok, _} = Oneiroi.Seshat.write(r.id, "pocket-andrew.md", "# Pocket Andrew\n", actor)
@@ -124,7 +127,7 @@ defmodule Oneiroi.SimaQian.BackupTest do
     held = git!(bare, ["ls-tree", "-r", "--name-only", "main"]) |> String.split("\n")
 
     for path <-
-          ~w(scratch/a.md human/a.md field-notes/a.md field-notes/kind.json pocket-andrew.md),
+          ~w(scratch/a.md human/andrew/a.md field-notes/a.md field-notes/kind.json pocket-andrew.md),
         do: assert(path in held, path)
 
     assert git!(bare, ["log", "-1", "--format=%s", "main", "--", "pocket-andrew.md"]) ==

@@ -209,10 +209,13 @@ defmodule Oneiroi.HouseholdCommunicationTest do
     assert {:error, %Seshat.Error{kind: :seshat_household_beat_spent}} =
              Seshat.household_reply(andrew, mine, %{"content" => "more words"})
 
+    # A witness's document goes in the folder named for them (seshat#81).
+    :ok = Oneiroi.Gaia.name_witness(andrew.id, "Andrew", andrew)
+
     assert {:ok, _} =
              Seshat.household_post(andrew, %{
-               "kind" => "design",
-               "path" => "design/kitchen.md",
+               "kind" => "human",
+               "path" => "human/andrew/kitchen.md",
                "title" => "The kitchen",
                "content" => "Shelves on the left."
              })

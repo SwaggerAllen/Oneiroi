@@ -47,6 +47,14 @@ defmodule Oneiroi.Seshat.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :from, :to, :from_kind, :to_kind, :hash]
   end
 
+  defmodule DocumentPublished do
+    # A draft made public to the household (seshat#85): the file at one
+    # commit, recorded in the repository the file is in, by whoever
+    # published it, with why. Per commit, never per file: a later draft
+    # is public only when it too is published.
+    use Oneiroi.Event, version: 1, fields: [:id, :path, :commit], decision: true
+  end
+
   defmodule PiecePublished do
     use Oneiroi.Event, version: 1, fields: [:id, :path, :url]
   end

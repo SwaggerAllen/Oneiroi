@@ -432,3 +432,10 @@ The contract test wrote a handful of files, so the port was proven on
 one page and the second never ran until production. The test now holds
 a repository past a page, on the real server, because the server's
 paging is the server's, and only it says where the end is.
+
+## #64
+A citation names a commit, so a commit that can be rewritten away can
+make a citation lie. Protection on the server holds the rule for every
+writer, including a person with a clone and a token, rather than
+trusting each writer to behave; the platform only ever adds commits, so
+it costs it nothing.

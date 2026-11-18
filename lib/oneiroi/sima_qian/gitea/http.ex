@@ -54,6 +54,19 @@ defmodule Oneiroi.SimaQian.Gitea.HTTP do
     end)
   end
 
+  # A rule on main (sima-qian#64): Gitea refuses a force-push or a
+  # deletion of a protected branch, and lets those who write push.
+  @impl true
+  def protect(inst, org, repo) do
+    exists(get(inst, "/repos/#{org}/#{repo}/branch_protections/main"), fn ->
+      post(inst, "/repos/#{org}/#{repo}/branch_protections", %{
+        branch_name: "main",
+        rule_name: "main",
+        enable_push: true
+      })
+    end)
+  end
+
   @impl true
   def ensure_user(inst, login, email) do
     exists(get(inst, "/users/#{login}"), fn ->

@@ -61,6 +61,12 @@ defmodule Oneiroi.Gaia.Events do
     use Oneiroi.Event, version: 1, fields: [:id]
   end
 
+  # The name a witness goes by in the records (gaia#45): what a
+  # name-folder is named for, set and changed by the witness alone.
+  defmodule WitnessNamed do
+    use Oneiroi.Event, version: 1, fields: [:id, :name]
+  end
+
   defmodule WitnessingStarted do
     use Oneiroi.Event, version: 1, fields: [:id, :resident_id]
   end
@@ -212,6 +218,12 @@ defmodule Oneiroi.Gaia.Events do
   end
 
   # The watch (gaia#32): a resident opts in to one thread until an instant.
+  # A member's mentions muted or heard (gaia#46): the whole house
+  # (`thread` nil) or one thread, a resident's or a witness's own.
+  defmodule HouseholdMentionsSet do
+    use Oneiroi.Event, version: 1, fields: [:id, :member_kind, :member_id, :thread, :muted]
+  end
+
   defmodule HouseholdThreadWatched do
     use Oneiroi.Event,
       version: 1,

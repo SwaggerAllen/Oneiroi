@@ -43,6 +43,10 @@ defmodule Oneiroi.Gaia.Commands do
     use Oneiroi.Command, fields: [:id]
   end
 
+  defmodule NameWitness do
+    use Oneiroi.Command, fields: [:id, :name]
+  end
+
   defmodule StartWitnessing do
     use Oneiroi.Command, fields: [:id, :resident_id]
   end
@@ -144,6 +148,10 @@ defmodule Oneiroi.Gaia.Commands do
 
   # The watch (gaia#32): a resident's opt-in to one thread, for hours it
   # states.
+  defmodule SetHouseholdMentions do
+    use Oneiroi.Command, fields: [:id, :thread, :muted], bounds: [thread: 255]
+  end
+
   defmodule WatchHouseholdThread do
     use Oneiroi.Command, fields: [:id, :thread, :hours], bounds: [thread: 255]
   end

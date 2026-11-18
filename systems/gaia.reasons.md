@@ -319,3 +319,28 @@ and witnesses keep the house's settings (#41); once, because the first
 citation makes it load-bearing. Unique among houses only: the marked form
 keeps houses and residents apart, so a house called what a resident is
 called collides with nothing.
+
+## #45
+A folder named for a person needs the person's name, and the platform
+had none: the household called its witness "Lily and Scarlett's
+witness", which names a role and not a person, and stops being one name
+when a second witness joins. The witness gives it, because it is theirs
+to say; nothing moves on a change, because a moved file breaks every
+citation of it.
+
+## #46
+The wake defaults on because a request that cannot arrive until the
+receiver happens to look is not much of a request; so the control has
+to sit with the receiver, per thread as well as per house, since one
+loud thread should not cost a member every other mention. A thread's
+setting outranks the house's so "mute everything but this" and "hear
+everything but this" are both one setting each.
+
+## #47
+A witness is never fired a turn, so without a rule of their own they
+either crowd the residents' beat or are held to rules built for
+someone else. Once a beat is the plain default; the queue-emptied rule
+is the fair one, letting the witness speak again exactly when nobody
+is waiting to; and unbounded is for a household small enough that
+contention never arises. A ballot chooses, because how a house shares
+its floor is the house's to decide, not the platform's.

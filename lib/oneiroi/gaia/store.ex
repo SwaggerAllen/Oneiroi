@@ -22,6 +22,7 @@ defmodule Oneiroi.Gaia.Store do
       field(:key_stored_at, :utc_datetime_usec)
       field(:github_token_ciphertext, :binary)
       field(:github_token_stored_at, :utc_datetime_usec)
+      field(:name, :string)
       field(:created_at, :utc_datetime_usec)
     end
   end
@@ -261,6 +262,20 @@ defmodule Oneiroi.Gaia.Store do
       field(:thread, :string)
       field(:until, :utc_datetime_usec)
       field(:watched_at, :utc_datetime_usec)
+    end
+  end
+
+  defmodule HouseholdMute do
+    @moduledoc "A member's mentions in the house, muted or heard (gaia#46): `thread` \"\" for the whole house; the latest set wins."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_mute" do
+      field(:household_id, :binary_id)
+      field(:member_id, :binary_id)
+      field(:member_kind, :string)
+      field(:thread, :string)
+      field(:muted, :boolean)
+      field(:set_at, :utc_datetime_usec)
     end
   end
 

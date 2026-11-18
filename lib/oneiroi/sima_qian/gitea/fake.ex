@@ -24,6 +24,9 @@ defmodule Oneiroi.SimaQian.Gitea.Fake do
   def ensure_user(_inst, login, _email), do: put(:users, login)
 
   @impl true
+  def protect(_inst, org, repo), do: put(:protected, "#{org}/#{repo}")
+
+  @impl true
   def grant_read(_inst, org, repo, login), do: put(:grants, {"#{org}/#{repo}", login})
 
   @impl true

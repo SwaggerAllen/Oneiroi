@@ -48,6 +48,10 @@ defmodule Oneiroi.SimaQian.Gitea do
   # (sima-qian#62): until then its API lists nothing for every path.
   @callback settled(inst :: String.t(), org :: String.t(), repo :: String.t()) ::
               :ok | {:error, term()}
+  # Protects the main branch (sima-qian#64): no force-push, no deletion,
+  # so history is only ever added to and every citation of it holds.
+  @callback protect(inst :: String.t(), org :: String.t(), repo :: String.t()) ::
+              :ok | {:error, term()}
 
   @house "house"
 
@@ -96,6 +100,7 @@ defmodule Oneiroi.SimaQian.Gitea do
 
     with :ok <- client().ensure_org(inst, org),
          :ok <- client().ensure_repo(inst, org, @house),
+         :ok <- client().protect(inst, org, @house),
          do: grant_witnesses(inst, org, @house, household_id)
   end
 
@@ -104,7 +109,31 @@ defmodule Oneiroi.SimaQian.Gitea do
          {:ok, resident} <- AgathosDaimon.fetch(resident_id),
          :ok <- client().ensure_org(inst, org),
          :ok <- client().ensure_repo(inst, org, name),
+         :ok <- client().protect(inst, org, name),
          do: grant(inst, org, name, resident.account_id)
+  end
+
+  @doc """
+  Protects every repository already on the server (sima-qian#64): each
+  household's and each housed resident's. Safe to repeat; run at boot,
+  so the repositories made before protection existed get it too.
+  Answers the repositories it could not protect.
+  """
+  def protect_all do
+    residents = for r <- AgathosDaimon.residents(), do: {:resident, r.id}
+
+    houses =
+      residents
+      |> Enum.map(fn {:resident, id} -> Gaia.resident_household(id) |> id_of() end)
+      |> Enum.filter(&is_binary/1)
+      |> Enum.uniq()
+      |> Enum.map(&{:household, &1})
+
+    for repo <- houses ++ residents,
+        {:ok, {inst, org, name}} <- [locate(repo)],
+        result = client().protect(inst, org, name),
+        result != :ok,
+        do: {repo, result}
   end
 
   @doc "Sends the household's repository: its organization, its `house`, its witnesses' read, then the push."
@@ -113,6 +142,7 @@ defmodule Oneiroi.SimaQian.Gitea do
 
     with :ok <- client().ensure_org(inst, org),
          :ok <- client().ensure_repo(inst, org, @house),
+         :ok <- client().protect(inst, org, @house),
          :ok <- grant_witnesses(inst, org, @house, household_id),
          {:ok, dir} <- Household.repository_dir(household_id),
          {:ok, remote} <- client().remote(inst, org, @house),
@@ -130,6 +160,7 @@ defmodule Oneiroi.SimaQian.Gitea do
          {inst, org} = {instance(household_id), org(household_id)},
          :ok <- client().ensure_org(inst, org),
          :ok <- client().ensure_repo(inst, org, resident.slug),
+         :ok <- client().protect(inst, org, resident.slug),
          :ok <- grant(inst, org, resident.slug, resident.account_id),
          {:ok, dir} <- working_dir(resident_id),
          {:ok, remote} <- client().remote(inst, org, resident.slug),

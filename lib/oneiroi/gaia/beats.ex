@@ -35,7 +35,13 @@ defmodule Oneiroi.Gaia.Beats do
     "post_quota" => 24,
     "post_quota_window_hours" => 24,
     "resident_wake_profile" => "on_turn",
-    "witnesses_post" => true
+    "witnesses_post" => true,
+    # How often a witness posts (gaia#47; design/workspaces.md §7): a
+    # turn's allowance each beat, once in each thread and to each
+    # document ("per_beat"); that, and again once the queue has emptied
+    # ("queue_emptied"); or without a bound, the small household's
+    # setting ("unbounded").
+    "witness_posts" => "per_beat"
   }
 
   # The bounds each integer setting is held to at a ballot's opening: the
@@ -51,6 +57,7 @@ defmodule Oneiroi.Gaia.Beats do
   }
 
   @profiles ~w(every_beat on_turn self)
+  @witness_rules ~w(per_beat queue_emptied unbounded)
   @resident_profiles ~w(every_beat on_turn)
 
   @doc "The beat settings with their defaults (gaia#33)."
@@ -72,11 +79,15 @@ defmodule Oneiroi.Gaia.Beats do
       # One turn a beat, up to twelve, or as many as the cap allows (gaia#42).
       key == "turns_per_registrant" -> value == "many" or (is_integer(value) and value in 1..12)
       Map.has_key?(@ranges, key) -> is_integer(value) and value in @ranges[key]
-      key == "resident_wake_profile" -> value in @resident_profiles
-      key == "witnesses_post" -> is_boolean(value)
-      true -> true
+      true -> named_ok?(key, value)
     end
   end
+
+  # The settings that take a name or a flag rather than a number.
+  defp named_ok?("resident_wake_profile", value), do: value in @resident_profiles
+  defp named_ok?("witnesses_post", value), do: is_boolean(value)
+  defp named_ok?("witness_posts", value), do: value in @witness_rules
+  defp named_ok?(_key, _value), do: true
 
   @doc "Whether settings, merged whole, still give a beat: a sign-up window shorter than the beat, and room after it for at least one whole turn."
   @spec shape_ok?(map()) :: boolean()
@@ -108,7 +119,8 @@ defmodule Oneiroi.Gaia.Beats do
       quota: s["post_quota"],
       window: s["post_quota_window_hours"],
       resident_profile: s["resident_wake_profile"],
-      witnesses_post: s["witnesses_post"] != false
+      witnesses_post: s["witnesses_post"] != false,
+      witness_rule: s["witness_posts"]
     }
   end
 

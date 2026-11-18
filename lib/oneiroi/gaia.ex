@@ -52,6 +52,7 @@ defmodule Oneiroi.Gaia do
       Events.KeyRevoked,
       Events.GithubTokenStored,
       Events.GithubTokenRevoked,
+      Events.WitnessNamed,
       Events.WitnessingStarted,
       Events.WitnessingEnded,
       Store,
@@ -85,6 +86,7 @@ defmodule Oneiroi.Gaia do
       Events.HouseholdBallotClosed,
       Events.HouseholdContractAmended,
       Events.HouseholdThreadWatched,
+      Events.HouseholdMentionsSet,
       Events.HouseholdWakeProfileSet,
       Events.HouseholdClockSet,
       Events.HouseholdNamed,
@@ -189,6 +191,7 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.KeyRevoked, 1},
       {Oneiroi.Gaia.Events.GithubTokenStored, 1},
       {Oneiroi.Gaia.Events.GithubTokenRevoked, 1},
+      {Oneiroi.Gaia.Events.WitnessNamed, 1},
       {Oneiroi.Gaia.Events.WitnessingStarted, 1},
       {Oneiroi.Gaia.Events.WitnessingEnded, 1},
       {Oneiroi.Gaia.Events.PushSubscribed, 1},
@@ -212,6 +215,7 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.HouseholdBallotClosed, 1},
       {Oneiroi.Gaia.Events.HouseholdContractAmended, 1},
       {Oneiroi.Gaia.Events.HouseholdThreadWatched, 1},
+      {Oneiroi.Gaia.Events.HouseholdMentionsSet, 1},
       {Oneiroi.Gaia.Events.HouseholdWakeProfileSet, 1},
       {Oneiroi.Gaia.Events.HouseholdClockSet, 1},
       {Oneiroi.Gaia.Events.HouseholdNamed, 1},
@@ -250,6 +254,12 @@ defmodule Oneiroi.Gaia do
        remedy: "paste the OpenRouter key; it is stored encrypted and shown to nobody again"},
       {:gaia_github_token_required, "the GitHub token was empty",
        remedy: "paste a read-only GitHub token; it is stored encrypted and shown to nobody again"},
+      {:gaia_mentions_invalid,
+       "mentions are muted or heard, true or false, for the whole house or one thread",
+       remedy: "send muted: true or false, with a thread's path or none for the whole house"},
+      {:gaia_witness_name_invalid,
+       "a witness's name is one line of 1 to 60 characters, with a letter or digit in it",
+       remedy: "give the name you go by in the records, e.g. Andrew"},
       {:gaia_no_github_token, "the account holds no GitHub token",
        remedy: "nothing to revoke; without one, pull requests are read anonymously"},
       {:gaia_no_key, "the account holds no OpenRouter key",
@@ -489,6 +499,20 @@ defmodule Oneiroi.Gaia do
     do: Accounts.store_github_token(account_id, raw, actor)
   )
 
+  @doc "Names the witness (gaia#45): the name the household and the records use, and its name-folder's."
+  @spec name_witness(String.t(), term(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(name_witness(account_id, name, actor),
+    do: Accounts.name_witness(account_id, name, actor)
+  )
+
+  @doc "The witness's name, or nil before one is given (gaia#45)."
+  @spec witness_name(String.t()) :: String.t() | nil
+  defexport(witness_name(account_id), do: Accounts.witness_name(account_id))
+
+  @doc "The witness's name-folder segment (gaia#45): the name, lowered and hyphenated; nil before a name."
+  @spec witness_folder(String.t()) :: String.t() | nil
+  defexport(witness_folder(account_id), do: Accounts.witness_folder(account_id))
+
   @doc "Revokes the stored GitHub read token."
   @spec revoke_github_token(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(revoke_github_token(account_id, actor),
@@ -713,6 +737,25 @@ defmodule Oneiroi.Gaia do
           {:ok, map() | :closed} | {:error, term()}
   defexport(close_household_ballot(household_id, ballot, actor),
     do: Households.close_ballot(household_id, ballot, actor)
+  )
+
+  @doc "A member mutes or hears their mentions in the house (gaia#46): the whole house (thread nil) or one thread."
+  @spec set_household_mentions(String.t(), String.t() | nil, boolean(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(set_household_mentions(household_id, thread, muted, actor),
+    do: Households.set_mentions(household_id, thread, muted, actor)
+  )
+
+  @doc "Whether a member's mentions in a thread are muted (gaia#46): the thread's setting, else the house's, else heard."
+  @spec household_muted?(String.t(), String.t(), String.t() | nil) :: boolean()
+  defexport(household_muted?(household_id, member_id, thread),
+    do: Households.muted?(household_id, member_id, thread)
+  )
+
+  @doc "A member's mention settings in the house (gaia#46): `%{thread or \"\" => muted}`."
+  @spec household_mutes(String.t(), String.t()) :: %{String.t() => boolean()}
+  defexport(household_mutes(household_id, member_id),
+    do: Households.mutes(household_id, member_id)
   )
 
   @doc "A resident watches one household thread for the hours it states (gaia#32)."

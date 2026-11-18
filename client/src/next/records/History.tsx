@@ -44,6 +44,21 @@ export function History({ residentId, path, onBack }: { residentId: string; path
       void qc.invalidateQueries({ queryKey: ['resident', residentId, 'records'] });
     },
   });
+  // Publishing (seshat#85): the draft public to the household, and which
+  // are after it. A witness publishes his own name-folder's files; hers
+  // are hers to publish, and their state shows here.
+  const me = useQuery({ queryKey: ['me'], queryFn: api.me });
+  const published = versions.data?.published ?? null;
+  const all = versions.data?.versions ?? [];
+  const publishedAt = published ? all.findIndex((v) => v.commit === published) : -1;
+  const yours = !!me.data?.folder && path.startsWith(`human/${me.data.folder}/`);
+  const publish = useMutation({
+    mutationFn: (commit: string) => api.publishDraft(residentId, path, commit, note.trim()),
+    onSuccess: () => {
+      setNote('');
+      void qc.invalidateQueries({ queryKey: ['resident', residentId, 'records'] });
+    },
+  });
   const who = (v: DocumentVersion) => (v.actor === null ? null : v.actor.kind === 'resident' ? name : v.actor.kind === 'witness' ? 'you' : v.actor.kind);
 
   return (
@@ -52,6 +67,13 @@ export function History({ residentId, path, onBack }: { residentId: string; path
         <BackBar onBack={onBack} />
         <h1 className={css.title}>History</h1>
         <p className={css.meta}>{path}</p>
+        <p className={css.note}>
+          {published
+            ? `Published to the household at ${published.slice(0, 12)}${yours ? '' : `, by ${name}`}.`
+            : yours
+              ? 'Not published: only you and those you share it with read it. Publish a draft to make it the household’s.'
+              : `Not published to the household.`}
+        </p>
         {versions.isPending && <p className={css.note}>Reading the history…</p>}
         {versions.error && <p className={css.note}>{(versions.error as Error).message}</p>}
         <ol className={css.versions}>
@@ -62,6 +84,7 @@ export function History({ residentId, path, onBack }: { residentId: string; path
                   {ACT[v.act]}
                   {who(v) ? ` by ${who(v)}` : ''}
                   {v.current ? ' · now' : ''}
+                  {published && v.commit === published ? ' · published' : ''}
                 </span>
                 <span className={css.meta}>{v.at ? new Date(v.at).toLocaleString() : v.committed_at ? new Date(v.committed_at).toLocaleString() : ''}</span>
               </button>
@@ -107,10 +130,29 @@ export function History({ residentId, path, onBack }: { residentId: string; path
                         aria-label="Why restore it"
                       />
                       <button type="button" className={css.action} disabled={restore.isPending} onClick={() => restore.mutate(v.version)}>
-                        Restore this version
+                        Revert to this draft
                       </button>
                     </div>
                   )}
+                  {yours && v.commit && (
+                    <div className={css.restore}>
+                      {publishedAt === -1 || all.indexOf(v) < publishedAt ? (
+                        <button type="button" className={css.action} disabled={publish.isPending} onClick={() => publish.mutate(v.commit as string)}>
+                          Publish this draft
+                        </button>
+                      ) : (
+                        <button type="button" className={css.action} disabled>
+                          Already published
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  {publish.data && publish.variables === v.commit && (
+                    <p className={css.note} role="status">
+                      Published.
+                    </p>
+                  )}
+                  {publish.error && publish.variables === v.commit && <p className={css.note}>{(publish.error as Error).message}</p>}
                   {restore.data && restore.variables === v.version && (
                     <p className={css.note} role="status">
                       {restore.data.proposed ? `Proposed to ${name}: this file is hers to accept.` : 'Restored.'}

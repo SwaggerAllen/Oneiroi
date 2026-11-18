@@ -22,6 +22,10 @@ defmodule Oneiroi.Seshat.Commands do
     use Oneiroi.Command, fields: [:id, :path, :kind, :hash, :bytes, :provenance]
   end
 
+  defmodule PublishDocument do
+    use Oneiroi.Command, fields: [:id, :path, :commit, :note]
+  end
+
   defmodule PublishPiece do
     use Oneiroi.Command, fields: [:id, :path, :url]
   end

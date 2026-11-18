@@ -74,6 +74,10 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
     )
   end)
 
+  fold(%Events.WitnessNamed{} = e, _metadata, fn multi ->
+    Multi.update_all(multi, :named, account(e.id), set: [name: e.name])
+  end)
+
   fold(%Events.SessionOpened{} = e, _metadata, fn multi ->
     Multi.insert(multi, :session, %Session{
       hash: e.session_hash,

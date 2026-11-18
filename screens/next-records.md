@@ -62,10 +62,16 @@ at `/client/#/records`. Built 2026-11-10.
 
 - **History** (`history/<path>`, seshat#54): every version newest
   first, with who, when and the note. One opens as a diff against the
-  file now (insertions and removals marked) with "Restore this version"
-  and an optional note; a restore that needs her consent says it was
-  proposed to her. A version overwritten before the repository's next
-  commit is listed, and says its words weren't kept.
+  file now (insertions and removals marked) with "Revert to this draft"
+  (a restore, a new commit; seshat#54) and an optional note; a restore
+  that needs her consent says it was proposed to her. A version
+  overwritten before the repository's next commit is listed, and says
+  its words weren't kept. Publishing (seshat#85): a line under the path
+  says whether the file is published to the household and at which
+  commit, the published version is marked "· published", and on a file
+  of your own name-folder each committed version offers "Publish this
+  draft" when it is after the published one, "Already published" greyed
+  out otherwise. Her files are hers to publish (`document_publish`).
 - **Edit** (`edit/<path>`, seshat#55): the editor takes the lease on
   opening, renews it with the draft each minute while you type, and
   releases it on save or close. The bar says when she is waiting on the
@@ -81,7 +87,9 @@ at `/client/#/records`. Built 2026-11-10.
   only shows on scratch and human documents (seshat#33), and returns to
   the tree.
 - **Add a document of yours** (`new`, top of the tree): a name and its
-  words, written under human/, which she reads and never edits. A record
+  words, written in your folder, human/<your name>/ (seshat#81), which
+  she reads and never edits. The first time, it asks the name you go by
+  (gaia#45) before anything else. A record
   just written or moved is read again for a moment until it is
   registered.
 - **Paste a conversation** (`paste`, under Add a document, seshat#65,
