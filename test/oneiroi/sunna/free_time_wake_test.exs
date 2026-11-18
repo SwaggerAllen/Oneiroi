@@ -7,6 +7,7 @@ defmodule Oneiroi.Sunna.FreeTimeWakeTest do
   slots run once on top of the standing list, which they never change.
   """
   use Oneiroi.DataCase, async: false
+  use Oban.Testing, repo: Oneiroi.Repo
 
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
@@ -15,6 +16,7 @@ defmodule Oneiroi.Sunna.FreeTimeWakeTest do
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake
   alias Oneiroi.Sunna
+  alias Oneiroi.Sunna.FreeTimeWorker
 
   # The fake clock's epoch, 2026-10-26 12:00Z, is 08:00 in New York.
   @zone "America/New_York"
@@ -144,5 +146,44 @@ defmodule Oneiroi.Sunna.FreeTimeWakeTest do
     :ok = Sunna.tick(ctx.id)
     assert [_one] = sessions(ctx)
     assert [%{day: "2026-10-27"}] = Sunna.free_time_once(ctx.id)
+  end
+
+  # sunna#69 (2026-11-18): a letter's wake resumes the slot's own
+  # conversation; its planning turn is its own job, not the slot's
+  # already spent, so its run closes and the work line is never held by
+  # a run that looks underway for three hours.
+  test "a woken run in a slot's conversation gets its own planning turn, and closes", ctx do
+    :ok = Sunna.set_free_time(ctx.id, ["08:00"], ctx.witness)
+    :ok = Sunna.tick(ctx.id)
+    [a] = sessions(ctx)
+
+    # The slot ends; its planning turn runs and closes it.
+    assert [plan] =
+             for(j <- all_enqueued(worker: FreeTimeWorker), j.args["turn"] == "plan", do: j)
+
+    assert :ok = perform_job(FreeTimeWorker, plan.args)
+
+    refute Oneiroi.Scope.resident(ctx.id, fn ->
+             Oneiroi.Sunna.Store.free_time_underway?(~U[2026-10-01 00:00:00Z])
+           end)
+
+    # Later, an answer to the slot wakes that same conversation.
+    _ = answer(ctx, a, "the fetch is back")
+    Clock.Fake.advance(3600)
+    :ok = Sunna.tick(ctx.id)
+
+    assert Oneiroi.Scope.resident(ctx.id, fn ->
+             Oneiroi.Sunna.Store.free_time_underway?(~U[2026-10-01 00:00:00Z])
+           end)
+
+    # Its own planning job, beside the slot's: never dropped as a duplicate.
+    plans = for j <- all_enqueued(worker: FreeTimeWorker), j.args["turn"] == "plan", do: j
+    assert length(plans) == 2
+    woken = Enum.find(plans, &(&1.args["run"] =~ "woken"))
+    assert :ok = perform_job(FreeTimeWorker, woken.args)
+
+    refute Oneiroi.Scope.resident(ctx.id, fn ->
+             Oneiroi.Sunna.Store.free_time_underway?(~U[2026-10-01 00:00:00Z])
+           end)
   end
 end

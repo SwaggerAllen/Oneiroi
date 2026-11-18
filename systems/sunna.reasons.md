@@ -488,3 +488,10 @@ The parts are hers: her dates, her plan, her letters. A house check-in
 that carried one set for everyone would carry the wrong thing for one
 of them, so the setting sits with her words for it, per resident, where
 the witness already sets what she is asked to report.
+
+## #69
+Uniqueness was there so a retried job never ran a turn twice; keyed by
+conversation alone it also swallowed a second, legitimate run in the
+same conversation, silently, and the only symptom was the work line
+waiting with nothing to say why. Keying by run keeps the protection and
+lets each run finish.
