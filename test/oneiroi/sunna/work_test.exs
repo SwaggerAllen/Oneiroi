@@ -348,6 +348,34 @@ defmodule Oneiroi.Sunna.WorkTest do
     assert item.worked_seconds >= 181 * 60
   end
 
+  # sunna#70 (2026-11-18, item #60): a restart killed the run's only job;
+  # with no job left to carry it, the check ends it minutes later, not
+  # three hours later, and its item runs again.
+  test "a run with no job left is ended by the next check past a short grace, and its item runs again",
+       ctx do
+    :ok = Nisaba.set_budget(ctx.id, :work, 5_000_000_000, :day, ctx.actor)
+    {:ok, 1} = Sunna.work_add(ctx.id, "Generator brief", "answered", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    {:started, 1} = WorkLoop.check(ctx.id)
+
+    # Its job is still queued: it runs.
+    Clock.Fake.advance(5 * 60)
+    assert :running = WorkLoop.check(ctx.id)
+
+    # The restart: the job is gone. Inside the grace it is left alone;
+    # past it, the run is ended and the item starts again in a new run.
+    clear_jobs()
+    assert WorkLoop.due?(ctx.id)
+    assert {:started, 1} = WorkLoop.check(ctx.id)
+
+    assert %{running: 1, items: [%{number: 1, status: "in_work", runs: 2} | _]} =
+             Sunna.work_queue(ctx.id)
+
+    clear_jobs()
+    Clock.Fake.advance(60)
+    assert :running = WorkLoop.check(ctx.id)
+  end
+
   # sunna#41, Lily's report #14: the tick asked only when nothing ran, so
   # the check that ends a stalled run was never asked for.
   # sunna#43 (the witness, 2026-11-09, Lily's letter #399): his button

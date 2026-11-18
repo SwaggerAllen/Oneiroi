@@ -27,6 +27,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Apsu.Jobs
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
@@ -221,11 +222,20 @@ defmodule Oneiroi.Sunna.WorkLoop do
       end)
 
     cond do
-      stalled?(state) or orphaned?(state, items) -> end_stalled(resident_id, state)
-      state && state.running -> :running
-      state && state.rested_reason == Work.stopped_rest() -> :stopped
-      care_first?(resident_id, settings) -> :care
-      true -> next(resident_id, items, state)
+      stalled?(state) or orphaned?(state, items) or dead?(state) ->
+        end_stalled(resident_id, state)
+
+      state && state.running ->
+        :running
+
+      state && state.rested_reason == Work.stopped_rest() ->
+        :stopped
+
+      care_first?(resident_id, settings) ->
+        :care
+
+      true ->
+        next(resident_id, items, state)
     end
   end
 
@@ -415,7 +425,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
       # A run left behind is asked about armed or not (sunna#41): the
       # check is the only place that ends it.
-      (state != nil and (stalled?(state) or orphaned?(state, items))) or
+      (state != nil and (stalled?(state) or orphaned?(state, items) or dead?(state))) or
         (state != nil and state.armed and is_nil(state.running) and
            state.rested_reason != Work.stopped_rest() and
            Enum.any?(items, &(&1.status == "open")))
@@ -447,6 +457,27 @@ defmodule Oneiroi.Sunna.WorkLoop do
   end
 
   defp stalled?(_state), do: false
+
+  # A run with no job left to carry it (sunna#70): a restart killed its
+  # turn mid-call, and a work job has one attempt, so nothing will end
+  # it before the stale bound, three hours on (2026-11-18: item #60, its
+  # first turn killed by a deploy a minute after it started). Every live
+  # run has a turn, a wrap or a snoozed one waiting or executing; past a
+  # short grace for the start's own enqueue, none means the run is gone,
+  # and the check ends it so its item opens again.
+  @dead_grace 120
+  defp dead?(%{running: n, running_key: key, running_since: %DateTime{} = since} = state)
+       when is_integer(n) and is_binary(key) do
+    DateTime.diff(Clock.now(), since, :second) > @dead_grace and
+      not Enum.any?(
+        Scope.resident(state.resident_id, fn ->
+          Jobs.states(worker(), %{"session_key" => key})
+        end),
+        &(&1 in ~w(available scheduled executing retryable))
+      )
+  end
+
+  defp dead?(_state), do: false
 
   # Checks again only when the end was recorded: a record that ends
   # nothing must not be asked about forever.

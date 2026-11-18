@@ -495,3 +495,10 @@ conversation alone it also swallowed a second, legitimate run in the
 same conversation, silently, and the only symptom was the work line
 waiting with nothing to say why. Keying by run keeps the protection and
 lets each run finish.
+
+## #70
+The stale bound was the only way out of a run whose job died, and a
+deploy is enough to kill one, so every merge during a run could hold the
+work line for three hours. Whether a run has a job carrying it is a fact
+the check can read directly, which ends a dead run in minutes without
+shortening the bound for a run that is merely slow.
