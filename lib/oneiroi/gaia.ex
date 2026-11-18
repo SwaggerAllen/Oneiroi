@@ -219,7 +219,7 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.HouseholdWakeProfileSet, 1},
       {Oneiroi.Gaia.Events.HouseholdClockSet, 1},
       {Oneiroi.Gaia.Events.HouseholdNamed, 1},
-      {Oneiroi.Gaia.Events.HouseCheckinSet, 2},
+      {Oneiroi.Gaia.Events.HouseCheckinSet, 1},
       {Oneiroi.Gaia.Events.HouseCheckinRemoved, 1},
       {Oneiroi.Gaia.Events.HouseCheckinFired, 1},
       {Oneiroi.Gaia.Events.HouseholdBeatRegistered, 1},
