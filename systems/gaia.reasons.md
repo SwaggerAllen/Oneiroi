@@ -344,3 +344,10 @@ is the fair one, letting the witness speak again exactly when nobody
 is waiting to; and unbounded is for a household small enough that
 contention never arises. A ballot chooses, because how a house shares
 its floor is the house's to decide, not the platform's.
+
+## #48
+A house check-in is a check-in: the witness thinks of it with the same
+knobs, so it has them, and the parts are read per resident because each
+part (her dates, her plan, her letters) is hers. The resident's own
+words for her part stay beside his words for the house, since the two
+say different things: what the house is doing, and what she brings.

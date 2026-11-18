@@ -163,6 +163,8 @@ defmodule Oneiroi.Gaia.Store do
       field(:key, :string, primary_key: true)
       field(:label, :string)
       field(:time, :string)
+      field(:prompt, :string)
+      field(:parts, {:array, :string})
       field(:last_day, :string)
       field(:last_thread, :string)
       field(:last_fired_at, :utc_datetime_usec)

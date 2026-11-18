@@ -1373,6 +1373,20 @@ defmodule Oneiroi.Sunna.Schedules do
     Enum.join([String.trim(frame) | words] ++ Enum.reject(sections, &(&1 in [nil, ""])), "\n\n")
   end
 
+  @doc """
+  The parts of a check-in note, read for this resident now (sunna#28):
+  each key of the catalog's that is in `parts`, in the catalog's order,
+  a part with nothing to say saying so; what a house check-in carries
+  for each resident (gaia#48).
+  """
+  def part_texts(resident_id, parts) do
+    for key <- CheckinParts.keys(),
+        key in (parts || ["dates"]),
+        text = part_text(resident_id, key),
+        text not in [nil, ""],
+        do: text
+  end
+
   defp part_text(resident_id, "dates"), do: dates_text(resident_id)
 
   defp part_text(resident_id, key) do

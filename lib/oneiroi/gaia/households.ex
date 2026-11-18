@@ -660,7 +660,7 @@ defmodule Oneiroi.Gaia.Households do
   end
 
   @doc "A witness sets a house check-in: its key, label and time (HH:MM) on the household's clock."
-  def set_house_checkin(household_id, key, label, time, %Actor{} = actor),
+  def set_house_checkin(household_id, key, label, time, opts \\ [], %Actor{} = actor),
     do:
       dispatch(%Commands.SetHouseCheckin{
         actor: actor,
@@ -668,8 +668,15 @@ defmodule Oneiroi.Gaia.Households do
         id: household_id,
         key: key,
         label: label,
-        time: time
+        time: time,
+        prompt: blank_nil(Keyword.get(opts, :prompt)),
+        parts: Keyword.get(opts, :parts)
       })
+
+  defp blank_nil(text) when is_binary(text),
+    do: if(String.trim(text) == "", do: nil, else: text)
+
+  defp blank_nil(_none), do: nil
 
   @doc "A witness removes a house check-in, with a note."
   def remove_house_checkin(household_id, key, note, %Actor{} = actor),

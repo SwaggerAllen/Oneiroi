@@ -187,20 +187,31 @@ defmodule OneiroiWeb.HouseholdController do
 
   operation(:set_checkin,
     summary:
-      "Set a house check-in: its label and its time HH:MM on the workspace's clock (gaia#41)",
+      "Set or change a house check-in: its label and its time HH:MM on the workspace's clock (gaia#41), and what its note carries as a resident's own does (gaia#48): prompt, the witness's words for the whole house, and parts, the catalog's keys; either left out keeps what it had",
     parameters: [key: [in: :path, type: :string]],
     request_body:
       {"the check-in", "application/json",
        %Schema{
          type: :object,
          required: [:label, :time],
-         properties: %{label: %Schema{type: :string}, time: %Schema{type: :string}}
+         properties: %{
+           label: %Schema{type: :string},
+           time: %Schema{type: :string},
+           prompt: %Schema{type: :string},
+           parts: %Schema{type: :array, items: %Schema{type: :string}}
+         }
        }},
     responses: [ok: {"house check-ins", "application/json", %Schema{type: :object}}]
   )
 
-  def set_checkin(conn, %{"key" => key} = params),
-    do: house(conn, Seshat.set_house_checkin(actor(conn), key, params["label"], params["time"]))
+  def set_checkin(conn, %{"key" => key} = params) do
+    opts =
+      for k <- ~w(prompt parts),
+          Map.has_key?(params, k),
+          do: {String.to_existing_atom(k), params[k]}
+
+    house(conn, Seshat.set_house_checkin(actor(conn), key, params["label"], params["time"], opts))
+  end
 
   operation(:remove_checkin,
     summary: "Remove a house check-in, with a note (gaia#41)",
