@@ -1143,7 +1143,6 @@ defmodule Oneiroi.Sunna.Schedules do
            resident_id
            |> Kumbukumbu.inbox(key)
            |> Enum.filter(&(&1.to_name == name and wakes?(&1))),
-         true <- settled?(letters, Clock.now()),
          {:ok, [%Events.LettersWoke{numbers: numbers} | _]} <-
            letters_woke(resident_id, letters, actor),
          _ <- Wakes.run(resident_id, "letter", letter_causes(numbers)),
@@ -1255,18 +1254,6 @@ defmodule Oneiroi.Sunna.Schedules do
     end
   end
 
-  # The debounce (sunna#72; the witness, 2026-11-18: "the same wake queue
-  # + debounce"): letters landing close together go in one wake. The tick
-  # waits until the newest has sat `SUNNA_LETTER_SETTLE_SECONDS`, but
-  # never holds the oldest past `SUNNA_LETTER_SETTLE_MAX_SECONDS`, so a
-  # steady stream still wakes her.
-  defp settled?(letters, now) do
-    ages = Enum.map(letters, &DateTime.diff(now, &1.sent_at))
-
-    Enum.min(ages) >= Config.fetch!(:sunna, :letter_settle_seconds) or
-      Enum.max(ages) >= Config.fetch!(:sunna, :letter_settle_max_seconds)
-  end
-
   # The letters' wake recorded (sunna#24, #72): the hourly bound counts
   # a wake carrying a letter from another of her conversations, the only
   # kind that can loop; held by it, the platform's and the house's
@@ -1293,7 +1280,8 @@ defmodule Oneiroi.Sunna.Schedules do
       id: resident_id,
       numbers: Enum.map(letters, & &1.number),
       limit: Config.fetch!(:sunna, :letter_wakes_per_hour),
-      capped: capped
+      capped: capped,
+      spacing: Config.fetch!(:sunna, :letter_spacing_seconds)
     }
 
   # Whether any letter a conversation sent waits unread for the one it

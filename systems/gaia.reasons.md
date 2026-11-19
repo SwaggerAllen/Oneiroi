@@ -399,3 +399,11 @@ deploy, a full queue). Without a second path, a lost job would hold its
 thread's token forever, and a stopped-looking house would be one waiting
 on a turn nobody holds. The thread read exists because the turns alone
 never said which threads were alive.
+
+## #56
+The log is the truth, and it was written faithfully: the empty settings
+are what the aggregate computed, so the fix is in how the aggregate
+reads, not in the record. Normalizing at apply keeps every execute
+clause matching one shape, whether the state was built in this process
+or replayed after a deploy, which is the only difference a test running
+in one process could not see.

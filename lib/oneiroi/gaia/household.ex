@@ -923,7 +923,7 @@ defmodule Oneiroi.Gaia.Household do
           version: e.version,
           prose: e.prose,
           rules: e.rules || [],
-          settings: e.settings || %{}
+          settings: stringly(e.settings || %{})
         }
     }
 
@@ -937,7 +937,7 @@ defmodule Oneiroi.Gaia.Household do
         threads: MapSet.put(h.threads, e.thread),
         ballots:
           Map.put(h.ballots, e.ballot, %{
-            bundle: e.bundle,
+            bundle: Enum.map(e.bundle || [], &stringly/1),
             closes_at: e.closes_at,
             votes: %{},
             closed: false
@@ -959,7 +959,12 @@ defmodule Oneiroi.Gaia.Household do
   def apply(%__MODULE__{} = h, %Events.HouseholdContractAmended{} = e),
     do: %{
       h
-      | contract: %{version: e.version, prose: e.prose, rules: e.rules, settings: e.settings}
+      | contract: %{
+          version: e.version,
+          prose: e.prose,
+          rules: e.rules,
+          settings: stringly(e.settings || %{})
+        }
     }
 
   def apply(%__MODULE__{} = h, %Events.HouseholdThreadWatched{}), do: h
@@ -1065,4 +1070,12 @@ defmodule Oneiroi.Gaia.Household do
 
   defp signed(h, _member, nil), do: h
   defp signed(h, member, version), do: %{h | signatures: Map.put(h.signatures, member, version)}
+
+  # A bundle item and the settings as the contract holds them, keyed by
+  # strings (gaia#56): a command carries them so, but an event read back
+  # from the log has its nested keys made atoms by the deserializer, and
+  # every match on `"setting"` then found nothing. On 2026-11-19 ballot #4
+  # carried `conversation` into a version with no settings at all, the
+  # aggregate having been rebuilt from the log by a deploy since it opened.
+  defp stringly(%{} = map), do: Map.new(map, fn {k, v} -> {to_string(k), v} end)
 end

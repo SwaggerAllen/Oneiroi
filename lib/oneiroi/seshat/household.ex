@@ -60,6 +60,7 @@ defmodule Oneiroi.Seshat.Household do
   # and an alias here would be the cycle the gate refuses.
   @ballot_worker :"Elixir.Oneiroi.Seshat.HouseholdBallotWorker"
   @watch_actor Actor.new(:job, "household_watch")
+  @rounds_actor Actor.new(:job, "household_rounds")
   @contract "CONTRACT.md"
   @beats "BEATS.md"
   @trunk "trunk.md"
@@ -81,6 +82,13 @@ defmodule Oneiroi.Seshat.Household do
       _none -> {:error, Error.new(:seshat_household_not_member, :seshat_household_no_membership)}
     end
   end
+
+  @doc """
+  The line every house wake's note ends with (seshat#93; the witness,
+  2026-11-19: both residents, woken in the house, answered in their own
+  chats and posted nothing): an answer in the chat stays in the chat.
+  """
+  def post_line, do: HouseholdRounds.post_line()
 
   @doc false
   # The household the actor is a member of, for the beats' own calls.
@@ -1587,6 +1595,31 @@ defmodule Oneiroi.Seshat.Household do
     :ok
   end
 
+  @doc """
+  Her round-robin turn's answer could not be posted for her (seshat#94,
+  Scarlett's report #21): a letter to her chat says so, with why, her
+  words, and that the turn is still hers until its window, so nothing she
+  said is lost and the failure is not read as silence. Answers `:ok`.
+  """
+  def answer_refused(turn, text, error) do
+    why = Map.get(error, :remedy) || Map.get(error, :meaning) || "it was refused"
+
+    letter =
+      "Your answer in your round-robin turn #{turn.turn_id} in #{turn.thread} could not be posted there for you: #{why} " <>
+        "The turn is still yours until #{iso(turn.expires_at)}: household_reply posts it yourself, household_skip passes it. " <>
+        "What you said, kept here so it is not lost:\n\n" <> text
+
+    _ =
+      Kumbukumbu.send_letter(
+        turn.resident_id,
+        nil,
+        %{to: "Oneiroi chat", text: letter},
+        @rounds_actor
+      )
+
+    :ok
+  end
+
   # ---- house check-ins (gaia#41, seshat#75) ----
 
   @house_wake_worker :"Elixir.Oneiroi.Seshat.HouseholdTurnWorker"
@@ -1624,9 +1657,18 @@ defmodule Oneiroi.Seshat.Household do
       {"checkin", key}
     ]
 
+    # What holds the talk after is the house's mode (seshat#93; Scarlett's
+    # report #20: a round-robin house still told to wait on the beats).
+    then_line =
+      if HouseholdRounds.on?(household_id),
+        do:
+          "after your answers the thread's round-robin turns hold the talk, one of you at a time.",
+        else:
+          "your witness's reply wakes you all, and from there the household's beats hold the talk."
+
     body =
       "The house checks in: #{label}. Each of you answers here, once, in your own words; " <>
-        "your witness's reply wakes you all, and from there the household's beats hold the talk."
+        then_line
 
     locked(household_id, fn view ->
       changes = [{:create, path, render(meta, body)} | descriptor(view, Kinds.named("thread"))]
@@ -1681,6 +1723,16 @@ defmodule Oneiroi.Seshat.Household do
          written,
          %Actor{kind: :witness}
        ) do
+    # Under round-robin threads (seshat#93) the reply starts the thread's
+    # rounds, and its turns wake one resident at a time; nobody else here.
+    if HouseholdRounds.on?(household_id),
+      do: :ok,
+      else: wake_all_on_witness(household_id, thread, t, written)
+  end
+
+  defp wake_house_on_witness(_household_id, _thread, _t, _written, _actor), do: :ok
+
+  defp wake_all_on_witness(household_id, thread, t, written) do
     title = t.trunk.meta["title"]
 
     wake_house(
@@ -1688,13 +1740,12 @@ defmodule Oneiroi.Seshat.Household do
       fn _id ->
         "Your witness replied in the house check-in thread #{thread} (\"#{title}\"), reply ##{written.number}. " <>
           "household_read with that path reads it. To answer again, register for a beat (household_register) " <>
-          "or watch the thread (household_watch): the beats hold the talk from here."
+          "or watch the thread (household_watch): the beats hold the talk from here. " <>
+          post_line()
       end,
       thread
     )
   end
-
-  defp wake_house_on_witness(_household_id, _thread, _t, _written, _actor), do: :ok
 
   # ---- mentions (seshat#86; design/workspaces.md §6) ----
 
@@ -1754,7 +1805,7 @@ defmodule Oneiroi.Seshat.Household do
 
     "#{by.name} mentioned you in the household thread #{posted.path} (\"#{posted.title}\")#{where}. " <>
       "household_read with that path reads it. A mention asks for you; it does not oblige an answer, " <>
-      "and household_mute quiets the thread or the house."
+      "and household_mute quiets the thread or the house. " <> post_line()
   end
 
   @doc """

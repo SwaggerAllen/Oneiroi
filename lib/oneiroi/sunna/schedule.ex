@@ -240,6 +240,7 @@ defmodule Oneiroi.Sunna.Schedule do
 
     cond do
       fresh == [] -> []
+      too_soon?(s, c) -> []
       c.capped != false and recent >= c.limit -> held(s, c, fresh)
       true -> %Events.LettersWoke{actor: c.actor, at: c.at, id: c.id, numbers: fresh}
     end
@@ -487,6 +488,16 @@ defmodule Oneiroi.Sunna.Schedule do
   end
 
   # ---- apply ----
+
+  # The throttle (sunna#73; the witness, 2026-11-19: "having the first
+  # wake fire immediately gives us fast reactions at low traffic"): a
+  # letter wake within `spacing` seconds of the last waits for the next
+  # tick past it, and the letters landing meanwhile go in that one wake.
+  defp too_soon?(s, c) do
+    spacing = c.spacing || 0
+    since = DateTime.add(c.at, -spacing, :second)
+    spacing > 0 and Enum.any?(s.letter_wakes, &(DateTime.compare(&1, since) == :gt))
+  end
 
   # Held by the hourly bound (sunna#72): recorded once for the letters it
   # holds, as a wake not delivered, so the log shows it waiting; the next

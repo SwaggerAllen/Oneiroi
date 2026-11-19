@@ -144,6 +144,64 @@ defmodule Oneiroi.Seshat.WitnessBeatsTest do
              perform_job(HouseholdBallotWorker, %{"household_id" => ctx.household, "ballot" => 1})
   end
 
+  # gaia#56 (2026-11-19, ballot #4): the aggregate rebuilt from the log, as
+  # after a deploy, reads the bundle with the deserializer's atom keys, and
+  # still carries its settings.
+  test "a ballot read back from the log carries its settings when it closes", ctx do
+    {:ok, %{path: _ballot}} =
+      Seshat.household_post(ctx.andrew, %{
+        "title" => "Rebuilt",
+        "content" => "Across a deploy.",
+        "ballot" => %{
+          "bundle" => [%{"setting" => "witness_posts", "value" => "unbounded"}],
+          "term_days" => 1,
+          "note" => "the bug of 11-19"
+        }
+      })
+
+    {:ok, events} = Oneiroi.EventStore.read_stream_forward("household-" <> ctx.household)
+
+    state =
+      Enum.reduce(events, %Oneiroi.Gaia.Household{}, &Oneiroi.Gaia.Household.apply(&2, &1.data))
+
+    assert [%{"setting" => "witness_posts"}] = state.ballots[1].bundle
+
+    # Both members vote yes, as the log would carry it.
+    state =
+      for {kind, id} <- [{"witness", ctx.andrew.id}, {"resident", ctx.wren.id}], reduce: state do
+        st ->
+          Oneiroi.Gaia.Household.apply(st, %Oneiroi.Gaia.Events.HouseholdBallotVoted{
+            actor: ctx.andrew,
+            at: Clock.now(),
+            id: ctx.household,
+            ballot: 1,
+            member_kind: kind,
+            member_id: id,
+            vote: "yes"
+          })
+      end
+
+    Clock.Fake.advance(86_400)
+
+    closed =
+      Oneiroi.Gaia.Household.execute(state, %Oneiroi.Gaia.Commands.CloseHouseholdBallot{
+        actor: ctx.andrew,
+        at: Clock.now(),
+        id: ctx.household,
+        ballot: 1
+      })
+
+    assert Enum.any?(
+             List.wrap(closed),
+             &match?(
+               %Oneiroi.Gaia.Events.HouseholdContractAmended{
+                 settings: %{"witness_posts" => "unbounded"}
+               },
+               &1
+             )
+           )
+  end
+
   test "queue_emptied: with nobody waiting, a witness posts again in the beat", ctx do
     {:ok, %{path: ballot}} =
       Seshat.household_post(ctx.andrew, %{

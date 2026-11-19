@@ -1083,6 +1083,11 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   defp sender(_resident_id, nil, %Actor{kind: :job, id: "household_watch"}),
     do: {:ok, household_sender()}
 
+  # A round-robin turn whose answer could not be posted for her (seshat#94):
+  # the house tells her so, and the tick wakes the chat for it.
+  defp sender(_resident_id, nil, %Actor{kind: :job, id: "household_rounds"}),
+    do: {:ok, household_sender()}
+
   defp sender(resident_id, session_key, %Actor{}) do
     case name_of(resident_id, session_key) do
       nil ->

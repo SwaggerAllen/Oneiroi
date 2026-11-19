@@ -158,19 +158,13 @@ defmodule Oneiroi.Sunna do
        default: "30",
        tag: :bound,
        usage:
-         "how many times an hour letters from another of the resident's conversations may wake the Oneiroi chat (sunna#24, #72), so two conversations answering each other cannot wake each other without end; each wake is a paid turn on the chat line. A backstop since the debounce (the witness, 2026-11-18): a wake carrying only the platform's answers (the reader, the oracle) or the house's is never held by it, and one held is recorded in the wake log"},
-      {:letter_settle_seconds, "SUNNA_LETTER_SETTLE_SECONDS",
+         "how many times an hour letters from another of the resident's conversations may wake the Oneiroi chat (sunna#24, #72), so two conversations answering each other cannot wake each other without end; each wake is a paid turn on the chat line. A backstop since the throttle (sunna#73): a wake carrying only the platform's answers (the reader, the oracle) or the house's is never held by it, and one held is recorded in the wake log"},
+      {:letter_spacing_seconds, "SUNNA_LETTER_SPACING_SECONDS",
        cast: :integer,
        default: "60",
        tag: :bound,
        usage:
-         "how long the newest waiting letter sits before the Oneiroi chat is woken for the letters (sunna#72): letters landing inside it go in one wake (the witness, 2026-11-18)"},
-      {:letter_settle_max_seconds, "SUNNA_LETTER_SETTLE_MAX_SECONDS",
-       cast: :integer,
-       default: "300",
-       tag: :bound,
-       usage:
-         "the longest the oldest waiting letter is held by the settle (sunna#72), so letters arriving steadily still wake the chat"},
+         "the least time between two wakes of the Oneiroi chat for letters (sunna#73): the first letter after a quiet spell wakes it at once, and letters landing within this of the last wake wait for it to pass and go in one wake (the witness, 2026-11-19)"},
       {:rounds_every_hours, "SUNNA_ROUNDS_EVERY_HOURS",
        cast: :integer,
        default: "3",

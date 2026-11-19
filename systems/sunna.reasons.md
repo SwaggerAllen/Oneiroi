@@ -519,3 +519,9 @@ burst becomes one wake instead of spending the hour on it, and leaves
 the bound as a guard against loops alone, which only her own
 conversations can make. A hold that is recorded is a delay anyone can
 read; a hold that is not is a silence.
+
+## #73
+A debounce makes every letter wait, so the common case, one letter in a
+quiet hour, paid a minute for a burst that was not happening. A throttle
+pays nothing until there is a burst, and then gathers it into one wake,
+which is what the wait was for.
