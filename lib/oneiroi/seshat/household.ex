@@ -48,6 +48,7 @@ defmodule Oneiroi.Seshat.Household do
   alias Oneiroi.Gaia.Beats
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat.Error
+  alias Oneiroi.Seshat.HouseholdRounds
   alias Oneiroi.Seshat.Kinds
   alias Oneiroi.Seshat.Published
   alias Oneiroi.SimaQian.Repos
@@ -718,10 +719,12 @@ defmodule Oneiroi.Seshat.Household do
       case {attrs["kind"] || "thread", attrs["doc"]} do
         {"thread", doc} when is_binary(doc) ->
           post_doc_thread(actor, household_id, view, attrs)
+          |> rounds_after(household_id, actor)
           |> mentioned(household_id, actor, attrs, nil)
 
         {"thread", _none} ->
           post_thread(actor, household_id, view, attrs)
+          |> rounds_after(household_id, actor)
           |> mentioned(household_id, actor, attrs, nil)
 
         _document ->
@@ -1303,6 +1306,12 @@ defmodule Oneiroi.Seshat.Household do
            locked(household_id, fn view ->
              write_reply(actor, household_id, view, {thread, t}, by, reply)
            end) do
+      {rounds, written} = Map.pop(written, :rounds, :none)
+
+      with {:write, spent} <- rounds,
+           true <- HouseholdRounds.on?(household_id),
+           do: HouseholdRounds.after_write(household_id, thread, actor, spent)
+
       poke(household_id, thread, t, written, by, actor)
       _ = wake_house_on_witness(household_id, thread, t, written, actor)
 
@@ -1326,10 +1335,34 @@ defmodule Oneiroi.Seshat.Household do
     # waits on no turn either. Anything else goes through the beats.
     exempt? = vote != nil or checkin_answer?(actor, t)
 
-    with :ok <- if(exempt?, do: :ok, else: gate(actor, household_id, view, thread, :post)) do
-      append_reply(actor, household_id, view, {thread, t}, by, {text, vote, in_reply_to})
+    with :ok <- if(exempt?, do: :ok, else: gate(actor, household_id, view, thread, :post)),
+         {:ok, spent} <- reply_token(exempt?, actor, household_id, thread),
+         {:ok, written} <-
+           append_reply(actor, household_id, view, {thread, t}, by, {text, vote, in_reply_to}) do
+      {:ok, Map.put(written, :rounds, if(vote == nil, do: {:write, spent}, else: :none))}
     end
   end
+
+  # In round-robin threads (seshat#89) a resident's reply where the
+  # rounds run spends her live token, before the write it allows.
+  defp reply_token(false, actor, household_id, thread) do
+    if HouseholdRounds.on?(household_id),
+      do: HouseholdRounds.spend_for_reply(actor, household_id, thread),
+      else: {:ok, []}
+  end
+
+  defp reply_token(true, _actor, _household_id, _thread), do: {:ok, []}
+
+  # After a write, the thread's rounds start (or again, stopped) and every
+  # turn issued is woken (seshat#89); nothing under the beats.
+  defp rounds_after({:ok, %{path: thread}} = ok, household_id, actor) do
+    if HouseholdRounds.on?(household_id),
+      do: HouseholdRounds.after_write(household_id, thread, actor, [])
+
+    ok
+  end
+
+  defp rounds_after(other, _household_id, _actor), do: other
 
   defp append_reply(actor, _household_id, view, {thread, t}, by, {text, vote, in_reply_to}) do
     number = next_reply(view, thread)
@@ -1582,6 +1615,38 @@ defmodule Oneiroi.Seshat.Household do
     end
   end
 
+  # ---- round-robin threads, the resident's own (seshat#89) ----
+
+  @doc """
+  A resident passes her live turn in a round-robin thread, or opts out
+  of its rounds or back in (`:skip`, `:out`, `:in`). Answers the thread's
+  rounds after.
+  """
+  def rounds(%Actor{kind: :resident} = actor, thread_name, what)
+      when what in [:skip, :out, :in] do
+    with {:ok, household_id} <- household(actor),
+         :ok <- rounds_on(household_id),
+         thread when is_binary(thread) <- thread_path(thread_name) || no_thread(thread_name),
+         {:ok, r} <- rounds_step(actor, household_id, thread, what) do
+      {:ok, %{thread: thread, rounds: r}}
+    end
+  end
+
+  def rounds(%Actor{}, _thread_name, _what),
+    do: {:error, Error.new(:seshat_household_rounds, :seshat_household_rounds_resident)}
+
+  defp rounds_step(actor, household_id, thread, :skip),
+    do: HouseholdRounds.skip(actor, household_id, thread)
+
+  defp rounds_step(actor, household_id, thread, what),
+    do: HouseholdRounds.opt(actor, household_id, thread, what == :out)
+
+  defp rounds_on(household_id) do
+    if HouseholdRounds.on?(household_id),
+      do: :ok,
+      else: {:error, Error.new(:seshat_household_rounds, :seshat_household_rounds_off)}
+  end
+
   @doc "The members a text names, `@<name>` or `@all` (seshat#86)."
   def named_in(household_id, text) do
     members = Gaia.household_members(household_id)
@@ -1775,8 +1840,15 @@ defmodule Oneiroi.Seshat.Household do
     now = Clock.now()
     writes = writes(view)
 
-    with :ok <- window(actor, household_id, shape, writes, target, now),
-         do: quota(actor, shape, writes, what, now)
+    # In round-robin threads (seshat#89) the token is the turn, spent
+    # apart from this; the beats' window retires and the quota holds.
+    if shape.conversation == "round_robin",
+      do: quota(actor, shape, writes, what, now),
+      else:
+        with(
+          :ok <- window(actor, household_id, shape, writes, target, now),
+          do: quota(actor, shape, writes, what, now)
+        )
   end
 
   defp window(%Actor{kind: :resident} = actor, household_id, shape, writes, target, now) do

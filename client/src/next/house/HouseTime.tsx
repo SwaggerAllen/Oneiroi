@@ -27,9 +27,10 @@ export function HouseTime() {
             <Checkins checkins={checkins.data.checkins} zone={zone} />
           </>
         )}
-        {beats.data && <Now b={beats.data} />}
+        {beats.data && beats.data.conversation === 'round_robin' && <Rounds b={beats.data} />}
+        {beats.data && beats.data.conversation !== 'round_robin' && <Now b={beats.data} />}
         {beats.data && <Members b={beats.data} />}
-        {beats.data && beats.data.closed.length > 0 && <Closed b={beats.data} />}
+        {beats.data && beats.data.conversation !== 'round_robin' && beats.data.closed.length > 0 && <Closed b={beats.data} />}
         {checkins.data && <Zone zone={zone} />}
       </div>
     </ScrollArea>
@@ -175,6 +176,54 @@ function Checkin({ c, day }: { c: HouseCheckin; day: string }) {
       )}
       <Failed error={remove.error} />
     </div>
+  );
+}
+
+const OUTCOMES: Record<string, string> = {
+  posted: 'replied',
+  skipped: 'skipped',
+  empty: 'woke and said nothing',
+  expired: 'let it pass',
+  opted_out: 'opted out',
+};
+
+/**
+ * Round-robin threads (gaia#53, seshat#89): the beats retire, and each
+ * thread's turns are the house's clock: who holds one now, until when,
+ * and how the last ones went.
+ */
+function Rounds({ b }: { b: HouseBeats }) {
+  const turns = b.rounds ?? [];
+  const open = turns.filter((t) => t.outcome === null);
+  const lately = turns.filter((t) => t.outcome !== null).slice(0, 10);
+  return (
+    <section className={css.section} aria-label="Round-robin turns">
+      <h2 className={css.heading}>TURNS NOW</h2>
+      <p className={css.note}>
+        The house talks in round-robin threads: each resident has a turn in each round of a thread, and a round that says nothing stops it until someone posts there. You write at any time.
+      </p>
+      {open.length === 0 && <p className={css.note}>No turn is open.</p>}
+      {open.map((t) => (
+        <div key={t.turn_id} className={css.rowHers}>
+          <span>
+            {t.name ?? 'A resident'} · {t.thread}, round {t.round}
+          </span>
+          <span className={css.meta}>until {when(t.expires_at)}</span>
+        </div>
+      ))}
+      {lately.length > 0 && <h2 className={css.heading}>LATELY</h2>}
+      {lately.map((t) => (
+        <div key={t.turn_id} className={css.row}>
+          <span>
+            {t.name ?? 'A resident'} · {t.thread}, round {t.round}
+          </span>
+          <span className={css.meta}>{OUTCOMES[t.outcome ?? ''] ?? t.outcome}</span>
+        </div>
+      ))}
+      <p className={css.note}>
+        Your posts: {b.you.quota_left} of {b.you.quota} left in {b.you.quota_window_hours} hours.
+      </p>
+    </section>
   );
 }
 

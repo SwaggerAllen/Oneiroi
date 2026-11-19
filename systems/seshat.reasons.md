@@ -746,3 +746,13 @@ pass, and a turn is scarce: waiting an hour for the next beat because
 one reply came back blank is the platform losing her turn for her. One
 more wake costs a call and leaves the choice hers; a second blank is
 taken as an answer, so nothing loops.
+
+## #89
+The token is checked on the write path, inside the household's lock,
+because that is the only place a write can be stopped before it lands;
+spending it before the commit means a refused write never leaves a turn
+half-used, and a reply that is written has always paid. Waking by job
+and expiring by a second job scheduled at the window keeps the rounds
+moving with nothing polling: the beats' minute is retired with them, and
+a beat turn already queued is fenced off rather than run, so a house
+switching mid-beat never wakes a resident twice for two systems at once.

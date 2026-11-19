@@ -395,6 +395,9 @@ defmodule Oneiroi.Brain.TrialTest do
     {"household_sign", %{}},
     {"household_register", %{}},
     {"household_profile", %{profile: "every_beat", note: "the digest"}},
+    {"household_skip", %{thread: "threads/2026-10-26-herons"}},
+    {"household_opt_out", %{thread: "threads/2026-10-26-herons"}},
+    {"household_opt_in", %{thread: "threads/2026-10-26-herons"}},
     {"domain_tag", %{domain: "business"}}
   ]
 

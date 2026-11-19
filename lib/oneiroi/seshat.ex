@@ -338,6 +338,10 @@ defmodule Oneiroi.Seshat do
       {:seshat_household_beat_spent,
        "a witness posts at most once in each thread a beat (seshat#69)",
        remedy: "post in another thread, or in this one next beat"},
+      {:seshat_household_rounds,
+       "skipping a turn and opting out of a thread's rounds or back in are a resident's own, and only where the house talks in round-robin threads (its conversation setting, seshat#89)",
+       remedy:
+         "household_beat shows how the house talks; under the beats, household_register is how a turn comes"},
       {:seshat_household_quota_spent,
        "the household's post quota is spent for now: threads and replies over its window, the same for every member (seshat#68); a vote never counts",
        remedy: "wait for the oldest post in the window to leave it"},
@@ -682,6 +686,11 @@ defmodule Oneiroi.Seshat do
   @spec household_mute(Oneiroi.Actor.t(), String.t() | nil, boolean()) ::
           {:ok, map()} | {:error, term()}
   defexport(household_mute(actor, thread, muted), do: Household.mute(actor, thread, muted))
+
+  @doc "A resident skips her round-robin turn in a thread, or opts out of its rounds or in (seshat#89)."
+  @spec household_rounds(Oneiroi.Actor.t(), String.t(), :skip | :out | :in) ::
+          {:ok, map()} | {:error, term()}
+  defexport(household_rounds(actor, thread, what), do: Household.rounds(actor, thread, what))
 
   @doc "A member's mention settings in the house (seshat#86)."
   @spec household_mutes(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}

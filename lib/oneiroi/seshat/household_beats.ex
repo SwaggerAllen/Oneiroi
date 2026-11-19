@@ -34,6 +34,7 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
   alias Oneiroi.Gaia.Events
   alias Oneiroi.Seshat.Error
   alias Oneiroi.Seshat.Household
+  alias Oneiroi.Seshat.HouseholdRounds
   alias Oneiroi.Sunna
 
   # By name, as an atom: the worker calls back into this module, and an
@@ -152,8 +153,14 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
       mine = Enum.find(beats.profiles, &(&1.id == actor.id))
       open = beats.open_turn
 
+      names = Map.new(beats.profiles, &{&1.id, &1.name})
+
       {:ok,
-       Map.put(beats, :you, %{
+       beats
+       |> Map.put(:conversation, shape.conversation)
+       |> Map.put(:rounds, HouseholdRounds.read(household_id, names))
+       |> Map.put(:you, %{
+         id: actor.id,
          kind: Atom.to_string(actor.kind),
          profile: mine && mine.profile,
          missed: (mine && mine.missed) || 0,
@@ -184,6 +191,13 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
 
   @doc "One household's minute: what its aggregate recorded, then a job for a fired turn and the digests of a beat just closed."
   def tick(household_id) do
+    # Round-robin threads retire the beats (seshat#89): no minute runs.
+    if Gaia.household_beat_shape(household_id).conversation == "round_robin",
+      do: :ok,
+      else: tick_beats(household_id)
+  end
+
+  defp tick_beats(household_id) do
     case Gaia.tick_household_beats(household_id, @actor) do
       {:ok, []} -> :ok
       {:ok, events} -> followed(household_id, events)
@@ -224,13 +238,22 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
   def run_turn(household_id, number) do
     case Gaia.household_turn(household_id, number) do
       %{ended_at: nil} = turn ->
-        {outcome, note} = wake(household_id, turn)
+        {outcome, note} = fenced_wake(household_id, turn)
         {:ok, _} = Gaia.end_household_turn(household_id, number, outcome, note, @actor)
         tick(household_id)
 
       _ended ->
         :ok
     end
+  end
+
+  # A beat turn queued before the house moved to round-robin threads
+  # ends unwoken (seshat#89): the fence between the two.
+  defp fenced_wake(household_id, turn) do
+    if Gaia.household_beat_shape(household_id).conversation == "round_robin",
+      do:
+        {"declined", "The house talks in round-robin threads now; the beat's turn ended unwoken."},
+      else: wake(household_id, turn)
   end
 
   defp wake(household_id, turn) do
