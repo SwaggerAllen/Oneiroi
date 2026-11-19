@@ -4360,6 +4360,10 @@ defmodule Oneiroi.Brain.Tools do
     do:
       "#{local_stamp(r.at)} letter ##{r.number} (#{r.name}'s): #{r.from} to #{r.to}#{if r.in_reply_to, do: ", in reply to ##{r.in_reply_to}", else: ""}; read by #{if r.read_by == [], do: "nobody yet", else: Enum.join(r.read_by, ", ")}"
 
+  defp activity_line(%{kind: "held"} = r),
+    do:
+      "#{local_stamp(r.at)} wake held for #{r.name} by the hourly bound, woken at a later tick: #{causes_text(r.causes)}"
+
   defp activity_line(%{kind: "mention"} = r),
     do:
       "#{local_stamp(r.at)} mention banked for #{r.name} (muted, not woken): #{causes_text(r.causes)}"

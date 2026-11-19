@@ -11,7 +11,6 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
   alias Oneiroi.HuginnMuninn.NightlyWorker
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
-  alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
   alias Oneiroi.Seshat
   alias Oneiroi.Sunna
 
@@ -23,11 +22,9 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
     {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     Model.clear()
-    Honcho.clear(for: resident.id)
 
     on_exit(fn ->
       Model.clear(for: resident.id)
-      Honcho.clear(for: resident.id)
     end)
 
     {:ok, witness: witness, id: resident.id, actor: actor, brain: brain, key: key}
@@ -120,7 +117,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
              HuginnMuninn.run_audits(id, ctx.actor)
 
     assert Enum.map(results, & &1.key) |> Enum.sort() ==
-             ~w(attestation capture_failures checking citation_drift contract_due corpus_shape journal_delta missed_checkins overdue_predictions quietcheck rigidity sync_failures temporal_depth trait_baseline wanting_liking wash_flags)
+             ~w(attestation capture_failures checking citation_drift contract_due corpus_shape journal_delta missed_checkins overdue_predictions quietcheck rigidity temporal_depth trait_baseline wanting_liking wash_flags)
 
     assert Enum.all?(results, &(&1.tone == "silent" and &1.finding =~ "not read:"))
 
@@ -254,7 +251,7 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     assert {:ok, %{findings: [%{key: "attestation"}]}} = HuginnMuninn.run_audits(id, ctx.actor)
 
     audits = HuginnMuninn.audits(id)
-    assert Enum.count(audits, & &1.builtin) == 16
+    assert Enum.count(audits, & &1.builtin) == 15
 
     assert %{builtin: false, counts: true, last: %{tone: "silent", value: 3}} =
              Enum.find(audits, &(&1.key == "tea-enough"))
@@ -268,9 +265,9 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     :ok = Oneiroi.Scope.put(:platform)
     assert :ok = NightlyWorker.run(%{})
     assert %{results: results} = HuginnMuninn.light(ctx.id)
-    assert length(results) == 16
+    assert length(results) == 15
     assert %{results: other_results} = HuginnMuninn.light(other.id)
-    assert length(other_results) == 16
+    assert length(other_results) == 15
   end
 
   test "citation drift counts a citation that once resolved and does not now, and the journal delta warns on a planned day never wrapped",
@@ -448,12 +445,12 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     assert :ok = Eunomia.judge_night(id, yesterday, ctx.actor)
     assert %{tone: "silent", value: 2} = quiet.()
 
-    # Nine days on: the weekly audit and the wash are expected; the
-    # baseline only once there is a habit to measure, and the measures
-    # of the run that first expected it take it.
+    # Nine days on: the wash is expected (the memory audit retired with
+    # Honcho, eunomia#32); the baseline only once there is a habit to
+    # measure, and the measures of the run that first expected it take it.
     Clock.Fake.advance(9 * 86_400)
     assert %{tone: "fail", finding: finding} = quiet.()
-    assert finding =~ "the weekly memory audit: never, due within 8 days"
+    refute finding =~ "memory audit"
     assert finding =~ "the weekly wash: never"
     refute finding =~ "the trait baseline"
 
@@ -469,11 +466,10 @@ defmodule Oneiroi.HuginnMuninn.ChecksTest do
     assert :ok = Sunna.tick(id)
     yesterday = Clock.now() |> DateTime.add(-1, :day) |> DateTime.to_date() |> Date.to_iso8601()
     assert :ok = Eunomia.judge_night(id, yesterday, ctx.actor)
-    _ = Eunomia.run_audit(id, ctx.actor)
     _ = Eunomia.run_wash(id, ctx.actor)
     # The baseline was taken by the measures of the run above.
-    assert %{tone: "silent", value: 5, finding: finding} = quiet.()
-    assert finding =~ "read 5 expected events, each within its cadence"
+    assert %{tone: "silent", value: 4, finding: finding} = quiet.()
+    assert finding =~ "read 4 expected events, each within its cadence"
 
     # Fail-loud: the checker's own crash is a finding and an exit code,
     # never silence; the hourly job logs the verdict first and last and

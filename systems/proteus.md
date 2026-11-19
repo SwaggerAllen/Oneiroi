@@ -2,12 +2,8 @@
 paths:
   - lib/oneiroi/proteus/**
   - lib/oneiroi/proteus.ex
-  - lib/oneiroi_web/controllers/honcho_controller.ex
-  - priv/templates/honcho-custom-instructions.md
   - priv/repo/migrations/*_proteus.exs
   - priv/repo/migrations/*_honcho_*.exs
-  - test/oneiroi/proteus/**
-  - test/fixtures/proteus/**
 ---
 
 # proteus
@@ -20,25 +16,21 @@ Proteus is the Old Man of the Sea. He knows everything, and he will say it only 
 
 The bridge to Honcho, which keeps a model of each person in the conversation (the peer cards, the custom instructions, the card audit), is named for the shape-changer. A model of a person is a thing that keeps changing shape, and it answers truly only to the one who holds on through the changes. The name takes the knowledge and the grip.
 
-The bridge, workspaces, peer cards, custom instructions, the card audit.
-Spec §6.9. Built (P2, slice 3) under `Oneiroi.Proteus`, the system's
-name, where the spec's file map said `honcho/`. The weekly memory audit
-that reads through it is judgement's (eunomia#22).
+**Retired on 2026-11-18 (#20).** The bridge, workspaces, peer cards,
+custom instructions and the card audit were Spec §6.9's, built (P2,
+slice 3) under `Oneiroi.Proteus`; none of them runs now. The decisions
+below are kept as the record of what was built, each superseded by #20.
 
 ## #1 Owns
 
-The bridge aggregate on `honcho-<resident_id>` (`Bridge`, `Commands`,
-`Events`, `Router`) with `WorkspaceProvisioned`, `PeerAdded`, `CardSet`,
-`CardAudited`, `CardAuditFailed`, `TurnSynced`, `SyncFailed` and
-`KeyMinted`; the `proteus_bridge` and `proteus_sync` projections; the
-read of Honcho's memory of the resident for the records export
-(`memory/1`, #18); the port (`Honcho`) with Honcho's HTTP API behind it (`Honcho.HTTP`), the
-requests it sends (`Honcho.Wire`), the server's record they are held to
-(`Honcho.Recorded`) and the in-memory Honcho (`Honcho.Fake`); the service (`Bridges`); the weekly
-card audit (`CardAuditWorker`); the honcho routes under
-`/v1/residents/:id` (the bridge, the card audit, the replay). The custom-instructions template is the resident
-system's to render (agathos-daimon#19) and the records export's to
-write (sima-qian#13).
+Since #20, only the record: the bridge's events on
+`honcho-<resident_id>` (`WorkspaceProvisioned`, `PeerAdded`, `CardSet`,
+`CardAudited`, `CardAuditFailed`, `TurnSynced`, `SyncFailed`,
+`KeyMinted`), declared so the event store and every projector still
+read them, the stream no longer growing. The `proteus_bridge` and
+`proteus_sync` tables, the `honcho` schema and the `oneiroi_honcho`
+role stay in the database until they are removed on the witness's word,
+with the `honcho-api` and `honcho-deriver` services; no code reads them.
 
 ## #2 Standing decisions
 
@@ -63,6 +55,7 @@ Decided in the build:
 
 - **#18 Honcho's memory of the resident is read whole for the records export, in the server's recorded shapes.** `memory/1` (`Bridges.memory/2`) reads the provisioned workspace through the port: every peer (`POST /v3/workspaces/{ws}/peers/list`), every card each peer holds of itself and of each other peer (`GET .../peers/{observer}/card`, with `?target=` for another), every conclusion (`POST .../conclusions/list`, no filter, with its observer and observed, session, level, sources and instant), and every session's summaries (`POST .../sessions/list`, then `GET .../sessions/{id}/summaries`). Every list is walked page by page at 100 a page, the server's bound, from page 1 to the `pages` the answer counts. Nil before provisioning; one failed read fails the whole, so a part is never taken for it. First written from honcho-ai 2.5.1, the SDK Honcho's compatibility guide pairs with v3.2.2; checked since against the deployed server's routers and schemas (#9), which agree on every read, and the export test's loopback Honcho answers only in the recorded shapes. Not read, because Honcho does not hold them alone: its copies of the turns, the peers' and sessions' configuration, the representation and context it assembles per query, and its queue. The export is the records system's to write (sima-qian#42).
 - **#19 A failed sync is replayed from the captured turn, once.** `replay/2` re-sends every turn whose sync row is failed (a synced turn's row is never failed again), each through `sync_turn/5` with its messages read back from the conversation store (`Kumbukumbu.turn_messages/2`), in the order spoken (the first message's instant, then its place in the session's stream), and stops at the first that fails again so no turn reaches Honcho ahead of an earlier one. Honcho keys messages by nothing the client sends and takes a batch twice as two, so every message carries its turn's ref in its metadata, and a turn whose last sync failed asks Honcho first (`POST .../messages/list` filtered by `metadata.turn_ref`): a send that committed but answered too late, or a record that failed after the send, is recorded synced without a second send. A failed row whose turn holds no captured message is named and left. A witness runs it on demand, `POST /v1/residents/:id/honcho/replay`, answering the turns synced, any uncaptured, and where it stopped; nothing runs it on a schedule.
+- **#20 Honcho is retired: nothing is synced to it or read from it, and its record stays.** (The witness, 2026-11-18: "I honestly don't think we'll lose anything that the current system doesn't do better by cutting honcho altogether"; Lily's retrieval pass the same evening found nothing in her `honcho/` tree that her own records do not hold whole.) Supersedes #1 to #19. The turn sync (brain#106), the context section (brain#106), the card set on a soul commit and the weekly card audit, the replay, the key minting, the memory read for the export (sima-qian#65), the memory audit over its conclusions (eunomia#32) and the sync check (huginn-muninn#21) are gone, with the port, its HTTP client, its recorded server and its fake, the service, the aggregate, its router and its projector, the `/v1/residents/:id/honcho` routes, and every `PROTEUS_*` setting. The event modules stay, declared in `events/0`, because the event store holds them and every projector reads the whole log; the `honcho` stream is no longer a router's, so the export's list of streams it leaves out no longer names it (sima-qian#43). The services, the schema and the role are removed apart, on the witness's word and after each resident's inspection of her own tree; a resident's `honcho/` folder stays in her repository as last written.
 
 ## #6 Initial vs target
 

@@ -69,8 +69,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def roles, do: @roles
 
   # The identity files a witness gives and a resident keeps (spec §6.2,
-  # F2). `AGENTS.md` and `honcho/custom-instructions.md` are build-owned
-  # and rendered from templates, never written here.
+  # F2). `AGENTS.md` is build-owned
+  # and rendered from a template, never written here.
   @files ~w(SOUL.md IDENTITY.md USER.md GOALS.md LINKS.md)
   @origins ~w(authored drafted uploaded)
   # Bounded in size as spec §6.2 asks of uploads: a guess, generous for

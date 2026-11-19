@@ -54,8 +54,6 @@ config :oneiroi,
           # so a script can tell the judge's call from the resident's; the
           # live-check bound is short so a timed-out check is a quick test.
           "EUNOMIA_JUDGE_MODEL" => "fake/judge",
-          # The in-memory Honcho (conventions §9).
-          "PROTEUS_CLIENT" => "fake",
           # The in-memory push service, and a VAPID key minted for the
           # suite alone (gaia#15); production's is GAIA_VAPID_PRIVATE_KEY.
           "GAIA_PUSH_CLIENT" => "fake",
@@ -71,11 +69,6 @@ config :oneiroi,
           "NISABA_STRIPE_WEBHOOK_SECRET" => "whsec_test_suite",
           "SIMA_QIAN_GITEA_WEBHOOK_SECRET" => "gitea_test_suite",
           "GAIA_VAPID_PRIVATE_KEY" => "PqvkdKHPz6XqjjvJw34EwXC230cSVIj4OGJPDEWp9x8",
-          # Where the HTTP port's own tests stand up a Honcho of their own,
-          # on the loopback (proteus#18); nothing else calls it, since
-          # the client above is the in-memory one.
-          "PROTEUS_HONCHO_URL" => "http://127.0.0.1:47817",
-          "PROTEUS_HONCHO_JWT_SECRET" => "test-honcho-secret",
           "EUNOMIA_LIVE_CHECK_MS" => "300",
           "SIMA_QIAN_ROOT" => "tmp/sima_qian_test",
           # Two chunks a request, so any index of three chunks or more is

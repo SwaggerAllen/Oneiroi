@@ -173,12 +173,22 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     {main, letter, send, code, lily} = letters_setup(ctx)
     first = letter.("secret words")
 
+    # It settles a minute first (sunna#72): one landing inside it joins the wake.
     assert :ok = Sunna.tick(ctx.id)
+    assert [] = transcript(ctx, main)
+    Clock.Fake.advance(30)
+    second = letter.("more words")
+    Clock.Fake.advance(30)
+    assert :ok = Sunna.tick(ctx.id)
+    assert [] = transcript(ctx, main)
+    Clock.Fake.advance(30)
+    assert :ok = Sunna.tick(ctx.id)
+
     assert [note, reply] = transcript(ctx, main)
     assert note.role == "system" and note.actor_kind == "platform"
 
     assert note.content =~
-             "letters came for you here: ##{first} from Claude Code · Oneiroi."
+             "letters came for you here: ##{first} from Claude Code · Oneiroi, ##{second} from Claude Code · Oneiroi."
 
     assert note.content =~ "letter_send with in_reply_to"
     refute note.content =~ "secret words"
@@ -197,28 +207,56 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     Clock.Fake.advance(60)
     assert :ok = Sunna.tick(ctx.id)
     assert [_, _] = transcript(ctx, main)
+  end
 
-    # At most six wakes an hour: five more letters wake it, the seventh
-    # waits for the hour to turn, and then wakes it.
+  # sunna#72: a steady stream still wakes her once the oldest has waited
+  # the settle's ceiling.
+  test "letters arriving steadily wake the chat by the settle's ceiling", ctx do
+    {main, letter, _send, _code, _lily} = letters_setup(ctx)
+    first = letter.("one")
+
     for _ <- 1..5 do
+      Clock.Fake.advance(50)
+      letter.("and another")
+      assert :ok = Sunna.tick(ctx.id)
+    end
+
+    assert [] = transcript(ctx, main)
+    Clock.Fake.advance(50)
+    assert :ok = Sunna.tick(ctx.id)
+    assert [note | _] = transcript(ctx, main)
+    assert note.content =~ "##{first} from Claude Code"
+  end
+
+  # sunna#72: the hourly bound is a backstop for conversations waking each
+  # other; a wake it holds is in the log, and the platform's answers pass it.
+  test "the hourly backstop holds a conversation's letters, says so, and never the platform's",
+       ctx do
+    {main, letter, _send, _code, _lily} = letters_setup(ctx)
+    notes = fn -> ctx |> transcript(main) |> Enum.filter(&(&1.role == "system")) end
+
+    for _ <- 1..30 do
       letter.("again")
       Clock.Fake.advance(60)
       assert :ok = Sunna.tick(ctx.id)
     end
 
-    # (The fake model answers the first wake only; each wake is its note.)
-    notes = fn -> ctx |> transcript(main) |> Enum.filter(&(&1.role == "system")) end
-    assert length(notes.()) == 6
+    assert length(notes.()) == 30
     held = letter.("held")
     Clock.Fake.advance(60)
     assert :ok = Sunna.tick(ctx.id)
-    assert length(notes.()) == 6
+    assert length(notes.()) == 30
 
-    Clock.Fake.advance(3600)
+    assert [%{channel: "letter", delivered: false, causes: [%{"number" => ^held}]} | _] =
+             Enum.filter(Sunna.wakes([ctx.id], 200), &(not &1.delivered))
+
+    # The oracle's answer is not held by it.
+    {:ok, _} =
+      Kumbukumbu.letter_to_session(ctx.id, main, "The reader, on #9: kept.", Actor.platform())
+
+    Clock.Fake.advance(60)
     assert :ok = Sunna.tick(ctx.id)
-    assert [_ | _] = all = notes.()
-    assert length(all) == 7
-    assert List.last(all).content =~ "##{held} from Claude Code · Oneiroi."
+    assert List.last(notes.()).content =~ "from the oracle"
   end
 
   # sunna#62: the platform's answer to what the chat asked (research, the
@@ -235,6 +273,7 @@ defmodule Oneiroi.Sunna.SchedulesTest do
         Actor.platform()
       )
 
+    Clock.Fake.advance(60)
     assert :ok = Sunna.tick(ctx.id)
     assert [note, _reply] = transcript(ctx, main)
     assert note.content =~ "letters came for you here"

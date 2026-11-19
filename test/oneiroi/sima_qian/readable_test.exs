@@ -227,8 +227,7 @@ defmodule Oneiroi.SimaQian.ReadableTest do
     on_exit(fn -> File.rm_rf!(bare) end)
     :ok = Oneiroi.SimaQian.set_remote(ctx.r.id, bare, nil, ctx.witness)
 
-    assert {:ok, %{commits: [{"soul", _}, {"machine", _}]}} =
-             Oneiroi.SimaQian.backup(ctx.r.id, ctx.witness)
+    assert {:ok, %{commits: [{"machine", _}]}} = Oneiroi.SimaQian.backup(ctx.r.id, ctx.witness)
 
     {tree, 0} = System.cmd("git", ["ls-tree", "-r", "--name-only", "main"], cd: bare)
     assert "records/conversations/2026-10-26.md" in String.split(tree)

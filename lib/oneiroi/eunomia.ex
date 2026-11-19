@@ -32,7 +32,6 @@ defmodule Oneiroi.Eunomia do
       Oneiroi.Ethos,
       Oneiroi.Kumbukumbu,
       Oneiroi.Nisaba,
-      Oneiroi.Proteus,
       Commanded,
       Commanded.Commands.Router,
       Commanded.Event.Handler,
@@ -60,8 +59,6 @@ defmodule Oneiroi.Eunomia do
       NightWorker,
       RunWorker,
       RunSweepWorker,
-      MemoryAudit,
-      AuditWorker,
       JudgementCommands.RunAudit,
       JudgementCommands.FailAudit,
       JudgementCommands.RaiseAuditFlag,
@@ -131,7 +128,6 @@ defmodule Oneiroi.Eunomia do
   alias Oneiroi.Eunomia.Imports
   alias Oneiroi.Eunomia.Judge
   alias Oneiroi.Eunomia.Judgements
-  alias Oneiroi.Eunomia.MemoryAudit
   alias Oneiroi.Eunomia.Regression
   alias Oneiroi.Eunomia.RunWorker
   alias Oneiroi.Eunomia.Wash
@@ -181,12 +177,6 @@ defmodule Oneiroi.Eunomia do
        tag: :bound,
        usage:
          "how many characters of one message the nightly pass reads (spec §6.4, carried from David)"},
-      {:audit_conclusions, "EUNOMIA_AUDIT_CONCLUSIONS",
-       cast: :integer,
-       default: "150",
-       tag: :bound,
-       usage:
-         "how many of Honcho's conclusions the weekly memory audit reads (spec §6.4, carried from David)"},
       {:wash_entries, "EUNOMIA_WASH_ENTRIES",
        cast: :integer,
        default: "150",
@@ -232,11 +222,11 @@ defmodule Oneiroi.Eunomia do
   def oban_queues do
     [
       {:eunomia_nightly, cron: [{"0 2 * * *", Oneiroi.Eunomia.NightWorker}]},
-      # After the card audit (03:00 Sunday, proteus): weekly, card then memory (spec §6.7).
+      # Weekly (spec §6.7). The memory audit over Honcho's conclusions
+      # that ran an hour before it is retired with Honcho (eunomia#32).
       {:eunomia_weekly,
        cron: [
-         {"0 4 * * 0", Oneiroi.Eunomia.AuditWorker},
-         # The wash pass an hour after the memory audit (spec §6.13, P18).
+         # The wash pass (spec §6.13, P18).
          {"0 5 * * 0", Oneiroi.Eunomia.WashWorker}
        ]},
       # A regression run answers here, off the witness's request, and the
@@ -330,26 +320,18 @@ defmodule Oneiroi.Eunomia do
       {:eunomia_night_failed,
        "the judge's reply named a message it was not shown or a movement line the pass could not read, so the night failed rather than be guessed at",
        remedy: "run the night again"},
-      {:eunomia_audit_failed,
-       "the judge's reply flagged a conclusion it was not shown, so the audit failed rather than be guessed at",
-       remedy: "run the audit again"},
       {:eunomia_no_such_flag, "no audit flag has that ref", remedy: "read the audits"},
       {:eunomia_no_such_wash_flag, "no wash flag has that ref", remedy: "read the wash"},
       {:eunomia_wash_decision_invalid, "a wash flag is kept or edited",
        remedy: "decide keep, or edit and then make the edit yourself"},
       {:eunomia_wash_failed, "the wash pass failed and was recorded as such",
        remedy: "read the run's reason; the next week runs again"},
-      {:eunomia_flag_decided, "that flag was already approved or deleted",
-       remedy: "read the audits"},
       {:eunomia_no_such_resident,
        "the nightly pass was asked for a resident the registry does not hold",
        remedy: "name a resident that exists"},
       {:eunomia_judge_call_failed,
        "the judge's model call failed, so the pass it was for failed and was recorded as such",
        remedy: "run it again; the call's own failure is the cause"},
-      {:eunomia_audit_unread,
-       "the memory audit could not read the conclusions, so it failed and was recorded as such",
-       remedy: "run the audit again; a repeat is the memory service's to look at"},
       {:eunomia_continuation_unreadable,
        "the judge did not answer the continuation check in the form asked, so the check could not run rather than be guessed at",
        remedy: "run the check again"},
@@ -528,28 +510,6 @@ defmodule Oneiroi.Eunomia do
           total: non_neg_integer()
         }
   defexport(resumable(resident_id), do: Judgements.resumable(resident_id))
-
-  @doc "Runs the weekly memory audit now: the judge over Honcho's conclusions; what the weekly job does for each resident."
-  @spec run_audit(String.t(), Oneiroi.Actor.t()) :: {:ok, String.t()} | {:error, term()}
-  defexport(run_audit(resident_id, actor), do: MemoryAudit.run(resident_id, actor))
-
-  @doc "The witness approves a flag: the conclusion is deleted from Honcho; with a note."
-  @spec approve_flag(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
-          :ok | {:error, term()}
-  defexport(approve_flag(resident_id, ref, note, actor),
-    do: MemoryAudit.approve(resident_id, ref, note, actor)
-  )
-
-  @doc "The witness deletes a flag: the conclusion stays; with a note."
-  @spec delete_flag(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
-          :ok | {:error, term()}
-  defexport(delete_flag(resident_id, ref, note, actor),
-    do: MemoryAudit.delete(resident_id, ref, note, actor)
-  )
-
-  @doc "The audit runs and the flags, open first."
-  @spec audits(String.t()) :: map()
-  defexport(audits(resident_id), do: MemoryAudit.audits(resident_id))
 
   # ---- the wash pass (spec §6.13, P18) ----
 

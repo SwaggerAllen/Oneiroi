@@ -15,7 +15,6 @@ defmodule OneiroiWeb.ContextPreviewTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
-  alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
 
   setup do
     Sandbox.start_owner!(Oneiroi.Repo, shared: true)
@@ -27,8 +26,6 @@ defmodule OneiroiWeb.ContextPreviewTest do
     actor = Actor.new(:witness, account.id)
     brain = Actor.new(:resident, id, "fake/model")
     {:ok, key} = Kumbukumbu.main_session(id, account.id, actor)
-    Honcho.clear(for: id)
-    on_exit(fn -> Honcho.clear(for: id) end)
 
     conn =
       build_conn()
@@ -107,13 +104,6 @@ defmodule OneiroiWeb.ContextPreviewTest do
     on_exit(fn -> Model.clear(for: ctx.id) end)
     {:ok, %{turn_ref: ref}} = Oneiroi.Brain.turn(ctx.id, ctx.key, "hello", ctx.actor)
 
-    Honcho.put_context(
-      ctx.id,
-      "resident-" <> ctx.id,
-      "witness-" <> ctx.account.id,
-      "HONCHO-ONLY words"
-    )
-
     bookmark!(ctx, ctx.key, ref, 1, "the heron")
 
     response =
@@ -126,7 +116,7 @@ defmodule OneiroiWeb.ContextPreviewTest do
 
     # By default the preview is whole (the author's decision, round 44).
     by = Map.new(sections, &{&1["label"], &1})
-    assert %{"text" => "HONCHO-ONLY words", "shown" => true} = by["honcho"]
+    refute Map.has_key?(by, "honcho")
     assert %{"text" => "#1 " <> _, "shown" => true} = by["index"]
     assert %{"text" => "# SOUL.md" <> _, "shown" => true} = by["SOUL.md"]
 
@@ -145,13 +135,11 @@ defmodule OneiroiWeb.ContextPreviewTest do
     response =
       ctx.conn |> post("/v1/residents/#{ctx.id}/sessions/#{ctx.key}/preview", %{text: "hi"})
 
-    refute response.resp_body =~ "HONCHO-ONLY"
+    refute response.resp_body =~ "the heron"
     by = response |> json_response(200) |> Map.fetch!("sections") |> Map.new(&{&1["label"], &1})
-    assert %{"text" => nil, "shown" => false, "note" => note} = by["honcho"]
-    assert note =~ "No screen shows it to you."
     assert %{"text" => nil, "shown" => false} = by["index"]
     assert %{"text" => "# SOUL.md" <> _, "shown" => true} = by["SOUL.md"]
-    assert body =~ "HONCHO-ONLY"
+    assert body =~ "the heron"
     assert %{"run" => false, "text" => nil} = by["madeleine"]
   end
 

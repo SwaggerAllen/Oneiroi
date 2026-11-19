@@ -884,12 +884,6 @@ defmodule Oneiroi.Brain.Turn do
 
       if turn.lapse_to_tell, do: :ok = Oneiroi.Nisaba.lapse_told(resident_id, resident)
       if turn.import_to_tell, do: :ok = Oneiroi.AgathosDaimon.import_told(resident_id, resident)
-      # The bridge records its own failure (proteus#13); the turn is
-      # captured already and goes on.
-      # The background model off (agathos-daimon#34): nothing is sent.
-      if Oneiroi.AgathosDaimon.switch_on?(resident_id, "background_model"),
-        do: Oneiroi.Proteus.sync_turn(resident_id, key, ref, messages, resident)
-
       broadcast(resident_id, key, {:turn, ref, captured})
       push_unprompted(turn)
       {:ok, captured}

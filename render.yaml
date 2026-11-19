@@ -74,21 +74,6 @@ services:
         generateValue: true
       - key: APSU_VAULT_KEY
         generateValue: true
-      # Honcho beside this instance (proteus#16): its private address,
-      # which Render hands over as host:port and the setting reads as
-      # http, and its signing secret, from which the core mints the admin
-      # JWT, so no key is typed. Both resolve to the preview's own Honcho
-      # in a preview environment.
-      - key: PROTEUS_HONCHO_URL
-        fromService:
-          name: honcho-api
-          type: pserv
-          property: hostport
-      - key: PROTEUS_HONCHO_JWT_SECRET
-        fromService:
-          name: honcho-api
-          type: pserv
-          envVarKey: AUTH_JWT_SECRET
       # The repositories' server (sima-qian#55): Gitea's public URL and
       # an admin token, typed in the dashboard once the admin exists
       # (SETUP.md, Gitea). Unset, nothing is sent to Gitea.

@@ -71,19 +71,17 @@ defmodule Oneiroi.HuginnMuninn.Quietcheck do
     end
   end
 
-  # The weekly three. The baseline is taken only once there are habits
+  # The weekly two (the memory audit retired with Honcho, eunomia#32). The baseline is taken only once there are habits
   # to measure (ethos#15), so it is expected only then.
   defp weekly_expectations(resident_id, row, now) do
     days = Config.fetch!(:huginn_muninn, :quiet_week_days)
     seconds = days * 86_400
 
     if older?(row.first_contact_at, now, seconds) do
-      audit = resident_id |> Eunomia.audits() |> Map.fetch!(:runs) |> List.first()
       wash = resident_id |> Eunomia.washes() |> Map.fetch!(:runs) |> List.first()
       baseline = resident_id |> Ethos.baselines() |> List.first()
 
       [
-        expectation("the weekly memory audit", audit && audit.at, "#{days} days", now, seconds),
         expectation("the weekly wash", wash && wash.at, "#{days} days", now, seconds),
         if Ethos.habits(resident_id) != [] do
           expectation("the trait baseline", baseline && baseline.at, "#{days} days", now, seconds)

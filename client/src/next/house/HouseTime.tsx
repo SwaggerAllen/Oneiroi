@@ -278,6 +278,8 @@ function activityLine(r: HouseActivity): { what: string; meta: string } {
       };
     case 'mention':
       return { what: `${who}: mention banked, not woken (muted)`, meta: r.causes.map(cause).join(', ') };
+    case 'held':
+      return { what: `${who}: wake held by the hourly bound`, meta: `woken at a later tick · ${r.causes.map(cause).join(', ')}` };
     default:
       return {
         what: `${who} woken: ${CHANNELS[r.channel] ?? r.channel}${r.causes.length > 0 ? `, ${r.causes.map(cause).join(', ')}` : ''}`,

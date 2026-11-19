@@ -82,38 +82,11 @@ check the service's Disks tab shows it mounted.
    since the password is in it. Autodeploy stays on; the image's own
    `CMD` runs the migrator ahead of `start`, so a failed migration fails
    the deploy with the previous one still serving.
-6. Honcho (spec §6.9, proteus#16 and #17) comes with the Blueprint:
-   the private `honcho-api` and the `honcho-deriver` worker, built from
-   `plastic-labs/honcho`'s own Dockerfile, on `oneiroi-db` in a schema of
-   their own under the role `oneiroi_honcho`, which Oneiroi's migration
-   creates. Deploy Oneiroi first so that migration has run: until it
-   has, Honcho's connection names a role that does not exist and its
-   deploy fails. One value is yours to set by hand, in the dashboard:
-   `LLM_OPENAI_API_KEY` on `honcho-api`, **your OpenRouter key**, the same
-   one stored on your account and in the `OPENROUTER_API_KEY` secret the
-   fixture run reads. Render prompts for a `sync: false` value only when a
-   Blueprint is first created, so a sync that adds one to an existing
-   Blueprint leaves it empty and asks nothing (the first Honcho deploy,
-   10-31). The deriver copies it, and every Honcho feature
-   (embeddings, derivation, the dialectic, summaries, dreams) is routed
-   to OpenRouter by the `honcho` environment group. Everything else is
-   wired: Render generates `AUTH_JWT_SECRET`, the core mints the admin
-   key from it, and `PROTEUS_HONCHO_URL` is `honcho-api`'s private
-   address. Neither Honcho service deploys on its own
-   (`autoDeployTrigger: off`): the first deploy takes upstream `main` as
-   it is that day, so read its commit off the build log. The bridge
-   speaks the API of one commit, `6f91136b4e8d4b41de75f05d0cea822a1520b3a4`,
-   read from its routers and schemas into
-   `test/fixtures/proteus/honcho-server.json` (proteus#9), so a later
-   upgrade is a manual deploy after re-reading those files at the new
-   commit into that fixture and running the suite against it. No test
-   can see which commit Render deployed; a Honcho that has drifted shows
-   as `rejected: 422` syncs. Check with the Honcho page on the resident's
-   screen (`GET /v1/residents/:id/honcho`): a sync recorded as `synced`
-   after a turn is the bridge working end to end. Turns whose sync
-   failed are re-sent, in order and once each, by
-   `POST /v1/residents/:id/honcho/replay` with a witness's token
-   (proteus#19).
+6. Honcho is retired (proteus#20, 2026-11-18): Oneiroi no longer
+   calls it, and sets no `PROTEUS_*` variable. The `honcho-api` and
+   `honcho-deriver` services and the `oneiroi_honcho` role and `honcho`
+   schema still stand until they are removed on the witness's word; a
+   new deploy needs none of them.
 
 ### Metrics and Grafana (apsu#25)
 

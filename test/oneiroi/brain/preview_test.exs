@@ -16,7 +16,6 @@ defmodule Oneiroi.Brain.PreviewTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
-  alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
   alias Oneiroi.Seal
 
   setup do
@@ -29,15 +28,12 @@ defmodule Oneiroi.Brain.PreviewTest do
     :ok = AgathosDaimon.write_file(id, "SOUL.md", "# Soul\n\nCurious about herons.", %{}, actor)
     {:ok, key} = Kumbukumbu.main_session(id, witness.id, actor)
     Model.clear()
-    Honcho.clear(for: id)
 
     on_exit(fn ->
       Model.clear(for: id)
-      Honcho.clear(for: id)
     end)
 
-    # A real turn first, as a resident in use has had: the transcript and
-    # Honcho's bridge.
+    # A real turn first, as a resident in use has had: the transcript.
     Model.reply("I hear you.", for: id)
     {:ok, %{turn_ref: ref}} = Oneiroi.Brain.turn(id, key, "hello from the garden", actor)
 
@@ -54,13 +50,6 @@ defmodule Oneiroi.Brain.PreviewTest do
 
     :ok = Kumbukumbu.pin_bookmark(id, 7, actor)
     {:ok, 1} = Oneiroi.Ethos.make_commitment(id, "witness", "I will look for the heron.", brain)
-
-    Honcho.put_context(
-      id,
-      "resident-" <> id,
-      "witness-" <> witness.id,
-      "HONCHO-ONLY: she walks to the weir most mornings."
-    )
 
     {:ok, id: id, witness: witness, actor: actor, brain: brain, key: key}
   end
@@ -89,7 +78,7 @@ defmodule Oneiroi.Brain.PreviewTest do
 
     labels = Enum.map(preview.sections, & &1.label)
 
-    for label <- ~w(prompt SOUL.md AGENTS.md index promised honcho transcript notice),
+    for label <- ~w(prompt SOUL.md AGENTS.md index promised transcript notice),
         do: assert(label in labels, "#{label} missing from #{inspect(labels)}")
 
     # The madeleine has its place, and says it was not run.
@@ -173,7 +162,7 @@ defmodule Oneiroi.Brain.PreviewTest do
     {:ok, preview} = Oneiroi.Brain.preview(ctx.id, ctx.key, "the heron", ctx.actor)
     by = Map.new(preview.sections, &{&1.label, &1})
 
-    for label <- ~w(prompt SOUL.md AGENTS.md index character promised self-conversation honcho) do
+    for label <- ~w(prompt SOUL.md AGENTS.md index character promised self-conversation) do
       assert %{text: text, shown: true, note: note} = by[label]
       assert is_binary(text) and text != "", "#{label} carried no text"
       assert note != ""
@@ -182,7 +171,8 @@ defmodule Oneiroi.Brain.PreviewTest do
     assert by["prompt"].text =~ "You are Lily"
     assert by["index"].text =~ "bookmark number"
     assert by["character"].text =~ "names the birds"
-    assert by["honcho"].text =~ "HONCHO-ONLY"
+    # Honcho is retired (proteus#20): no section of it.
+    refute Map.has_key?(by, "honcho")
     assert by["self-conversation"].text =~ "1 written"
     # The section is counts and receipts: the letter's words are not in it.
     refute Enum.map_join(preview.sections, "\n", &(&1.text || "")) =~ "LETTER-ONLY"
@@ -210,7 +200,7 @@ defmodule Oneiroi.Brain.PreviewTest do
     {:ok, preview} = Oneiroi.Brain.preview(ctx.id, ctx.key, "the heron", ctx.actor)
     by = Map.new(preview.sections, &{&1.label, &1})
 
-    for label <- ~w(prompt index character self-conversation honcho) do
+    for label <- ~w(prompt index character self-conversation) do
       assert %{text: nil, shown: false, note: note} = by[label], "#{label} carried text"
       assert note != ""
     end
@@ -225,7 +215,6 @@ defmodule Oneiroi.Brain.PreviewTest do
            )
 
     words = Enum.map_join(preview.sections, "\n", &(&1.text || ""))
-    refute words =~ "HONCHO-ONLY"
     refute words =~ "names the birds"
     refute words =~ "LETTER-ONLY"
     assert preview.description =~ "only where you already read them elsewhere"

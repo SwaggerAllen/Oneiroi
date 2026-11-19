@@ -439,3 +439,9 @@ make a citation lie. Protection on the server holds the rule for every
 writer, including a person with a clone and a token, rather than
 trusting each writer to behave; the platform only ever adds commits, so
 it costs it nothing.
+
+## #65
+Portability is the export and the history, and a retirement that swept
+the folder would break the promise that a resident's record is never
+rewritten behind her. Leaving it at its last commit keeps it readable
+and costs nothing.

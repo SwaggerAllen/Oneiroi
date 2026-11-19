@@ -3,7 +3,7 @@ defmodule Oneiroi.Seal do
   What a regression trial must leave as it found it (eunomia#12, brain
   #40), read before and compared after: every event on the resident's
   streams, every row of every table, every file in the resident's
-  repository and everything the Honcho fake holds for its workspace.
+  repository.
 
   Rows are compared by content, not counted, because a read that marks
   a row it read (a citation resolved, a vector refreshed, a bookmark
@@ -16,11 +16,10 @@ defmodule Oneiroi.Seal do
 
   # Test support, its own boundary as `Oneiroi.Fixtures` is, so the core
   # never depends on it.
-  use Boundary, top_level?: true, deps: [Oneiroi, Oneiroi.Proteus, Oneiroi.SimaQian]
+  use Boundary, top_level?: true, deps: [Oneiroi, Oneiroi.SimaQian]
 
   import ExUnit.Assertions
 
-  alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
   alias Oneiroi.Repo
   alias Oneiroi.Scope
 
@@ -35,8 +34,7 @@ defmodule Oneiroi.Seal do
   @type t :: %{
           events: non_neg_integer(),
           tables: %{String.t() => String.t()},
-          files: %{String.t() => binary()},
-          honcho: map()
+          files: %{String.t() => binary()}
         }
 
   @doc "Reads everything a trial must not change."
@@ -45,8 +43,7 @@ defmodule Oneiroi.Seal do
     %{
       events: last_event(),
       tables: tables(),
-      files: files(resident_id),
-      honcho: Honcho.state(resident_id)
+      files: files(resident_id)
     }
   end
 
@@ -89,8 +86,7 @@ defmodule Oneiroi.Seal do
           changed != [] && "rows written: #{inspect(changed)}",
           files != before.files &&
             "the repository's files changed: " <>
-              inspect(Map.keys(files) -- Map.keys(before.files)),
-          Honcho.state(resident_id) != before.honcho && "Honcho's workspace changed"
+              inspect(Map.keys(files) -- Map.keys(before.files))
         ],
         &(&1 == false)
       )

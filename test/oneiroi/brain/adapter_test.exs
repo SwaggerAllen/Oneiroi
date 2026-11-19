@@ -14,7 +14,6 @@ defmodule Oneiroi.Brain.AdapterTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
-  alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
   alias Oneiroi.SimaQian.Git
 
   setup do
@@ -28,11 +27,9 @@ defmodule Oneiroi.Brain.AdapterTest do
     {:ok, main} = Kumbukumbu.main_session(id, witness.id, actor)
     {:ok, key} = Kumbukumbu.open_session(id, "main", "claude-code", [witness.id], brain)
     Model.clear()
-    Honcho.clear(for: id)
 
     on_exit(fn ->
       Model.clear(for: id)
-      Honcho.clear(for: id)
     end)
 
     Model.reply("I hear you.", for: id)
@@ -49,13 +46,6 @@ defmodule Oneiroi.Brain.AdapterTest do
     end
 
     {:ok, 1} = Oneiroi.Ethos.make_commitment(id, "witness", "I will look for the heron.", brain)
-
-    Honcho.put_context(
-      id,
-      "resident-" <> id,
-      "witness-" <> witness.id,
-      "HONCHO-ONLY: she walks to the weir most mornings."
-    )
 
     {:ok, id: id, witness: witness, actor: actor, brain: brain, main: main, key: key}
   end
@@ -99,7 +89,6 @@ defmodule Oneiroi.Brain.AdapterTest do
     assert turn.text =~ ~r/#\d+ \d{4}-\d\d-\d\d bookmark number \d+/
     assert turn.text =~ "memory_feedback(used: [numbers])"
     assert turn.text =~ "I will look for the heron."
-    assert turn.text =~ "HONCHO-ONLY"
     refute turn.text =~ "You are Lily"
     refute turn.text =~ "Curious about herons."
     assert turn.digest == prefix.digest
@@ -121,7 +110,7 @@ defmodule Oneiroi.Brain.AdapterTest do
 
     labels = Enum.map(adapter_rows, & &1.label)
 
-    for label <- ~w(prompt SOUL.md AGENTS.md runtime where index near-miss promised honcho),
+    for label <- ~w(prompt SOUL.md AGENTS.md runtime where index near-miss promised),
         do: assert(label in labels, "#{label} missing from #{inspect(labels)}")
 
     refute "transcript" in labels

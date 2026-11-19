@@ -582,7 +582,7 @@ defmodule Oneiroi.Seshat.Household do
     for w <- Sunna.wakes(ids, 150),
         w.household_id == household_id or w.resident_id in own,
         do: %{
-          kind: if(w.delivered, do: "wake", else: "mention"),
+          kind: wake_kind(w),
           at: w.at,
           resident_id: w.resident_id,
           name: name.(w.resident_id),
@@ -593,6 +593,12 @@ defmodule Oneiroi.Seshat.Household do
           wake_id: w.wake_id
         }
   end
+
+  # Not delivered: a mention banked (muted), or letters the hourly bound
+  # held for a later tick (sunna#72).
+  defp wake_kind(%{delivered: true}), do: "wake"
+  defp wake_kind(%{channel: "mention"}), do: "mention"
+  defp wake_kind(_held), do: "held"
 
   defp token_rows(household_id, ids, name) do
     for t <- Gaia.round_turns(household_id),

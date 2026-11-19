@@ -30,7 +30,6 @@ defmodule Oneiroi.Brain do
       Oneiroi.HuginnMuninn,
       Oneiroi.Kumbukumbu,
       Oneiroi.Nisaba,
-      Oneiroi.Proteus,
       Oneiroi.Seshat,
       Oneiroi.SimaQian,
       Oneiroi.Sunna,

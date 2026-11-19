@@ -61,8 +61,7 @@ jobs:
     runs-on: ubuntu-latest
     # The prod build, configured as a deployment is, by the environment
     # (Oneiroi.Config.Env), with two substitutions that make it a
-    # rehearsal: the in-memory provider (no model call, no key) and the
-    # in-memory Honcho. The task refuses a real provider and a store that
+    # rehearsal: the in-memory provider (no model call, no key). The task refuses a real provider and a store that
     # already holds a resident. Every secret here is a throwaway for a
     # database that lives as long as this job.
     env:
@@ -73,7 +72,6 @@ jobs:
       APSU_SECRET_KEY_BASE: import-dry-run-throwaway-key-base-import-dry-run-throwaway-key-ba
       APSU_VAULT_KEY: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
       NISABA_PROVIDER: fake
-      PROTEUS_CLIENT: fake
       SIMA_QIAN_IMPORT_SCHEMES: file
       SIMA_QIAN_ROOT: /tmp/oneiroi-dry-run-root
       # Export everything at once: the rehearsal's backup has no later run.

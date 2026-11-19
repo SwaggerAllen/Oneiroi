@@ -60,9 +60,9 @@ defmodule Oneiroi.SimaQian.Export do
   # reason, and this table is the list of reasons. A `:stream` entry is
   # a stream prefix the export leaves out, which `not_exported/0` names
   # and the export test holds against the routers themselves; the rest
-  # are what leaves no stream out but still stays in the database, or in
-  # Honcho. Spec §6.10's `oneiroi:db-only` list names these same keys,
-  # and a test fails when the two drift.
+  # are what leaves no stream out but still stays in the database.
+  # Spec §6.10's `oneiroi:db-only` list names these same keys, and a
+  # test fails when the two drift.
   @not_exported %{
     "regression" =>
       {:stream, "sealed: the resident's own trials, never exported or read (eunomia#12)"},
@@ -82,12 +82,9 @@ defmodule Oneiroi.SimaQian.Export do
        "the platform's triage list: reports from people and residents alike, no one resident's (gaia#20)"},
     "invite" =>
       {:stream, "the platform's invite codes, the front door's keys, no resident's (gaia#18)"},
-    "honcho" =>
-      {:stream,
-       "the bridge's record of a workspace in Honcho, keyed to the source: a rebuilt resident is a new one and provisions its own on first use (proteus#8), where replaying this would point a copy at the original's memory"},
     "embeddings" =>
       {:derived,
-       "the library's chunks and vectors, Honcho's embeddings and every projection table: derived from what the repository holds, rebuilt by replay and an index run, and written in a pattern git does not fit"},
+       "the library's chunks and vectors and every projection table: derived from what the repository holds, rebuilt by replay and an index run, and written in a pattern git does not fit"},
     "witness-only spend" =>
       {:events,
        "ledger events billed under a purpose the resident's own view never shows (drafting, regression; nisaba#4), whose presence in the export would tell her what the unawareness invariant hides"},
@@ -96,10 +93,7 @@ defmodule Oneiroi.SimaQian.Export do
        "fields an event declares `redact:`, the records remote's encrypted token among them: secrets stay in the vault, written as null"},
     "leases" =>
       {:table,
-       "the witness's edit leases (seshat#55): who has an editor open on which file, minutes long; what one decides lands in the repository as the writes it let through and the draft it kept, and a lease replayed would lock a rebuilt resident's file for an editor nobody has open"},
-    "honcho-private" =>
-      {:honcho,
-       "Honcho's conclusions and summaries drawn from a private, unshared session: withheld from honcho/ as the session's words are from the reading copies (spec §6.3); Honcho keeps them"}
+       "the witness's edit leases (seshat#55): who has an editor open on which file, minutes long; what one decides lands in the repository as the writes it let through and the draft it kept, and a lease replayed would lock a rebuilt resident's file for an editor nobody has open"}
   }
 
   # An event its module keeps out (the export's own bookkeeping), or one
@@ -312,12 +306,9 @@ defmodule Oneiroi.SimaQian.Export do
         f.name
       end
 
-    # The build-owned Honcho instructions ride with the soul class
-    # (`honcho/`), rendered on every export so a template change lands.
-    File.mkdir_p!(Path.join(dir, "honcho"))
-    path = Path.join("honcho", "custom-instructions.md")
-    File.write!(Path.join(dir, path), Oneiroi.AgathosDaimon.custom_instructions(resident_id))
-    written ++ [path] ++ state_file(resident_id, dir)
+    # Honcho's build-owned instructions are no longer rendered: Honcho
+    # is retired (sima-qian#65); the last copy stays in the repository.
+    written ++ state_file(resident_id, dir)
   end
 
   # The state store (agathos-daimon#32) as `STATE.md`, rendered from

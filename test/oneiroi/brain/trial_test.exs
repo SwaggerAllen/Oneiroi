@@ -17,7 +17,6 @@ defmodule Oneiroi.Brain.TrialTest do
   alias Oneiroi.Nisaba
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
   alias Oneiroi.Nisaba.Provider.Result
-  alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
   alias Oneiroi.Seal
 
   @since ~U[2026-10-01 00:00:00.000000Z]
@@ -33,22 +32,20 @@ defmodule Oneiroi.Brain.TrialTest do
     :ok = AgathosDaimon.write_file(id, "SOUL.md", "# Soul\n\nCurious.", %{}, actor)
     {:ok, key} = Kumbukumbu.main_session(id, witness.id, actor)
     Model.clear()
-    Honcho.clear(for: id)
 
     on_exit(fn ->
       Model.clear(for: id)
-      Honcho.clear(for: id)
     end)
 
-    # A real turn first: the session, its transcript and Honcho's bridge
-    # are what a resident in use has.
+    # A real turn first: the session and its transcript are what a
+    # resident in use has.
     Model.reply("I hear you.", for: id)
     {:ok, %{turn_ref: ref}} = Oneiroi.Brain.turn(id, key, "hello from the garden", actor)
 
     # Memory a trial's prompt should surface: a bookmark (the index and,
     # embedded, the madeleine), a habit the words trigger (the lane
     # refreshed, as a turn leaves it), a promise, a position, a cited
-    # piece in the library, and Honcho's context on the person.
+    # piece in the library.
     {:ok, 1} =
       Kumbukumbu.add_bookmark(
         id,
@@ -106,13 +103,6 @@ defmodule Oneiroi.Brain.TrialTest do
         %{name: "waters the beans", trigger: %{"words" => ["beans"]}, stance: "keep"},
         brain
       )
-
-    Honcho.put_context(
-      id,
-      "resident-" <> id,
-      "witness-" <> witness.id,
-      "She walks to the weir most mornings."
-    )
 
     :ok = PubSub.subscribe(:brain, :session)
     flush()
@@ -178,14 +168,12 @@ defmodule Oneiroi.Brain.TrialTest do
     assert system =~ "# SOUL.md"
     # Retrieval: the ranked index (which, over two bookmarks, returns
     # both and leaves the madeleine nothing it has not returned), how I
-    # act, the promise, the movement-free prefix's sections and Honcho's
-    # context on the person.
+    # act, the promise, and the movement-free prefix's sections.
     assert system =~ "the heron by the weir at dawn"
     assert system =~ "memory_feedback(used: [numbers])"
     assert system =~ "# How I act"
     assert system =~ "names the birds"
     assert system =~ "I will look for the heron on Sunday."
-    assert system =~ "She walks to the weir most mornings."
 
     # A fresh session: no transcript, and the prompt is the witness's
     # words, last. Nothing names a run, a trial or a regression.
@@ -430,7 +418,7 @@ defmodule Oneiroi.Brain.TrialTest do
 
     answered = Enum.zip(Enum.map(writes, &elem(&1, 0)), answers())
 
-    # Nothing recorded: no event, no row, no file, nothing to Honcho,
+    # Nothing recorded: no event, no row, no file,
     # nothing on the session topic, no session opened or captured.
     Seal.assert_unchanged(before, ctx.id)
     refute_received {:oneiroi, "brain:session", _, _}

@@ -24,7 +24,6 @@ defmodule Oneiroi.HuginnMuninn.Checks do
   alias Oneiroi.HuginnMuninn.Router
   alias Oneiroi.HuginnMuninn.Store
   alias Oneiroi.Kumbukumbu
-  alias Oneiroi.Proteus
   alias Oneiroi.Scope
   alias Oneiroi.Seshat
   alias Oneiroi.Sunna
@@ -32,7 +31,6 @@ defmodule Oneiroi.HuginnMuninn.Checks do
   @builtin [
     %{key: "attestation", label: "The last backup's root matched its commit", counts: true},
     %{key: "capture_failures", label: "No capture failure is waiting on you", counts: true},
-    %{key: "sync_failures", label: "The last turns reached Honcho", counts: true},
     %{key: "missed_checkins", label: "Check-ins fired this week", counts: false},
     %{key: "overdue_predictions", label: "No prediction is past due unresolved", counts: false},
     %{key: "citation_drift", label: "Every citation that once resolved still does", counts: true},
@@ -180,14 +178,6 @@ defmodule Oneiroi.HuginnMuninn.Checks do
           open,
           "#{open} capture #{plural(open, "failure")} waiting to be retried or marked lost"
         )
-  end
-
-  defp builtin_result(%{key: "sync_failures"} = a, resident_id, _row) do
-    failed = resident_id |> Proteus.syncs(20) |> Enum.count(&(&1.outcome == "failed"))
-
-    if failed == 0,
-      do: silent(a, 0, "read the last 20 sync rows, or none yet; not read: Honcho's own state"),
-      else: result(a, "fail", failed, "#{failed} of the last 20 turns did not reach Honcho")
   end
 
   defp builtin_result(%{key: "missed_checkins"} = a, resident_id, _row) do

@@ -940,3 +940,8 @@ The seed was one dyad's vocabulary, ⚜️ being Lily's own emoji, so any
 resident without a file of her own wore it. A seed is a starting point
 for a pair who have not yet said what their reacts mean; it carries no
 one's words, and the pair write theirs.
+
+## #106
+An empty section is never sent, so the slot costs nothing while it waits;
+keeping it in the list, named as retired, means the plugin page and the
+agreement do not silently lose a line the resident proposed to change.

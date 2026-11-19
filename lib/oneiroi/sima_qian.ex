@@ -31,7 +31,6 @@ defmodule Oneiroi.SimaQian do
       Oneiroi.Eunomia,
       Oneiroi.Kumbukumbu,
       Oneiroi.Nisaba,
-      Oneiroi.Proteus,
       Commanded,
       Commanded.Event.Upcaster,
       Ecto,
@@ -244,14 +243,6 @@ defmodule Oneiroi.SimaQian do
          "each failed resident is logged with its error's kind and site; run POST /v1/residents/:id/backup for the error itself"},
       {:sima_qian_attestation_failed, "a nightly attestation failed for one or more residents",
        remedy: "each failed resident is logged with its error's kind and site"},
-      {:sima_qian_honcho_unreadable,
-       "Honcho did not answer every read of the resident's workspace, so its memory was not exported this run",
-       remedy:
-         "the last export under honcho/ stands and the rest of the backup landed; check Honcho and back up again"},
-      {:sima_qian_honcho_empty,
-       "Honcho answered that the resident's provisioned workspace holds no peer, which no workspace the bridge made can",
-       remedy:
-         "the last export under honcho/ stands rather than an empty one; check which Honcho answered and whether the workspace was lost"},
       {:sima_qian_scheme_refused,
        "an import clones from a URL with one of the configured schemes",
        remedy: "give an https URL; a path on this host is never cloned from a request"},
