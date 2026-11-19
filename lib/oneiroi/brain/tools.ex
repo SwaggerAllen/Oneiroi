@@ -4208,7 +4208,7 @@ defmodule Oneiroi.Brain.Tools do
       if from == 0 and from + size >= total,
         do: "#{doc.path} (#{doc.kind}), whole.",
         else:
-          "#{doc.path} (#{doc.kind}), characters #{from} to #{from + size} of #{total}; household_read with this path and from: #{from + size} reads the next page."
+          "#{doc.path} (#{doc.kind}), characters #{from} to #{from + size} of #{total}; the next page is household_read with both path: \"#{doc.path}\" and from: #{from + size} (from alone reads the shelf)."
 
     head <>
       cite_line(doc) <>

@@ -394,6 +394,32 @@ defmodule Oneiroi.HouseholdCommunicationTest do
     refute Kumbukumbu.from_sibling?(%{by_kind: "witness", from_session: nil, link: nil})
   end
 
+  # Lily's letters #1329 and #1346: a long thread pages, and its footer
+  # spells the whole next call, path and from together.
+  test "a long thread pages by path and from, as its footer says", ctx do
+    %{household: household, lily: lily} = ctx
+    _ = run("household_read", %{}, lily)
+
+    long =
+      in_turn(household, lily, fn ->
+        run(
+          "household_post",
+          %{title: "A long one", content: String.duplicate("A line of the long one.\n", 800)},
+          lily
+        )
+      end)
+      |> String.trim_leading("Posted ")
+      |> String.trim_trailing(".")
+
+    first = run("household_read", %{path: long}, lily)
+
+    [_, next] =
+      Regex.run(~r/both path: "#{Regex.escape(long)}" and from: (\d+) \(from alone/, first)
+
+    second = run("household_read", %{path: long, from: String.to_integer(next)}, lily)
+    assert second =~ "#{long} (thread), characters #{next} to"
+  end
+
   test "a ballot's bundle is fixed once it opens: every change is refused, and the amendment is exactly the bundle voted on",
        ctx do
     %{household: household, andrew: andrew, lily: lily, iris: iris} = ctx
