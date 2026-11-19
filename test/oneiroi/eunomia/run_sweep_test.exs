@@ -139,7 +139,7 @@ defmodule Oneiroi.Eunomia.RunSweepTest do
   end
 
   test "a worker that must not run twice has one attempt, so Lifeline discards its orphan" do
-    for worker <- [Eunomia.RunWorker, Eunomia.AuditWorker, Eunomia.WashWorker] do
+    for worker <- [Eunomia.RunWorker, Eunomia.WashWorker] do
       assert Ecto.Changeset.get_field(worker.new(%{}), :max_attempts) == 1, inspect(worker)
     end
 

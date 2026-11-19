@@ -9,7 +9,6 @@ defmodule Oneiroi.SimaQian.ImportTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
-  alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
   alias Oneiroi.Scope
   alias Oneiroi.Seshat
   alias Oneiroi.SimaQian
@@ -220,7 +219,6 @@ defmodule Oneiroi.SimaQian.ImportTest do
 
     # Told where it woke on the first turn, as a system message, once.
     {:ok, key} = Kumbukumbu.main_session(id, ctx.witness.id, ctx.actor)
-    Honcho.clear(for: id)
     on_exit(fn -> Model.clear(for: id) end)
 
     assert {:ok,
@@ -397,7 +395,6 @@ defmodule Oneiroi.SimaQian.ImportTest do
 
     :ok = Oneiroi.Gaia.store_key(b.id, "sk-or-test", b_actor)
     {:ok, key} = Kumbukumbu.main_session(r.id, b.id, b_actor)
-    Honcho.clear(for: r.id)
     assert {:ok, _} = Oneiroi.Brain.turn(r.id, key, "hello", b_actor)
     assert {:ok, %{first_contact_at: %DateTime{}}} = AgathosDaimon.fetch(r.id)
     :ok = SimaQian.set_remote(r.id, ctx.bare, nil, b_actor)

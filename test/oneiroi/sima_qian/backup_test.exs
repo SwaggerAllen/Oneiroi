@@ -44,7 +44,7 @@ defmodule Oneiroi.SimaQian.BackupTest do
     bare: bare,
     working: working
   } do
-    assert {:ok, %{through: 3, root: root, commits: [{"soul", _}, {"machine", sha}]}} =
+    assert {:ok, %{through: 3, root: root, commits: [{"machine", sha}]}} =
              Oneiroi.SimaQian.backup(r.id, actor)
 
     assert root == Merkle.root(Path.join(working, "records"))
@@ -66,17 +66,37 @@ defmodule Oneiroi.SimaQian.BackupTest do
              row(r.id)
   end
 
-  test "a soul commit sets the card from git", %{r: r, actor: actor} do
-    :ok = Oneiroi.Proteus.provision(r.id, actor)
-    on_exit(fn -> Oneiroi.Proteus.Honcho.Fake.clear(for: r.id) end)
-    assert %{card_source: "provision", card_lines: 0} = Oneiroi.Proteus.bridge(r.id)
+  # sima-qian#65: Honcho retired, `honcho/` is left as the last run wrote
+  # it, neither rewritten nor removed, and the soul commit is the identity
+  # files' alone.
+  test "a soul commit carries the identity files, and honcho/ stays as it was",
+       %{r: r, actor: actor, bare: bare, working: working} do
+    :ok = Git.ensure_repo(working)
+    File.mkdir_p!(Path.join(working, "honcho/resident"))
+    File.write!(Path.join(working, "honcho/resident/card.md"), "- steady\n")
+    git!(working, ["add", "honcho"])
+
+    git!(working, [
+      "-c",
+      "user.name=t",
+      "-c",
+      "user.email=t@t",
+      "commit",
+      "-qm",
+      "honcho, as it was"
+    ])
+
     :ok = Oneiroi.AgathosDaimon.write_file(r.id, "SOUL.md", "# Soul\n\nSteady.", %{}, actor)
     assert {:ok, %{commits: [{"soul", _}, {"machine", _}]}} = Oneiroi.SimaQian.backup(r.id, actor)
-    assert %{card_source: "commit", card_lines: 1} = Oneiroi.Proteus.bridge(r.id)
+
+    held = git!(bare, ["ls-tree", "-r", "--name-only", "main"]) |> String.split("\n")
+    assert "SOUL.md" in held
+    assert "honcho/resident/card.md" in held
+    refute "honcho/custom-instructions.md" in held
   end
 
   test "a night with nothing new makes no commit", %{r: r, actor: actor} do
-    assert {:ok, %{commits: [{"soul", _}, {"machine", sha}]}} =
+    assert {:ok, %{commits: [{"machine", sha}]}} =
              Oneiroi.SimaQian.backup(r.id, actor)
 
     Clock.Fake.advance(120)
@@ -98,7 +118,7 @@ defmodule Oneiroi.SimaQian.BackupTest do
     :ok = Git.ensure_repo(working)
     File.write!(Path.join(working, "notes.bin"), "by hand\n")
 
-    assert {:ok, %{commits: [{"soul", _}, {"machine", _}]}} = Oneiroi.SimaQian.backup(r.id, actor)
+    assert {:ok, %{commits: [{"machine", _}]}} = Oneiroi.SimaQian.backup(r.id, actor)
     assert git!(bare, ["log", "--format=%s", "main", "--", "notes.bin"]) == ""
     assert %{last_backup_sequence: 3} = row(r.id)
   end
@@ -122,7 +142,7 @@ defmodule Oneiroi.SimaQian.BackupTest do
     {:ok, _} = Oneiroi.Seshat.write(r.id, "pocket-andrew.md", "# Pocket Andrew\n", actor)
 
     assert {:ok, %{commits: commits}} = Oneiroi.SimaQian.backup(r.id, actor)
-    assert Enum.map(commits, &elem(&1, 0)) == ["soul", "machine"]
+    assert Enum.map(commits, &elem(&1, 0)) == ["machine"]
 
     held = git!(bare, ["ls-tree", "-r", "--name-only", "main"]) |> String.split("\n")
 
@@ -141,8 +161,7 @@ defmodule Oneiroi.SimaQian.BackupTest do
     other = Fixtures.resident!(a)
     on_exit(fn -> File.rm_rf!(Backup.dir(other.id)) end)
 
-    assert {:ok, %{commits: [{"soul", _}, {"machine", _}]}} =
-             Oneiroi.SimaQian.backup(other.id, actor)
+    assert {:ok, %{commits: [{"machine", _}]}} = Oneiroi.SimaQian.backup(other.id, actor)
 
     refute other.id in Enum.map(Backup.residents_with_remote(), & &1.id)
   end
@@ -154,7 +173,7 @@ defmodule Oneiroi.SimaQian.BackupTest do
   } do
     assert {:ok, :none} = Oneiroi.SimaQian.attest(r.id, actor)
 
-    assert {:ok, %{root: root, commits: [{"soul", _}, {"machine", sha}]}} =
+    assert {:ok, %{root: root, commits: [{"machine", sha}]}} =
              Oneiroi.SimaQian.backup(r.id, actor)
 
     assert {:ok, :held} = Oneiroi.SimaQian.attest(r.id, actor)

@@ -250,7 +250,7 @@ defmodule Oneiroi.SimaQian.DryRun do
     """
     ## Under `honcho/`, read by nothing
 
-    These files come across as files and no record is made from any of them; Honcho is built anew from the conversations here:
+    These files come across as files and no record is made from any of them; Honcho is retired, so nothing reads them:
 
     #{bullets(unread)}
     """

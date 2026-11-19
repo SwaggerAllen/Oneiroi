@@ -240,3 +240,8 @@ Not a decisions-log entry: the seal (spec §6.4, #12) is about what the
 resident can reach, and the witness already holds every card; this is
 more of the witness's view inside it, with no new reader, store or
 surface.
+
+## #32
+The audit judged a model of the person nobody could otherwise read; with
+that model gone, the resident's own records are what the wash pass
+already reads, so nothing is left unaudited.

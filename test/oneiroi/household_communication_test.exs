@@ -247,9 +247,11 @@ defmodule Oneiroi.HouseholdCommunicationTest do
 
     assert [_one] = watch_letters(iris)
 
-    # The poke wakes her chat, naming the letter and never its words.
+    # The poke wakes her chat once it has settled a minute (sunna#72),
+    # naming the letter and never its words.
     Fake.clear()
     Fake.reply("I'll look.", for: iris.id)
+    Clock.Fake.advance(60)
     assert :ok = Sunna.tick(iris.id)
 
     {:ok, _session, messages} = Kumbukumbu.transcript({:account, ctx.witness.id}, iris.chat)

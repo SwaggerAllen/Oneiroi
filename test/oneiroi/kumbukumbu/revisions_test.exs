@@ -7,7 +7,6 @@ defmodule Oneiroi.Kumbukumbu.RevisionsTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
-  alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
 
   setup do
     witness = Fixtures.account!()
@@ -17,7 +16,6 @@ defmodule Oneiroi.Kumbukumbu.RevisionsTest do
     :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
     {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     Model.clear()
-    Honcho.clear(for: resident.id)
 
     {:ok, n} =
       Kumbukumbu.add_bookmark(
@@ -35,7 +33,6 @@ defmodule Oneiroi.Kumbukumbu.RevisionsTest do
 
     on_exit(fn ->
       Model.clear(for: resident.id)
-      Honcho.clear(for: resident.id)
     end)
 
     {:ok, id: resident.id, actor: actor, brain: brain, key: key, bookmark: n}

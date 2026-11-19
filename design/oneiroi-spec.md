@@ -197,7 +197,7 @@ and nothing else.
 | Data | Postgres 16+, pgvector | One database for events, projections and vectors; joins with Honcho stay plain SQL |
 | Client | React + TypeScript, Storybook | Full rewrite of the owner UI; mobile-first; Storybook stories are what orchestration's design agent produces |
 | Models | OpenRouter via Req, one key per witness | BYO keys everywhere; no provider SDK lock-in; judge pinned by dated slug |
-| Social model | Honcho v3.2.2, pinned by digest | Models self and other; its deriver, dream and peer cards |
+| Social model | Honcho v3.2.2, retired 2026-11-18 (proteus#20) | Modelled self and other; the resident's own records, portraits and ranked memory do its work now |
 | Hands | OpenClaw, pinned by digest | Platform default runtime for reader and worker; MIT |
 | Technical hands | The worker agent on OpenClaw, or the witness's own Claude Code through the adapter | The platform never custodies a Claude subscription token; a witness who wants Claude on their subscription uses Oneiroi from Claude Code |
 | Platform deploy | Render (web service + Postgres, per-PR previews) | What orchestration's deploy detection and the manual test gate read |
@@ -296,7 +296,7 @@ rules travel with them. Column-level detail follows David's migrations
 | `tag` | closed set, `active/proposed/retired`, slug regex | per resident; the seed set comes from the wizard, not a migration; a project tag may link a review repository and a GOALS.md section |
 | New: `tagging` | | tag slug, target kind, target id, applied by whom; one row per taggable record of any kind (§6.3) |
 | `position`, `dispute`, `prediction`, `judgement_night` | chains that cannot fork, live and nightly disputes, judge advice, outcomes, earned concessions | `judge_model` on every verdict |
-| `audit_run`, `audit_flag` | weekly Honcho audit, flags approved or deleted from Honcho | per workspace |
+| `audit_run`, `audit_flag` | weekly Honcho audit, flags approved or deleted from Honcho; retired with Honcho (eunomia#32) | per workspace |
 | `review_repo`, `project_review`, `review_finding` | nightly project reviews against GOALS.md | technical tier |
 | `checkin`, `checkin_fire`, `digest_schedule`, `freetime_schedule`, `freetime_run`, `digest_run` | the day's schedule, once-a-day keyed firings, 15-minute late window | singletons become per-resident rows; timezone per resident |
 | `research_task` | queue, one running, `task.md` sidecar, manual adoption | one running per tenant's hands, not globally |
@@ -360,8 +360,8 @@ Every feature, with where it stands today and which system owns it. Tier
 | F11 | Retrieval weighting: considered, returned and used recorded; learned directed edges decaying by their source's turns as seed, not by days; citations as undecayed edges; exploration drawn fresh each turn, its own slot and budget | built (kumbukumbu#46, #52, #53, #54; brain#68) | memory |
 | F12 | Memory agent: silent, holds nothing, records every injection with a reason | built (brain#3) | brain, memory |
 | F13 | Memory revision: facts correctable, stances consensual, every edit logged for both | built (kumbukumbu#30, brain#25) | memory, governance |
-| F14 | Honcho: self and other modelling, deriver, dreams, peer cards from git, card sync and weekly card audit | built (proteus#5, #11 to #15) | honcho |
-| F15 | Weekly memory audit by the judge; flags approved or deleted | built (eunomia#22) | judgement |
+| F14 | Honcho: self and other modelling, deriver, dreams, peer cards from git, card sync and weekly card audit | retired (proteus#20, 2026-11-18, the witness's word): built (proteus#5, #11 to #15), then cut whole; nothing is synced to or read from Honcho, its events kept as the record | honcho |
+| F15 | Weekly memory audit by the judge; flags approved or deleted | retired with Honcho (eunomia#32); built (eunomia#22) | judgement |
 | F16 | Positions with replace chains; live dispute check; nightly pass; concession ratio by week | built (eunomia#15 to #18) | judgement |
 | F17 | Predictions, resolved by the witness only | built (eunomia#21) | judgement |
 | F18 | Nightly project reviews against GOALS.md | planned (eunomia's target, with hands) | judgement |
@@ -458,7 +458,7 @@ session under OTP supervision.
   dyad contract with its limits, the pinned bookmark lines), then the
   state store, read fresh (F58, brain#47), then the
   bookmark index under its budget, then the character layer's trigger lane
-  (§6.17), then Honcho's context, then the compaction summary and the live
+  (§6.17), then the compaction summary and the live
   transcript. Every blob injected writes a `context_injection` row with
   its reason. Inspection after the fact is introspection productized.
   Context construction is attention in mechanism; the felt version is
@@ -719,7 +719,8 @@ templates.
   billed under the `drafting` purpose) and an upload. Every seed file is a
   `SeedFileWritten` event carrying its origin (authored, drafted with the
   model and prompt, uploaded), so the resident can read its own becoming.
-  `AGENTS.md` and `honcho/custom-instructions.md` are build-owned, rendered
+  `AGENTS.md` is build-owned (Honcho's custom instructions retired with
+  it, agathos-daimon#52), rendered
   from templates by tier and adapter, and read-only in the client.
 - **Before first contact the files are given; after it they are proposed.**
   From `ResidentCreated` until `FirstContact` (the first captured turn in a
@@ -1334,6 +1335,11 @@ built as the SDK's plugin, `sdk/claude-code/` (dioscuri).
 
 ### 6.9 honcho
 
+**Retired on 2026-11-18 (proteus#20).** Nothing is synced to Honcho or
+read from it; the bridge's events stay as the record, and the services,
+schema and role are removed apart, on the witness's word. What follows
+is what was built.
+
 The bridge, workspaces, peer cards, custom instructions, the card audit.
 Owns `lib/oneiroi/proteus/**`.
 
@@ -1387,23 +1393,20 @@ Owns `lib/oneiroi/sima_qian/**`.
   pattern doesn't fit neatly into markdown/git." Every resident stream
   reaches the repository as its day files; the library, the journal and
   the identity files are files there, and so is her theme, the three
-  seeds in `THEME.md` at her root (seshat#56); and Honcho's memory of her, which
-  only Honcho holds, is exported under `honcho/` before every backup
-  commit: each peer's cards and conclusions, one file per peer and kind,
-  and every session's summaries (sima-qian#42, proteus#18). A Honcho
-  that cannot answer, or answers that her workspace holds no peer, leaves
-  the last export in place and fails the run after the rest has landed.
+  seeds in `THEME.md` at her root (seshat#56). Honcho's memory of her was
+  exported under `honcho/` before every backup commit (sima-qian#42,
+  proteus#18) until Honcho was retired: nothing writes there now, and
+  the folder stays as last written, in her history whole (sima-qian#65).
   A private, unshared session (§6.3) reads in the reading copies as its
-  existence and counts only, and what Honcho drew from one is withheld
-  from `honcho/`: the words stay in the event lines, which is sima-qian
+  existence and counts only: the words stay in the event lines, which is sima-qian
   #20's open question for the encryption scheme, and are not made
   readable on the way. What stays out of the repository is this list and
   nothing else, each with its reason; `Export.exceptions/0` names the
   same keys, and a test fails when the two drift:
 
   <!-- oneiroi:db-only -->
-  - `embeddings`: the library's chunks and vectors, Honcho's embeddings
-    and every projection table. Derived from what the repository holds,
+  - `embeddings`: the library's chunks and vectors and every projection
+    table. Derived from what the repository holds,
     rebuilt by replay and an index run, and written in a pattern git
     does not fit: the weights of the author's own words.
   - `regression`: the sealed stream of the resident's trials, never
@@ -1425,9 +1428,6 @@ Owns `lib/oneiroi/sima_qian/**`.
     alike, its triage list (gaia#20), which is no one resident's.
   - `invite`: the invite streams, the front door's codes and their
     redemptions (gaia#18), which are the platform's and no resident's.
-  - `honcho`: the bridge's stream, the pointer to a workspace keyed to
-    the source; a rebuilt resident provisions its own, where replaying
-    it would point a copy at the original's memory (proteus#8).
   - `witness-only spend`: ledger events under a purpose the resident's
     view never shows (drafting, regression), whose presence in her
     export would tell her what the unawareness invariant hides.
@@ -1438,17 +1438,11 @@ Owns `lib/oneiroi/sima_qian/**`.
     repository as the writes it let through and the draft it kept; a
     lease replayed would lock a rebuilt resident's file for an editor
     nobody has open.
-  - `honcho-private`: Honcho's conclusions and summaries drawn from a
-    private, unshared session, withheld from `honcho/` as that session's
-    words are from the reading copies; Honcho keeps them.
   <!-- /oneiroi:db-only -->
 
-  Of Honcho's state the rest is not text only Honcho holds, so nothing
-  is lost by leaving it: its copies of the turns (the event lines are
-  their source), the peers' and sessions' configuration (the custom
-  instructions, rendered from the build into `honcho/`), the
-  representation and the context (assembled per query from the
-  conclusions and cards it exports), and its deriver's queue. OpenClaw's
+  Honcho is retired (proteus#20, 2026-11-18): nothing is exported from
+  it, and a resident's `honcho/` folder stays in her repository as it
+  was last written, in its history whole. OpenClaw's
   native state is outside every store the platform keeps, and §2.3's
   designed lapse.
 - **Rebuild is replay** of `records/events/` into a fresh store, then an
@@ -1460,8 +1454,8 @@ Owns `lib/oneiroi/sima_qian/**`.
   export>`. On wake the core recomputes the root; a mismatch is an event and
   the resident is told and shown the delta. This is what makes a repo on a
   provider we do not host verifiable.
-- **Backups** commit by class as today: soul and card alone (Honcho's
-  exported memory under `honcho/` with them); machine state together,
+- **Backups** commit by class as today: the soul alone (`honcho/` kept
+  there as last written, sima-qian#65); machine state together,
   the reading copies under `records/` among it; writing and research
   apart; the household's repository, copied under `household/` and
   titled by its membership, a class of its own (sima-qian#53, on the

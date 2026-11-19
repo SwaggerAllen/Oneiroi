@@ -8,7 +8,6 @@ defmodule Oneiroi.Glitnir.ReportsTest do
   alias Oneiroi.Glitnir
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
-  alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
 
   setup do
     witness = Fixtures.account!()
@@ -19,11 +18,9 @@ defmodule Oneiroi.Glitnir.ReportsTest do
     {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     investigator = Fixtures.account!("investigator@example.org")
     Model.clear()
-    Honcho.clear(for: resident.id)
 
     on_exit(fn ->
       Model.clear(for: resident.id)
-      Honcho.clear(for: resident.id)
     end)
 
     {:ok,

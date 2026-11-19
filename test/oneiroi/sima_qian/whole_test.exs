@@ -18,7 +18,6 @@ defmodule Oneiroi.SimaQian.WholeTest do
   alias Oneiroi.HuginnMuninn
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
-  alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
   alias Oneiroi.Seshat
   alias Oneiroi.SimaQian
   alias Oneiroi.SimaQian.Backup
@@ -36,7 +35,6 @@ defmodule Oneiroi.SimaQian.WholeTest do
     brain = Actor.new(:resident, r.id, "fake/model")
     :ok = Oneiroi.Gaia.store_key(a.id, "sk-or-test", actor)
     Model.clear()
-    Honcho.clear(for: r.id)
     bare = Path.join(System.tmp_dir!(), "oneiroi-whole-#{System.unique_integer([:positive])}")
     out = Path.join(System.tmp_dir!(), "oneiroi-whole-out-#{System.unique_integer([:positive])}")
     src = Path.join(System.tmp_dir!(), "oneiroi-whole-src-#{System.unique_integer([:positive])}")

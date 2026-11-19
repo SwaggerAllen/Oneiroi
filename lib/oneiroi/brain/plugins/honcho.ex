@@ -1,33 +1,24 @@
 defmodule Oneiroi.Brain.Plugins.Honcho do
   @moduledoc """
-  Honcho's context (spec §5). A first-party plugin (brain#68): code that entered by review,
-  under the same manifest as every plugin.
+  Honcho's context (spec §5), retired (proteus#20; the witness,
+  2026-11-18: "cut honcho altogether"). Nothing is synced to Honcho and
+  nothing is read from it, so its section is always empty and never
+  sent. The slot stays in the list, saying so, until the resident's
+  proposal to switch it off is answered (brain#68); then it goes.
   """
   @behaviour Oneiroi.Brain.Plugin
-
-  import Oneiroi.Brain.Plugin, only: [section: 3]
-
-  alias Oneiroi.Config
 
   @impl Oneiroi.Brain.Plugin
   def manifest,
     do: %{
       key: "honcho",
-      name: "Honcho",
-      about: "the background model's context on the person, when its switch is on",
+      name: "Honcho (retired)",
+      about:
+        "retired on 2026-11-18: the background model's context is no longer read, and this section is always empty",
       place: :turn,
       reads: ~w(background_model)
     }
 
   @impl Oneiroi.Brain.Plugin
-  def sections(turn, _ctx) do
-    section(
-      "honcho",
-      if(Oneiroi.AgathosDaimon.switch_on?(turn.resident_id, "background_model"),
-        do: Oneiroi.Proteus.context(turn.resident_id),
-        else: ""
-      ),
-      "Honcho's context on the person, in the resident's eyes, under #{Config.fetch!(:proteus, :context_tokens)} tokens (spec §5)"
-    )
-  end
+  def sections(_turn, _ctx), do: []
 end

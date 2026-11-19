@@ -7,7 +7,6 @@ defmodule Oneiroi.Seshat.JournalTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
-  alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
   alias Oneiroi.Seshat
   alias Oneiroi.Sunna
 
@@ -20,11 +19,9 @@ defmodule Oneiroi.Seshat.JournalTest do
     {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     {:ok, dir} = Oneiroi.SimaQian.repository_dir(resident.id)
     Model.clear()
-    Honcho.clear(for: resident.id)
 
     on_exit(fn ->
       Model.clear(for: resident.id)
-      Honcho.clear(for: resident.id)
       File.rm_rf!(dir)
     end)
 

@@ -574,10 +574,6 @@ defmodule Oneiroi.Eunomia.RegressionTest do
       refute File.read!(Path.join(dir, file)) =~ "AnswerRecorded", "#{file} carries a card"
     end
 
-    # Honcho holds nothing of the run or its trace (the seal above
-    # compares it whole; this names it).
-    refute inspect(Oneiroi.Proteus.Honcho.Fake.state(id)) =~ unique
-
     # The run answered in a job and broadcast its cards: nothing of it
     # went out on the resident's session topic, and the job's row, which
     # outlives the run, carries refs and the actor, never a text.

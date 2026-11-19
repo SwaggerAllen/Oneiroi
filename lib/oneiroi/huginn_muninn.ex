@@ -18,7 +18,6 @@ defmodule Oneiroi.HuginnMuninn do
       Oneiroi.Ethos,
       Oneiroi.Eunomia,
       Oneiroi.Kumbukumbu,
-      Oneiroi.Proteus,
       Oneiroi.Seshat,
       Oneiroi.Sunna,
       Commanded,

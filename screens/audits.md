@@ -12,11 +12,11 @@ than a gap. The state list lives in the stories alone once they exist
 
 ## #1 Shows
 
-The check-engine findings; the weekly memory audit's runs and flags with the judge's advice; the witness's audits and their last results; counters.
+The check-engine findings; the witness's audits and their last results; counters. (The weekly memory audit's runs and flags retired with Honcho, eunomia#32.)
 
 ## #2 Does
 
-Approve or delete a flag, with a note; define an audit or counter; increment a counter.
+Define an audit or counter; increment a counter.
 
 ## #3 Rules from the design system
 

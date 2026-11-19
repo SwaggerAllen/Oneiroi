@@ -10,10 +10,11 @@ defmodule Oneiroi.SimaQian.Backup do
   removed. The library's files are not the backup's: each was committed
   when it was written.
 
-  Before the commit, Honcho's memory of the resident is written under
-  `honcho/` (sima-qian#42), in the soul class; a Honcho that cannot
-  answer leaves the last of it in place and is the run's error after
-  the rest has landed.
+  Honcho's memory of the resident was written under `honcho/` before
+  the commit (sima-qian#42) until Honcho was retired (sima-qian#65,
+  2026-11-18): nothing writes there now, and what the last run wrote
+  stays where it is, in the repository and its history, the backup
+  neither rewriting nor removing it.
   """
 
   require Logger
@@ -30,7 +31,6 @@ defmodule Oneiroi.SimaQian.Backup do
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Export
   alias Oneiroi.SimaQian.Git
-  alias Oneiroi.SimaQian.HonchoMemory
   alias Oneiroi.SimaQian.Household
   alias Oneiroi.SimaQian.Merkle
   alias Oneiroi.SimaQian.Repos
@@ -38,10 +38,12 @@ defmodule Oneiroi.SimaQian.Backup do
   @classes [
     # The soul alone (David's rule), and the identity files with it: they
     # are one self, given and proposed together (spec §6.2).
+    # `honcho/` stays in it, as last written, since Honcho's retirement
+    # (sima-qian#65): a resident's tree is kept, never swept.
     {"soul", ["SOUL.md", "IDENTITY.md", "USER.md", "GOALS.md", "LINKS.md", "honcho/"]},
     # The state store (agathos-daimon#32): the resident's present, which
     # can change every turn. A class of its own, so a changed line never
-    # makes a soul commit and the Honcho card it sets.
+    # makes a soul commit.
     {"state", ["STATE.md"]},
     # `posts/` is a library folder (Seshat's kinds) and was in no class, so
     # the first resident to publish one would have failed every backup on
@@ -98,33 +100,20 @@ defmodule Oneiroi.SimaQian.Backup do
     try do
       with :ok <- fresh_if_foreign(resident_id, dir(resident_id), row),
            {:ok, export} <- Export.write(resident_id, staging),
-           # Honcho's memory of her, before the commit that carries it
-           # (sima-qian#42); a failure is returned after the rest lands.
-           honcho = HonchoMemory.write(resident_id, staging, export.private),
-           export = %{export | files: export.files ++ honcho_files(honcho)},
            {:ok, _} <- record_export(resident_id, export, actor),
            # The letters the export carried for the first time get their
            # receipt (agathos-daimon#28): the words left the house.
            :ok <- Oneiroi.AgathosDaimon.letters_exported(resident_id, Export.cutoff(), actor),
            root = Merkle.root(Path.join(staging, "records")),
            :ok <- Household.travel(resident_id, staging),
-           {:ok, commits} <- commit_staged(repo, staging, owned(honcho), export.through, root),
+           {:ok, commits} <- commit_staged(repo, staging, owned(), export.through, root),
            :ok <- push(repo, row),
            {:ok, _} <- record_backup(resident_id, export.through, root, commits, actor) do
         :telemetry.execute([:oneiroi, :sima_qian, :backup], %{through: export.through}, %{
           resident_id: resident_id
         })
 
-        # The card comes from git, always (spec §6.9): set after the soul
-        # commit; a bridge not yet provisioned, or a Honcho that is down,
-        # is the bridge's to record and never the backup's to fail on.
-        if Enum.any?(commits, &match?({"soul", sha} when is_binary(sha), &1)),
-          do: Oneiroi.Proteus.set_card(resident_id, "commit", actor)
-
-        case honcho do
-          {:ok, _written} -> {:ok, %{through: export.through, root: root, commits: commits}}
-          {:error, _unreadable_or_empty} = failed -> failed
-        end
+        {:ok, %{through: export.through, root: root, commits: commits}}
       end
     after
       File.rm_rf(staging)
@@ -147,23 +136,13 @@ defmodule Oneiroi.SimaQian.Backup do
   end
 
   # What a run's export rewrites whole, so a file it no longer writes is
-  # removed: the records, the identity files and the state, the household's
-  # copy when it travelled, and Honcho's files when Honcho answered.
-  defp owned(honcho) do
-    always = [
+  # removed: the records, the identity files and the state. Nothing under
+  # `honcho/` since Honcho's retirement (sima-qian#65): it stays as it was.
+  defp owned,
+    do: [
       ~r{\Arecords/},
-      ~r{\A(SOUL|IDENTITY|USER|GOALS|LINKS|STATE)\.md\z},
-      ~r{\Ahoncho/custom-instructions\.md\z}
+      ~r{\A(SOUL|IDENTITY|USER|GOALS|LINKS|STATE)\.md\z}
     ]
-
-    case honcho do
-      {:ok, _} ->
-        always ++ [~r{\Ahoncho/[^/]+/(card|conclusions)\.md\z}, ~r{\Ahoncho/summaries\.md\z}]
-
-      _failed ->
-        always
-    end
-  end
 
   def attest(resident_id, %Actor{} = actor) do
     row = Scope.resident(resident_id, fn -> Store.get(resident_id) end)
@@ -297,9 +276,6 @@ defmodule Oneiroi.SimaQian.Backup do
     dir = dir(resident_id)
     with :ok <- Git.ensure_repo(dir), do: {:ok, dir}
   end
-
-  defp honcho_files({:ok, paths}), do: paths
-  defp honcho_files({:error, _failed}), do: []
 
   defp record_export(resident_id, export, actor) do
     Router.dispatch_sited(%Commands.RecordExport{

@@ -61,7 +61,6 @@ defmodule Oneiroi.SimaQian.ExportTest do
               files: [
                 "SOUL.md",
                 "USER.md",
-                "honcho/custom-instructions.md",
                 "records/README.md" | _
               ]
             }} =
@@ -82,7 +81,6 @@ defmodule Oneiroi.SimaQian.ExportTest do
             %{
               through: 3,
               files: [
-                "honcho/custom-instructions.md",
                 "records/README.md",
                 "records/events/2026-10-26.jsonl"
               ]
@@ -115,7 +113,7 @@ defmodule Oneiroi.SimaQian.ExportTest do
   end
 
   test "the watermark holds back what may still be being written", %{r: r, dir: dir} do
-    assert {:ok, %{through: 0, files: ["honcho/custom-instructions.md", "records/README.md"]}} =
+    assert {:ok, %{through: 0, files: ["records/README.md"]}} =
              Export.write(r.id, dir)
 
     refute File.exists?(Path.join(dir, "records/events/2026-10-26.jsonl"))
@@ -128,7 +126,7 @@ defmodule Oneiroi.SimaQian.ExportTest do
     {:ok, 3} = Oneiroi.AgathosDaimon.mint_id(r.id, "bookmark", actor)
     Clock.Fake.advance(120)
 
-    assert {:ok, %{through: 4, files: [_instructions, "records/README.md", first, second]}} =
+    assert {:ok, %{through: 4, files: ["records/README.md", first, second]}} =
              Export.write(r.id, dir)
 
     assert first == "records/events/2026-10-26.jsonl"

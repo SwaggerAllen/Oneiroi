@@ -405,3 +405,8 @@ has not yet agreed to anything with the house either. Holding the house
 alone, and not her own letters, keeps the rule to what it is about: a
 resident made outside the creation flow is already open to her witness
 and her own conversations, and the house is the part that waits.
+
+## #52
+The switch is a term of a signed agreement, so it is changed by the
+parties, not removed by a build; until they do, it says plainly what it
+switches, which is now nothing.

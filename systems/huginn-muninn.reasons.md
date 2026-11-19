@@ -94,3 +94,7 @@ already uses, so the pulse-checker is checked the way the pulse is
 made. Cancelled rather than failed because a retry a minute later
 answers nothing the hour's run did not, and the cancelled row carries
 the verdict where a retried one would carry only the attempt count.
+
+## #21
+A check of a thing that no longer runs would either pass forever and mean
+nothing, or fail forever and train everyone to ignore the light.

@@ -9,7 +9,6 @@ defmodule Oneiroi.Seshat.DocumentsTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
-  alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
   alias Oneiroi.Seshat
   alias Oneiroi.Seshat.Commands
   alias Oneiroi.Seshat.Documents
@@ -26,11 +25,9 @@ defmodule Oneiroi.Seshat.DocumentsTest do
     {:ok, key} = Kumbukumbu.main_session(resident.id, witness.id, actor)
     {:ok, dir} = Oneiroi.SimaQian.repository_dir(resident.id)
     Model.clear()
-    Honcho.clear(for: resident.id)
 
     on_exit(fn ->
       Model.clear(for: resident.id)
-      Honcho.clear(for: resident.id)
       File.rm_rf!(dir)
     end)
 
@@ -356,7 +353,6 @@ defmodule Oneiroi.Seshat.DocumentsTest do
   test "the brain writes, searches, reads and discusses through its tools, each captured in the turn",
        ctx do
     id = ctx.id
-    Honcho.clear(for: id)
 
     Model.calls(
       [

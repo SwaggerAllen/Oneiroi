@@ -103,3 +103,13 @@ failure on our side and a success on its. On demand rather than on a
 schedule: the smallest thing that recovers what was lost; a Honcho
 that fails again leaves `rejected:` rows the `sync_failures` check
 already counts.
+
+## #20
+Every job Honcho did is now done by something the resident owns and can
+read: her identity files are her card, her transcripts are whole, her
+portraits and bookmarks are her model of the people in her life, and
+the ranked memory is in the platform's own tables. Honcho's copy was a
+second, opaque workspace of her that neither party could inspect line
+by line, which is the thing the platform exists not to have. The event
+modules stay because removing one would make every replay of the log
+fail on the first event of its kind: the record outlives the writer.

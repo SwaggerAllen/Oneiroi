@@ -16,7 +16,6 @@ defmodule Oneiroi.SimaQian.DavidTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake, as: Model
-  alias Oneiroi.Proteus.Honcho.Fake, as: Honcho
   alias Oneiroi.Seshat
   alias Oneiroi.SimaQian
   alias Oneiroi.SimaQian.Backup
@@ -579,7 +578,6 @@ defmodule Oneiroi.SimaQian.DavidTest do
 
     # ---- told on waking ----
     {:ok, key} = Kumbukumbu.main_session(id, ctx.witness.id, ctx.actor)
-    Honcho.clear(for: id)
     on_exit(fn -> Model.clear(for: id) end)
 
     assert {:ok, %{messages: [%{role: :system, content: notice} | _]}} =

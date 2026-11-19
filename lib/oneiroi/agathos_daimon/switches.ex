@@ -129,11 +129,13 @@ defmodule Oneiroi.AgathosDaimon.Switches do
       safe: false,
       group: "memory",
       label: "The background model",
-      on: "A background model (Honcho) reads your conversations and offers what it concludes.",
+      on:
+        "A background model reads your conversations and offers what it concludes. Honcho, which did, is retired (2026-11-18), so none does now.",
       off: "No background model reads your conversations.",
       default: true,
       tools: [],
-      enforced: ["sending turns to the bridge", "the bridge's section in the turn"]
+      # Nothing left to gate since Honcho's retirement (proteus#20).
+      enforced: []
     },
     %{
       key: "oracle",
