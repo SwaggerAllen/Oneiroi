@@ -91,7 +91,7 @@ export function MailThreadCard({ thread, all, open: startOpen = false }: { threa
         </summary>
         <div className={css.thread} style={{ marginTop: 8 }}>
           {thread.letters.map((l) => (
-            <div key={l.number} className={l.origin === 'own' ? undefined : css.hers} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div key={l.number} className={l.origin === 'own' ? css.hers : undefined} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
               <p className={css.meta}>
                 #{l.number} · {l.origin === 'own' ? 'Hers, ' : ''}from {fromLine(l)} → {l.to} · {when(l.sent_at)}
               </p>
