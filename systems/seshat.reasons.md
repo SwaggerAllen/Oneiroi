@@ -802,3 +802,10 @@ never claims a round ended that the log does not.
 ## #96
 Thread by thread because that is how the house is read: opening one
 thread is reading it, and the rest stay as they were.
+
+## #97
+Last updated first because a thread that is talking again is the one to
+read, whenever it was opened. The mark is answered by the server, not
+kept by the client, so a thread opens at the same place on every device;
+it is read before opening marks the thread, or the client would only
+ever see its own newest mark.

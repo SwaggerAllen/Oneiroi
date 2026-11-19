@@ -273,8 +273,8 @@ defmodule Oneiroi.Seshat.Household do
   # ---- the shelf, read whole by every member (seshat#61) ----
 
   @doc """
-  The shelf, paged from an offset: the contract, then each thread
-  newest first (its title, who posted it and when, how many replies and
+  The shelf, paged from an offset: the contract, then each thread, the
+  last updated first (its title, who posted it and when, how many replies and
   the last, its ballot), then each document by its path. What a witness
   reads follows `SESHAT_HOUSEHOLD_WITNESS_READS` (seshat#64).
   """
@@ -288,7 +288,9 @@ defmodule Oneiroi.Seshat.Household do
         |> thread_ids()
         |> Enum.map(&thread_summary(view, &1, ballots))
         |> Enum.filter(&visible?(actor, household_id, &1.ids))
-        |> Enum.sort_by(&{&1.posted_at, &1.path}, :desc)
+        # Last updated first (the witness, 2026-11-19: "sort by last
+        # updated, not created"): a reply brings its thread up.
+        |> Enum.sort_by(&{&1.last_reply_at || &1.posted_at, &1.path}, :desc)
 
       documents =
         view
@@ -1902,7 +1904,8 @@ defmodule Oneiroi.Seshat.Household do
   after the witness's mark for that thread, or the house's baseline when
   the thread has none. With no mark at all yet, the baseline is set now and
   nothing is unread: a first look starts from here, not from the house's
-  whole history. Answers `{:ok, %{count: n, threads: %{path => n}}}`.
+  whole history. Answers `{:ok, %{count: n, threads: %{path => n}, seen: %{path => at}}}`,
+  `seen` the mark each thread with unread was read up to.
   """
   def unread(%Actor{kind: :witness} = actor) do
     with {:ok, household_id} <- household(actor),
@@ -1911,19 +1914,25 @@ defmodule Oneiroi.Seshat.Household do
       marks = Gaia.seen(actor.id, subject)
       baseline = Map.get(marks, "*") || set_baseline(actor, subject)
 
+      mark = &later(Map.get(marks, &1), baseline)
+
       threads =
         for w <- writes(view),
             w.kind in ["thread", "reply"],
             w.by_id != actor.id,
-            DateTime.compare(w.at, later(Map.get(marks, w.target), baseline)) == :gt,
+            DateTime.compare(w.at, mark.(w.target)) == :gt,
             reduce: %{},
             do: (acc -> Map.update(acc, w.target, 1, &(&1 + 1)))
 
-      {:ok, %{count: threads |> Map.values() |> Enum.sum(), threads: threads}}
+      # Where each thread with unread was read up to: a thread opens at
+      # the first post after it (seshat#97).
+      seen = Map.new(threads, fn {path, _n} -> {path, mark.(path)} end)
+
+      {:ok, %{count: threads |> Map.values() |> Enum.sum(), threads: threads, seen: seen}}
     end
   end
 
-  def unread(%Actor{}), do: {:ok, %{count: 0, threads: %{}}}
+  def unread(%Actor{}), do: {:ok, %{count: 0, threads: %{}, seen: %{}}}
 
   # A first look: everything before now counts as seen.
   defp set_baseline(actor, subject) do

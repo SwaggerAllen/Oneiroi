@@ -76,12 +76,35 @@ defmodule OneiroiWeb.UnreadTest do
     {:ok, %{path: thread}} =
       Seshat.household_post(resident, %{"title" => "Herons", "content" => "At the weir."})
 
-    assert %{"house" => %{"count" => 1, "threads" => %{^thread => 1}}} =
+    assert %{
+             "house" => %{
+               "count" => 1,
+               "threads" => %{^thread => 1},
+               "seen" => %{^thread => mark}
+             }
+           } =
              ctx.conn |> get("/v1/unread") |> json_response(200)
+
+    # Where it was read up to (seshat#97): the first look's baseline,
+    # before the post, so the thread opens at the post.
+    {:ok, mark, _} = DateTime.from_iso8601(mark)
+    assert DateTime.compare(mark, Clock.now()) == :lt
 
     # His own post never counts.
     {:ok, _} = Seshat.household_post(ctx.witness, %{"title" => "Mine", "content" => "Mine."})
     assert %{"house" => %{"count" => 1}} = ctx.conn |> get("/v1/unread") |> json_response(200)
+
+    # The shelf, last updated first (the witness, 2026-11-19): his newer
+    # thread leads until a reply brings the older one up.
+    order = fn ->
+      {:ok, shelf} = Seshat.household_shelf(ctx.witness, 0)
+      Enum.map(shelf.threads, & &1.title)
+    end
+
+    assert order.() == ["Mine", "Herons"]
+    Clock.Fake.advance(1)
+    {:ok, _} = Seshat.household_reply(ctx.witness, thread, %{"content" => "Saw one too."})
+    assert order.() == ["Herons", "Mine"]
 
     at = Clock.now() |> DateTime.add(1) |> DateTime.to_iso8601()
 

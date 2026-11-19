@@ -1,11 +1,12 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { Fragment, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
 import { api, type HouseDoc, type HousePost, type HouseThreadSummary, type HouseWorking } from '../../api/client';
 import * as chat from '../chat/chat.css';
 import * as tabCss from '../chat/chatTab.css';
 import { Markdown } from '../chat/Markdown';
 import { ScrollArea } from '../shell/ScrollArea';
 import { HOUSE, SHELF, WORKING, thread as threadKey, when } from './keys';
+import * as css from './threads.css';
 
 /**
  * The house's Chat (screen:next-house; the witness, 2026-11-16: "more like
@@ -16,6 +17,10 @@ import { HOUSE, SHELF, WORKING, thread as threadKey, when } from './keys';
  * posts keep the household's rules (seshat#68, #69). It opens at the
  * bottom, the newest, and stays there while you are there; a resident
  * answering a thread shows under it as "<her> is thinking…" (seshat#90).
+ * Threads come last updated last (seshat#97), so a reply brings its
+ * thread down to the composer; an open thread's header stays at the top
+ * while it scrolls, and it opens at its first unread post. The mentions
+ * line sits above the list, always in view.
  */
 export function Threads() {
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
@@ -38,6 +43,7 @@ export function Threads() {
   return (
     <div className={tabCss.tab}>
       <div className={chat.column}>
+        <MentionsLine />
         <ScrollArea label="Threads" scrollRef={scroll}>
           <div ref={list} className={chat.list}>
             {shelf.hasNextPage && (
@@ -45,7 +51,6 @@ export function Threads() {
                 Earlier threads
               </button>
             )}
-            <MentionsLine />
             {shelf.isPending && <p className={chat.system}>Reading the house…</p>}
             {shelf.isError && <p className={chat.system}>The house could not be read.</p>}
             {shelf.data && threads.length === 0 && <p className={chat.system}>No threads yet. Start one below.</p>}
@@ -129,21 +134,28 @@ function useStuckToBottom(): { scroll: RefObject<HTMLDivElement | null>; list: R
 }
 
 function ThreadCard({ t, open, accountId, working, onToggle }: { t: HouseThreadSummary; open: boolean; accountId?: string; working: HouseWorking[]; onToggle: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);  const ballot = t.ballot ? (t.ballot.closed_at ? `ballot #${t.ballot.number} ${t.ballot.passed ? 'carried' : 'failed'}` : `ballot #${t.ballot.number} open`) : null;
+  const ballot = t.ballot ? (t.ballot.closed_at ? `ballot #${t.ballot.number} ${t.ballot.passed ? 'carried' : 'failed'}` : `ballot #${t.ballot.number} open`) : null;
   return (
-    <div ref={ref} className={chat.hers} data-live={open || undefined}>
-      <button type="button" onClick={onToggle} aria-expanded={open} style={{ all: 'unset', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 4 }}>
-        <span className={chat.meta}>
-          <span>{t.by}</span>
-          <span>{when(t.posted_at)}</span>
-          <span>{t.replies === 1 ? '1 reply' : `${t.replies} replies`}</span>
-          {ballot && <span>{ballot}</span>}
-        </span>
-        <span style={{ fontWeight: 600, fontSize: 16 }}>
-          {open ? '▾ ' : '▸ '}
-          {t.title}
-        </span>
-      </button>
+    <div className={chat.hers} data-live={open || undefined}>
+      <div className={css.head} data-open={open || undefined}>
+        <button type="button" className={css.toggle} onClick={onToggle} aria-expanded={open}>
+          <span className={chat.meta}>
+            <span>{t.by}</span>
+            <span>{when(t.last_reply_at ?? t.posted_at)}</span>
+            <span>{t.replies === 1 ? '1 reply' : `${t.replies} replies`}</span>
+            {ballot && <span>{ballot}</span>}
+          </span>
+          <span style={{ fontWeight: 600, fontSize: 16 }}>
+            {open ? '▾ ' : '▸ '}
+            {t.title}
+          </span>
+        </button>
+        {open && (
+          <button type="button" className={css.close} onClick={onToggle} aria-label={`Close “${t.title}”`}>
+            Close ✕
+          </button>
+        )}
+      </div>
       {open && <Opened path={t.path} accountId={accountId} />}
       {working.length > 0 && <Thinking working={working} />}
       {open && <MuteThread path={t.path} />}
@@ -159,27 +171,53 @@ function Opened({ path, accountId }: { path: string; accountId?: string }) {
   return <Body doc={doc.data} path={path} accountId={accountId} />;
 }
 
+type Unread = Awaited<ReturnType<typeof api.unread>>;
+
+/** Later than a mark, by the clock, not the string: the two carry different precisions. */
+const after = (at: unknown, mark: string | null) => mark !== null && typeof at === 'string' && Date.parse(at) > Date.parse(mark);
+
 function Body({ doc, path, accountId }: { doc: HouseDoc; path: string; accountId?: string }) {
-  // Opened, and as replies arrive: its newest reply in view.
+  // Where this thread was read up to, as it opened (seshat#97): taken
+  // once, before opening marks it read. Null when nothing in it is unread.
+  const queries = useQueryClient();
+  const [since] = useState(() => {
+    const house = queries.getQueryData<Unread>(['unread'])?.house;
+    return house?.threads[path] ? (house.seen?.[path] ?? null) : null;
+  });
+  const mine = (p: HousePost) => p.meta.by_kind === 'witness' && p.meta.by_id === accountId;
+  const replies = doc.replies ?? [];
+  // The first unread: the trunk when the whole thread is new, else the
+  // first reply by someone else after the mark.
+  const fresh = since === null ? null : after(doc.trunk?.meta.posted_at, since) ? 'trunk' : (replies.find((r) => !mine(r) && after(r.meta.at, since))?.path ?? null);
+  // Opened: at the first unread, or the newest when nothing is unread;
+  // as replies arrive after that, the newest.
   const end = useRef<HTMLDivElement>(null);
-  const count = doc.replies?.length ?? 0;
+  const start = useRef<HTMLDivElement>(null);
+  const opened = useRef(false);
+  const count = replies.length;
   useEffect(() => {
-    end.current?.scrollIntoView?.({ block: 'end' });
-  }, [count]);
+    if (!opened.current && fresh !== null) start.current?.scrollIntoView?.({ block: 'start' });
+    else end.current?.scrollIntoView?.({ block: 'end' });
+    opened.current = true;
+  }, [count, fresh]);
   // Open is read (gaia#58, seshat#96): up to its newest post, on every device.
   const newest = (doc.replies ?? []).map((r) => r.meta.at).filter((x): x is string => typeof x === 'string').sort().pop() ?? doc.trunk?.meta.posted_at;
   useEffect(() => {
-    if (typeof newest === 'string') void api.markRead('house', newest, path).catch(() => undefined);
-  }, [newest, path]);
+    if (typeof newest === 'string')
+      void api
+        .markRead('house', newest, path)
+        .then(() => queries.invalidateQueries({ queryKey: ['unread'] }))
+        .catch(() => undefined);
+  }, [newest, path, queries]);
   const b = doc.ballot;
-  const mine = (p: HousePost) => p.meta.by_kind === 'witness' && p.meta.by_id === accountId;
   const posted = doc.doc ?? null;
-  const drafts = (doc.replies ?? []).filter((r) => r.meta.draft === 'changed');
+  const drafts = replies.filter((r) => r.meta.draft === 'changed');
   const latest = drafts[drafts.length - 1];
   // A reply on a document post says when it answers an earlier draft (seshat#83).
   const earlier = (r: HousePost) => !!posted?.commit && !!r.meta.doc_commit && r.meta.doc_commit !== posted.commit;
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      {fresh === 'trunk' && <New at={start} />}
       {doc.trunk && <Words body={doc.trunk.body} />}
       {posted && <PostedDoc doc={posted} />}
       {latest && (
@@ -198,29 +236,41 @@ function Body({ doc, path, accountId }: { doc: HouseDoc; path: string; accountId
         </p>
       )}
       {b && !b.closed_at && <Vote path={path} />}
-      {(doc.replies ?? []).map((r) =>
-        r.meta.draft === 'changed' ? (
-          <p key={r.path} id={anchor(r.path)} className={chat.system}>
-            {r.body.trim()}
-          </p>
-        ) : mine(r) ? (
-          <div key={r.path} className={chat.mine}>
-            {r.body.trim()}
-          </div>
-        ) : (
-          <div key={r.path} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <span className={chat.meta}>
-              <span>{r.meta.by}</span>
-              <span>{when(r.meta.at)}</span>
-              {r.meta.vote && <span>votes {r.meta.vote}</span>}
-              {r.meta.in_reply_to && <span>answering #{r.meta.in_reply_to}</span>}
-              {earlier(r) && <span>on an earlier draft</span>}
-            </span>
-            <Words body={r.body} />
-          </div>
-        ),
-      )}
+      {replies.map((r) => (
+        <Fragment key={r.path}>
+          {fresh === r.path && <New at={start} />}
+          {r.meta.draft === 'changed' ? (
+            <p id={anchor(r.path)} className={chat.system}>
+              {r.body.trim()}
+            </p>
+          ) : mine(r) ? (
+            <div className={chat.mine}>
+              {r.body.trim()}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <span className={chat.meta}>
+                <span>{r.meta.by}</span>
+                <span>{when(r.meta.at)}</span>
+                {r.meta.vote && <span>votes {r.meta.vote}</span>}
+                {r.meta.in_reply_to && <span>answering #{r.meta.in_reply_to}</span>}
+                {earlier(r) && <span>on an earlier draft</span>}
+              </span>
+              <Words body={r.body} />
+            </div>
+          )}
+        </Fragment>
+      ))}
       <div ref={end} />
+    </div>
+  );
+}
+
+/** Where the unread begins; scrolled to with room for the sticky header above it. */
+function New({ at }: { at: RefObject<HTMLDivElement | null> }) {
+  return (
+    <div ref={at} className={css.fresh} style={{ scrollMarginTop: 72 }} role="separator" aria-label="Unread from here">
+      New
     </div>
   );
 }
@@ -241,12 +291,12 @@ function MentionsLine() {
   if (!mentions.data) return null;
   const muted = mentions.data.house;
   return (
-    <p className={chat.system}>
-      {muted ? 'Mentions of you are muted in the house.' : 'A post naming you (@your name, or @all) notifies you.'}{' '}
+    <div className={css.bar}>
+      <span title="A post naming you (@your name, or @all) pushes to your devices.">{muted ? 'Mentions of you are muted.' : 'Mentions of you (@name, @all) notify you.'}</span>
       <button type="button" className={chat.linkButton} disabled={mute.isPending} onClick={() => mute.mutate(!muted)}>
         {muted ? 'Hear them' : 'Mute them'}
       </button>
-    </p>
+    </div>
   );
 }
 
