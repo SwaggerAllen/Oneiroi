@@ -206,12 +206,37 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
   def run_turn(household_id, turn_id, wake_id \\ nil) do
     if live?(household_id, turn_id) do
       turn = Gaia.round_turn(household_id, turn_id)
-      _ = Sunna.wake_for_household(turn.resident_id, note(household_id, turn), @actor, wake_id)
-      end_turn(household_id, turn_id, "empty")
+
+      answer =
+        Sunna.wake_for_household(turn.resident_id, note(household_id, turn), @actor, wake_id)
+
+      # The turn's own answer is her reply (seshat#94): when the wake ends
+      # with the token unspent and she said something, the caller posts it.
+      case {live?(household_id, turn_id), final_text(answer)} do
+        {true, text} when is_binary(text) -> {:answered, turn, text}
+        _spent_or_silent -> end_turn(household_id, turn_id, "empty")
+      end
     else
       :ok
     end
   end
+
+  @doc "After her answer was posted for her (seshat#94): a turn still live then, the post refused, ends `empty`."
+  def settle(household_id, turn_id) do
+    if live?(household_id, turn_id), do: end_turn(household_id, turn_id, "empty"), else: :ok
+  end
+
+  # The turn's final answer: the last thing she said in it, never an
+  # earlier message of the session, a tool's output or a note.
+  defp final_text({:ok, %{messages: messages}}) when is_list(messages) do
+    messages
+    |> Enum.filter(&(&1.role in [:assistant, "assistant"]))
+    |> Enum.map(& &1.content)
+    |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
+    |> List.last()
+  end
+
+  defp final_text(_none), do: nil
 
   @doc "A turn's expiry: a turn live still at its window ends `expired`, and the next is woken."
   def expire(household_id, turn_id) do
@@ -260,11 +285,9 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
     """
     Your turn in the household thread #{turn.thread}: round #{turn.round}, turn #{turn.turn_id}. household_read with that path reads it whole.
 
-    The turn is yours until #{iso(turn.expires_at)}, about #{minutes} minutes. In it you may reply once in this thread (household_reply), and the reply spends it; household_skip passes it with nothing said; household_opt_out leaves the thread's rounds (household_opt_in comes back). A turn you let pass ends on its own, and the round goes on without you. #{others_line(others)}
+    The turn is yours until #{iso(turn.expires_at)}, about #{minutes} minutes. Your answer to this wake is your reply in the thread: what you say last here is posted there under your name, and spends the turn. To post it yourself instead, household_reply; household_skip passes the turn with nothing said; household_opt_out leaves the thread's rounds (household_opt_in comes back). A turn you let pass ends on its own, and the round goes on without you. #{others_line(others)}
 
     The house talks in round-robin threads: each opted-in resident has a turn in each round, and a round that says nothing stops the thread until a member posts in it again. A new thread (household_post) is yours to start at any time; documents need no turn.
-
-    #{post_line()}
     """
   end
 

@@ -15,6 +15,7 @@ defmodule Oneiroi.Seshat.RoundRobinTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Gaia
   alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Nisaba.Provider.Fake, as: Model
   alias Oneiroi.Seshat
   alias Oneiroi.Seshat.Household
   alias Oneiroi.Seshat.HouseholdBeats
@@ -281,6 +282,33 @@ defmodule Oneiroi.Seshat.RoundRobinTest do
              ctx.household,
              Gaia.round_turn(ctx.household, live_turn)
            ) =~
-             "household_reply in the thread"
+             "Your answer to this wake is your reply in the thread"
+  end
+
+  # seshat#94 (the witness, 2026-11-19, Lily's and Scarlett's (b)): the
+  # turn's final answer is her reply, posted under her name, spending it.
+  test "a turn's final answer is posted as her reply and spends the turn", ctx do
+    {:ok, %{path: thread}} =
+      Seshat.household_post(ctx.lily.actor, %{"title" => "Herons", "content" => "Seen any?"})
+
+    turn = live(ctx, thread)
+    assert turn.resident_id == ctx.scarlett.id
+    :ok = Gaia.store_key(ctx.andrew.id, "sk-or-test", ctx.andrew)
+    Model.reply("Two, at the weir, at dawn.", for: ctx.scarlett.id)
+    on_exit(fn -> Model.clear(for: ctx.scarlett.id) end)
+
+    assert :ok =
+             perform_job(HouseholdTurnWorker, %{
+               "household_id" => ctx.household,
+               "round_turn" => turn.turn_id
+             })
+
+    assert Gaia.round_turn(ctx.household, turn.turn_id).outcome == "posted"
+    {:ok, doc} = Seshat.household_read(ctx.andrew, thread)
+
+    assert Enum.any?(
+             doc.replies,
+             &(&1.body =~ "Two, at the weir, at dawn." and &1.meta["by_id"] == ctx.scarlett.id)
+           )
   end
 end

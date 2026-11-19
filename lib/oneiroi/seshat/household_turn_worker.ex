@@ -10,6 +10,7 @@ defmodule Oneiroi.Seshat.HouseholdTurnWorker do
   """
   use Oneiroi.Worker, queue: :seshat_household_turns, max_attempts: 1
 
+  alias Oneiroi.Seshat.Household
   alias Oneiroi.Seshat.HouseholdBeats
   alias Oneiroi.Seshat.HouseholdRounds
   alias Oneiroi.Seshat.HouseWorking
@@ -35,7 +36,20 @@ defmodule Oneiroi.Seshat.HouseholdTurnWorker do
     turn = Oneiroi.Gaia.round_turn(household_id, turn_id)
 
     HouseWorking.during(household_id, turn && turn.resident_id, turn && turn.thread, fn ->
-      HouseholdRounds.run_turn(household_id, turn_id, args["wake_id"])
+      case HouseholdRounds.run_turn(household_id, turn_id, args["wake_id"]) do
+        {:answered, turn, text} ->
+          # Her turn's answer is her reply (seshat#94): posted under her
+          # name, spending the token, as household_reply would have.
+          _ =
+            Household.reply(Oneiroi.Actor.new(:resident, turn.resident_id), turn.thread, %{
+              "content" => text
+            })
+
+          HouseholdRounds.settle(household_id, turn_id)
+
+        other ->
+          other
+      end
     end)
   end
 

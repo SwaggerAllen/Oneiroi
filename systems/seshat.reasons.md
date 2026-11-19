@@ -786,3 +786,10 @@ where she reads it. Waking the whole house on the witness's check-in
 reply was the beats' way to start a talk; under round-robin the rounds
 are that start, and waking everyone besides would be the flood they
 exist to prevent.
+
+## #94
+A turn exists to hear from her, and the wake is where she is when it
+comes, so the answer she gives there is the answer. Asking her to route
+it through a tool lost it twice in a day; taking only the final message
+keeps her working notes and tool calls out of the house, and anything
+she wants said differently she can post herself before the turn ends.
