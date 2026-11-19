@@ -3130,10 +3130,15 @@ defmodule Oneiroi.Brain.Tools do
          {:ok, %{document: row, content: content}} <- Seshat.read(turn.resident_id, name) do
       library_page(row, content, from) <>
         leased(Seshat.lease(turn.resident_id, row.path)) <>
-        shared_line(Seshat.household_shared_from(turn.resident, row.path))
+        shared_line(Seshat.household_shared_from(turn.resident, row.path)) <>
+        housemates_line(Seshat.household_published_by_housemates(turn.resident, row.path), true)
     else
-      {:error, %Seshat.Error{} = e} -> unreadable(e)
-      other -> other
+      {:error, %Seshat.Error{} = e} ->
+        unreadable(e) <>
+          housemates_line(Seshat.household_published_by_housemates(turn.resident, name), false)
+
+      other ->
+        other
     end
   end
 
@@ -3360,7 +3365,7 @@ defmodule Oneiroi.Brain.Tools do
            turn.resident
          ) do
       {:ok, p} ->
-        "Published #{p.path} at #{String.slice(p.commit, 0, 12)}: your housemates can read it by citation, as #{own_slug(turn)}:#{p.path}. " <>
+        "Published #{p.path} at #{String.slice(p.commit, 0, 12)}: your housemates read it by citation through household_read, as #{own_slug(turn)}:#{p.path}. " <>
           "It is not on the household shelf: household_post with path (in your turn) puts a copy there, and from: #{p.path} names this file as its source."
 
       other ->
@@ -4105,6 +4110,20 @@ defmodule Oneiroi.Brain.Tools do
       cite_line(doc) <>
       discussed_line(doc) <> "\n" <> String.slice(chunk, 0, size) <> read_on(from + size, total)
   end
+
+  # A housemate's published draft at the same path (seshat#85; Lily's
+  # letter #1182): named, never shadowed silently by her own.
+  defp housemates_line([], _own?), do: ""
+
+  defp housemates_line(cites, true),
+    do:
+      "\n\nThis is your own file. A housemate has published a draft at the same path: " <>
+        Enum.join(cites, ", ") <> "; household_read with that citation reads it."
+
+  defp housemates_line(cites, false),
+    do:
+      " A housemate has published a draft at that path: " <>
+        Enum.join(cites, ", ") <> "; household_read with that citation reads it."
 
   # Where a file of hers is shared in the house, and where its feedback
   # is (seshat#84): the shared edition's talk, followed back to her draft.

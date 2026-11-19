@@ -474,8 +474,9 @@ defmodule Oneiroi.Seshat do
        remedy:
          "restore the file or write it again; the registry keeps the row and the index marks it missing until then"},
       {:seshat_other_resident,
-       "that citation names another resident's library, which sharing between residents does not reach yet",
-       remedy: "read a document of your own library by its path or your own slug's citation"},
+       "that citation names another resident's library, which library_read does not open: it reads your own",
+       remedy:
+         "read a housemate's published draft with household_read and the same citation (<slug>:<path>, seshat#85); library_read takes your own paths and citations"},
       {:seshat_review_invalid, "a review approves or declines a piece, with a note",
        remedy: "choose approve or decline and say why"},
       {:seshat_not_approved,
@@ -666,6 +667,12 @@ defmodule Oneiroi.Seshat do
   @doc "A housemate's published draft, read by its citation `<slug>:<path>[@commit]` (seshat#85)."
   @spec household_read_published(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}
   defexport(household_read_published(actor, cite), do: Household.read_published(actor, cite))
+
+  @doc "The housemates' published drafts at a path, as citations (seshat#85)."
+  @spec household_published_by_housemates(Oneiroi.Actor.t(), String.t()) :: [String.t()]
+  defexport(household_published_by_housemates(actor, path),
+    do: Household.published_by_housemates(actor, path)
+  )
 
   @doc "Whether a path reads as a housemate's citation (seshat#85)."
   @spec housemate_cite?(term()) :: boolean()

@@ -1000,6 +1000,28 @@ defmodule Oneiroi.Seshat.Household do
     end
   end
 
+  @doc """
+  The housemates who have published a draft at `path` (seshat#85), as
+  `<slug>:<path>` citations: what a read of her own file at the same path
+  names, so a same-path draft of a housemate's is never silently
+  shadowed by her own (Lily's letter #1182, 2026-11-18).
+  """
+  def published_by_housemates(%Actor{kind: :resident, id: me} = actor, path) do
+    case household(actor) do
+      {:ok, household_id} ->
+        for %{kind: "resident", id: id} <- Gaia.household_members(household_id),
+            id != me,
+            Published.latest(id, path) != nil,
+            {:ok, r} <- [AgathosDaimon.fetch(id)],
+            do: "#{r.slug}:#{path}"
+
+      _none ->
+        []
+    end
+  end
+
+  def published_by_housemates(_actor, _path), do: []
+
   @doc "Whether a path reads as a housemate's citation, `<slug>:<path>`."
   def housemate_cite?(cite), do: match?({:ok, _, _, _}, housemate_cite(cite))
 

@@ -71,6 +71,7 @@ defmodule Oneiroi.Seshat.PublishingTest do
     assert published =~ "Published #{path} at"
     # Lily's letter #1175: it says plainly what it did not do.
     assert published =~ "It is not on the household shelf"
+    assert published =~ "through household_read"
 
     [first] = drafts(ctx.lily, path)
     assert Seshat.published_latest(ctx.lily.id, path) == first
@@ -79,6 +80,15 @@ defmodule Oneiroi.Seshat.PublishingTest do
              Seshat.published(ctx.lily.id)
 
     assert Repos.text({:resident, ctx.lily.id}, "PUBLISHED.md") =~ "- #{path} @ #{first}"
+
+    # Lily's letter #1182: her housemate's own file at the same path
+    # says the published one is there, and library_read of a citation
+    # names household_read.
+    {:ok, _} = Seshat.write(ctx.scarlett.id, path, "Scarlett's own.\n", ctx.scarlett.actor)
+    own = run("library_read", %{path: path}, ctx.scarlett)
+    assert own =~ "Scarlett's own."
+    assert own =~ "A housemate has published a draft at the same path: #{cite}"
+    assert run("library_read", %{path: cite}, ctx.scarlett) =~ "household_read"
 
     # The next draft stays hers until published too.
     {:ok, _} = Seshat.write(ctx.lily.id, path, "Second draft.\n", ctx.lily.actor)
