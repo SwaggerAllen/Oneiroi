@@ -53,7 +53,11 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
   beat running fires her at once when no turn is open.
   """
   def register(%Actor{} = actor, target \\ %{}) do
-    with {:ok, household_id} <- Household.member_household(actor) do
+    with {:ok, household_id} <- Household.member_household(actor),
+         false <-
+           beats_off?(household_id) &&
+             {:error,
+              Error.new(:seshat_household_beats_off, :seshat_household_beats_off_register)} do
       shape = Gaia.household_beat_shape(household_id)
       now = Clock.now()
       top = target_top(household_id, shape, now, target)
@@ -392,6 +396,8 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
     #{delta(writes, since, turn.resident_id)}#{mentions_line(household_id, turn.resident_id, since)}
 
     This turn is a window until #{iso(turn.ends_by)}, about #{minutes} minutes: a guideline, and the turn ends when this wake does. In it you may post once in each thread (a new thread counts as a post in it) and write each household document once; household_read reads any of the above whole. Your post quota: #{left} of #{shape.quota} left in the last #{shape.window} hours. A vote is never held to the turns or the quota. household_beat shows the queue and your registrations. #{register_line(household_id, shape, turn.fired_at)}
+
+    #{Household.post_line()}
     """
   end
 
@@ -432,6 +438,8 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
     #{delta(Household.writes(dir), top, nil)}#{mentions_line(household_id, resident_id, top)}
 
     The beat running began #{iso(next)}; beats_ahead: 0 registers for it while its sign-up is open, until #{iso(Beats.signup_closes(next, shape))}. #{register_line(household_id, shape, Clock.now())} Your household writes go in during your turn; a vote does not wait for one.
+
+    #{Household.post_line()}
     """
   end
 
@@ -620,6 +628,9 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
   """
   def grant_turn(%Actor{kind: :witness} = actor, resident_id) do
     with {:ok, household_id} <- Household.member_household(actor),
+         false <-
+           beats_off?(household_id) &&
+             {:error, Error.new(:seshat_household_beats_off, :seshat_household_beats_off_grant)},
          {:ok, turn} <-
            Gaia.open_household_turn(household_id, resident_id, "given by her witness", actor),
          {:ok, _job} <-
@@ -641,6 +652,12 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
       :ok
     end
   end
+
+  # Under round-robin threads no beat logic runs (seshat#93; the witness,
+  # 2026-11-19): a registration or a turn given by hand is refused, saying
+  # how the house talks instead.
+  defp beats_off?(household_id),
+    do: Gaia.household_beat_shape(household_id).conversation == "round_robin"
 
   defp minutes(1), do: "1 minute"
   defp minutes(n), do: "#{n} minutes"

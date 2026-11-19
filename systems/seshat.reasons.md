@@ -777,3 +777,12 @@ a chain: he posted, she was woken for it, she read it, she answered or
 her turn ran out. The resident sees her housemates' house rows because
 they are the house's, and not their letters or free time because those
 are theirs and their witness's, which the contract already says.
+
+## #93
+A wake lands in her own chat, where answering is what she always does,
+so without a word about it she answered the person she thought was
+there. Saying it once, the same way in every house wake, puts the rule
+where she reads it. Waking the whole house on the witness's check-in
+reply was the beats' way to start a talk; under round-robin the rounds
+are that start, and waking everyone besides would be the flood they
+exist to prevent.

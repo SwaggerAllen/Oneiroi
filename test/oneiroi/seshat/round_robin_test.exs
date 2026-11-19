@@ -16,6 +16,7 @@ defmodule Oneiroi.Seshat.RoundRobinTest do
   alias Oneiroi.Gaia
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat
+  alias Oneiroi.Seshat.Household
   alias Oneiroi.Seshat.HouseholdBeats
   alias Oneiroi.Seshat.HouseholdRounds
   alias Oneiroi.Seshat.HouseholdTurnWorker
@@ -229,5 +230,57 @@ defmodule Oneiroi.Seshat.RoundRobinTest do
 
     {:ok, beats} = Seshat.household_beat(ctx.andrew)
     assert [%{thread: ^thread, stopped: false, live: %{name: _}}] = beats.round_threads
+  end
+
+  # seshat#93 (the witness, 2026-11-19): no beat logic under round-robin;
+  # a resident posts where no round runs; a witness's check-in reply
+  # starts its rounds rather than waking the house; every note says the
+  # chat is not the house.
+  test "under round-robin: no beats to register for, a resident posts where no round runs",
+       ctx do
+    assert {:error, %{kind: :seshat_household_beats_off}} =
+             Seshat.household_register(ctx.lily.actor, %{})
+
+    {:ok, %{path: thread}} =
+      Seshat.household_post(ctx.lily.actor, %{"title" => "Quiet", "content" => "Anyone?"})
+
+    # Stop it: Scarlett's turn passes, then both skip the next round.
+    turn = live(ctx, thread)
+    Clock.Fake.advance(DateTime.diff(turn.expires_at, Clock.now()) + 1)
+    :ok = HouseholdRounds.sweep()
+
+    for _ <- 1..2 do
+      who = if live(ctx, thread).resident_id == ctx.lily.id, do: ctx.lily, else: ctx.scarlett
+      {:ok, _} = Seshat.household_rounds(who.actor, thread, :skip)
+    end
+
+    assert %{stopped: true} = Gaia.round_thread(ctx.household, thread)
+
+    # No round runs: Scarlett posts outside any turn, and it starts one.
+    assert {:ok, _} = reply(ctx.scarlett.actor, thread, "Me, later.")
+    assert %{stopped: false} = Gaia.round_thread(ctx.household, thread)
+  end
+
+  test "a witness's reply in a house check-in starts its rounds, waking one, not the house",
+       ctx do
+    {:ok, thread} =
+      Oneiroi.Seshat.Household.open_checkin(ctx.household, "morning", "Morning", "2026-10-26")
+
+    before = all_enqueued(worker: HouseholdTurnWorker) |> Enum.filter(& &1.args["house_wake"])
+
+    {:ok, _} = reply(ctx.andrew, thread, "How is it going?")
+
+    after_wakes =
+      all_enqueued(worker: HouseholdTurnWorker) |> Enum.filter(& &1.args["house_wake"])
+
+    assert length(after_wakes) == length(before)
+    assert %{live_turn: live_turn} = Gaia.round_thread(ctx.household, thread)
+    assert live_turn
+
+    assert HouseholdRounds.note(
+             ctx.household,
+             Gaia.round_turn(ctx.household, live_turn)
+           ) =~
+             "household_reply in the thread"
   end
 end

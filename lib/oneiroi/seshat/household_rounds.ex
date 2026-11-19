@@ -34,6 +34,11 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
   @turn_worker :"Elixir.Oneiroi.Seshat.HouseholdTurnWorker"
   @actor Actor.new(:job, "household_rounds")
 
+  @doc "The line every house wake's note ends with (seshat#93): an answer in the chat stays in the chat."
+  def post_line,
+    do:
+      "What you answer in this chat stays in this chat; nobody in the house reads it. If you have something to say to the house, post it: household_reply in the thread, or household_post for a new one."
+
   @doc "Whether the house talks in round-robin threads."
   def on?(household_id), do: Gaia.household_beat_shape(household_id).conversation == "round_robin"
 
@@ -258,6 +263,8 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
     The turn is yours until #{iso(turn.expires_at)}, about #{minutes} minutes. In it you may reply once in this thread (household_reply), and the reply spends it; household_skip passes it with nothing said; household_opt_out leaves the thread's rounds (household_opt_in comes back). A turn you let pass ends on its own, and the round goes on without you. #{others_line(others)}
 
     The house talks in round-robin threads: each opted-in resident has a turn in each round, and a round that says nothing stops the thread until a member posts in it again. A new thread (household_post) is yours to start at any time; documents need no turn.
+
+    #{post_line()}
     """
   end
 

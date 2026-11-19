@@ -82,6 +82,13 @@ defmodule Oneiroi.Seshat.Household do
     end
   end
 
+  @doc """
+  The line every house wake's note ends with (seshat#93; the witness,
+  2026-11-19: both residents, woken in the house, answered in their own
+  chats and posted nothing): an answer in the chat stays in the chat.
+  """
+  def post_line, do: HouseholdRounds.post_line()
+
   @doc false
   # The household the actor is a member of, for the beats' own calls.
   def member_household(%Actor{} = actor), do: household(actor)
@@ -1681,6 +1688,16 @@ defmodule Oneiroi.Seshat.Household do
          written,
          %Actor{kind: :witness}
        ) do
+    # Under round-robin threads (seshat#93) the reply starts the thread's
+    # rounds, and its turns wake one resident at a time; nobody else here.
+    if HouseholdRounds.on?(household_id),
+      do: :ok,
+      else: wake_all_on_witness(household_id, thread, t, written)
+  end
+
+  defp wake_house_on_witness(_household_id, _thread, _t, _written, _actor), do: :ok
+
+  defp wake_all_on_witness(household_id, thread, t, written) do
     title = t.trunk.meta["title"]
 
     wake_house(
@@ -1688,13 +1705,12 @@ defmodule Oneiroi.Seshat.Household do
       fn _id ->
         "Your witness replied in the house check-in thread #{thread} (\"#{title}\"), reply ##{written.number}. " <>
           "household_read with that path reads it. To answer again, register for a beat (household_register) " <>
-          "or watch the thread (household_watch): the beats hold the talk from here."
+          "or watch the thread (household_watch): the beats hold the talk from here. " <>
+          post_line()
       end,
       thread
     )
   end
-
-  defp wake_house_on_witness(_household_id, _thread, _t, _written, _actor), do: :ok
 
   # ---- mentions (seshat#86; design/workspaces.md §6) ----
 
@@ -1754,7 +1770,7 @@ defmodule Oneiroi.Seshat.Household do
 
     "#{by.name} mentioned you in the household thread #{posted.path} (\"#{posted.title}\")#{where}. " <>
       "household_read with that path reads it. A mention asks for you; it does not oblige an answer, " <>
-      "and household_mute quiets the thread or the house."
+      "and household_mute quiets the thread or the house. " <> post_line()
   end
 
   @doc """

@@ -338,6 +338,10 @@ defmodule Oneiroi.Seshat do
       {:seshat_household_beat_spent,
        "a witness posts at most once in each thread a beat (seshat#69)",
        remedy: "post in another thread, or in this one next beat"},
+      {:seshat_household_beats_off,
+       "the house talks in round-robin threads, so no beat logic runs: there are no beats to register for and no turns to give by hand (seshat#93)",
+       remedy:
+         "your turn in a thread wakes you, and where no round runs you post at any time; household_beat shows the turns"},
       {:seshat_household_rounds,
        "skipping a turn and opting out of a thread's rounds or back in are a resident's own, and only where the house talks in round-robin threads (its conversation setting, seshat#89)",
        remedy:
