@@ -41,7 +41,11 @@ defmodule Oneiroi.Gaia.Beats do
     # document ("per_beat"); that, and again once the queue has emptied
     # ("queue_emptied"); or without a bound, the small household's
     # setting ("unbounded").
-    "witness_posts" => "per_beat"
+    "witness_posts" => "per_beat",
+    # How the house talks (gaia#53): the beats' metronome, or round-robin
+    # threads, where the wake is the token. Flipping it is the migration
+    # fence: beat turns authorize nothing after.
+    "conversation" => "beats"
   }
 
   # The bounds each integer setting is held to at a ballot's opening: the
@@ -58,6 +62,7 @@ defmodule Oneiroi.Gaia.Beats do
 
   @profiles ~w(every_beat on_turn self)
   @witness_rules ~w(per_beat queue_emptied unbounded)
+  @conversations ~w(beats round_robin)
   @resident_profiles ~w(every_beat on_turn)
 
   # What each setting means and what it takes (gaia#49), for the screen
@@ -78,6 +83,9 @@ defmodule Oneiroi.Gaia.Beats do
       {"Residents' default wake", "Whether a resident is woken every beat, or on her turn."},
     "witnesses_post" =>
       {"Witnesses post", "Whether witnesses may post at all; off, they vote and read."},
+    "conversation" =>
+      {"How the house talks",
+       "beats: the metronome, turns fired each beat; round_robin: each thread's residents take turns in order, woken when theirs comes, the wake the only token (turn length is the window)."},
     "witness_posts" =>
       {"How often witnesses post",
        "per_beat: once in each thread and to each document a beat; queue_emptied: again once nobody waits; unbounded: no bound and no quota."}
@@ -91,7 +99,7 @@ defmodule Oneiroi.Gaia.Beats do
   @spec catalog() :: [map()]
   def catalog do
     for key <-
-          ~w(beat_minutes turn_minutes signup_minutes beat_turn_cap turns_per_registrant post_quota post_quota_window_hours resident_wake_profile witnesses_post witness_posts) do
+          ~w(conversation beat_minutes turn_minutes signup_minutes beat_turn_cap turns_per_registrant post_quota post_quota_window_hours resident_wake_profile witnesses_post witness_posts) do
       {label, about} = @about[key]
       Map.merge(%{key: key, label: label, about: about, default: @defaults[key]}, takes(key))
     end
@@ -102,6 +110,7 @@ defmodule Oneiroi.Gaia.Beats do
 
   defp takes("resident_wake_profile"), do: %{type: "choice", options: @resident_profiles}
   defp takes("witness_posts"), do: %{type: "choice", options: @witness_rules}
+  defp takes("conversation"), do: %{type: "choice", options: @conversations}
   defp takes("witnesses_post"), do: %{type: "boolean"}
 
   defp takes(key) do
@@ -136,6 +145,7 @@ defmodule Oneiroi.Gaia.Beats do
   defp named_ok?("resident_wake_profile", value), do: value in @resident_profiles
   defp named_ok?("witnesses_post", value), do: is_boolean(value)
   defp named_ok?("witness_posts", value), do: value in @witness_rules
+  defp named_ok?("conversation", value), do: value in @conversations
   defp named_ok?(_key, _value), do: true
 
   @doc "Whether settings, merged whole, still give a beat: a sign-up window shorter than the beat, and room after it for at least one whole turn."
@@ -169,7 +179,8 @@ defmodule Oneiroi.Gaia.Beats do
       window: s["post_quota_window_hours"],
       resident_profile: s["resident_wake_profile"],
       witnesses_post: s["witnesses_post"] != false,
-      witness_rule: s["witness_posts"]
+      witness_rule: s["witness_posts"],
+      conversation: s["conversation"]
     }
   end
 

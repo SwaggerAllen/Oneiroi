@@ -377,4 +377,47 @@ defmodule Oneiroi.Gaia.Events do
     # Fired for a day, once: the household thread it opened.
     use Oneiroi.Event, version: 1, fields: [:id, :key, :day, :thread]
   end
+
+  # ---- round-robin threads (gaia#53) ----
+
+  # A round begins: its number and its residents in the order their
+  # turns go, the starter's turn had (in `had`) when a resident began it;
+  # with the house's residents, the turn window (seconds) and the
+  # thread's ordering it runs on.
+  defmodule RoundStarted do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :thread, :round, :order, :had, :residents, :timeout, :ordering]
+  end
+
+  # A turn issued: the token, its unique id, whose, for which thread and
+  # round, until when (the window counted from the issue, queue included).
+  defmodule RoundTurnIssued do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :thread, :turn_id, :resident_id, :round, :expires_at],
+      instants: [:expires_at]
+  end
+
+  # A token spent: posted, skipped, empty (the wake said nothing),
+  # expired, or opted_out.
+  defmodule RoundTurnSpent do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :thread, :turn_id, :resident_id, :round, :outcome]
+  end
+
+  # A round with no output from anyone: the thread stops, waking nobody
+  # until a member posts to it.
+  defmodule RoundsStopped do
+    use Oneiroi.Event, version: 1, fields: [:id, :thread, :round]
+  end
+
+  defmodule RoundsOptedOut do
+    use Oneiroi.Event, version: 1, fields: [:id, :thread, :resident_id]
+  end
+
+  defmodule RoundsOptedIn do
+    use Oneiroi.Event, version: 1, fields: [:id, :thread, :resident_id]
+  end
 end

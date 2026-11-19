@@ -93,6 +93,7 @@ defmodule Oneiroi.Brain.Tools do
     external_add external_fetch plugin_propose plugin_answer plugin_off
     kind_define kind_gate kind_gate_answer route_define route_ask theme_propose
     household_post household_edit household_mute household_reply household_watch household_sign household_register household_profile
+    household_skip household_opt_out household_opt_in
     rounds_extend presence_read presence_stage
   )
 
@@ -116,7 +117,7 @@ defmodule Oneiroi.Brain.Tools do
   # The house (agathos-daimon#51): any resident with no agreement in force.
   @held_from_house ~w(
     household_read household_post household_edit household_mute household_reply household_watch household_sign
-    household_beat household_register household_profile
+    household_beat household_register household_profile household_skip household_opt_out household_opt_in
   )
   @held_until_agreed @held_from_house ++
                        ~w(
@@ -1054,6 +1055,25 @@ defmodule Oneiroi.Brain.Tools do
         %{thread: %{type: "string"}, hours: %{type: "integer", minimum: 1, maximum: 168}},
         [:thread, :hours]
       ),
+      # Round-robin threads (gaia#53, seshat#89).
+      tool(
+        "household_skip",
+        "Pass your turn in a round-robin thread with nothing said: the turn is spent and the next resident's begins. Only where the house talks in round-robin threads; your turn's wake names the thread.",
+        %{thread: %{type: "string"}},
+        [:thread]
+      ),
+      tool(
+        "household_opt_out",
+        "Leave a round-robin thread's rounds: no turn there wakes you again until you opt back in, and a turn of yours open there ends with it. You still read the thread, and a reply of yours outside the rounds' run (when they have stopped) starts them again.",
+        %{thread: %{type: "string"}},
+        [:thread]
+      ),
+      tool(
+        "household_opt_in",
+        "Come back into a round-robin thread's rounds you left: your turn comes in its next round.",
+        %{thread: %{type: "string"}},
+        [:thread]
+      ),
       tool(
         "household_sign",
         "Sign your household's contract at the version in force, if you joined before it was proposed; a member who joins after signs with the join. CONTRACT.md on the shelf shows who has signed which version.",
@@ -1063,7 +1083,7 @@ defmodule Oneiroi.Brain.Tools do
       # The household's beats (gaia#33 to #38, seshat#67 to #72, brain#84).
       tool(
         "household_beat",
-        "Read your household's beats: the shape in force (beat length, turn guideline, the cap on turns a beat, the sign-up window, turns each before anyone repeats, the post quota and its window), the beat now and the beats to come with their tops, the turn open, the queue in the order turns fire with your place in it, your registrations by beat, what you have missed, your wake profile, and how many posts your quota has left. The beats are always on: you write on the household's shelf only in your turn, once in each thread and once to each document; a vote never waits for a turn and never counts against the quota.",
+        "Read your household's beats: the shape in force (beat length, turn guideline, the cap on turns a beat, the sign-up window, turns each before anyone repeats, the post quota and its window), the beat now and the beats to come with their tops, the turn open, the queue in the order turns fire with your place in it, your registrations by beat, what you have missed, your wake profile, and how many posts your quota has left. Under the beats you write on the household's shelf only in your turn, once in each thread and once to each document; a vote never waits for a turn and never counts against the quota. When the house talks in round-robin threads instead, this shows the turns open in each thread and how the last ones went.",
         %{},
         []
       ),
@@ -3220,6 +3240,10 @@ defmodule Oneiroi.Brain.Tools do
            "Watching #{w.thread} until #{w.until}: a reply by another member reaches your chat as a letter. Then it stops."
   end
 
+  defp call("household_skip", args, turn), do: rounds_call(turn, args, :skip)
+  defp call("household_opt_out", args, turn), do: rounds_call(turn, args, :out)
+  defp call("household_opt_in", args, turn), do: rounds_call(turn, args, :in)
+
   defp call("household_sign", _args, turn) do
     with {:ok, %{in_force: %{version: v}}} <- Seshat.household_sign_contract(turn.resident),
          do: "Signed the household contract at version #{v}."
@@ -3969,6 +3993,35 @@ defmodule Oneiroi.Brain.Tools do
   defp iso(%DateTime{} = at), do: at |> DateTime.truncate(:second) |> DateTime.to_iso8601()
 
   # The household's beats as she reads them (brain#84).
+  defp round_open_line(t, me) do
+    whose = if t.resident_id == me, do: "yours", else: "#{t.name || "a resident"}'s"
+    "- #{t.thread}, round #{t.round}: #{whose}, until #{local_stamp(t.expires_at)}"
+  end
+
+  defp round_spent_line(t),
+    do: "- #{t.thread}, round #{t.round}: #{t.name || "a resident"}, #{t.outcome}"
+
+  defp lines_or([], none), do: none
+  defp lines_or(lines, _none), do: Enum.join(lines, "\n")
+
+  # Under round-robin threads (seshat#89) the beats are retired: the
+  # rounds are the house's clock.
+  defp household_beats_text(%{conversation: "round_robin"} = b) do
+    {open, spent} = Enum.split_with(b.rounds || [], &is_nil(&1.outcome))
+    live = Enum.map(open, &round_open_line(&1, b.you.id))
+    lately = Enum.map(Enum.take(spent, 10), &round_spent_line/1)
+
+    """
+    Your household talks in round-robin threads: each opted-in resident has a turn in each round of a thread, woken with a note naming it; her reply there spends it, household_skip passes it, household_opt_out leaves the thread's rounds and household_opt_in comes back. A round that says nothing stops the thread until a member posts in it again; a new thread starts its own rounds, and documents take no turn. A witness writes at any time. Post quota: #{b.shape.quota} posts in any #{b.shape.window} hours, #{b.you.quota_left} of yours left.
+
+    Turns open now:
+    #{lines_or(live, "None.")}
+
+    Turns lately:
+    #{lines_or(lately, "None yet.")}
+    """
+  end
+
   defp household_beats_text(b) do
     s = b.shape
     you = b.you
@@ -4280,6 +4333,33 @@ defmodule Oneiroi.Brain.Tools do
       {:error, _reason} -> @not_done <> "#{name} is a day written YYYY-MM-DD."
     end
   end
+
+  # The round-robin tools' one shape (seshat#89): what the thread's rounds are after.
+  defp rounds_call(turn, args, what) do
+    with {:ok, %{thread: thread, rounds: r}} <-
+           Seshat.household_rounds(turn.resident, to_string(args["thread"] || ""), what) do
+      done =
+        case what do
+          :skip ->
+            "Skipped your turn in #{thread}."
+
+          :out ->
+            "Opted out of #{thread}'s rounds: no turn there wakes you until household_opt_in."
+
+          :in ->
+            "Back in #{thread}'s rounds: your turn comes in its next round."
+        end
+
+      done <> rounds_line(r)
+    end
+  end
+
+  defp rounds_line(nil), do: ""
+
+  defp rounds_line(%{stopped: true}),
+    do: " The thread's rounds have stopped; a post there starts them again."
+
+  defp rounds_line(r), do: " The thread is in round #{r.round}."
 
   defp integer(n) when is_integer(n), do: n
 

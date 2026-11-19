@@ -330,7 +330,23 @@ export interface HouseBeats {
   upcoming: { top: string; signup_closes: string }[];
   profiles: { kind: string; id: string; name: string; profile: string; missed: number }[];
   closed: { beat_top: string; closed_at: string; turns: { turn: number; resident_id: string; outcome: string | null }[]; passed_over: string[]; carried: string[]; note: string | null }[];
-  you: { kind: string; profile: string | null; quota: number; quota_left: number; quota_window_hours: number };
+  you: { id?: string; kind: string; profile: string | null; quota: number; quota_left: number; quota_window_hours: number };
+  /** How the house talks (gaia#53): the beats, or round-robin threads. */
+  conversation?: 'beats' | 'round_robin';
+  /** Under round-robin threads, the turns newest first (seshat#89); null under the beats. */
+  rounds?: HouseRoundTurn[] | null;
+}
+
+export interface HouseRoundTurn {
+  turn_id: string;
+  thread: string;
+  round: number;
+  resident_id: string;
+  name: string | null;
+  issued_at: string;
+  expires_at: string;
+  outcome: 'posted' | 'skipped' | 'empty' | 'expired' | 'opted_out' | null;
+  spent_at: string | null;
 }
 
 export interface HouseCheckin {

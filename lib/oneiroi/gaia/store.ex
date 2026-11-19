@@ -265,6 +265,39 @@ defmodule Oneiroi.Gaia.Store do
     end
   end
 
+  defmodule RoundThread do
+    @moduledoc "A round-robin thread (gaia#53): its round, its order, whose turn is live, stopped or not, who opted out."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_round_thread" do
+      field(:household_id, :binary_id)
+      field(:thread, :string)
+      field(:round, :integer)
+      field(:order, {:array, :binary_id})
+      field(:stopped, :boolean)
+      field(:optout, {:array, :binary_id})
+      field(:live_turn, :string)
+      field(:changed_at, :utc_datetime_usec)
+    end
+  end
+
+  defmodule RoundTurn do
+    @moduledoc "A turn issued in a round-robin thread (gaia#53): the token, whose, until when, and how it was spent."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_round_turn" do
+      field(:household_id, :binary_id)
+      field(:turn_id, :string)
+      field(:thread, :string)
+      field(:round, :integer)
+      field(:resident_id, :binary_id)
+      field(:issued_at, :utc_datetime_usec)
+      field(:expires_at, :utc_datetime_usec)
+      field(:outcome, :string)
+      field(:spent_at, :utc_datetime_usec)
+    end
+  end
+
   defmodule HouseholdMute do
     @moduledoc "A member's mentions in the house, muted or heard (gaia#46): `thread` \"\" for the whole house; the latest set wins."
     use Ecto.Schema

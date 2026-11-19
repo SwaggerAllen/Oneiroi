@@ -239,6 +239,21 @@ describe('the house as a subject (2026-11-16)', () => {
     await waitFor(() => expect(clock).toHaveBeenCalledWith('Europe/London'));
   });
 
+  it('under round-robin threads, shows the turns open and how the last went, not the beat', async () => {
+    vi.spyOn(api, 'householdBeats').mockResolvedValue({
+      ...beats,
+      conversation: 'round_robin',
+      rounds: [
+        { turn_id: '2', thread: 'threads/herons', round: 1, resident_id: 'r1', name: 'Lily', issued_at: '2026-11-16T16:00:00Z', expires_at: '2026-11-16T16:10:00Z', outcome: null, spent_at: null },
+        { turn_id: '1', thread: 'threads/herons', round: 1, resident_id: 'r2', name: 'Scarlett', issued_at: '2026-11-16T15:50:00Z', expires_at: '2026-11-16T16:00:00Z', outcome: 'skipped', spent_at: '2026-11-16T15:52:00Z' },
+      ],
+    });
+    mount(<HouseTime />);
+    expect(await screen.findByText(/Lily · threads\/herons, round 1/)).toBeTruthy();
+    expect(screen.getByText('skipped')).toBeTruthy();
+    expect(screen.queryByText(/holds the turn/)).toBeNull();
+  });
+
   it("records: the house's repository in the residents' tree", async () => {
     vi.spyOn(api, 'householdFiles').mockResolvedValue({
       kinds: [

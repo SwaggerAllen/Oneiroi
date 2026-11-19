@@ -58,8 +58,16 @@ server.
     waiting in this beat", and "Had their turn this beat: …"; **Give
     <her> a turn now** for each resident (gaia#52), disabled while a turn
     is open; your posts left; the next beats.
+  - **Turns now**, in place of the beat now and the beats closed, when
+    the house talks in round-robin threads (gaia#53, seshat#89): a line
+    saying how round-robin works and that you write at any time; each
+    turn open, whose, which thread and round, and until when, or "No
+    turn is open"; **Lately**, the last ten turns with how each went
+    (replied, skipped, woke and said nothing, let it pass, opted out);
+    your posts left. Not built: a thread's own round state on the
+    thread page.
   - **Who is in the house**: each member with its wake profile.
-  - **Beats closed lately**.
+  - **Beats closed lately** (under the beats).
   - **The house's time zone**: chosen from every zone the browser knows,
     with "Use <device zone>" when the device is elsewhere, as Rhythm's.
 - **Records: the residents' tree, over the house's repository** (the

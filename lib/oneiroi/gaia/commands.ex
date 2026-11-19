@@ -236,4 +236,36 @@ defmodule Oneiroi.Gaia.Commands do
   defmodule RecordHouseCheckinFired do
     use Oneiroi.Command, fields: [:id, :key, :day, :thread]
   end
+
+  # ---- round-robin threads (gaia#53) ----
+
+  # A thread's rounds begin, or begin again (its start, or a post to it
+  # stopped): `residents` the house's residents now, `starter` the
+  # resident whose post began it (her turn of the round, had), nil when a
+  # witness's; `timeout` the turn window in seconds, `order` the thread's.
+  defmodule StartRounds do
+    use Oneiroi.Command,
+      fields: [:id, :thread, :residents, :starter, :timeout, :order],
+      bounds: [thread: 255]
+  end
+
+  # A resident posts in her turn: authorized only by her live token for
+  # that thread (the wake is the token).
+  defmodule SpendTurn do
+    use Oneiroi.Command, fields: [:id, :thread, :resident_id, :how], bounds: [thread: 255]
+  end
+
+  # The platform ends a turn: its wake answered nothing (`empty`), or its
+  # window passed (`expired`). Nothing when the token is already spent.
+  defmodule EndRoundTurn do
+    use Oneiroi.Command, fields: [:id, :turn_id, :outcome]
+  end
+
+  defmodule OptOutOfRounds do
+    use Oneiroi.Command, fields: [:id, :thread, :resident_id], bounds: [thread: 255]
+  end
+
+  defmodule OptIntoRounds do
+    use Oneiroi.Command, fields: [:id, :thread, :resident_id], bounds: [thread: 255]
+  end
 end

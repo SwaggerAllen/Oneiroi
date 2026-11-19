@@ -87,6 +87,12 @@ defmodule Oneiroi.Gaia do
       Events.HouseholdContractAmended,
       Events.HouseholdThreadWatched,
       Events.HouseholdMentionsSet,
+      Events.RoundStarted,
+      Events.RoundTurnIssued,
+      Events.RoundTurnSpent,
+      Events.RoundsStopped,
+      Events.RoundsOptedOut,
+      Events.RoundsOptedIn,
       Events.HouseholdWakeProfileSet,
       Events.HouseholdClockSet,
       Events.HouseholdNamed,
@@ -122,6 +128,7 @@ defmodule Oneiroi.Gaia do
   alias Oneiroi.Gaia.Households
   alias Oneiroi.Gaia.Invites
   alias Oneiroi.Gaia.Push
+  alias Oneiroi.Gaia.RoundRobin
   alias Oneiroi.Gaia.Signup
 
   @impl Oneiroi.Component
@@ -217,6 +224,12 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.HouseholdContractAmended, 1},
       {Oneiroi.Gaia.Events.HouseholdThreadWatched, 1},
       {Oneiroi.Gaia.Events.HouseholdMentionsSet, 1},
+      {Oneiroi.Gaia.Events.RoundStarted, 1},
+      {Oneiroi.Gaia.Events.RoundTurnIssued, 1},
+      {Oneiroi.Gaia.Events.RoundTurnSpent, 1},
+      {Oneiroi.Gaia.Events.RoundsStopped, 1},
+      {Oneiroi.Gaia.Events.RoundsOptedOut, 1},
+      {Oneiroi.Gaia.Events.RoundsOptedIn, 1},
       {Oneiroi.Gaia.Events.HouseholdWakeProfileSet, 1},
       {Oneiroi.Gaia.Events.HouseholdClockSet, 1},
       {Oneiroi.Gaia.Events.HouseholdNamed, 1},
@@ -255,6 +268,13 @@ defmodule Oneiroi.Gaia do
        remedy: "paste the OpenRouter key; it is stored encrypted and shown to nobody again"},
       {:gaia_github_token_required, "the GitHub token was empty",
        remedy: "paste a read-only GitHub token; it is stored encrypted and shown to nobody again"},
+      {:gaia_rounds_invalid, "a round-robin command was not well formed",
+       remedy: "a thread, the house's residents and a window; skip or post; empty or expired"},
+      {:gaia_rounds_not_your_turn,
+       "in a round-robin thread a resident writes only in her own turn, by its live token: this thread's turn is not hers now, or its window has passed",
+       remedy:
+         "wait for your turn's wake (it says which thread and until when), or post a new thread, which starts its own rounds"},
+      {:gaia_rounds_failed, "the round-robin record could not be written", remedy: "try again"},
       {:gaia_mentions_invalid,
        "mentions are muted or heard, true or false, for the whole house or one thread",
        remedy: "send muted: true or false, with a thread's path or none for the whole house"},
@@ -424,6 +444,7 @@ defmodule Oneiroi.Gaia do
       Oneiroi.Gaia.Handlers.Household,
       Oneiroi.Gaia.Projectors.Invite,
       Oneiroi.Gaia.Projectors.Feedback,
+      Oneiroi.Gaia.Projectors.Rounds,
       {Task.Supervisor, name: :gaia_push},
       # The boot (gaia#21): recorded once, after the platform projector is
       # up; a task that ends, never restarted.
@@ -817,6 +838,61 @@ defmodule Oneiroi.Gaia do
   defexport(set_household_clock(household_id, zone, actor),
     do: Households.set_clock(household_id, zone, actor)
   )
+
+  @doc "A thread's rounds begin, or begin again when stopped (gaia#53); answers the events, a turn issued among them."
+  @spec start_rounds(
+          String.t(),
+          String.t(),
+          [String.t()],
+          String.t() | nil,
+          pos_integer(),
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) ::
+          {:ok, list()} | {:error, term()}
+  defexport(start_rounds(household_id, thread, residents, starter, timeout, order, actor),
+    do: RoundRobin.start(household_id, thread, residents, starter, timeout, order, actor)
+  )
+
+  @doc "Her post or skip in her turn, by its live token (gaia#53); answers the events."
+  @spec spend_round_turn(String.t(), String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, list()} | {:error, term()}
+  defexport(spend_round_turn(household_id, thread, resident_id, how, actor),
+    do: RoundRobin.spend(household_id, thread, resident_id, how, actor)
+  )
+
+  @doc "Ends a round turn: empty or expired (gaia#53); nothing when already spent."
+  @spec end_round_turn(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, list()} | {:error, term()}
+  defexport(end_round_turn(household_id, turn_id, outcome, actor),
+    do: RoundRobin.end_turn(household_id, turn_id, outcome, actor)
+  )
+
+  @doc "A resident opts out of a thread's rounds (gaia#53)."
+  @spec opt_out_of_rounds(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, list()} | {:error, term()}
+  defexport(opt_out_of_rounds(household_id, thread, resident_id, actor),
+    do: RoundRobin.opt_out(household_id, thread, resident_id, actor)
+  )
+
+  @doc "A resident opts back into a thread's rounds (gaia#53)."
+  @spec opt_into_rounds(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, list()} | {:error, term()}
+  defexport(opt_into_rounds(household_id, thread, resident_id, actor),
+    do: RoundRobin.opt_in(household_id, thread, resident_id, actor)
+  )
+
+  @doc "A thread's rounds as read (gaia#53), or nil."
+  @spec round_thread(String.t(), String.t()) :: map() | nil
+  defexport(round_thread(household_id, thread), do: RoundRobin.thread(household_id, thread))
+
+  @doc "A round turn by its id (gaia#53), or nil."
+  @spec round_turn(String.t(), String.t()) :: map() | nil
+  defexport(round_turn(household_id, turn_id), do: RoundRobin.turn(household_id, turn_id))
+
+  @doc "The house's round turns, newest first: the visible queue (gaia#53)."
+  @spec round_turns(String.t()) :: [map()]
+  defexport(round_turns(household_id), do: RoundRobin.turns(household_id))
 
   @doc "Every beat setting with its meaning, default and what it takes (gaia#49)."
   @spec household_settings_catalog() :: [map()]
