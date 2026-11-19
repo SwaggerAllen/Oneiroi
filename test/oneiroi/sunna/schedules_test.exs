@@ -173,22 +173,11 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     {main, letter, send, code, lily} = letters_setup(ctx)
     first = letter.("secret words")
 
-    # It settles a minute first (sunna#72): one landing inside it joins the wake.
+    # The first after a quiet spell wakes it at once (sunna#73).
     assert :ok = Sunna.tick(ctx.id)
-    assert [] = transcript(ctx, main)
-    Clock.Fake.advance(30)
-    second = letter.("more words")
-    Clock.Fake.advance(30)
-    assert :ok = Sunna.tick(ctx.id)
-    assert [] = transcript(ctx, main)
-    Clock.Fake.advance(30)
-    assert :ok = Sunna.tick(ctx.id)
-
     assert [note, reply] = transcript(ctx, main)
     assert note.role == "system" and note.actor_kind == "platform"
-
-    assert note.content =~
-             "letters came for you here: ##{first} from Claude Code · Oneiroi, ##{second} from Claude Code · Oneiroi."
+    assert note.content =~ "letters came for you here: ##{first} from Claude Code · Oneiroi."
 
     assert note.content =~ "letter_send with in_reply_to"
     refute note.content =~ "secret words"
@@ -209,23 +198,26 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     assert [_, _] = transcript(ctx, main)
   end
 
-  # sunna#72: a steady stream still wakes her once the oldest has waited
-  # the settle's ceiling.
-  test "letters arriving steadily wake the chat by the settle's ceiling", ctx do
+  # sunna#73: within a minute of the last wake, letters wait for it to
+  # pass and go together in one wake.
+  test "letters landing within a minute of the last wake go together in the next", ctx do
     {main, letter, _send, _code, _lily} = letters_setup(ctx)
-    first = letter.("one")
-
-    for _ <- 1..5 do
-      Clock.Fake.advance(50)
-      letter.("and another")
-      assert :ok = Sunna.tick(ctx.id)
-    end
-
-    assert [] = transcript(ctx, main)
-    Clock.Fake.advance(50)
+    notes = fn -> ctx |> transcript(main) |> Enum.filter(&(&1.role == "system")) end
+    letter.("one")
     assert :ok = Sunna.tick(ctx.id)
-    assert [note | _] = transcript(ctx, main)
-    assert note.content =~ "##{first} from Claude Code"
+    assert length(notes.()) == 1
+
+    Clock.Fake.advance(10)
+    second = letter.("two")
+    Clock.Fake.advance(10)
+    third = letter.("three")
+    assert :ok = Sunna.tick(ctx.id)
+    assert length(notes.()) == 1
+
+    Clock.Fake.advance(40)
+    assert :ok = Sunna.tick(ctx.id)
+    assert [_, last] = notes.()
+    assert last.content =~ "##{second} from Claude Code · Oneiroi, ##{third} from Claude Code"
   end
 
   # sunna#72: the hourly bound is a backstop for conversations waking each
