@@ -1631,9 +1631,18 @@ defmodule Oneiroi.Seshat.Household do
       {"checkin", key}
     ]
 
+    # What holds the talk after is the house's mode (seshat#93; Scarlett's
+    # report #20: a round-robin house still told to wait on the beats).
+    then_line =
+      if HouseholdRounds.on?(household_id),
+        do:
+          "after your answers the thread's round-robin turns hold the talk, one of you at a time.",
+        else:
+          "your witness's reply wakes you all, and from there the household's beats hold the talk."
+
     body =
       "The house checks in: #{label}. Each of you answers here, once, in your own words; " <>
-        "your witness's reply wakes you all, and from there the household's beats hold the talk."
+        then_line
 
     locked(household_id, fn view ->
       changes = [{:create, path, render(meta, body)} | descriptor(view, Kinds.named("thread"))]
