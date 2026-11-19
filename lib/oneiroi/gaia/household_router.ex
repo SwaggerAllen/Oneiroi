@@ -8,6 +8,6 @@ defmodule Oneiroi.Gaia.HouseholdRouter do
     dispatching:
       ~w(FoundHousehold JoinHouseholdWitness JoinHouseholdResident LeaveHouseholdResident GrantHouseholdTerms
         ProposeHouseholdContract SignHouseholdContract OpenHouseholdBallot VoteHouseholdBallot
-        CloseHouseholdBallot WatchHouseholdThread SetHouseholdMentions SetHouseholdWakeProfile RegisterHouseholdBeat SetHouseholdClock NameHousehold SetHouseCheckin RemoveHouseCheckin RecordHouseCheckinFired
+        CloseHouseholdBallot WatchHouseholdThread SetHouseholdMentions SetHouseholdPush SetHouseholdWakeProfile RegisterHouseholdBeat SetHouseholdClock NameHousehold SetHouseCheckin RemoveHouseCheckin RecordHouseCheckinFired
         TickHouseholdBeats EndHouseholdTurn OpenHouseholdTurn)
 end

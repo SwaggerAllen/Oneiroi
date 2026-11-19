@@ -312,6 +312,19 @@ defmodule Oneiroi.Gaia.Store do
     end
   end
 
+  defmodule HouseholdPush do
+    @moduledoc "A witness's push for a household event (gaia#57): round_end or rounds_stopped, on or off; none set is on."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_household_push" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:member_id, :binary_id, primary_key: true)
+      field(:kind, :string, primary_key: true)
+      field(:on, :boolean)
+      field(:set_at, :utc_datetime_usec)
+    end
+  end
+
   defmodule HouseholdBeatMember do
     @moduledoc "A member's place in the household's beats (gaia#35, #37): her wake profile and the opportunities she has missed."
     use Ecto.Schema

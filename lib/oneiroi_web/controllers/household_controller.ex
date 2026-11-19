@@ -155,6 +155,40 @@ defmodule OneiroiWeb.HouseholdController do
     end
   end
 
+  operation(:pushes,
+    summary:
+      "This witness's pushes from the house (seshat#95): the end of a round-robin round, and a thread's rounds running out, each on unless set off",
+    responses: [ok: {"the pushes", "application/json", %Schema{type: :object}}]
+  )
+
+  def pushes(conn, _params) do
+    case Seshat.household_pushes(actor(conn)) do
+      {:ok, p} -> json(conn, %{pushes: p})
+      {:error, e} -> error(conn, 404, e)
+    end
+  end
+
+  operation(:set_push,
+    summary:
+      "Set one of this witness's pushes from the house on or off: kind round_end or rounds_stopped",
+    request_body:
+      {"the push", "application/json",
+       %Schema{
+         type: :object,
+         required: [:kind, :on],
+         properties: %{kind: %Schema{type: :string}, on: %Schema{type: :boolean}}
+       }},
+    responses: [ok: {"the pushes after", "application/json", %Schema{type: :object}}]
+  )
+
+  def set_push(conn, params) do
+    case Seshat.set_household_push(actor(conn), params["kind"], params["on"]) do
+      {:ok, p} -> json(conn, %{pushes: p})
+      {:error, %{kind: :seshat_household_not_member} = e} -> error(conn, 404, e)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
   operation(:working,
     summary:
       "Who in the house is working now (seshat#90): each resident in a house wake, by name, with the thread she is in (or null) and since when",

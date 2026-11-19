@@ -686,6 +686,10 @@ export const api = {
   householdProposeCharter: (prose: string, note: string, bundle: BallotItem[] = []) => call<HouseContract>('POST', '/v1/household/contract', { prose, note, bundle }),
   householdGrantTurn: (residentId: string) => call<HouseTurn>('POST', '/v1/household/beats/turns', { resident_id: residentId }),
   householdBeats: () => call<HouseBeats>('GET', '/v1/household/beats'),
+  /** This witness's pushes from the house (seshat#95): a round's end, a thread's rounds running out. */
+  householdPushes: () => call<{ pushes: { round_end: boolean; rounds_stopped: boolean } }>('GET', '/v1/household/pushes'),
+  setHouseholdPush: (kind: 'round_end' | 'rounds_stopped', on: boolean) =>
+    call<{ pushes: { round_end: boolean; rounds_stopped: boolean } }>('PUT', '/v1/household/pushes', { kind, on }),
   /** Who in the house is working now, and in which thread (seshat#90). */
   householdWorking: () => call<{ working: HouseWorking[] }>('GET', '/v1/household/working'),
   /** The house's activity, envelopes only (seshat#92); one resident, or all. */

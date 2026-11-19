@@ -793,3 +793,8 @@ comes, so the answer she gives there is the answer. Asking her to route
 it through a tool lost it twice in a day; taking only the final message
 keeps her working notes and tool calls out of the house, and anything
 she wants said differently she can post herself before the turn ends.
+
+## #95
+The rounds already record both moments as events, so the push rides the
+same point that wakes the next resident: no second watcher, and a push
+never claims a round ended that the log does not.

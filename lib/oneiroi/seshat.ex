@@ -708,6 +708,15 @@ defmodule Oneiroi.Seshat do
     do: Household.activity(actor, resident_id)
   )
 
+  @doc "A witness's pushes from the house (seshat#95): the end of a round, and rounds running out."
+  @spec household_pushes(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_pushes(actor), do: Household.pushes(actor))
+
+  @doc "A witness sets a push from the house on or off (seshat#95)."
+  @spec set_household_push(Oneiroi.Actor.t(), String.t(), boolean()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(set_household_push(actor, kind, on), do: Household.set_push(actor, kind, on))
+
   @doc "Who in the house is working now, and in which thread (seshat#90)."
   @spec household_working(Oneiroi.Actor.t()) :: {:ok, [map()]} | {:error, term()}
   defexport(household_working(actor), do: Household.working(actor))

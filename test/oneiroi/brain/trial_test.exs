@@ -362,6 +362,7 @@ defmodule Oneiroi.Brain.TrialTest do
     {"document_archive", %{path: "scratch/pad.md", why: "done with"}},
     {"keepsake_note", %{name: "pocket-andrew.md", why: "a gift"}},
     {"letter_send", %{to: "house", text: "a note"}},
+    {"notify_witness", %{}},
     {"document_remove", %{path: "scratch/pad.md"}},
     {"correspondent_block", %{platform: "email", identity: "spam@example.com", note: "spam"}},
     {"correspondent_unblock", %{platform: "email", identity: "spam@example.com", note: "ok"}},

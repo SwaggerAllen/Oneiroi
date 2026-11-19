@@ -315,6 +315,29 @@ defmodule Oneiroi.Gaia.Household do
     end
   end
 
+  # ---- a witness's pushes for the house (gaia#57) ----
+
+  @push_kinds ~w(round_end rounds_stopped)
+
+  def execute(%__MODULE__{} = h, %Commands.SetHouseholdPush{} = c) do
+    case member(h, c.actor) do
+      {"witness", id} ->
+        if c.kind in @push_kinds and is_boolean(c.on),
+          do: %Events.HouseholdPushSet{
+            actor: c.actor,
+            at: c.at,
+            id: c.id,
+            member_id: id,
+            kind: c.kind,
+            on: c.on
+          },
+          else: {:error, Error.new(:gaia_push_invalid, :gaia_household_push_shape)}
+
+      _not_a_witness ->
+        {:error, Error.new(:gaia_not_a_member, :gaia_household_push_not_witness)}
+    end
+  end
+
   # ---- the watch (gaia#32) ----
 
   def execute(%__MODULE__{} = h, %Commands.WatchHouseholdThread{} = c) do
@@ -969,6 +992,7 @@ defmodule Oneiroi.Gaia.Household do
 
   def apply(%__MODULE__{} = h, %Events.HouseholdThreadWatched{}), do: h
   def apply(%__MODULE__{} = h, %Events.HouseholdMentionsSet{}), do: h
+  def apply(%__MODULE__{} = h, %Events.HouseholdPushSet{}), do: h
 
   def apply(%__MODULE__{} = h, %Events.HouseholdResidentLeft{} = e),
     do: %{h | residents: MapSet.delete(h.residents, e.resident_id)}

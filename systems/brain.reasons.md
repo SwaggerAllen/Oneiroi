@@ -945,3 +945,8 @@ one's words, and the pair write theirs.
 An empty section is never sent, so the slot costs nothing while it waits;
 keeping it in the list, named as retired, means the plugin page and the
 agreement do not silently lose a line the resident proposed to change.
+
+## #107
+A push that fires on every wake teaches the witness that pushes mean
+nothing; one she sends on purpose means she wants him. The decision to
+interrupt someone's day belongs to whoever is doing the interrupting.

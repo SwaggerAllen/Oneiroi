@@ -1,6 +1,6 @@
 defmodule Oneiroi.Gaia.PushTest do
   @moduledoc """
-  gaia#15: the witness's devices are told, content-free, when the resident
+  gaia#15 (amended by brain#107): the witness's devices are told, content-free, when the resident
   writes in the chat unprompted. A device subscribes by its push service
   endpoint, held to the known services; a push is an empty POST signed
   with the platform's VAPID key; a device the service says is gone is
@@ -88,7 +88,10 @@ defmodule Oneiroi.Gaia.PushTest do
            ])
   end
 
-  test "a check-in's reply pushes to the witness's devices; his own message does not", ctx do
+  # brain#107 (the witness, 2026-11-19): a push is the resident's own act,
+  # never the turn's. Neither his message nor a check-in's reply pushes;
+  # notify_witness does.
+  test "a check-in's reply pushes nothing; her notify_witness does", ctx do
     resident = Fixtures.resident!(%{id: ctx.account})
     :ok = Gaia.store_key(ctx.account, "sk-or-test", ctx.actor)
     :ok = Gaia.subscribe_push(ctx.account, @apple, ctx.actor)
@@ -97,11 +100,18 @@ defmodule Oneiroi.Gaia.PushTest do
 
     {:ok, key} = Kumbukumbu.main_session(resident.id, ctx.account, ctx.actor)
     assert {:ok, _} = Oneiroi.Brain.turn(resident.id, key, "hello", ctx.actor)
+    {:ok, _} = Sunna.set_checkin(resident.id, nil, "morning", "12:00", ctx.actor)
+    assert :ok = Sunna.tick(resident.id)
     Process.sleep(100)
     assert Fake.sent() == []
 
-    {:ok, _} = Sunna.set_checkin(resident.id, nil, "morning", "12:00", ctx.actor)
-    assert :ok = Sunna.tick(resident.id)
+    Oneiroi.Brain.Tools.run("notify_witness", "{}", %{
+      resident_id: resident.id,
+      session_key: key,
+      turn_ref: "t",
+      resident: Actor.new(:resident, resident.id)
+    })
+
     assert eventually(fn -> Fake.sent() end) == [@apple]
   end
 

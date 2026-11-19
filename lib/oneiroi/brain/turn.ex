@@ -885,7 +885,6 @@ defmodule Oneiroi.Brain.Turn do
       if turn.lapse_to_tell, do: :ok = Oneiroi.Nisaba.lapse_told(resident_id, resident)
       if turn.import_to_tell, do: :ok = Oneiroi.AgathosDaimon.import_told(resident_id, resident)
       broadcast(resident_id, key, {:turn, ref, captured})
-      push_unprompted(turn)
       {:ok, captured}
     end
   end
@@ -895,17 +894,6 @@ defmodule Oneiroi.Brain.Turn do
   # round's word arriving there. A turn he started he is waiting on, and
   # a solo session (free time, a round) is not his to be told of. Nothing
   # of what she said is in the push.
-  defp push_unprompted(%{as: :note, purpose: :chat, resident_id: resident_id}) do
-    case Oneiroi.AgathosDaimon.fetch(resident_id) do
-      {:ok, %{account_id: account_id}} when is_binary(account_id) ->
-        Oneiroi.Gaia.notify(account_id)
-
-      _none ->
-        :ok
-    end
-  end
-
-  defp push_unprompted(_turn), do: :ok
 
   # What retrieval did this turn: what the sections carried, what the
   # tools returned and opened, and what the replies cited.

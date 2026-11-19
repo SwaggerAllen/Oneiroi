@@ -148,6 +148,12 @@ defmodule Oneiroi.Gaia.Commands do
 
   # The watch (gaia#32): a resident's opt-in to one thread, for hours it
   # states.
+  # A witness's own push for a household event (gaia#57): `kind` is
+  # round_end or rounds_stopped, `on` whether it pushes.
+  defmodule SetHouseholdPush do
+    use Oneiroi.Command, fields: [:id, :kind, :on]
+  end
+
   defmodule SetHouseholdMentions do
     use Oneiroi.Command, fields: [:id, :thread, :muted], bounds: [thread: 255]
   end

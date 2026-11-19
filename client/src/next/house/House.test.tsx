@@ -91,6 +91,7 @@ describe('the house as a subject (2026-11-16)', () => {
     vi.spyOn(api, 'householdBeats').mockResolvedValue(beats);
     vi.spyOn(api, 'householdWorking').mockResolvedValue({ working: [] });
     vi.spyOn(api, 'householdActivity').mockResolvedValue({ activity: [] });
+    vi.spyOn(api, 'householdPushes').mockResolvedValue({ pushes: { round_end: true, rounds_stopped: true } });
     vi.spyOn(api, 'houseCheckins').mockResolvedValue({ zone: 'America/Los_Angeles', checkins: [] });
     vi.spyOn(api, 'me').mockResolvedValue({ account_id: 'a1', email: 'w@example.com', residents: ['r1'] });
   });
@@ -313,6 +314,16 @@ describe('the house as a subject (2026-11-16)', () => {
     expect(screen.getByText(/letter #12, claude-code to Oneiroi chat/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Whose activity'), { target: { value: 'r1' } });
     await waitFor(() => expect(read).toHaveBeenCalledWith('r1'));
+  });
+
+  it("lets a witness switch the house's two pushes, under round-robin (seshat#95)", async () => {
+    vi.spyOn(api, 'householdBeats').mockResolvedValue({ ...beats, conversation: 'round_robin', rounds: [], round_threads: [] });
+    const set = vi.spyOn(api, 'setHouseholdPush').mockResolvedValue({ pushes: { round_end: false, rounds_stopped: true } });
+    mount(<HouseTime />);
+    const box = (await screen.findByLabelText('Push me when a round ends')) as HTMLInputElement;
+    expect(box.checked).toBe(true);
+    fireEvent.click(box);
+    await waitFor(() => expect(set).toHaveBeenCalledWith('round_end', false));
   });
 
   it('names the beats when the house talks in beats', async () => {

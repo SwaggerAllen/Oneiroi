@@ -407,3 +407,10 @@ reads, not in the record. Normalizing at apply keeps every execute
 clause matching one shape, whether the state was built in this process
 or replayed after a deploy, which is the only difference a test running
 in one process could not see.
+
+## #57
+These are the two moments the house itself has news a witness cannot get
+by being a member: a round closed, or the talk ran out. Everything else
+that pushes is someone's deliberate act. On by default because the
+witness asked for them; off is one switch, per person, because how much
+a phone buzzes is nobody else's to decide.

@@ -87,6 +87,7 @@ defmodule Oneiroi.Gaia do
       Events.HouseholdContractAmended,
       Events.HouseholdThreadWatched,
       Events.HouseholdMentionsSet,
+      Events.HouseholdPushSet,
       Events.RoundStarted,
       Events.RoundTurnIssued,
       Events.RoundTurnSpent,
@@ -224,6 +225,7 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.HouseholdContractAmended, 1},
       {Oneiroi.Gaia.Events.HouseholdThreadWatched, 1},
       {Oneiroi.Gaia.Events.HouseholdMentionsSet, 1},
+      {Oneiroi.Gaia.Events.HouseholdPushSet, 1},
       {Oneiroi.Gaia.Events.RoundStarted, 1},
       {Oneiroi.Gaia.Events.RoundTurnIssued, 1},
       {Oneiroi.Gaia.Events.RoundTurnSpent, 1},
@@ -268,6 +270,9 @@ defmodule Oneiroi.Gaia do
        remedy: "paste the OpenRouter key; it is stored encrypted and shown to nobody again"},
       {:gaia_github_token_required, "the GitHub token was empty",
        remedy: "paste a read-only GitHub token; it is stored encrypted and shown to nobody again"},
+      {:gaia_push_invalid,
+       "a household push is round_end or rounds_stopped, set on or off by a witness of the house (gaia#57)",
+       remedy: "name one of the two kinds and true or false"},
       {:gaia_rounds_invalid, "a round-robin command was not well formed",
        remedy: "a thread, the house's residents and a window; skip or post; empty or expired"},
       {:gaia_rounds_not_your_turn,
@@ -773,6 +778,19 @@ defmodule Oneiroi.Gaia do
           :ok | {:error, term()}
   defexport(set_household_mentions(household_id, thread, muted, actor),
     do: Households.set_mentions(household_id, thread, muted, actor)
+  )
+
+  @doc "A witness sets a push for the house on or off (gaia#57): round_end or rounds_stopped."
+  @spec set_household_push(String.t(), String.t(), boolean(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(set_household_push(household_id, kind, on, actor),
+    do: Households.set_push(household_id, kind, on, actor)
+  )
+
+  @doc "A witness's pushes for the house (gaia#57): on unless set off."
+  @spec household_pushes(String.t(), String.t()) :: map()
+  defexport(household_pushes(household_id, member_id),
+    do: Households.pushes(household_id, member_id)
   )
 
   @doc "Whether a member's mentions in a thread are muted (gaia#46): the thread's setting, else the house's, else heard."
