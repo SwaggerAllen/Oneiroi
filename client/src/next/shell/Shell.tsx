@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { SettingsPage } from '../settings/SettingsPage';
 import { formatHash, formatSettings, isTabHash, parseHash, parseSettings, TABS, type Tab } from '../state/routes';
 import { topOf, useShell } from '../state/store';
+import { elsewhere, useUnread } from './unread';
 import { Header } from './Header';
 import { usePushSlide, useTabDissolve } from './motion';
 import { OfflineBar } from './OfflineBar';
@@ -59,6 +60,7 @@ function useHashSync() {
 
 export function Shell({ residentId, residentName, waiting, failing = false, onReconnect, renderTab, house = false }: ShellProps) {
   useHashSync();
+  const unread = useUnread();
   const tab = useShell((s) => s.tab);
   const stacks = useShell((s) => s.stacks);
   const setTab = useShell((s) => s.setTab);
@@ -74,7 +76,15 @@ export function Shell({ residentId, residentName, waiting, failing = false, onRe
 
   return (
     <div className={css.root}>
-      <Header name={residentName} waiting={waiting} failing={failing} onSubject={() => setOverlay('subject')} onBell={() => setOverlay('bell')} onSettings={() => setOverlay('settings')} />
+      <Header
+        name={residentName}
+        waiting={waiting}
+        failing={failing}
+        unreadElsewhere={elsewhere(unread, residentId)}
+        onSubject={() => setOverlay('subject')}
+        onBell={() => setOverlay('bell')}
+        onSettings={() => setOverlay('settings')}
+      />
       <div className={css.bar}>
         <OfflineBar onReconnect={onReconnect} />
       </div>

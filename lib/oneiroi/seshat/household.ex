@@ -1896,6 +1896,54 @@ defmodule Oneiroi.Seshat.Household do
   def set_push(%Actor{}, _kind, _on),
     do: {:error, Error.new(:seshat_household_residents_write, :seshat_household_set_push_witness)}
 
+  @doc """
+  A witness's unread in the house (seshat#96, gaia#58): the posts (threads
+  and replies, votes and the platform's lines among them) by anyone else
+  after the witness's mark for that thread, or the house's baseline when
+  the thread has none. With no mark at all yet, the baseline is set now and
+  nothing is unread: a first look starts from here, not from the house's
+  whole history. Answers `{:ok, %{count: n, threads: %{path => n}}}`.
+  """
+  def unread(%Actor{kind: :witness} = actor) do
+    with {:ok, household_id} <- household(actor),
+         {:ok, view} <- provision(household_id) do
+      subject = "house:" <> household_id
+      marks = Gaia.seen(actor.id, subject)
+      baseline = Map.get(marks, "*") || set_baseline(actor, subject)
+
+      threads =
+        for w <- writes(view),
+            w.kind in ["thread", "reply"],
+            w.by_id != actor.id,
+            DateTime.compare(w.at, later(Map.get(marks, w.target), baseline)) == :gt,
+            reduce: %{},
+            do: (acc -> Map.update(acc, w.target, 1, &(&1 + 1)))
+
+      {:ok, %{count: threads |> Map.values() |> Enum.sum(), threads: threads}}
+    end
+  end
+
+  def unread(%Actor{}), do: {:ok, %{count: 0, threads: %{}}}
+
+  # A first look: everything before now counts as seen.
+  defp set_baseline(actor, subject) do
+    now = Clock.now()
+    _ = Gaia.mark_seen(actor.id, subject, "*", now, actor)
+    now
+  end
+
+  defp later(nil, b), do: b
+  defp later(a, b), do: if(DateTime.compare(a, b) == :gt, do: a, else: b)
+
+  @doc "The witness has read a house thread up to an instant (seshat#96)."
+  def mark_seen(%Actor{kind: :witness} = actor, thread, %DateTime{} = at) do
+    with {:ok, household_id} <- household(actor),
+         path when is_binary(path) <- thread_path(thread) || no_thread(thread),
+         do: Gaia.mark_seen(actor.id, "house:" <> household_id, path, at, actor)
+  end
+
+  def mark_seen(%Actor{}, _thread, _at), do: :ok
+
   @doc "The members a text names, `@<name>` or `@all` (seshat#86)."
   def named_in(household_id, text) do
     members = Gaia.household_members(household_id)

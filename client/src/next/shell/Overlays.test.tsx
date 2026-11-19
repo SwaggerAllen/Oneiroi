@@ -5,7 +5,7 @@ import { api } from '../../api/client';
 import type { NeedsYouEntry } from '../../api/types';
 import { SubjectContext } from '../state/resident';
 import { useShell } from '../state/store';
-import { Bell } from './Overlays';
+import { Bell, SubjectSheet } from './Overlays';
 
 const held: NeedsYouEntry = {
   kind: 'work_held',
@@ -76,5 +76,23 @@ describe('the bell', () => {
     fireEvent.change(await screen.findByLabelText('Your note to Mira'), { target: { value: 'Agreed, cut it.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Agree' }));
     await waitFor(() => expect(answer).toHaveBeenCalledWith('r1', 1, true, 'Agreed, cut it.'));
+  });
+
+  // gaia#58 (the witness, 2026-11-19): an unread count by every workspace.
+  it('shows each workspace with its unread count', async () => {
+    vi.spyOn(api, 'residents').mockResolvedValue([{ id: 'r1', name: 'Mira', slug: 'mira' }] as never);
+    vi.spyOn(api, 'me').mockResolvedValue({ account_id: 'a1', email: 'w@example.com', residents: ['r1'] } as never);
+    vi.spyOn(api, 'unread').mockResolvedValue({ residents: [{ id: 'r1', count: 3 }], house: { count: 2, threads: {} } });
+    useShell.setState({ overlay: 'subject' });
+    const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queries}>
+        <SubjectContext.Provider value={{ id: 'r1', slug: 'mira', name: 'Mira' }}>
+          <SubjectSheet />
+        </SubjectContext.Provider>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText(/3 unread/)).toBeTruthy();
+    expect(await screen.findByText(/2 unread/)).toBeTruthy();
   });
 });

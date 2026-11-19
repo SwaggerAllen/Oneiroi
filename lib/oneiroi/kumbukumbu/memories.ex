@@ -1004,6 +1004,10 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   @doc "Every house letter, oldest first, each with the conversations that read it."
   def letters(resident_id), do: Scope.resident(resident_id, fn -> Store.house_letters() end)
 
+  @doc "How many messages she wrote in a session after an instant (kumbukumbu#75)."
+  def said_after(resident_id, session_key, since),
+    do: Scope.resident(resident_id, fn -> Store.said_after(session_key, since) end)
+
   @doc "The newest letters' envelopes, never their words (kumbukumbu#74)."
   def letter_envelopes(resident_id, limit),
     do: Scope.resident(resident_id, fn -> Store.letter_envelopes(limit) end)

@@ -8,5 +8,5 @@ defmodule Oneiroi.Gaia.Router do
     dispatching:
       ~w(CreateAccount EnrollSecondFactor OpenSession CloseSession IssueToken RevokeToken
          StoreKey RevokeKey StoreGithubToken RevokeGithubToken NameWitness StartWitnessing EndWitnessing SubscribePush UnsubscribePush
-         DeclinePush RecordNeedsYouPush)
+         DeclinePush RecordNeedsYouPush MarkSeen)
 end

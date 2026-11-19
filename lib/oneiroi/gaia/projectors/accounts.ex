@@ -4,7 +4,16 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
 
   alias Ecto.Multi
   alias Oneiroi.Gaia.Events
-  alias Oneiroi.Gaia.Store.{Account, PushAnswer, PushSubscription, Session, Token, Witnessing}
+
+  alias Oneiroi.Gaia.Store.{
+    Account,
+    PushAnswer,
+    PushSubscription,
+    Seen,
+    Session,
+    Token,
+    Witnessing
+  }
 
   fold(%Events.AccountCreated{} = e, _metadata, fn multi ->
     Multi.insert(multi, :account, %Account{
@@ -71,6 +80,16 @@ defmodule Oneiroi.Gaia.Projectors.Accounts do
   fold(%Events.GithubTokenRevoked{} = e, _metadata, fn multi ->
     Multi.update_all(multi, :github_revoked, account(e.id),
       set: [github_token_ciphertext: nil, github_token_stored_at: nil]
+    )
+  end)
+
+  fold(%Events.SeenMarked{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :seen,
+      %Seen{account_id: e.id, subject: e.subject, key: e.key, seen_at: e.seen_at},
+      on_conflict: [set: [seen_at: e.seen_at]],
+      conflict_target: [:account_id, :subject, :key]
     )
   end)
 

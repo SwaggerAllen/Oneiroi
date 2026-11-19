@@ -1199,6 +1199,12 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.letter_envelopes(resident_id, limit)
   )
 
+  @doc "How many messages she wrote in a session after an instant (kumbukumbu#75): the witness's unread count of her chat."
+  @spec said_after(String.t(), String.t(), DateTime.t()) :: non_neg_integer()
+  defexport(said_after(resident_id, session_key, since),
+    do: Memories.said_after(resident_id, session_key, since)
+  )
+
   @doc "Every house letter, oldest first, with the conversations that read each."
   @spec letters(String.t()) :: [Oneiroi.Kumbukumbu.Store.HouseLetter.t()]
   defexport(letters(resident_id), do: Memories.letters(resident_id))

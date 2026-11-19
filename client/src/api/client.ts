@@ -686,6 +686,10 @@ export const api = {
   householdProposeCharter: (prose: string, note: string, bundle: BallotItem[] = []) => call<HouseContract>('POST', '/v1/household/contract', { prose, note, bundle }),
   householdGrantTurn: (residentId: string) => call<HouseTurn>('POST', '/v1/household/beats/turns', { resident_id: residentId }),
   householdBeats: () => call<HouseBeats>('GET', '/v1/household/beats'),
+  /** What the witness has not read, by workspace (gaia#58, seshat#96). */
+  unread: () => call<{ residents: { id: string; count: number }[]; house: { count: number; threads: Record<string, number> } | null }>('GET', '/v1/unread'),
+  /** Read up to an instant: a resident's chat (her id), or a house thread. */
+  markRead: (subject: string, at: string, thread?: string) => call<void>('PUT', '/v1/unread', { subject, at, ...(thread ? { thread } : {}) }),
   /** This witness's pushes from the house (seshat#95): a round's end, a thread's rounds running out. */
   householdPushes: () => call<{ pushes: { round_end: boolean; rounds_stopped: boolean } }>('GET', '/v1/household/pushes'),
   setHouseholdPush: (kind: 'round_end' | 'rounds_stopped', on: boolean) =>
