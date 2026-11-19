@@ -186,7 +186,10 @@ defmodule OneiroiWeb.MemoryController do
           keepsake: l.keepsake,
           sent_at: l.sent_at,
           read_by: Enum.uniq(l.read_by),
-          read_at: l.read_at
+          read_at: l.read_at,
+          # Who it is from, said plainly (kumbukumbu#76; report #22).
+          origin: elem(Kumbukumbu.letter_origin(l), 0),
+          origin_words: elem(Kumbukumbu.letter_origin(l), 1)
         }
       end)
     )

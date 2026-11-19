@@ -971,6 +971,47 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   def sent_to_sibling?(%{link: %{"direction" => "to"}}), do: true
   def sent_to_sibling?(_letter), do: false
 
+  @doc """
+  Who a letter is from, said plainly (kumbukumbu#76; Scarlett's report
+  #22: a letter from her own conversation read as her witness's, three
+  times): `{kind, words}`, kind one of `own`, `witness`, `housemate`,
+  `house` or `platform`.
+  """
+  def origin(%{} = l) do
+    cond do
+      Map.get(l, :by_kind) == "witness" ->
+        {"witness", "your witness"}
+
+      from_sibling?(l) ->
+        {"housemate", "your housemate #{l.from_name}"}
+
+      sent_to_sibling?(l) ->
+        {"own", "your own copy of your letter to #{l.to_name}"}
+
+      l.from_name == household_sender() ->
+        {"house", "the household (a thread you watch, or a turn of yours)"}
+
+      is_binary(Map.get(l, :from_session)) ->
+        {"own", "your own conversation “#{l.from_name}”"}
+
+      true ->
+        {"platform", "the platform (#{l.from_name})"}
+    end
+  end
+
+  @doc "A wake's closing message (kumbukumbu#77): the very last message, when hers and not empty."
+  def closing_message({:ok, %{messages: messages}}) when is_list(messages) do
+    case List.last(messages) do
+      %{role: role, content: text} when role in [:assistant, "assistant"] and is_binary(text) ->
+        if String.trim(text) == "", do: nil, else: text
+
+      _not_hers_or_empty ->
+        nil
+    end
+  end
+
+  def closing_message(_none), do: nil
+
   @doc "The sender a household watch's letter carries (seshat#62), which the tick wakes the chat for (sunna#49)."
   def household_sender, do: "the household"
 

@@ -177,7 +177,9 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     assert :ok = Sunna.tick(ctx.id)
     assert [note, reply] = transcript(ctx, main)
     assert note.role == "system" and note.actor_kind == "platform"
-    assert note.content =~ "letters came for you here: ##{first} from Claude Code · Oneiroi."
+
+    assert note.content =~
+             "letters came for you here: ##{first} from your own conversation “Claude Code · Oneiroi”."
 
     assert note.content =~ "letter_send with in_reply_to"
     refute note.content =~ "secret words"
@@ -196,6 +198,30 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     Clock.Fake.advance(60)
     assert :ok = Sunna.tick(ctx.id)
     assert [_, _] = transcript(ctx, main)
+  end
+
+  # kumbukumbu#77 (the witness, 2026-11-19: "the final message becomes
+  # the next mail message's content"): a letter wake's answer is the
+  # thread's reply; letters of two threads are left to her.
+  test "a letter wake's answer is sent as the reply in its thread, under her name", ctx do
+    {_main, letter, _send, _code, _lily} = letters_setup(ctx)
+    first = letter.("Can you look at the log?")
+    assert :ok = Sunna.tick(ctx.id)
+
+    assert Enum.any?(
+             Kumbukumbu.letters(ctx.id),
+             &(&1.in_reply_to == first and &1.from_name == "Oneiroi chat" and
+                 &1.to_name == "Claude Code · Oneiroi" and &1.text == "Good morning.")
+           )
+  end
+
+  test "a letter wake carrying two threads sends nothing for her", ctx do
+    {_main, letter, _send, _code, _lily} = letters_setup(ctx)
+    letter.("One thing.")
+    letter.("Another thing.")
+    before = length(Kumbukumbu.letters(ctx.id))
+    assert :ok = Sunna.tick(ctx.id)
+    assert length(Kumbukumbu.letters(ctx.id)) == before
   end
 
   # sunna#73: within a minute of the last wake, letters wait for it to
@@ -217,7 +243,9 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     Clock.Fake.advance(40)
     assert :ok = Sunna.tick(ctx.id)
     assert [_, last] = notes.()
-    assert last.content =~ "##{second} from Claude Code · Oneiroi, ##{third} from Claude Code"
+
+    assert last.content =~
+             "##{second} from your own conversation “Claude Code · Oneiroi”, ##{third} from your own conversation"
   end
 
   # sunna#72: the hourly bound is a backstop for conversations waking each
@@ -248,7 +276,7 @@ defmodule Oneiroi.Sunna.SchedulesTest do
 
     Clock.Fake.advance(60)
     assert :ok = Sunna.tick(ctx.id)
-    assert List.last(notes.()).content =~ "from the oracle"
+    assert List.last(notes.()).content =~ "from the platform (the oracle)"
   end
 
   # sunna#62: the platform's answer to what the chat asked (research, the
@@ -269,7 +297,7 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     assert :ok = Sunna.tick(ctx.id)
     assert [note, _reply] = transcript(ctx, main)
     assert note.content =~ "letters came for you here"
-    assert note.content =~ "from the oracle"
+    assert note.content =~ "from the platform (the oracle)"
   end
 
   test "a letter waits out quiet hours and wakes the chat when they end", ctx do
@@ -283,7 +311,7 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     Clock.Fake.advance(60 * 60 + 60)
     assert :ok = Sunna.tick(ctx.id)
     assert [note, _reply] = transcript(ctx, main)
-    assert note.content =~ "##{n} from Claude Code · Oneiroi."
+    assert note.content =~ "##{n} from your own conversation “Claude Code · Oneiroi”."
   end
 
   test "quiet hours defer a wake to their end, written in the firing row; crossing midnight and clearing",

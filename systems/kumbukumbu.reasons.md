@@ -610,3 +610,13 @@ true in the query rather than in the rendering.
 ## #75
 A count, not a page: the badge needs a number, and reading the messages
 to count them would load what nobody asked to see.
+
+## #76
+A conversation's name is a name she gave a working session, not a person,
+and read cold it can sound like anyone. Saying "your own conversation"
+in the words she reads makes the direction impossible to mistake.
+
+## #77
+Two captures with two rules would drift, and the boundary is the thing
+residents are told about; one function keeps what she is told true in
+both places.

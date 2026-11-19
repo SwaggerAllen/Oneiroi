@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { api } from '../../api/client';
 import type { Block, CorrespondenceMessage, HouseLetter } from '../../api/types';
 import { isOpen, letterState, stateLine } from './letters';
+import { fromLine, mailThreads, type MailThread } from './mailThreads';
 import { threads } from './threads';
 import { ScrollArea } from '../shell/ScrollArea';
 import { useSubject } from '../state/resident';
@@ -42,9 +43,11 @@ export function Mail() {
 
 function Letters({ name, letters, pending }: { name: string; letters: HouseLetter[]; pending: boolean }) {
   const [all, setAll] = useState(false);
-  const newest = [...letters].sort((a, b) => b.number - a.number);
-  const open = newest.filter((l) => isOpen(letterState(l, letters)));
-  const shown = all ? newest : open;
+  // Grouped as threads (the witness, 2026-11-19): a thread is open while
+  // its newest letter still asks something of someone.
+  const threads = mailThreads(letters);
+  const open = threads.filter((t) => isOpen(letterState(t.letters[t.letters.length - 1], letters)));
+  const shown = all ? threads : open;
   return (
     <section className={css.page} style={{ padding: 0, gap: 10 }} aria-label="Letters">
       <h2 className={css.heading}>LETTERS BETWEEN {name.toUpperCase()}'S CONVERSATIONS</h2>
@@ -53,32 +56,53 @@ function Letters({ name, letters, pending }: { name: string; letters: HouseLette
           Open · {open.length}
         </button>
         <button type="button" className={css.segmentButton} aria-pressed={all} onClick={() => setAll(true)}>
-          All · {letters.length}
+          All · {threads.length}
         </button>
       </div>
       <WriteLetter name={name} />
       {pending && <p className={css.note}>Reading the letters…</p>}
       {!pending && shown.length === 0 && <p className={css.note}>{letters.length === 0 ? 'No letters yet.' : 'Every letter has been answered.'}</p>}
-      {shown.map((l) => {
-        const state = letterState(l, letters);
-        return (
-          <article key={l.number} className={css.card}>
-            <p className={css.meta}>
-              #{l.number} · {l.from} → {l.to} · {when(l.sent_at)}
-              {l.in_reply_to ? ` · in reply to #${l.in_reply_to}` : ''}
-            </p>
-            <span className={isOpen(state) ? css.open : css.closed}>{stateLine(state)}</span>
-            <details>
-              <summary className={css.summary}>{firstLine(l.text)}</summary>
-              <p className={css.text} style={{ marginTop: 8 }}>
-                {l.text}
-              </p>
-            </details>
-            {l.keepsake && <p className={css.note}>With a keepsake: {l.keepsake}</p>}
-          </article>
-        );
-      })}
+      {shown.map((t) => (
+        <MailThreadCard key={t.root} thread={t} all={letters} />
+      ))}
     </section>
+  );
+}
+
+/**
+ * One mail thread as a card (the chat tab shows the same card for a
+ * letter wake): its letters oldest first, each saying plainly who it is
+ * from, her own marked as hers (report #22), and where it stands.
+ */
+export function MailThreadCard({ thread, all, open: startOpen = false }: { thread: MailThread; all: HouseLetter[]; open?: boolean }) {
+  const last = thread.letters[thread.letters.length - 1];
+  const state = letterState(last, all);
+  const others = [...new Set(thread.letters.filter((l) => l.origin !== 'own').map(fromLine))];
+  return (
+    <article className={css.card} aria-label={`Mail thread #${thread.root}`}>
+      <details open={startOpen}>
+        <summary className={css.summary}>
+          {firstLine(thread.letters[0].text)}
+          <span className={css.meta}>
+            {' '}
+            · {thread.letters.length === 1 ? '1 letter' : `${thread.letters.length} letters`}
+            {others.length > 0 ? ` · with ${others.join(', ')}` : ''} · {when(last.sent_at)}
+          </span>
+        </summary>
+        <div className={css.thread} style={{ marginTop: 8 }}>
+          {thread.letters.map((l) => (
+            <div key={l.number} className={l.origin === 'own' ? undefined : css.hers} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <p className={css.meta}>
+                #{l.number} · {l.origin === 'own' ? 'Hers, ' : ''}from {fromLine(l)} → {l.to} · {when(l.sent_at)}
+              </p>
+              <p className={css.text}>{l.text}</p>
+              {l.keepsake && <p className={css.note}>With a keepsake: {l.keepsake}</p>}
+            </div>
+          ))}
+        </div>
+      </details>
+      <span className={isOpen(state) ? css.open : css.closed}>{stateLine(state)}</span>
+    </article>
   );
 }
 

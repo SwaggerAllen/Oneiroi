@@ -342,6 +342,9 @@ defmodule Oneiroi.Sunna do
   @impl Oneiroi.Component
   def errors do
     [
+      {:sunna_letter_reply_failed,
+       "a letter wake's answer could not be sent as the thread's reply (kumbukumbu#77): the housemate it answers is gone",
+       remedy: "the answer comes back to her chat with her words; letter_send sends it herself"},
       {:sunna_wake_invalid,
        "a wake's manifest names its wake, its channel (turn, mention, checkin, letter, free_time, digest, night_pass or work) and what it carried (sunna#71)",
        remedy: "give the wake id, a channel from the list, and its causes as a list"},

@@ -53,7 +53,7 @@ defmodule Oneiroi.Kumbukumbu.HouseLettersTest do
     assert [] = Kumbukumbu.inbox(ctx.id, ctx.chat)
 
     assert run("letter_inbox", %{}, code) =~
-             ~r/^#1 from Oneiroi chat to Claude Code · Oneiroi, \d{4}-\d\d-\d\d \d\d:\d\d UTC:\nBuild the work log first\.\n\(Answer in this thread: letter_send with in_reply_to: 1\.\)$/
+             ~r/^#1 from your own conversation “Oneiroi chat”, to Claude Code · Oneiroi, \d{4}-\d\d-\d\d \d\d:\d\d UTC:\nBuild the work log first\.\n\(Answer in this thread: letter_send with in_reply_to: 1\.\)$/
 
     assert [] = Kumbukumbu.inbox(ctx.id, ctx.code)
     assert run("letter_inbox", %{}, code) == "No letters wait for this conversation."
@@ -73,9 +73,9 @@ defmodule Oneiroi.Kumbukumbu.HouseLettersTest do
     assert [] = Kumbukumbu.inbox(ctx.id, ctx.code)
 
     listing = run("letter_list", %{}, chat)
-    assert listing =~ "#1 from Oneiroi chat to Claude Code · Oneiroi"
+    assert listing =~ "#1 from your own conversation “Oneiroi chat”, to Claude Code · Oneiroi"
     assert listing =~ "read by Claude Code · Oneiroi: Build the work log first."
-    assert listing =~ "#2 from Claude Code · Oneiroi to Oneiroi chat"
+    assert listing =~ "#2 from your own conversation “Claude Code · Oneiroi”, to Oneiroi chat"
     assert listing =~ "in reply to #1; unread: Done: the log is built."
 
     # A reply to a letter that was never sent, and an empty letter, are refused.

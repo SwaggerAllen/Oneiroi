@@ -340,21 +340,15 @@ defmodule Oneiroi.HouseholdCommunicationTest do
 
     assert Enum.any?(
              woken,
-             &(&1.role == "system" and &1.content =~ "##{to_her.number} from Lily")
+             &(&1.role == "system" and &1.content =~ "##{to_her.number} from your housemate Lily")
            )
 
     # Iris's inbox names the other copy, qualified by Lily's name.
     assert run("letter_inbox", %{}, iris) =~ "(lily##{her_copy.number} in Lily's letters)"
 
-    # Iris answers with her own number for the letter; it threads under
-    # Lily's copy in Lily's letters, and under Lily's letter in hers.
-    assert run(
-             "letter_send",
-             %{to: "Lily", text: "Yes, Sunday.", in_reply_to: to_her.number},
-             iris
-           ) =~
-             "to Lily's Oneiroi chat"
-
+    # Iris's answer to the wake is her reply (kumbukumbu#77): sent to Lily
+    # for her, it threads under Lily's copy in Lily's letters, and under
+    # Lily's letter in hers.
     assert [%{in_reply_to: answered} = answer] =
              Enum.filter(Kumbukumbu.inbox(lily.id, lily.chat), &(&1.text == "Yes, Sunday."))
 

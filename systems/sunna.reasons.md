@@ -525,3 +525,9 @@ A debounce makes every letter wait, so the common case, one letter in a
 quiet hour, paid a minute for a burst that was not happening. A throttle
 pays nothing until there is a burst, and then gathers it into one wake,
 which is what the wait was for.
+
+## #74
+The letter wake asked her a question and her answer went nowhere unless
+she remembered a tool; making the answer the reply is what the wake was
+for. One thread at a time, because an answer to two threads cannot be
+split honestly by the platform.

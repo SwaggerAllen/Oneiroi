@@ -247,22 +247,9 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
   end
 
   @doc false
-  # The turn's final answer: the last thing she said in it, never an
-  # earlier message of the session, a tool's output or a note.
-  # Only the very last message of the wake, and only when it is hers: an
-  # empty closing message captures nothing, never an earlier one (which
-  # may be what she wrote while calling a tool, Scarlett's report #21).
-  def final_text({:ok, %{messages: messages}}) when is_list(messages) do
-    case List.last(messages) do
-      %{role: role, content: text} when role in [:assistant, "assistant"] and is_binary(text) ->
-        if String.trim(text) == "", do: nil, else: text
-
-      _not_hers_or_empty ->
-        nil
-    end
-  end
-
-  def final_text(_none), do: nil
+  # The turn's final answer, by the house's one rule (kumbukumbu#77): the
+  # wake's very last message when hers and not empty, never earlier text.
+  def final_text(answer), do: Oneiroi.Kumbukumbu.closing_message(answer)
 
   @doc "A turn's expiry: a turn live still at its window ends `expired`, and the next is woken."
   def expire(household_id, turn_id) do
