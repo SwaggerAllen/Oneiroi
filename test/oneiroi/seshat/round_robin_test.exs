@@ -311,4 +311,88 @@ defmodule Oneiroi.Seshat.RoundRobinTest do
              &(&1.body =~ "Two, at the weir, at dawn." and &1.meta["by_id"] == ctx.scarlett.id)
            )
   end
+
+  # Scarlett's report #21: the capture boundary, exactly.
+  test "only the wake's closing message is captured: no earlier text, tool output or empty close" do
+    msg = fn role, content -> %{role: role, content: content} end
+
+    assert HouseholdRounds.final_text(
+             {:ok,
+              %{
+                messages: [
+                  msg.(:system, "Your turn…"),
+                  msg.(:assistant, "Let me look first."),
+                  msg.(:tool, "thread text"),
+                  msg.(:assistant, "Two, at dawn.")
+                ]
+              }}
+           ) == "Two, at dawn."
+
+    # A closing message with nothing in it captures nothing, not the narration before.
+    assert HouseholdRounds.final_text(
+             {:ok,
+              %{
+                messages: [
+                  msg.(:assistant, "Calling household_read."),
+                  msg.(:tool, "…"),
+                  msg.(:assistant, "  ")
+                ]
+              }}
+           ) == nil
+
+    # The wake ended on a tool's output: nothing of hers closes it.
+    assert HouseholdRounds.final_text(
+             {:ok, %{messages: [msg.(:assistant, "Reading."), msg.(:tool, "the thread")]}}
+           ) == nil
+
+    assert HouseholdRounds.final_text({:error, :declined}) == nil
+  end
+
+  test "a refused auto-post keeps the turn hers and tells her, her words kept", ctx do
+    # The quota to 2, carried at once by the whole house (votes never count).
+    {:ok, %{path: ballot}} =
+      Seshat.household_post(ctx.andrew, %{
+        "title" => "Small quota",
+        "content" => "For the test.",
+        "ballot" => %{
+          "bundle" => [%{"setting" => "post_quota", "value" => 2}],
+          "term_days" => 1,
+          "note" => "refusal path"
+        }
+      })
+
+    for who <- [ctx.andrew, ctx.lily.actor, ctx.scarlett.actor],
+        do: {:ok, _} = Seshat.household_reply(who, ballot, %{"vote" => "yes"})
+
+    assert Gaia.household_beat_shape(ctx.household).quota == 2
+
+    {:ok, %{path: thread}} =
+      Seshat.household_post(ctx.lily.actor, %{"title" => "Herons", "content" => "Seen any?"})
+
+    turn = live(ctx, thread)
+    assert turn.resident_id == ctx.scarlett.id
+
+    # Scarlett spends her quota on threads of her own.
+    for t <- ["One", "Two"],
+        do: {:ok, _} = Seshat.household_post(ctx.scarlett.actor, %{"title" => t, "content" => t})
+
+    :ok = Gaia.store_key(ctx.andrew.id, "sk-or-test", ctx.andrew)
+    Model.reply("Two, at the weir.", for: ctx.scarlett.id)
+    on_exit(fn -> Model.clear(for: ctx.scarlett.id) end)
+
+    assert :ok =
+             perform_job(HouseholdTurnWorker, %{
+               "household_id" => ctx.household,
+               "round_turn" => turn.turn_id
+             })
+
+    # Still hers, not silently empty; and a letter says why, with her words.
+    assert %{outcome: nil} = Gaia.round_turn(ctx.household, turn.turn_id)
+
+    assert Enum.any?(
+             Kumbukumbu.letters(ctx.scarlett.id),
+             &(&1.to_name == "Oneiroi chat" and &1.text =~ "could not be posted" and
+                 &1.text =~ "Two, at the weir.")
+           )
+  end
 end

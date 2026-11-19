@@ -60,6 +60,7 @@ defmodule Oneiroi.Seshat.Household do
   # and an alias here would be the cycle the gate refuses.
   @ballot_worker :"Elixir.Oneiroi.Seshat.HouseholdBallotWorker"
   @watch_actor Actor.new(:job, "household_watch")
+  @rounds_actor Actor.new(:job, "household_rounds")
   @contract "CONTRACT.md"
   @beats "BEATS.md"
   @trunk "trunk.md"
@@ -1590,6 +1591,31 @@ defmodule Oneiroi.Seshat.Household do
 
       Kumbukumbu.send_letter(watcher, nil, %{to: "Oneiroi chat", text: text}, @watch_actor)
     end
+
+    :ok
+  end
+
+  @doc """
+  Her round-robin turn's answer could not be posted for her (seshat#94,
+  Scarlett's report #21): a letter to her chat says so, with why, her
+  words, and that the turn is still hers until its window, so nothing she
+  said is lost and the failure is not read as silence. Answers `:ok`.
+  """
+  def answer_refused(turn, text, error) do
+    why = Map.get(error, :remedy) || Map.get(error, :meaning) || "it was refused"
+
+    letter =
+      "Your answer in your round-robin turn #{turn.turn_id} in #{turn.thread} could not be posted there for you: #{why} " <>
+        "The turn is still yours until #{iso(turn.expires_at)}: household_reply posts it yourself, household_skip passes it. " <>
+        "What you said, kept here so it is not lost:\n\n" <> text
+
+    _ =
+      Kumbukumbu.send_letter(
+        turn.resident_id,
+        nil,
+        %{to: "Oneiroi chat", text: letter},
+        @rounds_actor
+      )
 
     :ok
   end

@@ -226,17 +226,23 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
     if live?(household_id, turn_id), do: end_turn(household_id, turn_id, "empty"), else: :ok
   end
 
+  @doc false
   # The turn's final answer: the last thing she said in it, never an
   # earlier message of the session, a tool's output or a note.
-  defp final_text({:ok, %{messages: messages}}) when is_list(messages) do
-    messages
-    |> Enum.filter(&(&1.role in [:assistant, "assistant"]))
-    |> Enum.map(& &1.content)
-    |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
-    |> List.last()
+  # Only the very last message of the wake, and only when it is hers: an
+  # empty closing message captures nothing, never an earlier one (which
+  # may be what she wrote while calling a tool, Scarlett's report #21).
+  def final_text({:ok, %{messages: messages}}) when is_list(messages) do
+    case List.last(messages) do
+      %{role: role, content: text} when role in [:assistant, "assistant"] and is_binary(text) ->
+        if String.trim(text) == "", do: nil, else: text
+
+      _not_hers_or_empty ->
+        nil
+    end
   end
 
-  defp final_text(_none), do: nil
+  def final_text(_none), do: nil
 
   @doc "A turn's expiry: a turn live still at its window ends `expired`, and the next is woken."
   def expire(household_id, turn_id) do
@@ -285,7 +291,7 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
     """
     Your turn in the household thread #{turn.thread}: round #{turn.round}, turn #{turn.turn_id}. household_read with that path reads it whole.
 
-    The turn is yours until #{iso(turn.expires_at)}, about #{minutes} minutes. Your answer to this wake is your reply in the thread: what you say last here is posted there under your name, and spends the turn. To post it yourself instead, household_reply; household_skip passes the turn with nothing said; household_opt_out leaves the thread's rounds (household_opt_in comes back). A turn you let pass ends on its own, and the round goes on without you. #{others_line(others)}
+    The turn is yours until #{iso(turn.expires_at)}, about #{minutes} minutes. Your answer to this wake is your reply in the thread: your last message of this wake, and only it, is posted there under your name and spends the turn. Not posted: anything you say before it, what you write while calling tools, tools' output, and anything after this wake. To post it yourself instead, household_reply; household_skip passes the turn with nothing said; household_opt_out leaves the thread's rounds (household_opt_in comes back). A turn you let pass ends on its own, and the round goes on without you. #{others_line(others)}
 
     The house talks in round-robin threads: each opted-in resident has a turn in each round, and a round that says nothing stops the thread until a member posts in it again. A new thread (household_post) is yours to start at any time; documents need no turn.
     """

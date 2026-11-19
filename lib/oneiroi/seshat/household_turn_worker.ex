@@ -37,18 +37,8 @@ defmodule Oneiroi.Seshat.HouseholdTurnWorker do
 
     HouseWorking.during(household_id, turn && turn.resident_id, turn && turn.thread, fn ->
       case HouseholdRounds.run_turn(household_id, turn_id, args["wake_id"]) do
-        {:answered, turn, text} ->
-          # Her turn's answer is her reply (seshat#94): posted under her
-          # name, spending the token, as household_reply would have.
-          _ =
-            Household.reply(Oneiroi.Actor.new(:resident, turn.resident_id), turn.thread, %{
-              "content" => text
-            })
-
-          HouseholdRounds.settle(household_id, turn_id)
-
-        other ->
-          other
+        {:answered, turn, text} -> post_answer(household_id, turn, text)
+        other -> other
       end
     end)
   end
@@ -70,5 +60,18 @@ defmodule Oneiroi.Seshat.HouseholdTurnWorker do
     HouseWorking.during(household_id, resident_id, nil, fn ->
       HouseholdBeats.run_digest(household_id, resident_id, at)
     end)
+  end
+
+  # Her turn's answer is her reply (seshat#94): posted under her name,
+  # spending the token, as household_reply would have. A post refused (the
+  # quota, Scarlett's report #21) is never silence: the turn stays live to
+  # its window and she is told, her words with it.
+  defp post_answer(household_id, turn, text) do
+    case Household.reply(Oneiroi.Actor.new(:resident, turn.resident_id), turn.thread, %{
+           "content" => text
+         }) do
+      {:ok, _} -> HouseholdRounds.settle(household_id, turn.turn_id)
+      {:error, error} -> Household.answer_refused(turn, text, error)
+    end
   end
 end
