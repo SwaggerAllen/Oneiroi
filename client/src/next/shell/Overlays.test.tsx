@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../api/client';
 import type { NeedsYouEntry } from '../../api/types';
@@ -42,5 +42,39 @@ describe('the bell', () => {
     expect(link?.getAttribute('href')).toBe('#/settings/work');
     expect(link?.textContent).toContain('Work · waiting on you');
     expect(await screen.findByText('WAITING ON YOU · 1')).toBeTruthy();
+  });
+
+  // The witness, 2026-11-18: no way to accept a plugin proposal from the bell.
+  it('answers a plugin proposal in place: agree with a note', async () => {
+    const proposal: NeedsYouEntry = {
+      kind: 'plugin_proposal',
+      ref: 1,
+      since: '2026-11-18T19:00:00Z',
+      screen: 'agreement',
+      long: false,
+      about: { key: 'honcho', change: 'off', note: 'Retired.' },
+    };
+    vi.spyOn(api, 'needsYou').mockResolvedValue([proposal]);
+    vi.spyOn(api, 'waitingOnHer').mockResolvedValue([]);
+    vi.spyOn(api, 'pushConfig').mockRejectedValue(new Error('none'));
+    vi.spyOn(api, 'plugins').mockResolvedValue({
+      plugins: [],
+      proposals: [{ number: 1, key: 'honcho', change: 'off', proposed_by: 'resident', note: 'Retired.', proposed_at: '2026-11-18T19:00:00Z', agreed: null, answer_note: null, answered_at: null }],
+    });
+    const answer = vi.spyOn(api, 'answerPlugin').mockResolvedValue(undefined);
+    useShell.setState({ overlay: 'bell' });
+    const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queries}>
+        <SubjectContext.Provider value={{ id: 'r1', slug: 'mira', name: 'Mira' }}>
+          <Bell />
+        </SubjectContext.Provider>
+      </QueryClientProvider>,
+    );
+
+    fireEvent.click(await screen.findByText('off honcho'));
+    fireEvent.change(await screen.findByLabelText('Your note to Mira'), { target: { value: 'Agreed, cut it.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Agree' }));
+    await waitFor(() => expect(answer).toHaveBeenCalledWith('r1', 1, true, 'Agreed, cut it.'));
   });
 });

@@ -168,7 +168,7 @@ export function Bell() {
                 {WORDS[e.kind] ?? e.kind}
                 {e.long ? ' · A WHILE' : ''}
               </span>
-              <span>{e.about.title ?? e.about.subject ?? e.about.ask ?? e.about.what ?? e.about.change ?? String(e.ref)}</span>
+              <span>{e.kind === 'plugin_proposal' ? `${String(e.about.change)} ${String(e.about.key)}` : (e.about.title ?? e.about.subject ?? e.about.ask ?? e.about.what ?? e.about.change ?? String(e.ref))}</span>
               <span className={css.since}>since {new Date(e.since).toLocaleString()}</span>
             </summary>
             <Answer entry={e} onAnswered={keep(e)} />

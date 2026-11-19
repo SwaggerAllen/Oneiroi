@@ -9,12 +9,14 @@ import * as css from './inbox.css';
 
 // The bell answers in place (screens/next-mail.md): an ask, a reply she
 // drafted, a reply approved and waiting to be sent, a piece for review or
-// for publishing. Every decision carries a note, which she reads first
-// (agathos-daimon#35, xenia#13, seshat#42).
+// for publishing, a plugin slot change she proposed (brain#68; the witness,
+// 2026-11-18, finding no way to accept a proposal from the bell). Every
+// decision carries a note, which she reads first (agathos-daimon#35,
+// xenia#13, seshat#42).
 
 /** Whether the bell can answer this entry where it stands. */
 export const answersInPlace = (kind: NeedsYouEntry['kind']) =>
-  kind === 'ask' || kind === 'reply_to_approve' || kind === 'reply_to_send' || kind === 'piece_to_review' || kind === 'piece_to_publish';
+  kind === 'ask' || kind === 'reply_to_approve' || kind === 'reply_to_send' || kind === 'piece_to_review' || kind === 'piece_to_publish' || kind === 'plugin_proposal';
 
 /** What was decided, for the bell to keep showing once the item is answered. */
 export interface Answered {
@@ -47,6 +49,8 @@ export function Answer({ entry, onAnswered }: { entry: NeedsYouEntry; onAnswered
     case 'piece_to_review':
     case 'piece_to_publish':
       return <PieceAnswer path={String(entry.ref)} onAnswered={onAnswered} />;
+    case 'plugin_proposal':
+      return <PluginAnswer number={Number(entry.ref)} onAnswered={onAnswered} />;
     default:
       return null;
   }
@@ -90,6 +94,43 @@ function AskAnswer({ number, onAnswered }: { number: number; onAnswered?: OnAnsw
             Noted
           </button>
         )}
+      </div>
+      {answer.error && <p className={css.said}>{fail(answer.error)}</p>}
+    </div>
+  );
+}
+
+/** A plugin slot change she proposed (brain#68): agree or decline, with a note, as the Plugins page does. */
+function PluginAnswer({ number, onAnswered }: { number: number; onAnswered?: OnAnswered }) {
+  const { id, name } = useSubject();
+  const qc = useQueryClient();
+  const done = useDone(onAnswered);
+  const plugins = useQuery({ queryKey: ['resident', id, 'soul', 'plugins'], queryFn: () => api.plugins(id) });
+  const proposal = plugins.data?.proposals.find((p) => p.number === number);
+  const [note, setNote] = useState('');
+  const answer = useMutation({
+    mutationFn: (agree: boolean) => api.answerPlugin(id, number, agree, note.trim()),
+    onSuccess: (_r, agree) => {
+      void qc.invalidateQueries({ queryKey: ['resident', id, 'soul', 'plugins'] });
+      done({ word: agree ? 'AGREED' : 'DECLINED', yes: agree, note: note.trim() });
+    },
+  });
+  if (!proposal) return plugins.isPending ? <p className={css.note}>Opening the proposal…</p> : null;
+  const ready = note.trim() !== '' && !answer.isPending;
+  return (
+    <div className={css.panel}>
+      <p className={css.text}>
+        {name} proposes: {proposal.change} {proposal.key}
+      </p>
+      {proposal.note && <p className={css.note}>Why: {proposal.note}</p>}
+      <input id={`plugin-note-${number}`} className={css.input} value={note} onChange={(e) => setNote(e.target.value)} placeholder={`Your note to ${name} (needed)`} aria-label={`Your note to ${name}`} />
+      <div className={css.row}>
+        <button type="button" className={css.primary} disabled={!ready} onClick={() => answer.mutate(true)}>
+          Agree
+        </button>
+        <button type="button" className={css.quiet} disabled={!ready} onClick={() => answer.mutate(false)}>
+          Decline
+        </button>
       </div>
       {answer.error && <p className={css.said}>{fail(answer.error)}</p>}
     </div>
