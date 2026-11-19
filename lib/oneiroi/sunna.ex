@@ -81,6 +81,8 @@ defmodule Oneiroi.Sunna do
       Events.WorkDisarmed,
       Events.WorkRunsReset,
       Events.LettersWoke,
+      Events.WakeManifested,
+      Events.WakeRead,
       Events.CheckinSet,
       Events.HousePromptSet,
       Events.CheckinChanged,
@@ -125,6 +127,7 @@ defmodule Oneiroi.Sunna do
   alias Oneiroi.Sunna.Schedules
   alias Oneiroi.Sunna.Store
   alias Oneiroi.Sunna.TickWorker
+  alias Oneiroi.Sunna.Wakes
   alias Oneiroi.Sunna.WorkLoop
 
   @impl Oneiroi.Component
@@ -314,6 +317,8 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.DateRemoved, 1},
       {Oneiroi.Sunna.Events.HourMarked, 1},
       {Oneiroi.Sunna.Events.LettersWoke, 1},
+      {Oneiroi.Sunna.Events.WakeManifested, 1},
+      {Oneiroi.Sunna.Events.WakeRead, 1},
       {Oneiroi.Sunna.Events.WorkAdded, 1},
       {Oneiroi.Sunna.Events.WorkMoved, 1},
       {Oneiroi.Sunna.Events.WorkHeld, 1},
@@ -331,6 +336,9 @@ defmodule Oneiroi.Sunna do
   @impl Oneiroi.Component
   def errors do
     [
+      {:sunna_wake_invalid,
+       "a wake's manifest names its wake, its channel (turn, mention, checkin, letter, free_time or digest) and what it carried (sunna#71)",
+       remedy: "give the wake id, a channel from the list, and its causes as a list"},
       {:sunna_free_time_required,
        "free time is part of the standard of care: it moves, and it is never removed",
        remedy: "give it another HH:MM; the resident's day keeps its free time"},
@@ -398,7 +406,12 @@ defmodule Oneiroi.Sunna do
   end
 
   @impl Oneiroi.Component
-  def children, do: [Oneiroi.Sunna.Projectors.Schedules, Oneiroi.Sunna.Projectors.Work]
+  def children,
+    do: [
+      Oneiroi.Sunna.Projectors.Schedules,
+      Oneiroi.Sunna.Projectors.Work,
+      Oneiroi.Sunna.Projectors.Wakes
+    ]
 
   @doc "What a resident reports when the house checks in (sunna#65), by the house check-in's key; nil when not set."
   @spec house_prompt(String.t(), String.t()) :: String.t() | nil
@@ -668,18 +681,29 @@ defmodule Oneiroi.Sunna do
   defexport(tick(resident_id), do: TickWorker.tick(resident_id))
 
   @doc "Wakes a resident's Oneiroi chat for her household's beats, with the household's note (sunna#51)."
-  @spec wake_for_household(String.t(), String.t(), Oneiroi.Actor.t()) ::
+  @spec wake_for_household(String.t(), String.t(), Oneiroi.Actor.t(), String.t() | nil) ::
           {:ok, :woken} | {:error, term()}
-  defexport(wake_for_household(resident_id, note, actor),
-    do: Schedules.wake_for_household(resident_id, note, actor)
+  defexport(wake_for_household(resident_id, note, actor, wake_id \\ nil),
+    do: Schedules.wake_for_household(resident_id, note, actor, wake_id)
   )
 
   @doc "Wakes a resident's chat for a house check-in, quiet hours aside (sunna#65)."
-  @spec wake_for_house(String.t(), String.t(), Oneiroi.Actor.t()) ::
+  @spec wake_for_house(String.t(), String.t(), Oneiroi.Actor.t(), String.t() | nil) ::
           {:ok, :woken} | {:error, term()}
-  defexport(wake_for_house(resident_id, note, actor),
-    do: Schedules.wake_for_house(resident_id, note, actor)
+  defexport(wake_for_house(resident_id, note, actor, wake_id \\ nil),
+    do: Schedules.wake_for_house(resident_id, note, actor, wake_id)
   )
+
+  @doc "Manifests a wake (sunna#71): its channel and what it carried; options `household_id`, `delivered`. Answers its id."
+  @spec manifest_wake(String.t(), String.t(), [map()], keyword()) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(manifest_wake(resident_id, channel, causes, opts \\ []),
+    do: Wakes.manifest(resident_id, channel, causes, opts)
+  )
+
+  @doc "The wake log of these residents (sunna#71), newest first: channel, causes, when manifested and read."
+  @spec wakes([String.t()], pos_integer()) :: [map()]
+  defexport(wakes(resident_ids, limit \\ 100), do: Wakes.list(resident_ids, limit))
 
   @doc "The marked hours, newest first (spec §6.7, P20 as amended): the pulse, one row per local hour the tick reached."
   @spec hours(String.t(), pos_integer()) :: [Oneiroi.Sunna.Store.Hour.t()]

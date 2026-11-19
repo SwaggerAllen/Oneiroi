@@ -108,6 +108,7 @@ defmodule OneiroiWeb.Router do
       post("/household/replies", HouseholdController, :reply)
       get("/household/beats", HouseholdController, :beats)
       get("/household/working", HouseholdController, :working)
+      get("/household/activity", HouseholdController, :activity)
       put("/household/beats/profile", HouseholdController, :profile)
       post("/household/beats/turns", HouseholdController, :grant_turn)
       get("/household/checkins", HouseholdController, :checkins)

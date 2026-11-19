@@ -90,6 +90,7 @@ describe('the house as a subject (2026-11-16)', () => {
     vi.spyOn(api, 'householdContract').mockResolvedValue(contract);
     vi.spyOn(api, 'householdBeats').mockResolvedValue(beats);
     vi.spyOn(api, 'householdWorking').mockResolvedValue({ working: [] });
+    vi.spyOn(api, 'householdActivity').mockResolvedValue({ activity: [] });
     vi.spyOn(api, 'houseCheckins').mockResolvedValue({ zone: 'America/Los_Angeles', checkins: [] });
     vi.spyOn(api, 'me').mockResolvedValue({ account_id: 'a1', email: 'w@example.com', residents: ['r1'] });
   });
@@ -283,6 +284,40 @@ describe('the house as a subject (2026-11-16)', () => {
     expect(await screen.findByText(/Lily · threads\/herons, round 1/)).toBeTruthy();
     expect(screen.getByText('skipped')).toBeTruthy();
     expect(screen.queryByText(/holds the turn/)).toBeNull();
+  });
+
+  it('names how the house talks, shows each thread\'s state and the activity, envelopes only (seshat#92)', async () => {
+    vi.spyOn(api, 'householdBeats').mockResolvedValue({
+      ...beats,
+      conversation: 'round_robin',
+      rounds: [],
+      round_threads: [
+        { thread: 'threads/herons', round: 2, stopped: false, live: { resident_id: 'r1', name: 'Lily', until: '2026-11-16T16:10:00Z' }, opted_out: ['Scarlett'], changed_at: '2026-11-16T16:00:00Z' },
+        { thread: 'threads/tea', round: 1, stopped: true, live: null, opted_out: [], changed_at: '2026-11-16T15:00:00Z' },
+      ],
+    });
+    const read = vi.spyOn(api, 'householdActivity').mockResolvedValue({
+      activity: [
+        { kind: 'wake', at: '2026-11-16T16:00:00Z', resident_id: 'r1', name: 'Lily', channel: 'turn', causes: [{ kind: 'turn', turn_id: '3', thread: 'threads/herons' }], delivered: true, read_at: null, wake_id: 'w1' },
+        { kind: 'mention', at: '2026-11-16T15:59:00Z', resident_id: 'r2', name: 'Scarlett', channel: 'mention', causes: [{ kind: 'mention', by: 'Andrew', thread: 'threads/tea' }], delivered: false, read_at: null, wake_id: 'w2' },
+        { kind: 'letter', at: '2026-11-16T15:58:00Z', resident_id: 'r1', name: 'Lily', number: 12, from: 'claude-code', to: 'Oneiroi chat', in_reply_to: null, read_by: [] },
+      ],
+    });
+    mount(<HouseTime />);
+    expect(await screen.findByText(/In round-robin threads/)).toBeTruthy();
+    expect(screen.getByText(/threads\/herons, round 2 · opted out: Scarlett/)).toBeTruthy();
+    expect(screen.getByText(/stopped: a post there starts it again/)).toBeTruthy();
+    expect(await screen.findByText(/Lily woken: turn, turn 3 in threads\/herons/)).toBeTruthy();
+    expect(screen.getByText('not read')).toBeTruthy();
+    expect(screen.getByText(/mention banked, not woken/)).toBeTruthy();
+    expect(screen.getByText(/letter #12, claude-code to Oneiroi chat/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Whose activity'), { target: { value: 'r1' } });
+    await waitFor(() => expect(read).toHaveBeenCalledWith('r1'));
+  });
+
+  it('names the beats when the house talks in beats', async () => {
+    mount(<HouseTime />);
+    expect(await screen.findByText(/In beats: turns fire each beat/)).toBeTruthy();
   });
 
   it("records: the house's repository in the residents' tree", async () => {

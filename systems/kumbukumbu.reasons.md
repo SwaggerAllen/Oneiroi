@@ -601,3 +601,8 @@ why a wall lives in the contract and closes only the door.
 
 A day's shape without its words, so a note can point her at what to
 read rather than carry it.
+
+## #74
+The activity log is read by the witness, and the contract gives him a
+letter's receipt, not its words. Selecting the envelope alone makes that
+true in the query rather than in the rendering.

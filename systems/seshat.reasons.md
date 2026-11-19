@@ -770,3 +770,10 @@ was about.
 Closing on the vote itself, rather than on a sweep, is what makes the
 waiver worth having: the change is in force the moment the last member
 agrees, which is the whole point for something urgent.
+
+## #92
+One stream rather than a page per channel because the question is always
+a chain: he posted, she was woken for it, she read it, she answered or
+her turn ran out. The resident sees her housemates' house rows because
+they are the house's, and not their letters or free time because those
+are theirs and their witness's, which the contract already says.

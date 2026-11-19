@@ -335,7 +335,24 @@ export interface HouseBeats {
   conversation?: 'beats' | 'round_robin';
   /** Under round-robin threads, the turns newest first (seshat#89); null under the beats. */
   rounds?: HouseRoundTurn[] | null;
+  /** Every thread's rounds (gaia#55): running with its live turn, or stopped; who opted out. */
+  round_threads?: HouseRoundThread[];
 }
+
+export interface HouseRoundThread {
+  thread: string;
+  round: number;
+  stopped: boolean;
+  live: { resident_id: string; name: string | null; until: string } | null;
+  opted_out: string[];
+  changed_at: string;
+}
+
+/** One row of the house's activity (seshat#92): envelopes only, never words. */
+export type HouseActivity =
+  | { kind: 'wake' | 'mention'; at: string; resident_id: string; name: string | null; channel: string; causes: Record<string, unknown>[]; delivered: boolean; read_at: string | null; wake_id: string }
+  | { kind: 'token'; at: string; resident_id: string; name: string | null; thread: string; round: number; turn_id: string; until: string; outcome: string | null; spent_at: string | null }
+  | { kind: 'letter'; at: string; resident_id: string; name: string | null; number: number; from: string; to: string; in_reply_to: number | null; read_by: string[] };
 
 export interface HouseWorking {
   resident_id: string;
@@ -671,6 +688,9 @@ export const api = {
   householdBeats: () => call<HouseBeats>('GET', '/v1/household/beats'),
   /** Who in the house is working now, and in which thread (seshat#90). */
   householdWorking: () => call<{ working: HouseWorking[] }>('GET', '/v1/household/working'),
+  /** The house's activity, envelopes only (seshat#92); one resident, or all. */
+  householdActivity: (residentId?: string) =>
+    call<{ activity: HouseActivity[] }>('GET', `/v1/household/activity${residentId ? `?resident_id=${encodeURIComponent(residentId)}` : ''}`),
   householdPost: (post: { title?: string; content: string; kind?: string; path?: string; doc?: string; ballot?: { bundle: BallotItem[]; term_days: number; note: string } }) =>
     call<{ path: string }>('POST', '/v1/household/posts', post),
   householdVote: (thread: string, vote: 'yes' | 'no', content: string) => call<{ number: number }>('POST', '/v1/household/votes', { thread, vote, content }),

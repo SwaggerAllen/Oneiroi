@@ -77,6 +77,15 @@ defmodule Oneiroi.Sunna.Commands do
   # A letter's wake (sunna#24): the letters waiting for the Oneiroi
   # chat that a conversation sent it; `limit` is how many such wakes an
   # hour allows.
+  # The wake log (sunna#71): what a wake carried, and when it was read.
+  defmodule ManifestWake do
+    use Oneiroi.Command, fields: [:id, :wake_id, :channel, :causes, :household_id, :delivered]
+  end
+
+  defmodule ReadWake do
+    use Oneiroi.Command, fields: [:id, :wake_id]
+  end
+
   defmodule WakeForLetters do
     use Oneiroi.Command, fields: [:id, :numbers, :limit]
   end

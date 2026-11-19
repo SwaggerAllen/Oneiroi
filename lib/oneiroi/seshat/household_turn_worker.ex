@@ -21,7 +21,8 @@ defmodule Oneiroi.Seshat.HouseholdTurnWorker do
       case Oneiroi.Sunna.wake_for_house(
              resident_id,
              note,
-             Oneiroi.Actor.new(:job, "house_checkins")
+             Oneiroi.Actor.new(:job, "house_checkins"),
+             args["wake_id"]
            ) do
         {:ok, :woken} -> :ok
         {:error, _} = declined -> declined
@@ -30,11 +31,11 @@ defmodule Oneiroi.Seshat.HouseholdTurnWorker do
   end
 
   # A round-robin turn's wake and its expiry (seshat#89).
-  def run(%{"household_id" => household_id, "round_turn" => turn_id}) do
+  def run(%{"household_id" => household_id, "round_turn" => turn_id} = args) do
     turn = Oneiroi.Gaia.round_turn(household_id, turn_id)
 
     HouseWorking.during(household_id, turn && turn.resident_id, turn && turn.thread, fn ->
-      HouseholdRounds.run_turn(household_id, turn_id)
+      HouseholdRounds.run_turn(household_id, turn_id, args["wake_id"])
     end)
   end
 

@@ -17,8 +17,10 @@ defmodule Oneiroi.Seshat.RoundRobinTest do
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat
   alias Oneiroi.Seshat.HouseholdBeats
+  alias Oneiroi.Seshat.HouseholdRounds
   alias Oneiroi.Seshat.HouseholdTurnWorker
   alias Oneiroi.SimaQian
+  alias Oneiroi.Sunna
 
   setup do
     witness = Fixtures.account!()
@@ -168,5 +170,64 @@ defmodule Oneiroi.Seshat.RoundRobinTest do
 
     assert {:error, %{kind: :seshat_household_rounds}} =
              Seshat.household_rounds(ctx.andrew, "threads/x", :skip)
+  end
+
+  # sunna#71, seshat#92 (Lily's design/wake-mail-visibility.md, 2026-11-18).
+  test "a turn's wake is manifested with its token, and read when it runs", ctx do
+    {:ok, %{path: thread}} =
+      Seshat.household_post(ctx.lily.actor, %{"title" => "Log", "content" => "Watch this."})
+
+    turn = live(ctx, thread)
+    assert [w] = Sunna.wakes([ctx.scarlett.id])
+    assert %{channel: "turn", read_at: nil, household_id: house} = w
+    assert house == ctx.household
+    assert [%{"kind" => "turn", "turn_id" => turn_id, "thread" => ^thread}] = w.causes
+    assert turn_id == turn.turn_id
+
+    job =
+      Enum.find(
+        all_enqueued(worker: HouseholdTurnWorker),
+        &(&1.args["round_turn"] == turn.turn_id)
+      )
+
+    assert job.args["wake_id"] == w.wake_id
+    assert :ok = perform_job(HouseholdTurnWorker, job.args)
+    # Read when it ran; the next round's token is a wake of its own, unread.
+    wakes = Sunna.wakes([ctx.scarlett.id])
+    assert %{read_at: %DateTime{}} = Enum.find(wakes, &(&1.wake_id == w.wake_id))
+  end
+
+  test "the sweep ends a turn live past its window whose expiry job is lost", ctx do
+    {:ok, %{path: thread}} =
+      Seshat.household_post(ctx.lily.actor, %{"title" => "Lost", "content" => "Gone?"})
+
+    turn = live(ctx, thread)
+    Clock.Fake.advance(DateTime.diff(turn.expires_at, Clock.now()) + 1)
+    assert :ok = HouseholdRounds.sweep()
+    assert Gaia.round_turn(ctx.household, turn.turn_id).outcome == "expired"
+  end
+
+  test "the activity: envelopes in one stream, a muted mention banked, the thread states", ctx do
+    {:ok, _} = Seshat.household_mute(ctx.scarlett.actor, nil, true)
+
+    {:ok, %{path: thread}} =
+      Seshat.household_post(ctx.andrew, %{
+        "title" => "Ping",
+        "content" => "@Scarlett and @Lily, tea?"
+      })
+
+    assert {:ok, rows} = Seshat.household_activity(ctx.andrew)
+    kinds = Enum.map(rows, &{&1.kind, &1.resident_id})
+    assert {"mention", ctx.scarlett.id} in kinds
+    assert {"wake", ctx.lily.id} in kinds
+    assert {"token", ctx.scarlett.id} in kinds or {"token", ctx.lily.id} in kinds
+    refute Enum.any?(rows, &Map.has_key?(&1, :text))
+
+    # Filtered to one, by name.
+    assert {:ok, only} = Seshat.household_activity(ctx.andrew, "Lily")
+    assert Enum.all?(only, &(&1.resident_id == ctx.lily.id))
+
+    {:ok, beats} = Seshat.household_beat(ctx.andrew)
+    assert [%{thread: ^thread, stopped: false, live: %{name: _}}] = beats.round_threads
   end
 end

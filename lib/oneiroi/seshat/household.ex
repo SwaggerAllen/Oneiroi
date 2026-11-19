@@ -53,6 +53,7 @@ defmodule Oneiroi.Seshat.Household do
   alias Oneiroi.Seshat.Kinds
   alias Oneiroi.Seshat.Published
   alias Oneiroi.SimaQian.Repos
+  alias Oneiroi.Sunna
 
   @platform %{name: "Oneiroi", email: "oneiroi@records.invalid"}
   # The closing job by name, as an atom: it calls back into this module,
@@ -528,6 +529,102 @@ defmodule Oneiroi.Seshat.Household do
          do: Map.put(w, :name, Map.get(names, w.resident_id))
        )}
     end
+  end
+
+  @doc """
+  The house's activity (seshat#92; Lily's `design/wake-mail-visibility.md`
+  §3): one stream, newest first, of envelopes only, never words: wakes
+  (what each carried, to whom, when read), mentions banked unwoken,
+  round-robin tokens (issued, until, spent how and when), and letters
+  (from, to, when, read by). `resident_id` filters to one resident. A
+  witness reads every resident's; a resident reads the house's rows for
+  everyone and her own letters and private wakes alone.
+  """
+  def activity(%Actor{} = actor, resident_id \\ nil) do
+    with {:ok, household_id} <- household(actor) do
+      members = Gaia.household_members(household_id)
+      names = Map.new(members, &{&1.id, &1.name})
+      residents = for %{kind: "resident", id: id} <- members, do: id
+      ids = filtered(members, residents, resident_id)
+      own = if actor.kind == :resident, do: [actor.id], else: residents
+      name = &Map.get(names, &1)
+
+      rows =
+        wake_rows(ids, household_id, own, name) ++
+          token_rows(household_id, ids, name) ++ letter_rows(Enum.filter(ids, &(&1 in own)), name)
+
+      {:ok,
+       rows
+       |> Enum.reject(&is_nil(&1.at))
+       |> Enum.sort_by(& &1.at, {:desc, DateTime})
+       |> Enum.take(150)}
+    end
+  end
+
+  # One resident, by id or by name; anything else, every resident.
+  defp filtered(_members, residents, nil), do: residents
+
+  defp filtered(members, residents, wanted) do
+    key = String.downcase(to_string(wanted))
+
+    case Enum.find(
+           members,
+           &(&1.kind == "resident" and (&1.id == wanted or String.downcase(&1.name || "") == key))
+         ) do
+      %{id: id} -> [id]
+      nil -> residents
+    end
+  end
+
+  # A wake of the house's is everyone's to see; one of her own life (a
+  # letter's, free time's) is hers and her witness's.
+  defp wake_rows(ids, household_id, own, name) do
+    for w <- Sunna.wakes(ids, 150),
+        w.household_id == household_id or w.resident_id in own,
+        do: %{
+          kind: if(w.delivered, do: "wake", else: "mention"),
+          at: w.at,
+          resident_id: w.resident_id,
+          name: name.(w.resident_id),
+          channel: w.channel,
+          causes: w.causes,
+          delivered: w.delivered,
+          read_at: w.read_at,
+          wake_id: w.wake_id
+        }
+  end
+
+  defp token_rows(household_id, ids, name) do
+    for t <- Gaia.round_turns(household_id),
+        t.resident_id in ids,
+        do: %{
+          kind: "token",
+          at: t.issued_at,
+          resident_id: t.resident_id,
+          name: name.(t.resident_id),
+          thread: t.thread,
+          round: t.round,
+          turn_id: t.turn_id,
+          until: t.expires_at,
+          outcome: t.outcome,
+          spent_at: t.spent_at
+        }
+  end
+
+  defp letter_rows(ids, name) do
+    for id <- ids,
+        l <- Kumbukumbu.letter_envelopes(id, 50),
+        do: %{
+          kind: "letter",
+          at: l.sent_at,
+          resident_id: id,
+          name: name.(id),
+          number: l.number,
+          from: l.from_name,
+          to: l.to_name,
+          in_reply_to: l.in_reply_to,
+          read_by: l.read_by || []
+        }
   end
 
   @doc "A witness names the house for citations (gaia#44), once; answers the shelf."
@@ -1541,12 +1638,31 @@ defmodule Oneiroi.Seshat.Household do
   def wake_house(household_id, note_for, thread \\ nil) do
     for %{kind: "resident", id: id} <- Gaia.household_members(household_id),
         not AgathosDaimon.held?(id) do
+      # Its manifest first (sunna#71): a check-in's wake carries the thread.
+      wake_id = manifest(id, "checkin", [%{kind: "post", thread: thread}], household_id)
+
       Jobs.enqueue(@house_wake_worker, %{
         "household_id" => household_id,
         "house_wake" => id,
         "note" => note_for.(id),
-        "thread" => thread
+        "thread" => thread,
+        "wake_id" => wake_id
       })
+    end
+  end
+
+  @doc false
+  # A wake's manifest (sunna#71): its id, or nil when it could not be
+  # written, which never stops the wake itself.
+  def manifest(resident_id, channel, causes, household_id, opts \\ []) do
+    case Sunna.manifest_wake(
+           resident_id,
+           channel,
+           causes,
+           [household_id: household_id] ++ opts
+         ) do
+      {:ok, wake_id} -> wake_id
+      {:error, _} -> nil
     end
   end
 
@@ -1587,10 +1703,11 @@ defmodule Oneiroi.Seshat.Household do
     text = "#{attrs["title"]}\n#{attrs["content"]}"
     by = author(household_id, actor)
 
-    for m <- named_in(household_id, text),
-        m.id != actor.id,
-        not Gaia.household_muted?(household_id, m.id, posted.path) do
-      wake_mentioned(household_id, m, mention_note(by, posted, reply), posted.path)
+    for m <- named_in(household_id, text), m.id != actor.id do
+      if Gaia.household_muted?(household_id, m.id, posted.path),
+        do: bank_mention(household_id, m, posted, reply, by),
+        else:
+          wake_mentioned(household_id, m, mention_note(by, posted, reply), {posted, reply, by})
     end
 
     ok
@@ -1598,19 +1715,33 @@ defmodule Oneiroi.Seshat.Household do
 
   defp mentioned(other, _household_id, _actor, _attrs, _reply), do: other
 
-  defp wake_mentioned(household_id, %{kind: "resident", id: id}, note, thread) do
-    if not AgathosDaimon.held?(id),
-      do:
-        Jobs.enqueue(@house_wake_worker, %{
-          "household_id" => household_id,
-          "house_wake" => id,
-          "note" => note,
-          "thread" => thread
-        })
+  defp wake_mentioned(household_id, %{kind: "resident", id: id}, note, {posted, reply, by}) do
+    if not AgathosDaimon.held?(id) do
+      wake_id = manifest(id, "mention", [mention_cause(posted, reply, by)], household_id)
+
+      Jobs.enqueue(@house_wake_worker, %{
+        "household_id" => household_id,
+        "house_wake" => id,
+        "note" => note,
+        "thread" => posted.path,
+        "wake_id" => wake_id
+      })
+    end
   end
 
-  defp wake_mentioned(_household_id, %{kind: "witness", id: id}, _note, _thread),
+  defp wake_mentioned(_household_id, %{kind: "witness", id: id}, _note, _posted),
     do: Gaia.notify(id)
+
+  # A muted mention wakes nobody and is banked (seshat#86): its manifest
+  # says so, delivered false, so the log shows a choice, not an absence.
+  defp bank_mention(household_id, %{kind: "resident", id: id}, posted, reply, by),
+    do:
+      manifest(id, "mention", [mention_cause(posted, reply, by)], household_id, delivered: false)
+
+  defp bank_mention(_household_id, _witness, _posted, _reply, _by), do: nil
+
+  defp mention_cause(posted, reply, by),
+    do: %{kind: "mention", thread: posted.path, reply: reply, by: by.name}
 
   defp mention_note(by, posted, reply) do
     where = if reply, do: ", reply ##{reply}", else: ""

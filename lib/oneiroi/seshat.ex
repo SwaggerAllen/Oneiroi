@@ -697,6 +697,13 @@ defmodule Oneiroi.Seshat do
           {:ok, map()} | {:error, term()}
   defexport(household_rounds(actor, thread, what), do: Household.rounds(actor, thread, what))
 
+  @doc "The house's activity, envelopes only, newest first (seshat#92): wakes, banked mentions, tokens, letters; one resident or all."
+  @spec household_activity(Oneiroi.Actor.t(), String.t() | nil) ::
+          {:ok, [map()]} | {:error, term()}
+  defexport(household_activity(actor, resident_id \\ nil),
+    do: Household.activity(actor, resident_id)
+  )
+
   @doc "Who in the house is working now, and in which thread (seshat#90)."
   @spec household_working(Oneiroi.Actor.t()) :: {:ok, [map()]} | {:error, term()}
   defexport(household_working(actor), do: Household.working(actor))

@@ -502,3 +502,11 @@ deploy is enough to kill one, so every merge during a run could hold the
 work line for three hours. Whether a run has a job carrying it is a fact
 the check can read directly, which ends a dead run in minutes without
 shortening the bound for a run that is merely slow.
+
+## #71
+"Why didn't she answer?" had no answer anyone could read: a wake left no
+trace of what it carried, and nothing said whether it had run. Recording
+the envelope at the moment it is made, and the read at the moment the
+note enters her turn, puts the two facts the question needs on one row.
+The read is marked past the decline checks on purpose, so an unread row
+means the wake never reached her, which is the case worth seeing.

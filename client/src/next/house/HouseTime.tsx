@@ -1,10 +1,10 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api, type HouseBeats, type HouseCheckin } from '../../api/client';
+import { api, type HouseActivity, type HouseBeats, type HouseCheckin } from '../../api/client';
 import { ScrollArea } from '../shell/ScrollArea';
 import { allZones, deviceZone, isTime } from '../time/rules';
 import * as css from '../time/time.css';
-import { BEATS, CHECKINS, HOUSE, when } from './keys';
+import { ACTIVITY, BEATS, CHECKINS, HOUSE, when } from './keys';
 
 /**
  * The house's Time (screen:next-house), laid out as a resident's Rhythm
@@ -27,7 +27,10 @@ export function HouseTime() {
             <Checkins checkins={checkins.data.checkins} zone={zone} />
           </>
         )}
+        {beats.data && <Mode b={beats.data} />}
         {beats.data && beats.data.conversation === 'round_robin' && <Rounds b={beats.data} />}
+        {beats.data && (beats.data.round_threads ?? []).length > 0 && <ThreadStates b={beats.data} />}
+        {beats.data && <Activity b={beats.data} />}
         {beats.data && beats.data.conversation !== 'round_robin' && <Now b={beats.data} />}
         {beats.data && <Members b={beats.data} />}
         {beats.data && beats.data.conversation !== 'round_robin' && beats.data.closed.length > 0 && <Closed b={beats.data} />}
@@ -176,6 +179,142 @@ function Checkin({ c, day }: { c: HouseCheckin; day: string }) {
       )}
       <Failed error={remove.error} />
     </div>
+  );
+}
+
+/**
+ * How the house talks, always named (Lily's design/wake-mail-visibility.md
+ * §2 Gap 5): round-robin merged but not switched on read as broken, with
+ * nothing on the screen to say which mode ran.
+ */
+function Mode({ b }: { b: HouseBeats }) {
+  const rr = b.conversation === 'round_robin';
+  return (
+    <section className={css.section} aria-label="How the house talks">
+      <h2 className={css.heading}>HOW THE HOUSE TALKS</h2>
+      <p className={css.note}>
+        {rr
+          ? 'In round-robin threads: each resident has a turn in each round of a thread, woken for it. The beats are off.'
+          : "In beats: turns fire each beat from the queue. Round-robin threads are built and off; the charter's “How the house talks” setting switches them on by ballot."}
+      </p>
+    </section>
+  );
+}
+
+/**
+ * Every thread's rounds (gaia#55, Gap 6): running, with whose turn it is
+ * and until when, or stopped until someone posts there; who opted out.
+ */
+function ThreadStates({ b }: { b: HouseBeats }) {
+  return (
+    <section className={css.section} aria-label="Threads">
+      <h2 className={css.heading}>THREADS</h2>
+      {(b.round_threads ?? []).map((t) => (
+        <div key={t.thread} className={t.live ? css.rowHers : css.row}>
+          <span>
+            {t.thread}, round {t.round}
+            {t.opted_out.length > 0 ? ` · opted out: ${t.opted_out.join(', ')}` : ''}
+          </span>
+          <span className={css.meta}>
+            {t.stopped ? 'stopped: a post there starts it again' : t.live ? `${t.live.name ?? 'a resident'}'s turn until ${when(t.live.until)}` : 'between turns'}
+          </span>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+const CHANNELS: Record<string, string> = {
+  turn: 'turn',
+  mention: 'mention',
+  checkin: 'house check-in',
+  letter: 'letters',
+  free_time: 'free time',
+  digest: 'digest',
+};
+
+function cause(c: Record<string, unknown>): string {
+  switch (c.kind) {
+    case 'turn':
+      return `turn ${String(c.turn_id)} in ${String(c.thread)}`;
+    case 'beat_turn':
+      return `beat turn #${String(c.turn)}`;
+    case 'mention':
+      return `${String(c.by ?? 'someone')} in ${String(c.thread)}${c.reply ? ` reply #${String(c.reply)}` : ''}`;
+    case 'letter':
+      return `letter #${String(c.number)}`;
+    case 'post':
+      return String(c.thread);
+    case 'run':
+      return `run ${String(c.label ?? '')}`;
+    default:
+      return String(c.kind ?? '');
+  }
+}
+
+/** One envelope of the house's activity, never its words. */
+function activityLine(r: HouseActivity): { what: string; meta: string } {
+  const who = r.name ?? 'A resident';
+  switch (r.kind) {
+    case 'token':
+      return {
+        what: `${who}: turn ${r.turn_id} in ${r.thread}, round ${r.round}`,
+        meta: r.outcome ? `${OUTCOMES[r.outcome] ?? r.outcome}${r.spent_at ? ` ${when(r.spent_at)}` : ''}` : `live until ${when(r.until)}`,
+      };
+    case 'letter':
+      return {
+        what: `${who}: letter #${r.number}, ${r.from} to ${r.to}${r.in_reply_to ? `, in reply to #${r.in_reply_to}` : ''}`,
+        meta: r.read_by.length > 0 ? `read by ${r.read_by.join(', ')}` : 'unread',
+      };
+    case 'mention':
+      return { what: `${who}: mention banked, not woken (muted)`, meta: r.causes.map(cause).join(', ') };
+    default:
+      return {
+        what: `${who} woken: ${CHANNELS[r.channel] ?? r.channel}${r.causes.length > 0 ? `, ${r.causes.map(cause).join(', ')}` : ''}`,
+        meta: r.read_at ? `read ${when(r.read_at)}` : 'not read',
+      };
+  }
+}
+
+/**
+ * The house's activity (seshat#92; Lily's design/wake-mail-visibility.md
+ * §3): wakes with what each carried and when it was read, mentions
+ * banked unwoken, tokens, letters; envelopes only, newest first, for
+ * one resident or all. Lily reads the same with wake_log_read.
+ */
+function Activity({ b }: { b: HouseBeats }) {
+  const residents = b.profiles.filter((p) => p.kind === 'resident');
+  const [who, setWho] = useState('');
+  const q = useQuery({ queryKey: [...ACTIVITY, who], queryFn: () => api.householdActivity(who || undefined), refetchInterval: 30_000 });
+  const rows = q.data?.activity ?? [];
+  return (
+    <section className={css.section} aria-label="Activity">
+      <h2 className={css.heading}>ACTIVITY</h2>
+      <p className={css.note}>Every wake, token and letter, newest first: what each carried and when it was read, never the words.</p>
+      <div className={css.addRow}>
+        <select className={css.time} value={who} onChange={(e) => setWho(e.target.value)} aria-label="Whose activity">
+          <option value="">Everyone</option>
+          {residents.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
+            </option>
+          ))}
+        </select>
+      </div>
+      {q.isPending && <p className={css.note}>Reading…</p>}
+      {q.data && rows.length === 0 && <p className={css.note}>Nothing yet.</p>}
+      {rows.slice(0, 60).map((r, i) => {
+        const line = activityLine(r);
+        return (
+          <div key={`${r.kind}-${r.at}-${i}`} className={css.row}>
+            <span>
+              {when(r.at)} · {line.what}
+            </span>
+            <span className={css.meta}>{line.meta}</span>
+          </div>
+        );
+      })}
+    </section>
   );
 }
 

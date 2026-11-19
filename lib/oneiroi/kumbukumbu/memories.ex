@@ -1004,6 +1004,10 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   @doc "Every house letter, oldest first, each with the conversations that read it."
   def letters(resident_id), do: Scope.resident(resident_id, fn -> Store.house_letters() end)
 
+  @doc "The newest letters' envelopes, never their words (kumbukumbu#74)."
+  def letter_envelopes(resident_id, limit),
+    do: Scope.resident(resident_id, fn -> Store.letter_envelopes(limit) end)
+
   @doc "The letters for the conversation `session_key` names, to it or to the house, that it did not send and has not read."
   def inbox(resident_id, session_key) do
     case name_of(resident_id, session_key) do

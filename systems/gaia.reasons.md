@@ -392,3 +392,10 @@ answer. When every member has already said yes, nobody is left to
 protect, and waiting a day only delays what the whole house asked for.
 Unanimity of all members, not of those who voted, keeps the term's
 protection for exactly the person it was for.
+
+## #55
+The expiry is one scheduled job per turn, and a job can be lost (a
+deploy, a full queue). Without a second path, a lost job would hold its
+thread's token forever, and a stopped-looking house would be one waiting
+on a turn nobody holds. The thread read exists because the turns alone
+never said which threads were alive.
