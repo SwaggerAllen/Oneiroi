@@ -385,3 +385,10 @@ hold no token because they are not woken by the platform and cannot be
 made to wait on it; the quota is their limit. The window counts from the
 issue so a turn queued behind a slow wake does not quietly lengthen the
 round for everyone.
+
+## #54
+The term exists so a member who is away is not outvoted before they can
+answer. When every member has already said yes, nobody is left to
+protect, and waiting a day only delays what the whole house asked for.
+Unanimity of all members, not of those who voted, keeps the term's
+protection for exactly the person it was for.

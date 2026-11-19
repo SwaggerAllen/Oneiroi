@@ -525,7 +525,9 @@ defmodule Oneiroi.HouseholdCommunicationTest do
     assert short_end == DateTime.add(now, 86_400 - 1, :second)
     assert long_end == DateTime.add(now, 5 * 86_400, :second)
 
-    for voter <- [lily.actor, iris.actor, andrew],
+    # Two of three: a majority, not every member, so it waits for its
+    # term (a unanimous ballot would close at once, gaia#54).
+    for voter <- [lily.actor, iris.actor],
         do: assert({:ok, _} = Seshat.household_reply(voter, short, %{"vote" => "yes"}))
 
     assert {:ok, _} = Seshat.household_reply(iris.actor, long, %{"vote" => "yes"})

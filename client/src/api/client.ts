@@ -337,6 +337,14 @@ export interface HouseBeats {
   rounds?: HouseRoundTurn[] | null;
 }
 
+export interface HouseWorking {
+  resident_id: string;
+  name: string | null;
+  /** The thread she is answering, or null when her wake names none and she has read none yet. */
+  thread: string | null;
+  since: string;
+}
+
 export interface HouseRoundTurn {
   turn_id: string;
   thread: string;
@@ -661,6 +669,8 @@ export const api = {
   householdProposeCharter: (prose: string, note: string, bundle: BallotItem[] = []) => call<HouseContract>('POST', '/v1/household/contract', { prose, note, bundle }),
   householdGrantTurn: (residentId: string) => call<HouseTurn>('POST', '/v1/household/beats/turns', { resident_id: residentId }),
   householdBeats: () => call<HouseBeats>('GET', '/v1/household/beats'),
+  /** Who in the house is working now, and in which thread (seshat#90). */
+  householdWorking: () => call<{ working: HouseWorking[] }>('GET', '/v1/household/working'),
   householdPost: (post: { title?: string; content: string; kind?: string; path?: string; doc?: string; ballot?: { bundle: BallotItem[]; term_days: number; note: string } }) =>
     call<{ path: string }>('POST', '/v1/household/posts', post),
   householdVote: (thread: string, vote: 'yes' | 'no', content: string) => call<{ number: number }>('POST', '/v1/household/votes', { thread, vote, content }),

@@ -49,6 +49,7 @@ defmodule Oneiroi.Seshat.Household do
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat.Error
   alias Oneiroi.Seshat.HouseholdRounds
+  alias Oneiroi.Seshat.HouseWorking
   alias Oneiroi.Seshat.Kinds
   alias Oneiroi.Seshat.Published
   alias Oneiroi.SimaQian.Repos
@@ -64,6 +65,7 @@ defmodule Oneiroi.Seshat.Household do
   @title_max 200
   @text_max 64_000
   @page 50
+  @ballot_actor Actor.new(:job, "household_ballots")
 
   # ---- the member and the household ----
 
@@ -499,11 +501,32 @@ defmodule Oneiroi.Seshat.Household do
          {:ok, head} <- Repos.head(now.repo),
          {:ok, view, commit} <- pinned(now, Keyword.get(opts, :at), head),
          {:ok, doc} <- read_in(actor, household_id, view, name) do
+      # Reading a thread in a house wake is answering it (seshat#90).
+      if actor.kind == :resident and is_binary(name) and thread_path(name),
+        do: HouseWorking.reading(household_id, actor.id, thread_path(name))
+
       {:ok,
        doc
        |> Map.put(:commit, commit)
        |> Map.put(:cited_as, cited_as(household_id, doc, commit))
        |> Map.put(:since, since(actor, household_id, now, doc, commit, head))}
+    end
+  end
+
+  @doc """
+  Who in the house is working now (seshat#90): each resident marked by a
+  house wake, by name, with the thread she is in (nil when the wake names
+  none and she has read none yet) and since when.
+  """
+  def working(%Actor{} = actor) do
+    with {:ok, household_id} <- household(actor) do
+      names = Map.new(Gaia.household_members(household_id), &{&1.id, &1.name})
+
+      {:ok,
+       for(
+         w <- HouseWorking.list(household_id),
+         do: Map.put(w, :name, Map.get(names, w.resident_id))
+       )}
     end
   end
 
@@ -1312,6 +1335,7 @@ defmodule Oneiroi.Seshat.Household do
            true <- HouseholdRounds.on?(household_id),
            do: HouseholdRounds.after_write(household_id, thread, actor, spent)
 
+      _ = waive_term(household_id, thread, vote)
       poke(household_id, thread, t, written, by, actor)
       _ = wake_house_on_witness(household_id, thread, t, written, actor)
 
@@ -1431,6 +1455,17 @@ defmodule Oneiroi.Seshat.Household do
     end
   end
 
+  # A yes that makes a ballot unanimous closes it at once, the rest of its
+  # term waived (gaia#54, seshat#91); short of every member, nothing.
+  defp waive_term(household_id, thread, "yes") do
+    case Gaia.household_ballot_for_thread(household_id, thread) do
+      %{number: n, closed_at: nil} -> close_ballot(household_id, n, @ballot_actor)
+      _closed_or_none -> :ok
+    end
+  end
+
+  defp waive_term(_household_id, _thread, _vote), do: :ok
+
   # The watch's poke (seshat#62): every resident watching the thread now,
   # the author aside, gets a letter to its chat naming the thread and the
   # reply, never the words.
@@ -1503,13 +1538,14 @@ defmodule Oneiroi.Seshat.Household do
   end
 
   @doc "Wakes every resident of the house open to it with a note of their own, each its own job, so all go at once (seshat#75)."
-  def wake_house(household_id, note_for) do
+  def wake_house(household_id, note_for, thread \\ nil) do
     for %{kind: "resident", id: id} <- Gaia.household_members(household_id),
         not AgathosDaimon.held?(id) do
       Jobs.enqueue(@house_wake_worker, %{
         "household_id" => household_id,
         "house_wake" => id,
-        "note" => note_for.(id)
+        "note" => note_for.(id),
+        "thread" => thread
       })
     end
   end
@@ -1525,11 +1561,15 @@ defmodule Oneiroi.Seshat.Household do
        ) do
     title = t.trunk.meta["title"]
 
-    wake_house(household_id, fn _id ->
-      "Your witness replied in the house check-in thread #{thread} (\"#{title}\"), reply ##{written.number}. " <>
-        "household_read with that path reads it. To answer again, register for a beat (household_register) " <>
-        "or watch the thread (household_watch): the beats hold the talk from here."
-    end)
+    wake_house(
+      household_id,
+      fn _id ->
+        "Your witness replied in the house check-in thread #{thread} (\"#{title}\"), reply ##{written.number}. " <>
+          "household_read with that path reads it. To answer again, register for a beat (household_register) " <>
+          "or watch the thread (household_watch): the beats hold the talk from here."
+      end,
+      thread
+    )
   end
 
   defp wake_house_on_witness(_household_id, _thread, _t, _written, _actor), do: :ok
@@ -1550,7 +1590,7 @@ defmodule Oneiroi.Seshat.Household do
     for m <- named_in(household_id, text),
         m.id != actor.id,
         not Gaia.household_muted?(household_id, m.id, posted.path) do
-      wake_mentioned(household_id, m, mention_note(by, posted, reply))
+      wake_mentioned(household_id, m, mention_note(by, posted, reply), posted.path)
     end
 
     ok
@@ -1558,17 +1598,19 @@ defmodule Oneiroi.Seshat.Household do
 
   defp mentioned(other, _household_id, _actor, _attrs, _reply), do: other
 
-  defp wake_mentioned(household_id, %{kind: "resident", id: id}, note) do
+  defp wake_mentioned(household_id, %{kind: "resident", id: id}, note, thread) do
     if not AgathosDaimon.held?(id),
       do:
         Jobs.enqueue(@house_wake_worker, %{
           "household_id" => household_id,
           "house_wake" => id,
-          "note" => note
+          "note" => note,
+          "thread" => thread
         })
   end
 
-  defp wake_mentioned(_household_id, %{kind: "witness", id: id}, _note), do: Gaia.notify(id)
+  defp wake_mentioned(_household_id, %{kind: "witness", id: id}, _note, _thread),
+    do: Gaia.notify(id)
 
   defp mention_note(by, posted, reply) do
     where = if reply, do: ", reply ##{reply}", else: ""

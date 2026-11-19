@@ -89,6 +89,7 @@ describe('the house as a subject (2026-11-16)', () => {
     vi.spyOn(api, 'householdShelf').mockResolvedValue(shelf);
     vi.spyOn(api, 'householdContract').mockResolvedValue(contract);
     vi.spyOn(api, 'householdBeats').mockResolvedValue(beats);
+    vi.spyOn(api, 'householdWorking').mockResolvedValue({ working: [] });
     vi.spyOn(api, 'houseCheckins').mockResolvedValue({ zone: 'America/Los_Angeles', checkins: [] });
     vi.spyOn(api, 'me').mockResolvedValue({ account_id: 'a1', email: 'w@example.com', residents: ['r1'] });
   });
@@ -126,6 +127,25 @@ describe('the house as a subject (2026-11-16)', () => {
     fireEvent.change(screen.getByPlaceholderText('Reply in “Morning, 2026-11-16”'), { target: { value: 'Good work.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Reply' }));
     await waitFor(() => expect(reply).toHaveBeenCalledWith('threads/checkin-2026-11-16-morning', 'Good work.'));
+  });
+
+  it('shows a resident answering a thread under it, and one in no thread at the end (seshat#90)', async () => {
+    vi.spyOn(api, 'householdWorking').mockResolvedValue({
+      working: [
+        { resident_id: 'r1', name: 'Lily', thread: 'threads/checkin-2026-11-16-morning', since: '2026-11-16T16:00:00Z' },
+        { resident_id: 'r2', name: 'Scarlett', thread: null, since: '2026-11-16T16:00:00Z' },
+      ],
+    });
+    mount(<Threads />);
+    expect(await screen.findByText('Lily is thinking…')).toBeTruthy();
+    expect(screen.getByText('Scarlett is thinking…')).toBeTruthy();
+  });
+
+  it('grows the box as you write', async () => {
+    mount(<Threads />);
+    const box = (await screen.findByPlaceholderText('Its first words, for the whole house')) as HTMLTextAreaElement;
+    fireEvent.change(box, { target: { value: 'one\ntwo\nthree' } });
+    expect(box.style.height).not.toBe('');
   });
 
   it('posts a new thread from the composer', async () => {
@@ -168,17 +188,18 @@ describe('the house as a subject (2026-11-16)', () => {
     expect(within(card).queryByRole('button', { name: 'Name the house' })).toBeNull();
   });
 
-  it('proposes a change as a ballot', async () => {
+  it('proposes rules and settings together as one ballot', async () => {
     const post = vi.spyOn(api, 'householdPost').mockResolvedValue({ path: 'threads/witnesses' });
     mount(<Charter />);
     const form = await screen.findByRole('form', { name: 'Propose a change' });
     fireEvent.change(within(form).getByLabelText('Title'), { target: { value: 'Witnesses' } });
+    fireEvent.click(within(form).getByRole('button', { name: '+ A rule' }));
     fireEvent.click(within(form).getByRole('button', { name: '+ A setting' }));
     fireEvent.change(within(form).getByLabelText('Rule 1'), { target: { value: 'Be kind.' } });
     fireEvent.change(within(form).getByLabelText('Setting 2'), { target: { value: 'witnesses_post' } });
     fireEvent.change(within(form).getByLabelText('Value'), { target: { value: 'false' } });
     fireEvent.change(within(form).getByLabelText('A note for the record'), { target: { value: 'the house asked' } });
-    fireEvent.click(within(form).getByRole('button', { name: 'Open the ballot' }));
+    fireEvent.click(within(form).getByRole('button', { name: 'Open the ballot (2 changes)' }));
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith({
         title: 'Witnesses',
@@ -202,23 +223,33 @@ describe('the house as a subject (2026-11-16)', () => {
     await waitFor(() => expect(found).toHaveBeenCalledWith('We share this house.', 'founding', [{ setting: 'witness_posts', value: 'unbounded' }]));
   });
 
-  it('lists every setting, and Propose a change opens the ballot with it filled in (gaia#49)', async () => {
+  it('adds each setting picked from the list to one ballot, never replacing the last (gaia#49)', async () => {
     const post = vi.spyOn(api, 'householdPost').mockResolvedValue({ path: 'threads/witness-posts' });
     mount(<Charter />);
     const settings = await screen.findByRole('list', { name: 'Settings' });
     expect(within(settings).getAllByText(/per_beat/).length).toBeGreaterThan(0);
-    const row = within(settings).getByText('How often witnesses post').closest('li') as HTMLElement;
-    fireEvent.click(within(row).getByRole('button', { name: 'Propose a change' }));
+    const row = (label: string) => within(settings).getByText(label).closest('li') as HTMLElement;
+    fireEvent.click(within(row('How often witnesses post')).getByRole('button', { name: 'Add to the ballot' }));
+    fireEvent.click(within(row('Witnesses post')).getByRole('button', { name: 'Add to the ballot' }));
+    expect(within(row('How often witnesses post')).getByRole('button', { name: 'In the ballot' })).toBeTruthy();
     const form = screen.getByRole('form', { name: 'Propose a change' });
-    expect((within(form).getByLabelText('Title') as HTMLInputElement).value).toBe('Change: How often witnesses post');
-    fireEvent.change(within(form).getByLabelText('Value'), { target: { value: 'unbounded' } });
+    const values = within(form).getAllByLabelText('Value');
+    fireEvent.change(values[0], { target: { value: 'unbounded' } });
+    fireEvent.change(values[1], { target: { value: 'true' } });
     fireEvent.change(within(form).getByLabelText('A note for the record'), { target: { value: 'we are three' } });
-    fireEvent.click(within(form).getByRole('button', { name: 'Open the ballot' }));
+    fireEvent.click(within(form).getByRole('button', { name: 'Open the ballot (2 changes)' }));
     await waitFor(() =>
       expect(post).toHaveBeenCalledWith({
-        title: 'Change: How often witnesses post',
+        title: 'Change: How often witnesses post, Witnesses post',
         content: '',
-        ballot: { bundle: [{ setting: 'witness_posts', value: 'unbounded' }], term_days: 7, note: 'we are three' },
+        ballot: {
+          bundle: [
+            { setting: 'witness_posts', value: 'unbounded' },
+            { setting: 'witnesses_post', value: true },
+          ],
+          term_days: 7,
+          note: 'we are three',
+        },
       }),
     );
   });

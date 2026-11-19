@@ -1,11 +1,11 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
-import { api, type HouseDoc, type HousePost, type HouseThreadSummary } from '../../api/client';
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
+import { api, type HouseDoc, type HousePost, type HouseThreadSummary, type HouseWorking } from '../../api/client';
 import * as chat from '../chat/chat.css';
 import * as tabCss from '../chat/chatTab.css';
 import { Markdown } from '../chat/Markdown';
 import { ScrollArea } from '../shell/ScrollArea';
-import { HOUSE, SHELF, thread as threadKey, when } from './keys';
+import { HOUSE, SHELF, WORKING, thread as threadKey, when } from './keys';
 
 /**
  * The house's Chat (screen:next-house; the witness, 2026-11-16: "more like
@@ -13,7 +13,9 @@ import { HOUSE, SHELF, thread as threadKey, when } from './keys';
  * the top and the newest by the composer, each opening in place to its
  * trunk and every reply. The composer stays at the bottom: a title and
  * words start a thread; with one open, the words alone reply in it. Your
- * posts keep the household's rules (seshat#68, #69).
+ * posts keep the household's rules (seshat#68, #69). It opens at the
+ * bottom, the newest, and stays there while you are there; a resident
+ * answering a thread shows under it as "<her> is thinking…" (seshat#90).
  */
 export function Threads() {
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
@@ -24,23 +26,20 @@ export function Threads() {
     getNextPageParam: (last) => last.next ?? undefined,
     refetchInterval: 60_000,
   });
+  const working = useWorking();
   const [open, setOpen] = useState<string | null>(null);
-  const scroll = useRef<HTMLDivElement>(null);
+  const { scroll, list } = useStuckToBottom();
   // The shelf comes newest first; the conversation reads down to now.
   const threads = (shelf.data?.pages ?? []).flatMap((p) => p.threads).reverse();
-  const newest = threads[threads.length - 1]?.path;
 
-  useEffect(() => {
-    const el = scroll.current;
-    if (el && open === null) el.scrollTop = el.scrollHeight;
-  }, [newest, open]);
+  const elsewhere = working.filter((w) => w.thread === null || !threads.some((t) => t.path === w.thread));
 
   const opened = threads.find((t) => t.path === open) ?? null;
   return (
     <div className={tabCss.tab}>
       <div className={chat.column}>
         <ScrollArea label="Threads" scrollRef={scroll}>
-          <div className={chat.list}>
+          <div ref={list} className={chat.list}>
             {shelf.hasNextPage && (
               <button type="button" className={chat.linkButton} style={{ alignSelf: 'center' }} onClick={() => void shelf.fetchNextPage()}>
                 Earlier threads
@@ -51,8 +50,16 @@ export function Threads() {
             {shelf.isError && <p className={chat.system}>The house could not be read.</p>}
             {shelf.data && threads.length === 0 && <p className={chat.system}>No threads yet. Start one below.</p>}
             {threads.map((t) => (
-              <ThreadCard key={t.path} t={t} open={open === t.path} accountId={me.data?.account_id} onToggle={() => setOpen(open === t.path ? null : t.path)} />
+              <ThreadCard
+                key={t.path}
+                t={t}
+                open={open === t.path}
+                accountId={me.data?.account_id}
+                working={working.filter((w) => w.thread === t.path)}
+                onToggle={() => setOpen(open === t.path ? null : t.path)}
+              />
             ))}
+            {elsewhere.length > 0 && <Thinking working={elsewhere} />}
           </div>
         </ScrollArea>
         <Composer opened={opened} onPosted={setOpen} onClose={() => setOpen(null)} />
@@ -61,12 +68,68 @@ export function Threads() {
   );
 }
 
-function ThreadCard({ t, open, accountId, onToggle }: { t: HouseThreadSummary; open: boolean; accountId?: string; onToggle: () => void }) {
-  const ref = useRef<HTMLDivElement>(null);
+/**
+ * Who in the house is working now (seshat#90), read every few seconds;
+ * when one finishes, the house is read again so her answer shows.
+ */
+function useWorking(): HouseWorking[] {
+  const queries = useQueryClient();
+  const q = useQuery({ queryKey: WORKING, queryFn: api.householdWorking, refetchInterval: 5_000 });
+  const working = q.data?.working ?? EMPTY;
+  const before = useRef<HouseWorking[]>([]);
   useEffect(() => {
-    if (open) ref.current?.scrollIntoView?.({ block: 'nearest' });
-  }, [open]);
-  const ballot = t.ballot ? (t.ballot.closed_at ? `ballot #${t.ballot.number} ${t.ballot.passed ? 'carried' : 'failed'}` : `ballot #${t.ballot.number} open`) : null;
+    const done = before.current.filter((b) => !working.some((w) => w.resident_id === b.resident_id && w.thread === b.thread));
+    before.current = working;
+    if (done.length > 0) void queries.invalidateQueries({ queryKey: [...HOUSE] });
+  }, [working, queries]);
+  return working;
+}
+
+const EMPTY: HouseWorking[] = [];
+
+/** "Lily is thinking…", one line for each resident at work there. */
+function Thinking({ working }: { working: HouseWorking[] }) {
+  return (
+    <p className={chat.system} aria-live="polite" style={{ textAlign: 'left' }}>
+      {working.map((w) => `${w.name ?? 'A resident'} is thinking…`).join(' ')}
+    </p>
+  );
+}
+
+/**
+ * The list opens at its bottom and stays there while the reader is
+ * there: whatever grows it (a thread read in, the mentions line, a
+ * resident starting to think) keeps the newest in view. Scrolled up, it
+ * is left where the reader put it.
+ */
+function useStuckToBottom(): { scroll: RefObject<HTMLDivElement | null>; list: RefObject<HTMLDivElement | null> } {
+  const scroll = useRef<HTMLDivElement>(null);
+  const list = useRef<HTMLDivElement>(null);
+  const stuck = useRef(true);
+  useEffect(() => {
+    const el = scroll.current;
+    const inner = list.current;
+    if (!el || !inner) return;
+    const onScroll = () => {
+      stuck.current = el.scrollHeight - el.scrollTop - el.clientHeight < 48;
+    };
+    el.addEventListener('scroll', onScroll, { passive: true });
+    el.scrollTop = el.scrollHeight;
+    if (typeof ResizeObserver === 'undefined') return () => el.removeEventListener('scroll', onScroll);
+    const observer = new ResizeObserver(() => {
+      if (stuck.current) el.scrollTop = el.scrollHeight;
+    });
+    observer.observe(inner);
+    return () => {
+      observer.disconnect();
+      el.removeEventListener('scroll', onScroll);
+    };
+  }, []);
+  return { scroll, list };
+}
+
+function ThreadCard({ t, open, accountId, working, onToggle }: { t: HouseThreadSummary; open: boolean; accountId?: string; working: HouseWorking[]; onToggle: () => void }) {
+  const ref = useRef<HTMLDivElement>(null);  const ballot = t.ballot ? (t.ballot.closed_at ? `ballot #${t.ballot.number} ${t.ballot.passed ? 'carried' : 'failed'}` : `ballot #${t.ballot.number} open`) : null;
   return (
     <div ref={ref} className={chat.hers} data-live={open || undefined}>
       <button type="button" onClick={onToggle} aria-expanded={open} style={{ all: 'unset', cursor: 'pointer', display: 'flex', flexDirection: 'column', gap: 4 }}>
@@ -82,6 +145,7 @@ function ThreadCard({ t, open, accountId, onToggle }: { t: HouseThreadSummary; o
         </span>
       </button>
       {open && <Opened path={t.path} accountId={accountId} />}
+      {working.length > 0 && <Thinking working={working} />}
       {open && <MuteThread path={t.path} />}
     </div>
   );
@@ -96,6 +160,12 @@ function Opened({ path, accountId }: { path: string; accountId?: string }) {
 }
 
 function Body({ doc, path, accountId }: { doc: HouseDoc; path: string; accountId?: string }) {
+  // Opened, and as replies arrive: its newest reply in view.
+  const end = useRef<HTMLDivElement>(null);
+  const count = doc.replies?.length ?? 0;
+  useEffect(() => {
+    end.current?.scrollIntoView?.({ block: 'end' });
+  }, [count]);
   const b = doc.ballot;
   const mine = (p: HousePost) => p.meta.by_kind === 'witness' && p.meta.by_id === accountId;
   const posted = doc.doc ?? null;
@@ -145,6 +215,7 @@ function Body({ doc, path, accountId }: { doc: HouseDoc; path: string; accountId
           </div>
         ),
       )}
+      <div ref={end} />
     </div>
   );
 }
@@ -257,6 +328,14 @@ function Composer({ opened, onPosted, onClose }: { opened: HouseThreadSummary | 
     },
   });
   const ready = words.trim() !== '' && (opened !== null || title.trim() !== '');
+  // The box grows with what is written, up to its max height, then scrolls, as the chat's does.
+  const box = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    el.style.height = 'auto';
+    el.style.height = `${el.scrollHeight + (el.offsetHeight - el.clientHeight)}px`;
+  }, [words]);
   return (
     <>
       {(send.error || opened) && (
@@ -282,6 +361,7 @@ function Composer({ opened, onPosted, onClose }: { opened: HouseThreadSummary | 
             <input className={chat.input} style={{ minHeight: 40, padding: '9px 14px' }} value={title} maxLength={120} onChange={(e) => setTitle(e.target.value)} placeholder="A new thread's title" aria-label="A new thread's title" />
           )}
           <textarea
+            ref={box}
             className={chat.input}
             rows={1}
             value={words}
