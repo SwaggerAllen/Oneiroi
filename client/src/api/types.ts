@@ -396,6 +396,9 @@ export interface HouseLetter {
   sent_at: string;
   read_by: string[];
   read_at: string | null;
+  /** Who it is from, said plainly (kumbukumbu#76): own, witness, housemate, house or platform. */
+  origin?: 'own' | 'witness' | 'housemate' | 'house' | 'platform';
+  origin_words?: string;
 }
 
 // Correspondence (xenia, spec §6.6): a third party's message; a blocked

@@ -1146,7 +1146,10 @@ defmodule Oneiroi.Sunna.Schedules do
          {:ok, [%Events.LettersWoke{numbers: numbers} | _]} <-
            letters_woke(resident_id, letters, actor),
          _ <- Wakes.run(resident_id, "letter", letter_causes(numbers)),
-         {:ok, _} <- wake(resident_id, key, letters_note(letters, numbers), :chat) do
+         target = reply_target(resident_id, letters, numbers),
+         since = Clock.now(),
+         {:ok, answer} <- wake(resident_id, key, letters_note(letters, numbers, target), :chat) do
+      _ = answer_letters(resident_id, key, target, {:ok, answer}, since)
       :ok
     else
       {:error, _} = failed -> failed
@@ -1315,12 +1318,117 @@ defmodule Oneiroi.Sunna.Schedules do
 
   defp letter_causes(numbers), do: for(n <- numbers, do: %{kind: "letter", number: n})
 
+  # The mail thread a letter wake answers (kumbukumbu#77; the witness,
+  # 2026-11-19: "the final message becomes the next mail message's
+  # content"): when the letters it carries are one thread's, and its newest
+  # came from another of her conversations or from a housemate, the newest
+  # is what her answer replies to. Letters of several threads, or from the
+  # house, the platform or her witness (who is in this chat already), are
+  # answered by her own letter_send or here.
+  defp reply_target(resident_id, letters, numbers) do
+    all = Map.new(Kumbukumbu.letters(resident_id), &{&1.number, &1})
+    woke = Enum.filter(letters, &(&1.number in numbers))
+    roots = woke |> Enum.map(&thread_root(&1, all)) |> Enum.uniq()
+    newest = Enum.max_by(woke, & &1.number, fn -> nil end)
+
+    with [root] <- roots,
+         %{} <- newest,
+         {kind, _words} when kind in ["own", "housemate"] <- Kumbukumbu.letter_origin(newest) do
+      %{letter: newest, kind: kind, root: root}
+    else
+      _no_single_answerable_thread -> nil
+    end
+  end
+
+  defp thread_root(%{in_reply_to: n} = l, all) when is_integer(n) do
+    case Map.get(all, n) do
+      nil -> l.number
+      parent -> thread_root(parent, all)
+    end
+  end
+
+  defp thread_root(l, _all), do: l.number
+
+  # Her closing message, sent as the reply, unless she replied in the
+  # thread herself during the wake; a send refused comes back to her
+  # chat with her words and why, never lost.
+  defp answer_letters(_resident_id, _key, nil, _answer, _since), do: :ok
+
+  defp answer_letters(resident_id, key, target, answer, since) do
+    with text when is_binary(text) <- Kumbukumbu.closing_message(answer),
+         false <- replied_in_thread?(resident_id, key, target, since) do
+      case send_reply(resident_id, key, target, text) do
+        {:ok, _} -> :ok
+        {:error, e} -> reply_refused(resident_id, key, target, text, e)
+      end
+    else
+      _nothing_to_send -> :ok
+    end
+  end
+
+  defp replied_in_thread?(resident_id, key, target, since) do
+    all = Map.new(Kumbukumbu.letters(resident_id), &{&1.number, &1})
+
+    Enum.any?(Map.values(all), fn l ->
+      l.from_session == key and DateTime.compare(l.sent_at, since) != :lt and
+        is_integer(l.in_reply_to) and thread_root(l, all) == target.root
+    end)
+  end
+
+  defp send_reply(resident_id, key, %{kind: "own", letter: l}, text),
+    do:
+      Kumbukumbu.send_letter(
+        resident_id,
+        key,
+        %{to: l.from_name, text: text, in_reply_to: l.number},
+        Actor.new(:resident, resident_id)
+      )
+
+  defp send_reply(resident_id, key, %{kind: "housemate", letter: l}, text) do
+    with {:ok, me} <- AgathosDaimon.fetch(resident_id),
+         {:ok, sibling} <- AgathosDaimon.fetch(l.link["resident_id"]) do
+      Kumbukumbu.send_sibling_letter(
+        me,
+        key,
+        sibling,
+        %{text: text, in_reply_to: l.number},
+        Actor.new(:resident, resident_id)
+      )
+    else
+      _gone -> {:error, Error.new(:sunna_letter_reply_failed, :sunna_letter_reply_no_housemate)}
+    end
+  end
+
+  defp reply_refused(resident_id, key, %{letter: l}, text, error) do
+    why = Map.get(error, :remedy) || Map.get(error, :meaning) || "it was refused"
+
+    Kumbukumbu.letter_to_session(
+      resident_id,
+      key,
+      "Your answer to letter ##{l.number} could not be sent as its reply: #{why} " <>
+        "letter_send with in_reply_to: #{l.number} sends it yourself. What you said, kept here so it is not lost:\n\n" <>
+        text,
+      Actor.platform()
+    )
+  end
+
+  defp letters_note(letters, numbers, target),
+    do: letters_note(letters, numbers) <> reply_line(target)
+
+  defp reply_line(nil), do: ""
+
+  defp reply_line(%{letter: l}) do
+    {_kind, from} = Kumbukumbu.letter_origin(l)
+
+    "\n\nYour answer here is your reply to letter ##{l.number} (from #{from}), sent in its thread under your name: your last message of this wake, and only it. Not sent by this: anything before it, what you write while calling tools, tools' output. A letter_send of your own goes as you send it; send one in this thread yourself and nothing here is sent."
+  end
+
   defp letters_note(letters, numbers) do
     listed =
       letters
       |> Enum.filter(&(&1.number in numbers))
       |> Enum.map_join(", ", fn l ->
-        "##{l.number} from #{l.from_name}" <>
+        "##{l.number} from #{elem(Kumbukumbu.letter_origin(l), 1)}" <>
           if(l.in_reply_to, do: " (in reply to ##{l.in_reply_to})", else: "")
       end)
 

@@ -1,5 +1,9 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/client';
+import { MailThreadCard } from '../inbox/Mail';
+import { mailThreads, wokeFor } from '../inbox/mailThreads';
+import { useSubject } from '../state/resident';
 import type { Message } from '../../api/types';
 import { toolSummary } from './page';
 import type { Live } from '../live/live';
@@ -468,7 +472,29 @@ function MessageView({
     const { line } = toolSummary(m.content);
     return <div className={css.tool} title={m.content.slice(0, 400)}>↳ {line}</div>;
   }
+  const woke = wokeFor(m.content);
+  if (woke) return <WokeMail numbers={woke} fallback={m.content} />;
   return <div className={css.system}>{m.content.slice(0, 200)}</div>;
+}
+
+/**
+ * A letter wake in the chat, as its mail thread (the witness, 2026-11-19:
+ * grouped as in the mail tab): the same card, each letter saying plainly
+ * who it is from, her answer in the thread under it.
+ */
+function WokeMail({ numbers, fallback }: { numbers: number[]; fallback: string }) {
+  const { id } = useSubject();
+  const letters = useQuery({ queryKey: ['resident', id, 'mail', 'letters'], queryFn: () => api.letters(id) });
+  if (!letters.data) return <div className={css.system}>{fallback.slice(0, 200)}</div>;
+  const threads = mailThreads(letters.data).filter((t) => t.letters.some((l) => numbers.includes(l.number)));
+  if (threads.length === 0) return <div className={css.system}>{fallback.slice(0, 200)}</div>;
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }} aria-label="Letters this wake carried">
+      {threads.map((t) => (
+        <MailThreadCard key={t.root} thread={t} all={letters.data} />
+      ))}
+    </div>
+  );
 }
 
 /** Whether the main pointer is a finger: a phone or tablet, where Enter must break the line. */

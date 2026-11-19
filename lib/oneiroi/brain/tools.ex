@@ -4914,7 +4914,9 @@ defmodule Oneiroi.Brain.Tools do
   defp letter_head(l) do
     reply = if l.in_reply_to, do: " in reply to ##{l.in_reply_to}", else: ""
 
-    "##{l.number} from #{l.from_name} to #{l.to_name}#{linked(Map.get(l, :link))}, " <>
+    {_kind, from} = Kumbukumbu.letter_origin(l)
+
+    "##{l.number} from #{from}, to #{l.to_name}#{linked(Map.get(l, :link))}, " <>
       "#{local_stamp(l.sent_at)}#{reply}"
   end
 

@@ -18,7 +18,9 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
     (`<slug>:<kind>/<ref>`) as chips; the witness's words stay plain.
     The conversation never grows wider than the screen: a long word
     wraps, and a wide code block or table scrolls sideways inside its
-    message. A system line (a wake's note) breaks a long link rather
+    message. A letter wake's note shows as the mail threads it carried,
+    the same cards as Mail's (kumbukumbu#76, #77; the witness,
+    2026-11-19), her answer in the thread under them. A system line (a wake's note) breaks a long link rather
     than widening the conversation.
   - Tool calls collapse to one line.
   - The turn streams in under its step (thinking, the tool's name,

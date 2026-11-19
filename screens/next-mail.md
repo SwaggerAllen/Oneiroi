@@ -29,10 +29,14 @@ the switch to the new client). Built 2026-11-10.
   Answering refreshes the bell and the mail. Work, plugin and kind-gate
   entries still link out to where they are decided.
 - **Chat → Mail** (`#/chat/mail`, beside Conversation and Sessions):
-  - the letters between her conversations (kumbukumbu#44), open first
-    or all, each with where it stands (answered, read, waiting on whom),
-    the first line with the rest a click away, and a keepsake if one
-    rode with it;
+  - the letters between her conversations (kumbukumbu#44), grouped as
+    threads (the witness, 2026-11-19: as a shared-workspace thread), open
+    threads first or all: each thread a card, its first line and how many
+    letters, with whom, and when the last came, opening to every letter
+    oldest first; each letter says plainly who it is from (kumbukumbu#76:
+    her own conversation, her witness, a housemate, the house or the
+    platform), her own marked "Hers", and the thread's newest says where it
+    stands (answered, read, waiting on whom); a keepsake if one rode with it;
   - **Write a letter** to one of her conversations by name, to Free
     time (her next free time reads it first), or to the house;
   - the mail from outside the house (xenia#12), by thread, newest first,

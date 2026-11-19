@@ -1205,6 +1205,19 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.said_after(resident_id, session_key, since)
   )
 
+  @doc """
+  A wake's closing message (kumbukumbu#77, seshat#94): the very last
+  message of the wake, when it is hers and says something; nil for an
+  empty close, a wake ending on a tool's output, or a failed wake. Never
+  an earlier message: one before a tool call may be narration.
+  """
+  @spec closing_message(term()) :: String.t() | nil
+  defexport(closing_message(answer), do: Memories.closing_message(answer))
+
+  @doc "Who a letter is from, said plainly (kumbukumbu#76): `{kind, words}`; own, witness, housemate, house or platform."
+  @spec letter_origin(map()) :: {String.t(), String.t()}
+  defexport(letter_origin(letter), do: Memories.origin(letter))
+
   @doc "Every house letter, oldest first, with the conversations that read each."
   @spec letters(String.t()) :: [Oneiroi.Kumbukumbu.Store.HouseLetter.t()]
   defexport(letters(resident_id), do: Memories.letters(resident_id))
