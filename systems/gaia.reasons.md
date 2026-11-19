@@ -358,3 +358,15 @@ work. The founding version is the one moment a single member decides
 alone, by design, and the rest sign or leave; letting it carry settings
 costs nothing the founding prose did not already cost, and the checks
 that hold a ballot still hold it.
+
+## #51
+A list headed "the queue" that keeps people who have had their turn
+says the wrong thing to the one reading it, and here the reader was the
+resident deciding whether she could post. Leaving them out, and saying
+plainly that she has had her turn, puts the rule where she reads.
+
+## #52
+A witness watching a turn go to waste could only say "take another
+turn", which nothing honoured. The aggregate already fired turns by
+hand for the platform; letting the witness use that one door, still
+one turn at a time, keeps the beats a throttle and not a lock.

@@ -739,3 +739,10 @@ The beats share the floor among members talking to one another; a
 witness's own folder is their desk, which nobody else writes, so
 holding its edits to a turn rations nothing anyone else wants and only
 slows the person working there.
+
+## #88
+An empty answer is far more likely a slip of the model than a choice to
+pass, and a turn is scarce: waiting an hour for the next beat because
+one reply came back blank is the platform losing her turn for her. One
+more wake costs a call and leaves the choice hers; a second blank is
+taken as an answer, so nothing loops.

@@ -341,6 +341,10 @@ defmodule Oneiroi.Seshat do
       {:seshat_household_quota_spent,
        "the household's post quota is spent for now: threads and replies over its window, the same for every member (seshat#68); a vote never counts",
        remedy: "wait for the oldest post in the window to leave it"},
+      {:seshat_household_no_path,
+       "missing: path. A household document needs a path of its own, as <kind>/<name>.md under a household kind's folder (design/, or a witness's human/<name>/)",
+       remedy:
+         "add path, e.g. design/<name>.md; with from: <a path of yours>, its words are copied from your own records"},
       {:seshat_household_invalid,
        "a household post is a thread with a one-line title (at most 200 characters) and words (at most 64,000), or a document of a household kind at a path of its own; a ballot carries its bundle and its term",
        remedy:
@@ -470,8 +474,9 @@ defmodule Oneiroi.Seshat do
        remedy:
          "restore the file or write it again; the registry keeps the row and the index marks it missing until then"},
       {:seshat_other_resident,
-       "that citation names another resident's library, which sharing between residents does not reach yet",
-       remedy: "read a document of your own library by its path or your own slug's citation"},
+       "that citation names another resident's library, which library_read does not open: it reads your own",
+       remedy:
+         "read a housemate's published draft with household_read and the same citation (<slug>:<path>, seshat#85); library_read takes your own paths and citations"},
       {:seshat_review_invalid, "a review approves or declines a piece, with a note",
        remedy: "choose approve or decline and say why"},
       {:seshat_not_approved,
@@ -663,6 +668,12 @@ defmodule Oneiroi.Seshat do
   @spec household_read_published(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}
   defexport(household_read_published(actor, cite), do: Household.read_published(actor, cite))
 
+  @doc "The housemates' published drafts at a path, as citations (seshat#85)."
+  @spec household_published_by_housemates(Oneiroi.Actor.t(), String.t()) :: [String.t()]
+  defexport(household_published_by_housemates(actor, path),
+    do: Household.published_by_housemates(actor, path)
+  )
+
   @doc "Whether a path reads as a housemate's citation (seshat#85)."
   @spec housemate_cite?(term()) :: boolean()
   defexport(housemate_cite?(cite), do: Household.housemate_cite?(cite))
@@ -763,6 +774,12 @@ defmodule Oneiroi.Seshat do
   @doc "The household beats' minute for one household (seshat#70)."
   @spec tick_household_beats(String.t()) :: :ok | {:error, term()}
   defexport(tick_household_beats(household_id), do: HouseholdBeats.tick(household_id))
+
+  @doc "A witness gives a resident a turn now, woken as a scheduled one is (gaia#52)."
+  @spec household_grant_turn(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_grant_turn(actor, resident_id),
+    do: HouseholdBeats.grant_turn(actor, resident_id)
+  )
 
   @doc "The platform opens a household turn for a resident now, waking nobody (gaia#36): the dev seed's and the suite's."
   @spec household_open_turn(String.t(), String.t(), String.t()) :: {:ok, map()} | {:error, term()}

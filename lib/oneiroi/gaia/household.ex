@@ -470,7 +470,10 @@ defmodule Oneiroi.Gaia.Household do
   # open one for a resident now, outside the queue; no route reaches it.
   def execute(%__MODULE__{} = h, %Commands.OpenHouseholdTurn{} = c) do
     cond do
-      not match?(%{kind: :platform}, c.actor) ->
+      # The platform's hand (gaia#36), or a witness of the house giving a
+      # resident a turn now (gaia#52; the witness, 2026-11-18: "here take
+      # another turn").
+      not (match?(%{kind: :platform}, c.actor) or match?({"witness", _}, member(h, c.actor))) ->
         {:error, Error.new(:gaia_beats_invalid, :gaia_household_hand_turn_not_platform)}
 
       not MapSet.member?(h.residents, c.resident_id) ->
@@ -480,9 +483,12 @@ defmodule Oneiroi.Gaia.Household do
         {:error, Error.new(:gaia_turn_open, :gaia_household_hand_turn_open)}
 
       true ->
-        fire(h, c, shape(h), "hand", c.resident_id)
+        fire(h, c, shape(h), opened_by(c.actor), c.resident_id)
     end
   end
+
+  defp opened_by(%{kind: :witness}), do: "witness"
+  defp opened_by(_platform), do: "hand"
 
   defp open?(%{turn: turn}, turn), do: true
   defp open?(_open, _turn), do: false
@@ -693,8 +699,9 @@ defmodule Oneiroi.Gaia.Household do
     end
   end
 
-  defp fire(%__MODULE__{open_turn: nil} = h, c, shape, "hand", resident_id),
-    do: fired(h, c, shape, Beats.top(h.id, shape, c.at), resident_id, "hand")
+  defp fire(%__MODULE__{open_turn: nil} = h, c, shape, by, resident_id)
+       when by in ["hand", "witness"],
+       do: fired(h, c, shape, Beats.top(h.id, shape, c.at), resident_id, by)
 
   defp fire(%__MODULE__{}, _c, _shape, _by, _resident_id), do: nil
 

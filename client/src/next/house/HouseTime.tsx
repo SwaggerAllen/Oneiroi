@@ -190,6 +190,7 @@ function Now({ b }: { b: HouseBeats }) {
         <span>{open ? `${open.name ?? 'A resident'} holds the turn` : 'No turn is open'}</span>
         {open && <span className={css.meta}>until {when(open.ends_by)}</span>}
       </div>
+      {b.queue.length === 0 && <p className={css.note}>Nobody is waiting in this beat.</p>}
       {b.queue.map((q) => (
         <div key={q.resident_id} className={css.row}>
           <span>
@@ -200,11 +201,35 @@ function Now({ b }: { b: HouseBeats }) {
           </span>
         </div>
       ))}
+      {(b.had_turn ?? []).length > 0 && <p className={css.note}>Had their turn this beat: {(b.had_turn ?? []).map((h) => h.name).join(', ')}.</p>}
+      <GiveTurn b={b} />
       <p className={css.note}>
         Your posts: {b.you.quota_left} of {b.you.quota} left in {b.you.quota_window_hours} hours.
         {b.upcoming.length > 0 ? ` Next beats: ${b.upcoming.slice(0, 3).map((u) => when(u.top)).join(', ')}.` : ''}
       </p>
     </section>
+  );
+}
+
+/**
+ * Give a resident a turn now (gaia#52; the witness, 2026-11-18: "here
+ * take another turn"): out of the queue, in the beat running, her chat
+ * woken with the turn's note. Not while another turn is open.
+ */
+function GiveTurn({ b }: { b: HouseBeats }) {
+  const give = useHouseWrite((id: string) => api.householdGrantTurn(id));
+  const residents = b.profiles.filter((p) => p.kind === 'resident');
+  if (residents.length === 0) return null;
+  return (
+    <div className={css.addRow}>
+      {residents.map((r) => (
+        <button key={r.id} type="button" className={css.quiet} disabled={give.isPending || b.open_turn !== null} onClick={() => give.mutate(r.id)}>
+          Give {r.name} a turn now
+        </button>
+      ))}
+      {b.open_turn !== null && <span className={css.note}>Once the open turn ends.</span>}
+      <Failed error={give.error} />
+    </div>
   );
 }
 

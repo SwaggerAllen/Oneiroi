@@ -232,6 +232,36 @@ defmodule OneiroiWeb.HouseholdController do
   defp house(conn, {:error, %{kind: :seshat_household_not_member} = e}), do: error(conn, 404, e)
   defp house(conn, {:error, e}), do: error(conn, 422, e)
 
+  operation(:grant_turn,
+    summary:
+      "Give a resident a turn now (gaia#52): out of the queue, in the beat running, her chat woken with the turn's note; refused while another turn is open",
+    request_body:
+      {"whose", "application/json",
+       %Schema{
+         type: :object,
+         required: [:resident_id],
+         properties: %{resident_id: %Schema{type: :string}}
+       }},
+    responses: [created: {"the turn", "application/json", %Schema{type: :object}}]
+  )
+
+  def grant_turn(conn, %{"resident_id" => resident_id}) do
+    case Seshat.household_grant_turn(actor(conn), resident_id) do
+      {:ok, turn} -> conn |> put_status(201) |> json(turn)
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  def grant_turn(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :resident_required,
+        :web_household_turn_resident,
+        "resident_id is required"
+      )
+
   operation(:profile,
     summary:
       "Set this witness's own wake profile in the household's beats, with a note: a witness is never woken, so self is the one it takes (gaia#37)",

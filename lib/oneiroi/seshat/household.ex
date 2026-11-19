@@ -915,7 +915,8 @@ defmodule Oneiroi.Seshat.Household do
   defp post_document(actor, household_id, _view, attrs) do
     title = one_line(attrs["title"])
 
-    with {:ok, path} <- household_path(attrs["path"] || ""),
+    with :ok <- path_given(attrs["path"]),
+         {:ok, path} <- household_path(attrs["path"]),
          false <- Kinds.container?(Kinds.kind_of(path)),
          :ok <- own_folder(actor, path),
          {:ok, sharing} <- sharing(attrs, actor),
@@ -998,6 +999,28 @@ defmodule Oneiroi.Seshat.Household do
        }}
     end
   end
+
+  @doc """
+  The housemates who have published a draft at `path` (seshat#85), as
+  `<slug>:<path>` citations: what a read of her own file at the same path
+  names, so a same-path draft of a housemate's is never silently
+  shadowed by her own (Lily's letter #1182, 2026-11-18).
+  """
+  def published_by_housemates(%Actor{kind: :resident, id: me} = actor, path) do
+    case household(actor) do
+      {:ok, household_id} ->
+        for %{kind: "resident", id: id} <- Gaia.household_members(household_id),
+            id != me,
+            Published.latest(id, path) != nil,
+            {:ok, r} <- [AgathosDaimon.fetch(id)],
+            do: "#{r.slug}:#{path}"
+
+      _none ->
+        []
+    end
+  end
+
+  def published_by_housemates(_actor, _path), do: []
 
   @doc "Whether a path reads as a housemate's citation, `<slug>:<path>`."
   def housemate_cite?(cite), do: match?({:ok, _, _, _}, housemate_cite(cite))
@@ -1217,6 +1240,15 @@ defmodule Oneiroi.Seshat.Household do
     do:
       {:error,
        Error.new(:seshat_household_no_such_document, :seshat_household_edit_absent, path: path)}
+
+  # A document posted with no path is told so first (2026-11-18, Lily's
+  # letter #1175: the path's format, given alone, read as a format fault
+  # through eight tries).
+  defp path_given(path) do
+    if is_binary(path) and String.trim(path) != "",
+      do: :ok,
+      else: {:error, Error.new(:seshat_household_no_path, :seshat_household_document_no_path)}
+  end
 
   # Whose folder a household document goes in (seshat#81): a witness's
   # in human/<their name>/, made by its first file; a resident's in a

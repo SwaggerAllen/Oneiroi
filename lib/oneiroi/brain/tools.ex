@@ -3130,10 +3130,15 @@ defmodule Oneiroi.Brain.Tools do
          {:ok, %{document: row, content: content}} <- Seshat.read(turn.resident_id, name) do
       library_page(row, content, from) <>
         leased(Seshat.lease(turn.resident_id, row.path)) <>
-        shared_line(Seshat.household_shared_from(turn.resident, row.path))
+        shared_line(Seshat.household_shared_from(turn.resident, row.path)) <>
+        housemates_line(Seshat.household_published_by_housemates(turn.resident, row.path), true)
     else
-      {:error, %Seshat.Error{} = e} -> unreadable(e)
-      other -> other
+      {:error, %Seshat.Error{} = e} ->
+        unreadable(e) <>
+          housemates_line(Seshat.household_published_by_housemates(turn.resident, name), false)
+
+      other ->
+        other
     end
   end
 
@@ -3360,7 +3365,8 @@ defmodule Oneiroi.Brain.Tools do
            turn.resident
          ) do
       {:ok, p} ->
-        "Published #{p.path} at #{String.slice(p.commit, 0, 12)}: your housemates read it as #{own_slug(turn)}:#{p.path}."
+        "Published #{p.path} at #{String.slice(p.commit, 0, 12)}: your housemates read it by citation through household_read, as #{own_slug(turn)}:#{p.path}. " <>
+          "It is not on the household shelf: household_post with path (in your turn) puts a copy there, and from: #{p.path} names this file as its source."
 
       other ->
         other
@@ -3970,7 +3976,7 @@ defmodule Oneiroi.Brain.Tools do
     queue =
       case b.queue do
         [] ->
-          "Nobody is registered."
+          "Nobody is waiting."
 
         q ->
           Enum.map_join(q, "\n", fn r ->
@@ -3984,19 +3990,7 @@ defmodule Oneiroi.Brain.Tools do
         t -> "Turn ##{t.turn} is #{t.name}'s, until #{local_stamp(t.ends_by)}."
       end
 
-    place =
-      case you.registrations do
-        [] ->
-          "You are registered for no beat; household_register signs you up for one."
-
-        tops ->
-          "You are registered for the beats at " <>
-            Enum.map_join(tops, ", ", &local_stamp/1) <>
-            if(you.queued,
-              do: "; #{you.queued.position} in the queue of the beat now.",
-              else: "."
-            )
-      end
+    place = beat_place(b, you)
 
     upcoming =
       Enum.map_join(b.upcoming, "\n", fn u ->
@@ -4013,6 +4007,40 @@ defmodule Oneiroi.Brain.Tools do
     #{place} You have missed #{you.missed}. Your wake profile: #{you.profile}. Your quota: #{you.quota_left} of #{you.quota} left in the last #{you.quota_window_hours} hours.
     BEATS.md on the shelf is the record.
     """
+  end
+
+  # Where she stands in the beats: her registrations to come, her place
+  # in the queue now, and whether she has had her turn (gaia#51). A
+  # registration for the beat now whose turn she has had is spent, said
+  # so rather than listed as waiting.
+  defp beat_place(b, you) do
+    ahead =
+      if you[:had_turn],
+        do: Enum.reject(you.registrations, &(DateTime.compare(&1, b.beat.top) == :eq)),
+        else: you.registrations
+
+    had =
+      if you[:had_turn],
+        do:
+          "You have had your turn in the beat now; household_register for #{local_stamp(b.beat.ends)} or a later beat to post again. ",
+        else: ""
+
+    place =
+      had <>
+        case ahead do
+          [] ->
+            "You are registered for no beat to come; household_register signs you up for one."
+
+          tops ->
+            "You are registered for the beats at " <>
+              Enum.map_join(tops, ", ", &local_stamp/1) <>
+              if(you.queued,
+                do: "; #{you.queued.position} in the queue of the beat now.",
+                else: "."
+              )
+        end
+
+    place
   end
 
   # The household's shelf (seshat#61), one line an item.
@@ -4082,6 +4110,20 @@ defmodule Oneiroi.Brain.Tools do
       cite_line(doc) <>
       discussed_line(doc) <> "\n" <> String.slice(chunk, 0, size) <> read_on(from + size, total)
   end
+
+  # A housemate's published draft at the same path (seshat#85; Lily's
+  # letter #1182): named, never shadowed silently by her own.
+  defp housemates_line([], _own?), do: ""
+
+  defp housemates_line(cites, true),
+    do:
+      "\n\nThis is your own file. A housemate has published a draft at the same path: " <>
+        Enum.join(cites, ", ") <> "; household_read with that citation reads it."
+
+  defp housemates_line(cites, false),
+    do:
+      " A housemate has published a draft at that path: " <>
+        Enum.join(cites, ", ") <> "; household_read with that citation reads it."
 
   # Where a file of hers is shared in the house, and where its feedback
   # is (seshat#84): the shared edition's talk, followed back to her draft.

@@ -83,6 +83,10 @@ defmodule Oneiroi.Seshat.NameFoldersTest do
 
     assert {:error, %{kind: :seshat_witness_unnamed}} = Seshat.household_post(ctx.andrew, doc)
 
+    # A document with no path is told so first (Lily's letter #1175).
+    assert {:error, %{kind: :seshat_household_no_path}} =
+             Seshat.household_post(ctx.andrew, Map.delete(doc, "path"))
+
     :ok = Gaia.name_witness(ctx.witness.id, "Andrew", ctx.andrew)
 
     assert {:error, %{kind: :seshat_not_your_folder}} =

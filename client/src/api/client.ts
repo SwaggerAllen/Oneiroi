@@ -325,6 +325,8 @@ export interface HouseBeats {
   next_top: string;
   open_turn: HouseTurn | null;
   queue: { position: number; resident_id: string; name: string; missed: number; turns_this_beat: number }[];
+  /** Who has had her share of the beat running (gaia#51): no longer waiting in it. */
+  had_turn?: { resident_id: string; name: string }[];
   upcoming: { top: string; signup_closes: string }[];
   profiles: { kind: string; id: string; name: string; profile: string; missed: number }[];
   closed: { beat_top: string; closed_at: string; turns: { turn: number; resident_id: string; outcome: string | null }[]; passed_over: string[]; carried: string[]; note: string | null }[];
@@ -641,6 +643,7 @@ export const api = {
   householdContract: () => call<HouseContract>('GET', '/v1/household/contract'),
   householdSign: () => call<HouseContract>('POST', '/v1/household/contract/signature'),
   householdProposeCharter: (prose: string, note: string, bundle: BallotItem[] = []) => call<HouseContract>('POST', '/v1/household/contract', { prose, note, bundle }),
+  householdGrantTurn: (residentId: string) => call<HouseTurn>('POST', '/v1/household/beats/turns', { resident_id: residentId }),
   householdBeats: () => call<HouseBeats>('GET', '/v1/household/beats'),
   householdPost: (post: { title?: string; content: string; kind?: string; path?: string; doc?: string; ballot?: { bundle: BallotItem[]; term_days: number; note: string } }) =>
     call<{ path: string }>('POST', '/v1/household/posts', post),

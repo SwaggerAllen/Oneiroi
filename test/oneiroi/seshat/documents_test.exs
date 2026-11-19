@@ -479,7 +479,7 @@ defmodule Oneiroi.Seshat.DocumentsTest do
     assert read(turn, %{path: "design/notes.md"}) =~ "After #{ctx.slug}:writing/pond"
 
     assert read(turn, %{path: "someone-else:writing/pond"}) ==
-             "Not done: that citation names another resident's library, which sharing between residents does not reach yet. Read a document of your own library by its path or your own slug's citation."
+             "Not done: that citation names another resident's library, which library_read does not open: it reads your own. Read a housemate's published draft with household_read and the same citation (<slug>:<path>, seshat#85); library_read takes your own paths and citations."
   end
 
   test "a long document comes in pages under the bound, and the pages join back to the file's exact bytes",
