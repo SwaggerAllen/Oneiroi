@@ -227,10 +227,12 @@ function ThreadStates({ b }: { b: HouseBeats }) {
 const CHANNELS: Record<string, string> = {
   turn: 'turn',
   mention: 'mention',
-  checkin: 'house check-in',
+  checkin: 'check-in',
   letter: 'letters',
   free_time: 'free time',
   digest: 'digest',
+  night_pass: 'night pass',
+  work: 'work',
 };
 
 function cause(c: Record<string, unknown>): string {
@@ -247,6 +249,14 @@ function cause(c: Record<string, unknown>): string {
       return String(c.thread);
     case 'run':
       return `run ${String(c.label ?? '')}`;
+    case 'checkin':
+      return String(c.key ?? '');
+    case 'pass':
+      return `${String(c.pass)} pass, turn ${String(c.turn)}`;
+    case 'work':
+      return `item #${String(c.number)}, turn ${String(c.turn)}`;
+    case 'work_wrap':
+      return `item #${String(c.number)}, its wrap`;
     default:
       return String(c.kind ?? '');
   }

@@ -585,9 +585,15 @@ defmodule Oneiroi.Sunna.Schedules do
     }
 
     case dispatch(command) do
-      {:ok, []} -> :already
-      {:ok, _} -> wake_main(resident_id, checkin_note(resident_id, checkin), actor)
-      other -> other
+      {:ok, []} ->
+        :already
+
+      {:ok, _} ->
+        _ = Wakes.run(resident_id, "checkin", [%{kind: "checkin", key: checkin.key, day: day}])
+        wake_main(resident_id, checkin_note(resident_id, checkin), actor)
+
+      other ->
+        other
     end
   end
 
@@ -736,6 +742,10 @@ defmodule Oneiroi.Sunna.Schedules do
   def scene_pass(resident_id, day, slot, key, n) do
     with {:ok, row} <- resident(resident_id),
          {:ok, key} <- scene_session(resident_id, row, key),
+         _ <-
+           Wakes.run(resident_id, "night_pass", [
+             %{kind: "pass", pass: "scene", day: day, turn: n}
+           ]),
          {:ok, result} <- wake(resident_id, key, scene_note(resident_id, row, day, n), :chat) do
       if Map.get(result, :rounds_spent) && n < Config.fetch!(:sunna, :scene_turns),
         do: free_time_worker().enqueue_scene(resident_id, day, slot, key, n + 1),
@@ -777,6 +787,8 @@ defmodule Oneiroi.Sunna.Schedules do
          {:ok, note} <- port.night_pass_note(resident_id, pass, day, n),
          {:ok, row} <- resident(resident_id),
          {:ok, key} <- scene_session(resident_id, row, key),
+         _ <-
+           Wakes.run(resident_id, "night_pass", [%{kind: "pass", pass: pass, day: day, turn: n}]),
          {:ok, result} <- wake(resident_id, key, note, :chat) do
       if Map.get(result, :rounds_spent) && n < night_turns(pass),
         do: free_time_worker().enqueue_night(resident_id, pass, day, slot, key, n + 1),

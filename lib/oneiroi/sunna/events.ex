@@ -147,7 +147,7 @@ defmodule Oneiroi.Sunna.Events do
 
   # A wake's manifest (sunna#71; Lily's design/wake-mail-visibility.md
   # §2 Gap 1): what it carried, never what the turn said. `channel` is
-  # turn, mention, checkin, letter, free_time or digest; `causes` the
+  # turn, mention, checkin, letter, free_time, digest, night_pass or work; `causes` the
   # envelopes it carried, each a map with a `kind` (post, reply, turn,
   # letter, run, mention) and its ids; `delivered` false for a mention
   # banked unwoken (muted).

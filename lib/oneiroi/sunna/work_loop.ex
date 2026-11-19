@@ -37,6 +37,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   alias Oneiroi.Sunna.Error
   alias Oneiroi.Sunna.Schedules
   alias Oneiroi.Sunna.Store
+  alias Oneiroi.Sunna.Wakes
   alias Oneiroi.Sunna.Work
   alias Oneiroi.Sunna.WorkRouter
 
@@ -313,6 +314,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
          nil <- care_wait(resident_id),
          {:ok, left} <- allowance(resident_id),
          true <- n <= Config.fetch!(:sunna, :work_turns),
+         _ <- Wakes.run(resident_id, "work", [%{kind: "work", number: number, turn: n}]),
          {:ok, result} <- wake(resident_id, key, note(resident_id, number, n, left), :work) do
       carry_on(resident_id, key, number, n, result)
     else
@@ -379,6 +381,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
         :ok
 
       nil ->
+        _ = Wakes.run(resident_id, "work", [%{kind: "work_wrap", number: number}])
+
         result =
           case wake(resident_id, key, Prompt.render!("work_wrap", %{number: number}), :planning) do
             # Outlasted, the wrap still runs on and records itself (sunna#67).

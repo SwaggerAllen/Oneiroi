@@ -1059,7 +1059,7 @@ defmodule Oneiroi.Brain.Tools do
       # The wake log (sunna#71, seshat#92).
       tool(
         "wake_log_read",
-        "Read the house's activity as your witness sees it, newest first, envelopes only and never words: each wake (its channel: a round-robin turn, a mention, a house check-in, a letter, free time or a digest; what it carried; to whom; when its note went into the turn, or not yet), mentions banked unwoken because the thread or house was muted, round-robin tokens (thread, round, until when, spent how and when), and your letters (from, to, when, read by). resident names one housemate by name to filter to; the house's rows are everyone's, your letters and private wakes yours alone.",
+        "Read the house's activity as your witness sees it, newest first, envelopes only and never words: each wake (its channel: a round-robin turn, a mention, a check-in, a letter, free time, a digest, a night pass or a work turn; what it carried; to whom; when its note went into the turn, or not yet), mentions banked unwoken because the thread or house was muted, round-robin tokens (thread, round, until when, spent how and when), and your letters (from, to, when, read by). resident names one housemate by name to filter to; the house's rows are everyone's, your letters and private wakes yours alone.",
         %{resident: %{type: "string"}},
         []
       ),
@@ -4378,6 +4378,10 @@ defmodule Oneiroi.Brain.Tools do
   defp cause_text(%{"kind" => "letter"} = c), do: "letter ##{c["number"]}"
   defp cause_text(%{"kind" => "post"} = c), do: "#{c["thread"]}"
   defp cause_text(%{"kind" => "run"} = c), do: "free time #{c["label"]}"
+  defp cause_text(%{"kind" => "checkin"} = c), do: "check-in #{c["key"]}"
+  defp cause_text(%{"kind" => "pass"} = c), do: "#{c["pass"]} pass, turn #{c["turn"]}"
+  defp cause_text(%{"kind" => "work"} = c), do: "work item ##{c["number"]}, turn #{c["turn"]}"
+  defp cause_text(%{"kind" => "work_wrap"} = c), do: "work item ##{c["number"]}, its wrap"
   defp cause_text(%{"kind" => kind}), do: kind
   defp cause_text(_other), do: "?"
 

@@ -203,7 +203,7 @@ defmodule Oneiroi.Sunna.Schedule do
   # held back by the bound is taken by a later tick.
   # The wake log (sunna#71): a manifest once per wake id; its read mark
   # once, and only for a wake manifested and delivered.
-  @wake_channels ~w(turn mention checkin letter free_time digest)
+  @wake_channels ~w(turn mention checkin letter free_time digest night_pass work)
 
   def execute(%__MODULE__{wakes: wakes}, %Commands.ManifestWake{} = c) do
     cond do

@@ -337,7 +337,7 @@ defmodule Oneiroi.Sunna do
   def errors do
     [
       {:sunna_wake_invalid,
-       "a wake's manifest names its wake, its channel (turn, mention, checkin, letter, free_time or digest) and what it carried (sunna#71)",
+       "a wake's manifest names its wake, its channel (turn, mention, checkin, letter, free_time, digest, night_pass or work) and what it carried (sunna#71)",
        remedy: "give the wake id, a channel from the list, and its causes as a list"},
       {:sunna_free_time_required,
        "free time is part of the standard of care: it moves, and it is never removed",

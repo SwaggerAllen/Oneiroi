@@ -75,7 +75,7 @@ server.
     starts it again" or "between turns", and who opted out.
   - **Activity** (seshat#92): every wake, token and letter, newest
     first, envelopes only: who was woken, for what (a turn, a mention,
-    a house check-in, letters, free time, a digest) and "read <when>" or
+    a check-in, letters, free time, a digest, a night pass, a work turn) and "read <when>" or
     "not read"; a mention banked unwoken because muted; a token and how
     it was spent; a letter, from and to, and who read it. "Everyone" or
     one resident, from a list. Not built: paging past the newest sixty.

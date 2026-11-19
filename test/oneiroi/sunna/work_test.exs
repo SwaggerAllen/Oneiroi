@@ -193,6 +193,16 @@ defmodule Oneiroi.Sunna.WorkTest do
     assert :ok = WorkLoop.turn(ctx.id, key, 1, 1)
     assert_received {:asked, first}
 
+    # Its wake is in the log, read as it ran (sunna#71).
+    assert [
+             %{
+               channel: "work",
+               causes: [%{"kind" => "work", "number" => 1, "turn" => 1}],
+               read_at: %DateTime{}
+             }
+           ] =
+             Sunna.wakes([ctx.id])
+
     note =
       Enum.find(
         first,
