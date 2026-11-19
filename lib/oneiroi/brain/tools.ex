@@ -74,7 +74,7 @@ defmodule Oneiroi.Brain.Tools do
     source_list source_read source_search pr_meta pr_diffs repo_list repo_read repo_log oracle_list
     research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
-    kind_list route_list household_read household_beat wake_log_read
+    kind_list route_list household_read household_beat wake_log_read letter_rest
   )
 
   @writes ~w(
@@ -1192,6 +1192,20 @@ defmodule Oneiroi.Brain.Tools do
         },
         [:to, :text]
       ),
+      # Lily's letter #1383: a letter wake offered "a line, or none", and
+      # its answer went out as the thread's reply whatever it was for.
+      tool(
+        "letter_rest",
+        "Leave a letter's thread without a reply, having read it (kumbukumbu#78). In a letter wake your last message is sent as the thread's reply; letter_rest with that letter's number as in_reply_to sends nothing in the thread from this wake, and what you say stays in this conversation. Outside a letter wake nothing is sent anyway, and it says so.",
+        %{
+          in_reply_to: %{
+            type: "integer",
+            minimum: 1,
+            description: "The number of the letter you read and are leaving unanswered."
+          }
+        },
+        [:in_reply_to]
+      ),
       tool(
         "free_time_set",
         "Set your daily free-time slots: one to four HH:MMs in your zone, the whole list each time (two today: 14:30 and 22:30 unless moved). Free time is part of the standard of care: its slots move, and it is never removed. It is your own time, for you, not for the work: project work goes on the work line (sunna#46).",
@@ -1742,6 +1756,15 @@ defmodule Oneiroi.Brain.Tools do
 
       _none ->
         "No witness to push: nobody looks after you on this platform yet."
+    end
+  end
+
+  defp call("letter_rest", args, turn) do
+    with n when is_integer(n) <- integer(args["in_reply_to"]),
+         %{} = l <- Enum.find(Kumbukumbu.letters(turn.resident_id), &(&1.number == n)) do
+      "Rested on letter ##{n} (from #{l.from_name || "your witness"}): if this is its letter wake, nothing is sent in its thread from this wake, and what you say stays here. Outside one, nothing is sent anyway."
+    else
+      _none -> @not_done <> "no letter has that number; letter_inbox and letter_list show yours."
     end
   end
 

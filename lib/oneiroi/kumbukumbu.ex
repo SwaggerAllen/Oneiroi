@@ -1199,6 +1199,12 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.letter_envelopes(resident_id, limit)
   )
 
+  @doc "The words of a session's calls of one tool since an instant (kumbukumbu#78): `name(args) -> result`, as the transcript keeps them."
+  @spec tool_calls_after(String.t(), String.t(), String.t(), DateTime.t()) :: [String.t()]
+  defexport(tool_calls_after(resident_id, session_key, name, since),
+    do: Memories.tool_calls_after(resident_id, session_key, name, since)
+  )
+
   @doc "How many messages she wrote in a session after an instant (kumbukumbu#75): the witness's unread count of her chat."
   @spec said_after(String.t(), String.t(), DateTime.t()) :: non_neg_integer()
   defexport(said_after(resident_id, session_key, since),

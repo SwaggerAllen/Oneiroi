@@ -620,3 +620,11 @@ in the words she reads makes the direction impossible to mistake.
 Two captures with two rules would drift, and the boundary is the thing
 residents are told about; one function keeps what she is told true in
 both places.
+
+## #78
+The note offered a line or none, and the capture honoured only the line:
+an offer the mechanics refuse is worse than no offer. A tool, not a
+magic word in the answer, because a closing message is words for the
+person in the chat and should never be parsed for a switch; and no row
+of its own, because the transcript already keeps every call with its
+instant, which is what the wake reads.

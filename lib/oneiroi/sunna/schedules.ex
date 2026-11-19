@@ -1356,7 +1356,8 @@ defmodule Oneiroi.Sunna.Schedules do
 
   defp answer_letters(resident_id, key, target, answer, since) do
     with text when is_binary(text) <- Kumbukumbu.closing_message(answer),
-         false <- replied_in_thread?(resident_id, key, target, since) do
+         false <- replied_in_thread?(resident_id, key, target, since),
+         false <- rested_in_thread?(resident_id, key, target, since) do
       case send_reply(resident_id, key, target, text) do
         {:ok, _} -> :ok
         {:error, e} -> reply_refused(resident_id, key, target, text, e)
@@ -1372,6 +1373,25 @@ defmodule Oneiroi.Sunna.Schedules do
     Enum.any?(Map.values(all), fn l ->
       l.from_session == key and DateTime.compare(l.sent_at, since) != :lt and
         is_integer(l.in_reply_to) and thread_root(l, all) == target.root
+    end)
+  end
+
+  # She read and left the thread without a reply (kumbukumbu#78; Lily's
+  # letter #1383): a letter_rest in this wake on a letter of the thread.
+  defp rested_in_thread?(resident_id, key, target, since) do
+    all = Map.new(Kumbukumbu.letters(resident_id), &{&1.number, &1})
+
+    resident_id
+    |> Kumbukumbu.tool_calls_after(key, "letter_rest", since)
+    |> Enum.any?(fn call ->
+      with [args, result] <- String.split(call, " -> ", parts: 2),
+           true <- String.starts_with?(result, "Rested"),
+           [_, n] <- Regex.run(~r/"in_reply_to"\s*:\s*(\d+)/, args),
+           %{} = l <- all[String.to_integer(n)] do
+        thread_root(l, all) == target.root
+      else
+        _other -> false
+      end
     end)
   end
 
@@ -1435,7 +1455,7 @@ defmodule Oneiroi.Sunna.Schedules do
   defp reply_line(%{letter: l}) do
     {_kind, from} = Kumbukumbu.letter_origin(l)
 
-    "\n\nYour answer here is your reply to letter ##{l.number} (from #{from}), sent in its thread under your name: your last message of this wake, and only it. Not sent by this: anything before it, what you write while calling tools, tools' output. A letter_send of your own goes as you send it; send one in this thread yourself and nothing here is sent."
+    "\n\nYour answer here is your reply to letter ##{l.number} (from #{from}), sent in its thread under your name: your last message of this wake, and only it. Not sent by this: anything before it, what you write while calling tools, tools' output. A letter_send of your own goes as you send it; send one in this thread yourself and nothing here is sent. To leave the thread without a reply, letter_rest with in_reply_to: #{l.number}: nothing is sent, and what you say stays here."
   end
 
   defp letters_note(letters, numbers) do
