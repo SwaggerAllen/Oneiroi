@@ -159,6 +159,7 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
        beats
        |> Map.put(:conversation, shape.conversation)
        |> Map.put(:rounds, HouseholdRounds.read(household_id, names))
+       |> Map.put(:round_threads, HouseholdRounds.threads(household_id, names))
        |> Map.put(:you, %{
          id: actor.id,
          kind: Atom.to_string(actor.kind),
@@ -186,6 +187,9 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
   @doc "The minute over every household."
   def tick_all do
     for id <- Gaia.household_ids(), do: tick(id)
+    # The expiry's watchdog (gaia#55): a turn whose expiry job was lost
+    # would hold its thread forever; the minute ends it.
+    HouseholdRounds.sweep()
     :ok
   end
 
@@ -260,7 +264,20 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
     if Gaia.household_wake_profile(household_id, "resident", turn.resident_id) == "self" do
       {"declined", "Her wake profile is self, so the turn opened and nobody woke her."}
     else
-      case Sunna.wake_for_household(turn.resident_id, turn_note(household_id, turn), @actor) do
+      wake_id =
+        Household.manifest(
+          turn.resident_id,
+          "turn",
+          [%{kind: "beat_turn", turn: turn.turn, beat_top: turn.beat_top}],
+          household_id
+        )
+
+      case Sunna.wake_for_household(
+             turn.resident_id,
+             turn_note(household_id, turn),
+             @actor,
+             wake_id
+           ) do
         {:ok, answer} ->
           answered(household_id, turn, answer)
 
@@ -328,10 +345,14 @@ defmodule Oneiroi.Seshat.HouseholdBeats do
   @doc "The digest at a beat's end for a resident whose profile is every_beat (gaia#37)."
   def run_digest(household_id, resident_id, top) do
     if Gaia.household_wake_profile(household_id, "resident", resident_id) == "every_beat" do
+      wake_id =
+        Household.manifest(resident_id, "digest", [%{kind: "beat", beat_top: top}], household_id)
+
       case Sunna.wake_for_household(
              resident_id,
              digest_note(household_id, top, resident_id),
-             @actor
+             @actor,
+             wake_id
            ) do
         {:ok, _} -> :ok
         {:error, %{kind: :sunna_household_wake_declined}} -> :ok

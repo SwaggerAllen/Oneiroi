@@ -4,6 +4,8 @@ export const SHELF = [...HOUSE, 'shelf'];
 export const CONTRACT = [...HOUSE, 'contract'];
 export const BEATS = [...HOUSE, 'beats'];
 export const CHECKINS = [...HOUSE, 'checkins'];
+export const WORKING = [...HOUSE, 'working'];
+export const ACTIVITY = [...HOUSE, 'activity'];
 export const thread = (path: string) => [...HOUSE, 'thread', path];
 
 export function when(iso: string | null | undefined): string {

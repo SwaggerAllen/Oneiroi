@@ -108,6 +108,31 @@ defmodule Oneiroi.Gaia.RoundRobin do
     end)
   end
 
+  @doc "Every turn, any house, still live past its window: what the sweep ends (gaia#55)."
+  def overdue(%DateTime{} = now) do
+    Scope.platform(fn ->
+      Repo.all(
+        from(t in Store.RoundTurn,
+          where: is_nil(t.outcome) and t.expires_at <= ^now,
+          order_by: [asc: t.expires_at],
+          select: %{household_id: t.household_id, turn_id: t.turn_id}
+        )
+      )
+    end)
+  end
+
+  @doc "Every thread's rounds in a house, latest changed first (gaia#55): the thread states."
+  def threads(household_id) do
+    Scope.platform(fn ->
+      Repo.all(
+        from(t in Store.RoundThread,
+          where: t.household_id == ^household_id,
+          order_by: [desc: t.changed_at]
+        )
+      )
+    end)
+  end
+
   defp dispatch(command) do
     case RoundsRouter.dispatch(command) do
       {:ok, events} when is_list(events) ->

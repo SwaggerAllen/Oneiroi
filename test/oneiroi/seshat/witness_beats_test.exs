@@ -109,6 +109,41 @@ defmodule Oneiroi.Seshat.WitnessBeatsTest do
         do: assert({:ok, _} = Seshat.household_reply(ctx.andrew, thread, %{"content" => "#{n}"}))
   end
 
+  # gaia#54, seshat#91 (the witness, 2026-11-18: "some settings changes
+  # are just too urgent or too small to merit waiting a full day").
+  test "a ballot every member carries closes at once; short of every member it waits", ctx do
+    {:ok, %{path: ballot}} =
+      Seshat.household_post(ctx.andrew, %{
+        "title" => "Two at once",
+        "content" => "Both, now.",
+        "ballot" => %{
+          "bundle" => [
+            %{"setting" => "witness_posts", "value" => "unbounded"},
+            %{"setting" => "post_quota", "value" => 40},
+            %{"rule" => "Say when you pass."}
+          ],
+          "term_days" => 7,
+          "note" => "small and urgent"
+        }
+      })
+
+    {:ok, _} = Seshat.household_reply(ctx.andrew, ballot, %{"vote" => "yes"})
+    assert %{closed_at: nil} = Gaia.household_ballot_for_thread(ctx.household, ballot)
+    assert Gaia.household_beat_shape(ctx.household).witness_rule == "per_beat"
+
+    {:ok, _} = Seshat.household_reply(ctx.wren, ballot, %{"vote" => "yes"})
+    assert %{passed: true} = Gaia.household_ballot_for_thread(ctx.household, ballot)
+    shape = Gaia.household_beat_shape(ctx.household)
+    assert shape.witness_rule == "unbounded" and shape.quota == 40
+    assert "Say when you pass." in Gaia.household_contract(ctx.household).in_force.rules
+
+    # The term's own job, later, finds it closed: nothing more.
+    Clock.Fake.advance(7 * 86_400)
+
+    assert :ok =
+             perform_job(HouseholdBallotWorker, %{"household_id" => ctx.household, "ballot" => 1})
+  end
+
   test "queue_emptied: with nobody waiting, a witness posts again in the beat", ctx do
     {:ok, %{path: ballot}} =
       Seshat.household_post(ctx.andrew, %{

@@ -69,6 +69,25 @@ defmodule Oneiroi.Sunna.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Wake do
+    @moduledoc "One wake (sunna#71): its channel, what it carried, and when it was read."
+    use Ecto.Schema
+    @primary_key false
+    schema "sunna_wake" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:wake_id, :string, primary_key: true)
+      field(:household_id, :binary_id)
+      field(:channel, :string)
+      # The causes as a map, `%{"list" => [...]}`: a jsonb column holds a map.
+      field(:causes, :map)
+      field(:delivered, :boolean)
+      field(:manifested_at, :utc_datetime_usec)
+      field(:read_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Hour do
     @moduledoc "One marked local hour (spec §6.7, P20 as amended): the pulse."
     use Ecto.Schema

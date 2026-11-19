@@ -48,7 +48,7 @@ defmodule Oneiroi.Seshat.HouseCheckins do
   defp fire(household_id, c, day) do
     with {:ok, thread} <- Household.open_checkin(household_id, c.key, c.label, day),
          :ok <- Gaia.house_checkin_fired(household_id, c.key, day, thread, @actor) do
-      Household.wake_house(household_id, &note(&1, c, day, thread))
+      Household.wake_house(household_id, &note(&1, c, day, thread), thread)
     end
   end
 

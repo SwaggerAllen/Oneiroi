@@ -24,6 +24,7 @@ defmodule Oneiroi.Sunna.Schedules do
   alias Oneiroi.Sunna.Events
   alias Oneiroi.Sunna.Router
   alias Oneiroi.Sunna.Store
+  alias Oneiroi.Sunna.Wakes
 
   # ---- check-ins ----
 
@@ -584,9 +585,15 @@ defmodule Oneiroi.Sunna.Schedules do
     }
 
     case dispatch(command) do
-      {:ok, []} -> :already
-      {:ok, _} -> wake_main(resident_id, checkin_note(resident_id, checkin), actor)
-      other -> other
+      {:ok, []} ->
+        :already
+
+      {:ok, _} ->
+        _ = Wakes.run(resident_id, "checkin", [%{kind: "checkin", key: checkin.key, day: day}])
+        wake_main(resident_id, checkin_note(resident_id, checkin), actor)
+
+      other ->
+        other
     end
   end
 
@@ -735,6 +742,10 @@ defmodule Oneiroi.Sunna.Schedules do
   def scene_pass(resident_id, day, slot, key, n) do
     with {:ok, row} <- resident(resident_id),
          {:ok, key} <- scene_session(resident_id, row, key),
+         _ <-
+           Wakes.run(resident_id, "night_pass", [
+             %{kind: "pass", pass: "scene", day: day, turn: n}
+           ]),
          {:ok, result} <- wake(resident_id, key, scene_note(resident_id, row, day, n), :chat) do
       if Map.get(result, :rounds_spent) && n < Config.fetch!(:sunna, :scene_turns),
         do: free_time_worker().enqueue_scene(resident_id, day, slot, key, n + 1),
@@ -776,6 +787,8 @@ defmodule Oneiroi.Sunna.Schedules do
          {:ok, note} <- port.night_pass_note(resident_id, pass, day, n),
          {:ok, row} <- resident(resident_id),
          {:ok, key} <- scene_session(resident_id, row, key),
+         _ <-
+           Wakes.run(resident_id, "night_pass", [%{kind: "pass", pass: pass, day: day, turn: n}]),
          {:ok, result} <- wake(resident_id, key, note, :chat) do
       if Map.get(result, :rounds_spent) && n < night_turns(pass),
         do: free_time_worker().enqueue_night(resident_id, pass, day, slot, key, n + 1),
@@ -849,6 +862,7 @@ defmodule Oneiroi.Sunna.Schedules do
              # which is nothing to hide until hands exist (P26).
              private: true
            ),
+         _ <- Wakes.run(resident_id, "free_time", [%{kind: "run", day: day, label: slot}]),
          {:ok, result} <-
            ran_on(
              wake(
@@ -1137,6 +1151,7 @@ defmodule Oneiroi.Sunna.Schedules do
            limit: Config.fetch!(:sunna, :letter_wakes_per_hour)
          },
          {:ok, [%Events.LettersWoke{numbers: numbers} | _]} <- dispatch(command),
+         _ <- Wakes.run(resident_id, "letter", letter_causes(numbers)),
          {:ok, _} <- wake(resident_id, key, letters_note(letters, numbers), :chat) do
       :ok
     else
@@ -1223,6 +1238,13 @@ defmodule Oneiroi.Sunna.Schedules do
     do: Scope.resident(resident_id, fn -> Store.free_time_session?(key) end)
 
   defp resume_free_time(resident_id, day, label, key, letters, actor) do
+    numbers = Enum.map(letters, & &1.number)
+
+    _ =
+      Wakes.run(resident_id, "free_time", [
+        %{kind: "run", day: day, label: label} | letter_causes(numbers)
+      ])
+
     case wake(resident_id, key, letters_note(letters, Enum.map(letters, & &1.number)), :free_time) do
       {:ok, result} ->
         recorded = record_free_time(resident_id, {day, label}, key, nil, actor)
@@ -1267,6 +1289,8 @@ defmodule Oneiroi.Sunna.Schedules do
       is_binary(letter.from_session) or is_binary(letter.to_session) or
         letter.from_name == Kumbukumbu.household_sender() or Kumbukumbu.from_sibling?(letter)
 
+  defp letter_causes(numbers), do: for(n <- numbers, do: %{kind: "letter", number: n})
+
   defp letters_note(letters, numbers) do
     listed =
       letters
@@ -1287,10 +1311,12 @@ defmodule Oneiroi.Sunna.Schedules do
   household's clock does not override her own. Answers `{:ok, :woken}`
   when the wake's turn is done.
   """
-  def wake_for_household(resident_id, note, %Actor{} = actor) do
+  def wake_for_household(resident_id, note, %Actor{} = actor, wake_id \\ nil) do
     with {:ok, %{state: "active", admission: admission}} when admission in ["open", nil] <-
            resident(resident_id),
          false <- quiet?(local_now(resident_id), household_quiet(resident_id)),
+         # Its note goes into her turn now: the wake's read mark (sunna#71).
+         _ <- Wakes.read(resident_id, wake_id),
          {:ok, answer} <- wake_main_answer(resident_id, note, actor) do
       {:ok, answer}
     else
@@ -1317,9 +1343,10 @@ defmodule Oneiroi.Sunna.Schedules do
   witness, do not hold it (the witness, 2026-11-16). Declined only for a
   resident not active, or not yet open to the house (agathos-daimon#46).
   """
-  def wake_for_house(resident_id, note, %Actor{} = actor) do
+  def wake_for_house(resident_id, note, %Actor{} = actor, wake_id \\ nil) do
     with {:ok, %{state: "active", admission: admission}} when admission in ["open", nil] <-
            resident(resident_id),
+         _ <- Wakes.read(resident_id, wake_id),
          :ok <- wake_main(resident_id, note, actor) do
       {:ok, :woken}
     else

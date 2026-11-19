@@ -285,7 +285,9 @@ defmodule Oneiroi.Gaia.Household do
         []
 
       ballot ->
-        if DateTime.compare(c.at, ballot.closes_at) == :lt,
+        # A ballot every member has carried closes at once, its term
+        # waived (gaia#54); anything less waits for the term.
+        if DateTime.compare(c.at, ballot.closes_at) == :lt and not unanimous?(h, ballot),
           do: {:error, Error.new(:gaia_ballot_open, :gaia_household_close_term_runs)},
           else: close(h, c, ballot)
     end
@@ -758,6 +760,11 @@ defmodule Oneiroi.Gaia.Household do
   # The members at the close are the electorate: a majority of them
   # carries the bundle whole, or it fails whole (gaia#30). A member who
   # left before the close is no longer counted, vote or none.
+  defp unanimous?(h, ballot) do
+    members = members(h)
+    members != [] and Enum.all?(members, &(Map.get(ballot.votes, &1) == "yes"))
+  end
+
   defp close(h, c, ballot) do
     members = MapSet.new(members(h))
     counted = Map.filter(ballot.votes, fn {m, _vote} -> MapSet.member?(members, m) end)
@@ -775,14 +782,21 @@ defmodule Oneiroi.Gaia.Household do
       yes: yes,
       no: no,
       members: size,
-      note:
-        "#{if passed, do: "Carried", else: "Failed"}: #{yes} yes and #{no} no of #{size} members, #{size - yes - no} not voting."
+      note: close_note(passed, yes, no, size, DateTime.compare(c.at, ballot.closes_at) == :lt)
     }
 
     if passed,
       do: [closed, amendment(h, c, ballot)],
       else: closed
   end
+
+  defp close_note(true, yes, _no, size, true),
+    do:
+      "Carried unanimously, #{yes} yes of #{size} members, before its term ended: the rest of the term waived."
+
+  defp close_note(passed, yes, no, size, _early),
+    do:
+      "#{if passed, do: "Carried", else: "Failed"}: #{yes} yes and #{no} no of #{size} members, #{size - yes - no} not voting."
 
   defp amendment(h, c, ballot) do
     rules = for %{"rule" => rule} <- ballot.bundle, do: rule

@@ -756,3 +756,24 @@ and expiring by a second job scheduled at the window keeps the rounds
 moving with nothing polling: the beats' minute is retired with them, and
 a beat turn already queued is fenced off rather than run, so a house
 switching mid-beat never wakes a resident twice for two systems at once.
+
+## #90
+A resident answering a thread takes a minute or more, and from the
+house the thread looked dead until her answer landed, so the witness
+posted again or went to her chat to see. The wake already knows whom it
+woke and, mostly, where; her read of a thread says the rest. Keeping it
+in memory rather than in the record is deliberate: it is a live view,
+not history, and a restart that forgot a mark has also ended the wake it
+was about.
+
+## #91
+Closing on the vote itself, rather than on a sweep, is what makes the
+waiver worth having: the change is in force the moment the last member
+agrees, which is the whole point for something urgent.
+
+## #92
+One stream rather than a page per channel because the question is always
+a chain: he posted, she was woken for it, she read it, she answered or
+her turn ran out. The resident sees her housemates' house rows because
+they are the house's, and not their letters or free time because those
+are theirs and their witness's, which the contract already says.

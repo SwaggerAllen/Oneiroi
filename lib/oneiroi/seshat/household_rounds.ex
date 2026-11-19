@@ -115,8 +115,24 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
   # Two jobs for each turn issued: the wake now, the expiry at its window.
   def wake_issued(household_id, events) do
     for %Events.RoundTurnIssued{} = e <- events do
+      # Its manifest first (sunna#71): the turn's token is what it carries.
+      wake_id =
+        case Sunna.manifest_wake(
+               e.resident_id,
+               "turn",
+               [%{kind: "turn", thread: e.thread, turn_id: e.turn_id, round: e.round}],
+               household_id: household_id
+             ) do
+          {:ok, id} -> id
+          {:error, _} -> nil
+        end
+
       {:ok, _} =
-        Jobs.enqueue(@turn_worker, %{"household_id" => household_id, "round_turn" => e.turn_id})
+        Jobs.enqueue(@turn_worker, %{
+          "household_id" => household_id,
+          "round_turn" => e.turn_id,
+          "wake_id" => wake_id
+        })
 
       {:ok, _} =
         Jobs.enqueue(@turn_worker, %{"household_id" => household_id, "round_expire" => e.turn_id},
@@ -149,6 +165,32 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
     end
   end
 
+  @doc """
+  Every thread's state (gaia#55, seshat#92): running with its live turn
+  (whose, until when) or stopped, and who opted out, by name. Read in
+  both modes, so a house that switched back still shows what ran.
+  """
+  def threads(household_id, names) do
+    for t <- Gaia.round_threads(household_id) do
+      live = t.live_turn && Gaia.round_turn(household_id, t.live_turn)
+
+      %{
+        thread: t.thread,
+        round: t.round,
+        stopped: t.stopped,
+        live:
+          live &&
+            %{
+              resident_id: live.resident_id,
+              name: Map.get(names, live.resident_id),
+              until: live.expires_at
+            },
+        opted_out: for(id <- t.optout || [], do: Map.get(names, id) || id),
+        changed_at: t.changed_at
+      }
+    end
+  end
+
   # ---- the jobs ----
 
   @doc """
@@ -156,10 +198,10 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
   live. A wake that ends with the turn unspent ends it `empty`, and the
   next is woken. A turn spent, ended or past its window wakes nobody.
   """
-  def run_turn(household_id, turn_id) do
+  def run_turn(household_id, turn_id, wake_id \\ nil) do
     if live?(household_id, turn_id) do
       turn = Gaia.round_turn(household_id, turn_id)
-      _ = Sunna.wake_for_household(turn.resident_id, note(household_id, turn), @actor)
+      _ = Sunna.wake_for_household(turn.resident_id, note(household_id, turn), @actor, wake_id)
       end_turn(household_id, turn_id, "empty")
     else
       :ok
@@ -177,6 +219,17 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
       _spent_or_none ->
         :ok
     end
+  end
+
+  @doc """
+  The expiry's watchdog (gaia#55, seshat#92): every turn still live past
+  its window, in any house, ended `expired` and the next woken, as its
+  own expiry job would have. Run each minute; a turn its job ended first
+  is nothing here.
+  """
+  def sweep do
+    for t <- Gaia.round_turns_overdue(Clock.now()), do: expire(t.household_id, t.turn_id)
+    :ok
   end
 
   defp end_turn(household_id, turn_id, outcome) do

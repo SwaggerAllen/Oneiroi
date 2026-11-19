@@ -145,6 +145,23 @@ defmodule Oneiroi.Sunna.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :hour]
   end
 
+  # A wake's manifest (sunna#71; Lily's design/wake-mail-visibility.md
+  # §2 Gap 1): what it carried, never what the turn said. `channel` is
+  # turn, mention, checkin, letter, free_time, digest, night_pass or work; `causes` the
+  # envelopes it carried, each a map with a `kind` (post, reply, turn,
+  # letter, run, mention) and its ids; `delivered` false for a mention
+  # banked unwoken (muted).
+  defmodule WakeManifested do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :wake_id, :channel, :causes, :household_id, :delivered]
+  end
+
+  # The wake's note went into her turn (sunna#71, Gap 4): its read mark.
+  defmodule WakeRead do
+    use Oneiroi.Event, version: 1, fields: [:id, :wake_id]
+  end
+
   defmodule LettersWoke do
     # A letter's wake (sunna#24): the Oneiroi chat woken for these
     # letters, each once, before the wake runs.

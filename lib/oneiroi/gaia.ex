@@ -890,6 +890,14 @@ defmodule Oneiroi.Gaia do
   @spec round_turn(String.t(), String.t()) :: map() | nil
   defexport(round_turn(household_id, turn_id), do: RoundRobin.turn(household_id, turn_id))
 
+  @doc "Every round turn, any house, still live past its window (gaia#55): the sweep's work."
+  @spec round_turns_overdue(DateTime.t()) :: [map()]
+  defexport(round_turns_overdue(now), do: RoundRobin.overdue(now))
+
+  @doc "Every thread's rounds in a house, latest changed first (gaia#55)."
+  @spec round_threads(String.t()) :: [map()]
+  defexport(round_threads(household_id), do: RoundRobin.threads(household_id))
+
   @doc "The house's round turns, newest first: the visible queue (gaia#53)."
   @spec round_turns(String.t()) :: [map()]
   defexport(round_turns(household_id), do: RoundRobin.turns(household_id))

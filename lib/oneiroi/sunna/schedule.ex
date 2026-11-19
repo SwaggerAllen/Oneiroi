@@ -22,6 +22,8 @@ defmodule Oneiroi.Sunna.Schedule do
     days: MapSet.new(),
     hours: MapSet.new(),
     letters_woken: MapSet.new(),
+    wakes: MapSet.new(),
+    wakes_read: MapSet.new(),
     letter_wakes: [],
     rounds: MapSet.new(),
     rounds_recorded: MapSet.new(),
@@ -199,6 +201,38 @@ defmodule Oneiroi.Sunna.Schedule do
   # A letter's wake (sunna#24): each letter wakes the chat once, and at
   # most `limit` wakes in the hour before the command's instant; a letter
   # held back by the bound is taken by a later tick.
+  # The wake log (sunna#71): a manifest once per wake id; its read mark
+  # once, and only for a wake manifested and delivered.
+  @wake_channels ~w(turn mention checkin letter free_time digest night_pass work)
+
+  def execute(%__MODULE__{wakes: wakes}, %Commands.ManifestWake{} = c) do
+    cond do
+      MapSet.member?(wakes, c.wake_id) ->
+        []
+
+      not (is_binary(c.wake_id) and c.channel in @wake_channels and is_list(c.causes)) ->
+        {:error, Error.new(:sunna_wake_invalid, :sunna_wake_manifest_shape)}
+
+      true ->
+        %Events.WakeManifested{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          wake_id: c.wake_id,
+          channel: c.channel,
+          causes: c.causes,
+          household_id: c.household_id,
+          delivered: c.delivered != false
+        }
+    end
+  end
+
+  def execute(%__MODULE__{} = s, %Commands.ReadWake{} = c) do
+    if MapSet.member?(s.wakes, c.wake_id) and not MapSet.member?(s.wakes_read, c.wake_id),
+      do: %Events.WakeRead{actor: c.actor, at: c.at, id: c.id, wake_id: c.wake_id},
+      else: []
+  end
+
   def execute(%__MODULE__{} = s, %Commands.WakeForLetters{} = c) do
     fresh = c.numbers |> Enum.reject(&MapSet.member?(s.letters_woken, &1)) |> Enum.sort()
     hour_ago = DateTime.add(c.at, -3600, :second)
@@ -455,6 +489,12 @@ defmodule Oneiroi.Sunna.Schedule do
   # ---- apply ----
 
   def apply(%__MODULE__{} = s, %Events.HousePromptSet{}), do: s
+
+  def apply(%__MODULE__{} = s, %Events.WakeManifested{} = e),
+    do: %{s | id: e.id, wakes: MapSet.put(s.wakes, e.wake_id)}
+
+  def apply(%__MODULE__{} = s, %Events.WakeRead{} = e),
+    do: %{s | wakes_read: MapSet.put(s.wakes_read, e.wake_id)}
 
   def apply(%__MODULE__{} = s, %Events.CheckinSet{} = e),
     do: %{

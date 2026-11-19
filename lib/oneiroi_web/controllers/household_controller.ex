@@ -141,6 +141,33 @@ defmodule OneiroiWeb.HouseholdController do
     end
   end
 
+  operation(:activity,
+    summary:
+      "The house's activity (seshat#92), envelopes only, newest first: wakes (what each carried, when read), mentions banked unwoken, round-robin tokens, letters; resident_id filters to one",
+    parameters: [resident_id: [in: :query, type: :string]],
+    responses: [ok: {"the activity", "application/json", %Schema{type: :object}}]
+  )
+
+  def activity(conn, params) do
+    case Seshat.household_activity(actor(conn), params["resident_id"]) do
+      {:ok, rows} -> json(conn, %{activity: rows})
+      {:error, e} -> error(conn, 404, e)
+    end
+  end
+
+  operation(:working,
+    summary:
+      "Who in the house is working now (seshat#90): each resident in a house wake, by name, with the thread she is in (or null) and since when",
+    responses: [ok: {"the residents working", "application/json", %Schema{type: :object}}]
+  )
+
+  def working(conn, _params) do
+    case Seshat.household_working(actor(conn)) do
+      {:ok, w} -> json(conn, %{working: w})
+      {:error, e} -> error(conn, 404, e)
+    end
+  end
+
   operation(:beats,
     summary:
       "The household's beats (gaia#33 to #38): the shape in force with its phase, the beat now and the next, the turn open, the queue in firing order, every member's wake profile, the beats closed lately, and this witness's own part: its profile (self: a witness is never woken) and its post quota left",

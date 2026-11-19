@@ -18,6 +18,10 @@ the switch to the new client). Built 2026-11-10.
     note she reads first;
   - **a reply approved and waiting to be sent**: "I sent it", with where
     it is now if you have a link;
+  - **a plugin slot change she proposed** (brain#68; the witness,
+    2026-11-18, finding no way to accept one from the bell): "<her>
+    proposes: <change> <slot>", her reason, and **Agree** or **Decline**
+    with a note she reads first, as on the Plugins page;
   - **a piece for review** (seshat#42): your last answer if there was
     one, a link to read it in Records, approve or decline with a note;
     **a piece drafted**: the Substack draft's link (never published

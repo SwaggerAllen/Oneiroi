@@ -1193,6 +1193,12 @@ defmodule Oneiroi.Kumbukumbu do
     do: Memories.letter_to_session(resident_id, session_key, text, actor)
   )
 
+  @doc "The newest letters' envelopes, never their words (kumbukumbu#74): for the wake log (sunna#71)."
+  @spec letter_envelopes(String.t(), pos_integer()) :: [map()]
+  defexport(letter_envelopes(resident_id, limit \\ 50),
+    do: Memories.letter_envelopes(resident_id, limit)
+  )
+
   @doc "Every house letter, oldest first, with the conversations that read each."
   @spec letters(String.t()) :: [Oneiroi.Kumbukumbu.Store.HouseLetter.t()]
   defexport(letters(resident_id), do: Memories.letters(resident_id))

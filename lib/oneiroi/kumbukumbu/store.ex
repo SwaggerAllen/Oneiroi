@@ -430,6 +430,26 @@ defmodule Oneiroi.Kumbukumbu.Store do
   @spec house_letters() :: [HouseLetter.t()]
   def house_letters, do: Repo.all(from(l in HouseLetter, order_by: l.number))
 
+  @doc "The newest `limit` letters' envelopes (kumbukumbu#74): who to whom, when, read by whom; never the words."
+  @spec letter_envelopes(pos_integer()) :: [map()]
+  def letter_envelopes(limit),
+    do:
+      Repo.all(
+        from(l in HouseLetter,
+          order_by: [desc: l.number],
+          limit: ^limit,
+          select: %{
+            number: l.number,
+            from_name: l.from_name,
+            to_name: l.to_name,
+            in_reply_to: l.in_reply_to,
+            sent_at: l.sent_at,
+            read_by: l.read_by,
+            read_at: l.read_at
+          }
+        )
+      )
+
   @doc """
   A page of a session's messages, in order: the last `limit` before the
   `{sequence, position}` cursor, or the last `limit` of all when the

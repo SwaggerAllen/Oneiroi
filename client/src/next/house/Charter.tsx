@@ -18,13 +18,15 @@ export function Charter() {
   const contract = useQuery({ queryKey: CONTRACT, queryFn: api.householdContract, refetchInterval: 60_000 });
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
   const c = contract.data;
-  // A setting picked from the list opens the ballot form with it filled
-  // in (gaia#49); the count remounts the form so the pick takes.
-  const [pick, setPick] = useState<{ n: number; setting: string } | null>(null);
+  // One ballot holds any number of changes (the witness, 2026-11-18:
+  // "a ballot could contain any number of settings changes and rules"):
+  // a setting picked from the list joins the ballot being drafted, never
+  // replacing what is there.
+  const [items, setItems] = useState<Draft[]>([]);
   const form = useRef<HTMLDivElement>(null);
   const catalog = c?.catalog ?? [];
   const propose = (setting: string) => {
-    setPick((p) => ({ n: (p?.n ?? 0) + 1, setting }));
+    setItems((now) => (now.some((d) => d.kind === 'setting' && d.setting === setting) ? now : [...now.filter((d) => d.kind !== 'rule' || d.rule.trim() !== ''), { kind: 'setting', setting, value: '' }]));
     setTimeout(() => form.current?.scrollIntoView?.({ block: 'start' }), 0);
   };
   return (
@@ -33,12 +35,12 @@ export function Charter() {
       {c && !c.in_force && <Found catalog={catalog} />}
       <Name />
       {c?.in_force && <InForce v={c.in_force} />}
-      {c?.in_force && catalog.length > 0 && <Settings v={c.in_force} catalog={catalog} onPropose={propose} />}
+      {c?.in_force && catalog.length > 0 && <Settings v={c.in_force} catalog={catalog} drafted={items} onPropose={propose} />}
       {c && <Members c={c} accountId={me.data?.account_id ?? undefined} />}
       {c && <Ballots ballots={c.ballots} />}
       {c?.in_force && (
         <div ref={form}>
-          <Propose key={pick?.n ?? 0} catalog={catalog} preset={pick?.setting ?? null} current={c.in_force.settings ?? {}} />
+          <Propose catalog={catalog} items={items} setItems={setItems} current={c.in_force.settings ?? {}} />
         </div>
       )}
       {c && c.versions.length > 1 && <Versions versions={c.versions} />}
@@ -79,14 +81,15 @@ const shown = (v: unknown) => (v === null || v === undefined ? 'as many as fit' 
 /**
  * Every setting a ballot can change (gaia#49; the witness, 2026-11-18:
  * "I don't see a way to propose settings changes"): what it does, its
- * value in force or its default, and Propose a change, which opens the
- * ballot form with it filled in.
+ * value in force or its default, and Add to the ballot, which puts it in
+ * the one ballot being drafted below, beside whatever is there.
  */
-function Settings({ v, catalog, onPropose }: { v: HouseVersion; catalog: HouseSetting[]; onPropose: (key: string) => void }) {
+function Settings({ v, catalog, drafted, onPropose }: { v: HouseVersion; catalog: HouseSetting[]; drafted: Draft[]; onPropose: (key: string) => void }) {
   const set = v.settings ?? {};
+  const inBallot = (key: string) => drafted.some((d) => d.kind === 'setting' && d.setting === key);
   return (
     <Card title="Settings">
-      <p className={css.note}>What the house runs on. Each changes by ballot: every member votes, and a majority carries it.</p>
+      <p className={css.note}>What the house runs on. Changes go by ballot, as many as you like in one: every member votes once on the whole, and a majority carries it.</p>
       <ul className={css.list} aria-label="Settings">
         {catalog.map((k) => {
           const changed = k.key in set;
@@ -97,8 +100,8 @@ function Settings({ v, catalog, onPropose }: { v: HouseVersion; catalog: HouseSe
                   <strong>{k.label}</strong>: {shown(changed ? set[k.key] : k.default)}
                   <span className={css.meta}>{changed ? ' · by ballot' : ' · the default'}</span>
                 </span>
-                <button type="button" className={css.quiet} onClick={() => onPropose(k.key)}>
-                  Propose a change
+                <button type="button" className={css.quiet} disabled={inBallot(k.key)} onClick={() => onPropose(k.key)}>
+                  {inBallot(k.key) ? 'In the ballot' : 'Add to the ballot'}
                 </button>
               </div>
               <p className={css.note}>{k.about}</p>
@@ -179,6 +182,7 @@ function Ballot({ b }: { b: HouseBallot }) {
       <p className={css.text}>
         Ballot #{b.number}, open until {when(b.closes_at)} · {b.yes} yes, {b.no} no of {b.members}
       </p>
+      <p className={css.meta}>If every member votes yes, it carries at once.</p>
       <ol className={css.list}>
         {b.bundle.map((item, i) => (
           <li key={i} className={css.text}>
@@ -249,7 +253,10 @@ function BundleEditor({ items, setItems, catalog, current }: { items: Draft[]; s
     <>
       {items.map((d, i) =>
         d.kind === 'rule' ? (
-          <Field key={i} label={`Rule ${i + 1}`} value={d.rule} onChange={(e) => set(i, { kind: 'rule', rule: e.target.value })} />
+          <div key={i} className={css.column}>
+            <Field label={`Rule ${i + 1}`} value={d.rule} onChange={(e) => set(i, { kind: 'rule', rule: e.target.value })} />
+            <Remove onClick={() => setItems(items.filter((_, j) => j !== i))} what={`rule ${i + 1}`} />
+          </div>
         ) : (
           <div key={i} className={css.column}>
             <div className={css.row}>
@@ -268,6 +275,7 @@ function BundleEditor({ items, setItems, catalog, current }: { items: Draft[]; s
                 {entry(d.setting)?.about} Now: {shown(d.setting in current ? current[d.setting] : entry(d.setting)?.default)}.
               </p>
             )}
+            <Remove onClick={() => setItems(items.filter((_, j) => j !== i))} what={`setting ${i + 1}`} />
           </div>
         ),
       )}
@@ -283,19 +291,33 @@ function BundleEditor({ items, setItems, catalog, current }: { items: Draft[]; s
   );
 }
 
-/** A change, proposed as a ballot on a new thread: its bundle fixed once it opens. */
-function Propose({ catalog, preset, current }: { catalog: HouseSetting[]; preset: string | null; current: Record<string, unknown> }) {
-  const presetLabel = preset ? catalog.find((k) => k.key === preset)?.label ?? preset : null;
-  const [title, setTitle] = useState(presetLabel ? `Change: ${presetLabel}` : '');
+function Remove({ onClick, what }: { onClick: () => void; what: string }) {
+  return (
+    <button type="button" className={css.quiet} style={{ alignSelf: 'flex-start' }} aria-label={`Remove ${what}`} onClick={onClick}>
+      Remove
+    </button>
+  );
+}
+
+/**
+ * Changes, proposed as one ballot on a new thread: any number of rules
+ * and settings, its bundle fixed once it opens. A ballot every member
+ * carries closes at once (gaia#54).
+ */
+function Propose({ catalog, items, setItems, current }: { catalog: HouseSetting[]; items: Draft[]; setItems: (d: Draft[]) => void; current: Record<string, unknown> }) {
+  const [title, setTitle] = useState('');
   const [why, setWhy] = useState('');
-  const [items, setItems] = useState<Draft[]>(preset ? [{ kind: 'setting', setting: preset, value: '' }] : [{ kind: 'rule', rule: '' }]);
+  const labels = items.flatMap((d) => (d.kind === 'setting' && d.setting ? [catalog.find((k) => k.key === d.setting)?.label ?? d.setting] : []));
+  const suggested = labels.length > 0 ? `Change: ${labels.join(', ')}` : '';
   const [days, setDays] = useState('7');
   const [note, setNote] = useState('');
   const act = useAct();
   const bundle = toBundle(items);
   return (
-    <Card title="Propose a change">
-      <p className={css.text}>A change goes to a ballot on its own thread. What it holds is fixed once it opens; a majority of the members carries the whole of it.</p>
+    <Card title="Propose changes">
+      <p className={css.text}>
+        One ballot, on its own thread, holds every change you add here, rules and settings together. What it holds is fixed once it opens; a majority of the members carries the whole of it at the end of its term, and if every member votes yes it carries at once, the rest of the term waived.
+      </p>
       <form
         aria-label="Propose a change"
         className={css.column}
@@ -303,10 +325,10 @@ function Propose({ catalog, preset, current }: { catalog: HouseSetting[]; preset
           e.preventDefault();
           void act.run(
             () =>
-              api.householdPost({ title: title.trim(), content: why.trim(), ballot: { bundle, term_days: Number(days), note: note.trim() } }).then(() => {
+              api.householdPost({ title: (title.trim() || suggested).trim(), content: why.trim(), ballot: { bundle, term_days: Number(days), note: note.trim() } }).then(() => {
                 setTitle('');
                 setWhy('');
-                setItems([{ kind: 'rule', rule: '' }]);
+                setItems([]);
                 setNote('');
                 return 'The ballot is open.';
               }),
@@ -314,14 +336,14 @@ function Propose({ catalog, preset, current }: { catalog: HouseSetting[]; preset
           );
         }}
       >
-        <Field label="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <Field label="Title" value={title} placeholder={suggested || undefined} onChange={(e) => setTitle(e.target.value)} />
         <TextArea label="Why" value={why} onChange={(e) => setWhy(e.target.value)} />
         <BundleEditor items={items} setItems={setItems} catalog={catalog} current={current} />
         <Field label="Open for days" type="number" min={1} value={days} onChange={(e) => setDays(e.target.value)} />
         <Field label="A note for the record" value={note} onChange={(e) => setNote(e.target.value)} />
         <div className={css.row}>
-          <button type="submit" className={css.primary} disabled={act.busy || !title.trim() || bundle.length === 0 || !note.trim() || !(Number(days) >= 1)}>
-            Open the ballot
+          <button type="submit" className={css.primary} disabled={act.busy || !(title.trim() || suggested) || bundle.length === 0 || !note.trim() || !(Number(days) >= 1)}>
+            {bundle.length > 1 ? `Open the ballot (${bundle.length} changes)` : 'Open the ballot'}
           </button>
         </div>
       </form>
