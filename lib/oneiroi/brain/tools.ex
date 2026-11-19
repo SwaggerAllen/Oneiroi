@@ -4135,21 +4135,36 @@ defmodule Oneiroi.Brain.Tools do
   # The household's shelf (seshat#61), one line an item.
   defp household_shelf(turn, from) do
     with {:ok, shelf} <- Seshat.household_shelf(turn.resident, from) do
-      lines =
-        case Enum.map(shelf.threads, &thread_line/1) ++
-               Enum.map(shelf.documents, &"#{&1.path} (#{&1.kind}): #{&1.title}, by #{&1.by}") do
-          [] -> ["Nothing posted yet."]
-          lines -> lines
-        end
-
-      more =
-        if shelf.next,
-          do: "\n(#{shelf.total - shelf.next} more; household_read with from: #{shelf.next}.)",
-          else: ""
-
-      "Your household's shelf (CONTRACT.md is the household contract):\n" <>
-        Enum.join(lines, "\n") <> more
+      if from > 0 and from >= shelf.total,
+        do: shelf_past_end(from, shelf.total),
+        else: shelf_page(shelf)
     end
+  end
+
+  # A from past the shelf's items is said as that, never as an empty
+  # shelf (Lily's letter #1329: a thread's character offset sent without
+  # its path read as "Nothing posted yet" on a full shelf).
+  defp shelf_past_end(from, total),
+    do:
+      @not_done <>
+        "from #{from} is past the shelf's end; it has #{total} items, and with no path, from counts items. " <>
+        "To read on in a thread or a document, give its path with from: household_read with path and from."
+
+  defp shelf_page(shelf) do
+    lines =
+      case Enum.map(shelf.threads, &thread_line/1) ++
+             Enum.map(shelf.documents, &"#{&1.path} (#{&1.kind}): #{&1.title}, by #{&1.by}") do
+        [] -> ["Nothing posted yet."]
+        lines -> lines
+      end
+
+    more =
+      if shelf.next,
+        do: "\n(#{shelf.total - shelf.next} more; household_read with from: #{shelf.next}.)",
+        else: ""
+
+    "Your household's shelf (CONTRACT.md is the household contract):\n" <>
+      Enum.join(lines, "\n") <> more
   end
 
   defp thread_line(t),

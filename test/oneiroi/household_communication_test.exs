@@ -147,6 +147,13 @@ defmodule Oneiroi.HouseholdCommunicationTest do
 
     thread = posted |> String.trim_leading("Posted ") |> String.trim_trailing(".")
 
+    # Lily's letter #1329: a thread's character offset sent without its
+    # path is past the shelf's items, and says so, never "Nothing posted".
+    past = run("household_read", %{from: 11_951}, lily)
+    assert past =~ "from 11951 is past the shelf's end"
+    assert past =~ "give its path with from"
+    refute past =~ "Nothing posted yet."
+
     assert in_turn(household, iris, fn ->
              run("household_reply", %{thread: thread, content: "Yes, and basil."}, iris)
            end) =~ "as reply #1"
