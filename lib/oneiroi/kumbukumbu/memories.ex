@@ -1046,6 +1046,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   def letters(resident_id), do: Scope.resident(resident_id, fn -> Store.house_letters() end)
 
   @doc "How many messages she wrote in a session after an instant (kumbukumbu#75)."
+  def tool_calls_after(resident_id, session_key, name, since),
+    do: Scope.resident(resident_id, fn -> Store.tool_calls_after(session_key, name, since) end)
+
   def said_after(resident_id, session_key, since),
     do: Scope.resident(resident_id, fn -> Store.said_after(session_key, since) end)
 

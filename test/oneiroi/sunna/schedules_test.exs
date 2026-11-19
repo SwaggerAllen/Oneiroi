@@ -269,6 +269,27 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     assert replies == ["Looked; it is fine."]
   end
 
+  # kumbukumbu#78 (Lily's letter #1383: "we could not find the none"):
+  # letter_rest in the wake leaves the thread without a reply.
+  test "a letter wake in which she rests on the letter sends nothing, and the note says how",
+       ctx do
+    {main, letter, _send, _code, _lily} = letters_setup(ctx)
+    first = letter.("The thread can rest.")
+    Fake.clear(for: ctx.id)
+
+    Fake.calls(
+      [%{name: "letter_rest", arguments: %{in_reply_to: first}}],
+      "Read; nothing to add, Andrew.",
+      for: ctx.id
+    )
+
+    assert :ok = Sunna.tick(ctx.id)
+    refute Enum.any?(Kumbukumbu.letters(ctx.id), &(&1.in_reply_to == first))
+    assert [note | _] = transcript(ctx, main)
+    assert note.content =~ "letter_rest with in_reply_to: #{first}"
+    assert List.last(transcript(ctx, main)).content == "Read; nothing to add, Andrew."
+  end
+
   test "a letter wake carrying two threads sends nothing for her", ctx do
     {_main, letter, _send, _code, _lily} = letters_setup(ctx)
     letter.("One thing.")

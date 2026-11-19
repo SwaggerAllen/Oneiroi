@@ -437,6 +437,22 @@ defmodule Oneiroi.Kumbukumbu.Store do
         )
       )
 
+  @doc "The words of a session's calls of one tool at or after an instant, oldest first (kumbukumbu#78)."
+  @spec tool_calls_after(String.t(), String.t(), DateTime.t()) :: [String.t()]
+  def tool_calls_after(session_key, name, %DateTime{} = since) do
+    prefix = name <> "("
+
+    Repo.all(
+      from(m in Message,
+        where:
+          m.session_key == ^session_key and m.role == "tool" and m.sent_at >= ^since and
+            like(m.content, ^(prefix <> "%")),
+        order_by: [m.sequence, m.position],
+        select: m.content
+      )
+    )
+  end
+
   @doc "Every house letter, oldest first (kumbukumbu#44)."
   @spec house_letters() :: [HouseLetter.t()]
   def house_letters, do: Repo.all(from(l in HouseLetter, order_by: l.number))

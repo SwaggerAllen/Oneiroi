@@ -23,8 +23,13 @@ defmodule Oneiroi.Seshat.Library do
     # External sources (seshat#46): number => %{key, state}; keys => number.
     externals: %{},
     external_keys: %{},
-    digests: %{}
+    digests: %{},
+    # Books (seshat#98): slug => %{identifier, units}.
+    books: %{}
   ]
+
+  @rights ~w(public-domain house-shareable purchased-drm-free)
+  @modes ~w(read exposure)
 
   @url ~r/\Ahttps?:\/\/[^\s]+\z/
 
@@ -505,6 +510,64 @@ defmodule Oneiroi.Seshat.Library do
 
   # Seshat #40: one digest open at a time; asking while one is open is
   # no event, and the service answers with the open one's number.
+  # A book is imported once (seshat#98): its edition by identifier, its
+  # place by slug; a rights note is required.
+  def execute(%__MODULE__{books: books}, %Commands.ImportBook{} = c) do
+    same =
+      Enum.find(books, fn {_slug, b} -> c.identifier != nil and b.identifier == c.identifier end)
+
+    cond do
+      c.rights not in @rights or not is_binary(c.title) or c.units in [nil, []] ->
+        {:error, Error.new(:seshat_book_invalid, :seshat_import_book_invalid)}
+
+      same != nil ->
+        {:error,
+         Error.new(:seshat_book_imported, :seshat_import_book_edition,
+           path: "books/#{elem(same, 0)}"
+         )}
+
+      Map.has_key?(books, c.slug) ->
+        {:error,
+         Error.new(:seshat_book_imported, :seshat_import_book_slug, path: "books/#{c.slug}")}
+
+      true ->
+        %Events.BookImported{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          slug: c.slug,
+          title: c.title,
+          author: c.author,
+          identifier: c.identifier,
+          rights: c.rights,
+          caveat: c.caveat,
+          units: c.units,
+          titles: c.titles
+        }
+    end
+  end
+
+  def execute(%__MODULE__{books: books}, %Commands.ReadBookUnit{} = c) do
+    case Map.get(books, c.slug) do
+      %{units: units} when c.mode in @modes ->
+        if c.unit in units,
+          do: %Events.BookUnitRead{
+            actor: c.actor,
+            at: c.at,
+            id: c.id,
+            slug: c.slug,
+            unit: c.unit,
+            mode: c.mode,
+            advanced: c.mode == "read" and c.advance == true,
+            via: c.via
+          },
+          else: {:error, Error.new(:seshat_book_no_such, :seshat_read_book_unit_absent)}
+
+      _absent_or_bad_mode ->
+        {:error, Error.new(:seshat_book_no_such, :seshat_read_book_absent)}
+    end
+  end
+
   def execute(%__MODULE__{digests: digests}, %Commands.AskDigest{} = c) do
     cond do
       not match?(%DateTime{}, c.since) ->
@@ -564,6 +627,11 @@ defmodule Oneiroi.Seshat.Library do
         []
     end
   end
+
+  def apply(%__MODULE__{} = l, %Events.BookImported{} = e),
+    do: %{l | books: Map.put(l.books, e.slug, %{identifier: e.identifier, units: e.units})}
+
+  def apply(%__MODULE__{} = l, %Events.BookUnitRead{}), do: l
 
   def apply(%__MODULE__{} = l, %Events.DigestAsked{} = e),
     do: %{l | id: e.id, digests: Map.put(l.digests, e.number, :open)}

@@ -104,6 +104,17 @@ defmodule Oneiroi.Seshat.Commands do
     use Oneiroi.Command, fields: [:id, :number, :reason]
   end
 
+  # A book imported (seshat#98): its slug, facts and chapters' units.
+  defmodule ImportBook do
+    use Oneiroi.Command,
+      fields: [:id, :slug, :title, :author, :identifier, :rights, :caveat, :units, :titles]
+  end
+
+  # A chapter read with book_read, or peeked at by its path (seshat#98).
+  defmodule ReadBookUnit do
+    use Oneiroi.Command, fields: [:id, :slug, :unit, :mode, :advance, :via]
+  end
+
   defmodule AskDigest do
     # Seshat #40: a digest of the reader's streams since `since`.
     use Oneiroi.Command, fields: [:id, :session_key, :since]

@@ -75,8 +75,7 @@ const beats: HouseBeats = {
   you: { kind: 'witness', profile: 'self', quota: 6, quota_left: 5, quota_window_hours: 24 },
 };
 
-function mount(node: React.ReactNode) {
-  const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+function mount(node: React.ReactNode, queries = new QueryClient({ defaultOptions: { queries: { retry: false } } })) {
   return render(
     <QueryClientProvider client={queries}>
       <SubjectContext.Provider value={{ id: HOUSE_SUBJECT, slug: HOUSE_SUBJECT, name: 'The house', kind: 'house' }}>{node}</SubjectContext.Provider>
@@ -129,6 +128,51 @@ describe('the house as a subject (2026-11-16)', () => {
     fireEvent.change(screen.getByPlaceholderText('Reply in “Morning, 2026-11-16”'), { target: { value: 'Good work.' } });
     fireEvent.click(screen.getByRole('button', { name: 'Reply' }));
     await waitFor(() => expect(reply).toHaveBeenCalledWith('threads/checkin-2026-11-16-morning', 'Good work.'));
+  });
+
+  // The witness, 2026-11-19: the header stays put with its close, the
+  // mentions line is in view above the list, and a thread opens at its
+  // first unread (seshat#97).
+  it('opens a thread at its first unread, under a header that closes it, the mentions line above the list', async () => {
+    vi.spyOn(api, 'householdMentions').mockResolvedValue({ house: false, threads: {} });
+    const marked = vi.spyOn(api, 'markRead').mockResolvedValue(undefined as never);
+    vi.spyOn(api, 'householdRead').mockResolvedValue({
+      path: 'threads/checkin-2026-11-16-morning',
+      kind: 'thread',
+      title: 'Morning, 2026-11-16',
+      content: '',
+      trunk: { path: 't', meta: { by: 'the platform', posted_at: '2026-11-16T15:30:00Z' }, body: 'The house checks in: Morning.' },
+      replies: [
+        { path: 'r1', meta: { reply: '1', by: 'Lily', by_kind: 'resident', by_id: 'r1', at: '2026-11-16T15:40:00Z' }, body: 'Read before.' },
+        { path: 'r2', meta: { reply: '2', by: 'Scarlett', by_kind: 'resident', by_id: 'r2', at: '2026-11-16T15:50:00.5Z' }, body: 'Not read yet.' },
+      ],
+      ballot: null,
+    });
+    const scrolled: Element[] = [];
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = function (this: Element) {
+      scrolled.push(this);
+    };
+    const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    // Read up to between the two replies; the mark carries more precision than the posts.
+    queries.setQueryData(['unread'], { residents: [], house: { count: 1, threads: { 'threads/checkin-2026-11-16-morning': 1 }, seen: { 'threads/checkin-2026-11-16-morning': '2026-11-16T15:45:00.123456Z' } } });
+    const { container } = mount(<Threads />, queries);
+    // The mentions line sits outside the scrolled list.
+    const line = await screen.findByText(/Mentions of you/);
+    expect(screen.getByLabelText('Threads').contains(line)).toBe(false);
+    fireEvent.click(await screen.findByRole('button', { name: /Morning, 2026-11-16/ }));
+    expect(await screen.findByText('Not read yet.')).toBeTruthy();
+    const fresh = screen.getByRole('separator', { name: 'Unread from here' });
+    // The divider sits after what was read and before what was not.
+    expect(fresh.compareDocumentPosition(screen.getByText('Read before.')) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
+    expect(fresh.compareDocumentPosition(screen.getByText('Not read yet.')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await waitFor(() => expect(scrolled[0]).toBe(fresh));
+    await waitFor(() => expect(marked).toHaveBeenCalled());
+    // The header's close is there while it is open, and closes it.
+    fireEvent.click(screen.getByRole('button', { name: 'Close “Morning, 2026-11-16”' }));
+    await waitFor(() => expect(screen.queryByText('Not read yet.')).toBeNull());
+    expect(container.querySelector('[role="separator"]')).toBeNull();
+    Element.prototype.scrollIntoView = original;
   });
 
   it('shows a resident answering a thread under it, and one in no thread at the end (seshat#90)', async () => {

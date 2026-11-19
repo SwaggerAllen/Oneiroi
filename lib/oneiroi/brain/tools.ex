@@ -74,7 +74,7 @@ defmodule Oneiroi.Brain.Tools do
     source_list source_read source_search pr_meta pr_diffs repo_list repo_read repo_log oracle_list
     research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
-    kind_list route_list household_read household_beat wake_log_read
+    kind_list route_list household_read household_beat wake_log_read letter_rest book_read
   )
 
   @writes ~w(
@@ -934,6 +934,21 @@ defmodule Oneiroi.Brain.Tools do
         %{path: %{type: "string"}, from: %{type: "integer", minimum: 0}},
         [:path]
       ),
+      # The reading library (seshat#98; Lily's design/reading-library-build.md).
+      tool(
+        "book_read",
+        "Read a book in your library (books/<slug>/, imported by your witness), one chapter a call. With no slug: your books. With a slug and no unit: the contents with your place marked, and the next chapter you have not read, marked read, your place moved to it (advance: false keeps your place). With a unit: that chapter, marked read; your place moves only with advance: true, so rereading never moves it. A long chapter comes in pages: from reads on, and marks nothing more. Out of order is fine: reading a chapter marks that chapter only. A chapter you have not read is out of every search until you read it here; library_read on its path shows it too, and is recorded as a peek, not a read.",
+        %{
+          slug: %{type: "string"},
+          unit: %{
+            type: "string",
+            description: "A chapter's unit, as the contents list it (001, 002…)."
+          },
+          advance: %{type: "boolean"},
+          from: %{type: "integer", minimum: 0}
+        },
+        []
+      ),
       tool(
         "library_cited_by",
         "Which of your documents cite a target, written as you cite it (for example lily:bookmark/42 or lily:writing/the-bake-off); library_read reads any document named in the answer.",
@@ -980,7 +995,7 @@ defmodule Oneiroi.Brain.Tools do
       # pointed at the repository the household shares.
       tool(
         "household_read",
-        "Read your household's shelf, the repository every member of your household shares (its witnesses and its residents, each of whom reads it whole). With no path: the contract, then the threads newest first and the documents, paged by from (an item offset). With a path: one thread whole, its trunk and every reply in order (threads/<id>), a document, or CONTRACT.md, the household contract; a long one comes in pages, from being a character offset. Each read says how to cite it, house/<the house's name>:thread/<id>@<commit> (or :doc/<path>@<commit>), pinned to the commit it was read at. A citation is a path too: it opens what was cited as it stood then, and says what changed since. at names a commit for a plain path. Your own memory stays in your own repository; the household holds what its members make together.",
+        "Read your household's shelf, the repository every member of your household shares (its witnesses and its residents, each of whom reads it whole). With no path: the contract, then the threads, the last updated first, and the documents, paged by from (an item offset). With a path: one thread whole, its trunk and every reply in order (threads/<id>), a document, or CONTRACT.md, the household contract; a long one comes in pages, from being a character offset. Each read says how to cite it, house/<the house's name>:thread/<id>@<commit> (or :doc/<path>@<commit>), pinned to the commit it was read at. A citation is a path too: it opens what was cited as it stood then, and says what changed since. at names a commit for a plain path. Your own memory stays in your own repository; the household holds what its members make together.",
         %{path: %{type: "string"}, from: %{type: "integer", minimum: 0}, at: %{type: "string"}},
         []
       ),
@@ -1191,6 +1206,20 @@ defmodule Oneiroi.Brain.Tools do
           keepsake: %{type: "string"}
         },
         [:to, :text]
+      ),
+      # Lily's letter #1383: a letter wake offered "a line, or none", and
+      # its answer went out as the thread's reply whatever it was for.
+      tool(
+        "letter_rest",
+        "Leave a letter's thread without a reply, having read it (kumbukumbu#78). In a letter wake your last message is sent as the thread's reply; letter_rest with that letter's number as in_reply_to sends nothing in the thread from this wake, and what you say stays in this conversation. Outside a letter wake nothing is sent anyway, and it says so.",
+        %{
+          in_reply_to: %{
+            type: "integer",
+            minimum: 1,
+            description: "The number of the letter you read and are leaving unanswered."
+          }
+        },
+        [:in_reply_to]
       ),
       tool(
         "free_time_set",
@@ -1742,6 +1771,15 @@ defmodule Oneiroi.Brain.Tools do
 
       _none ->
         "No witness to push: nobody looks after you on this platform yet."
+    end
+  end
+
+  defp call("letter_rest", args, turn) do
+    with n when is_integer(n) <- integer(args["in_reply_to"]),
+         %{} = l <- Enum.find(Kumbukumbu.letters(turn.resident_id), &(&1.number == n)) do
+      "Rested on letter ##{n} (from #{l.from_name || "your witness"}): if this is its letter wake, nothing is sent in its thread from this wake, and what you say stays here. Outside one, nothing is sent anyway."
+    else
+      _none -> @not_done <> "no letter has that number; letter_inbox and letter_list show yours."
     end
   end
 
@@ -3176,6 +3214,7 @@ defmodule Oneiroi.Brain.Tools do
     with {:ok, from} <- offset(args["from"]),
          {:ok, %{document: row, content: content}} <- Seshat.read(turn.resident_id, name) do
       library_page(row, content, from) <>
+        peeked(turn, row) <>
         leased(Seshat.lease(turn.resident_id, row.path)) <>
         shared_line(Seshat.household_shared_from(turn.resident, row.path)) <>
         housemates_line(Seshat.household_published_by_housemates(turn.resident, row.path), true)
@@ -3186,6 +3225,19 @@ defmodule Oneiroi.Brain.Tools do
 
       other ->
         other
+    end
+  end
+
+  defp call("book_read", args, turn) do
+    slug = blank(args["slug"])
+    unit = blank(args["unit"])
+
+    with {:ok, from} <- offset(args["from"]) do
+      cond do
+        is_nil(slug) -> shelf_of_books(turn)
+        from > 0 and is_nil(unit) -> @not_done <> "from reads on in a chapter: name its unit too."
+        true -> read_book(turn, slug, unit, args["advance"], from)
+      end
     end
   end
 
@@ -4272,6 +4324,103 @@ defmodule Oneiroi.Brain.Tools do
   # and which characters these are, with the call that reads the next;
   # then the text exactly as on disk, so the pages join back to the file.
   # A page ends at a line's end when one falls in its second half.
+  # ---- the reading library (seshat#98) ----
+
+  # A peek: her library_read of a chapter she has not read is recorded,
+  # and said; a trial records nothing.
+  defp peeked(%{trial?: true}, _row), do: ""
+
+  defp peeked(turn, %{kind: "books", path: path}) do
+    case Seshat.book_peek(turn.resident_id, path, turn.resident) do
+      :exposed ->
+        "\n\n(You have not read this chapter: this look is recorded in the book's history as a peek. It marks nothing read, moves nothing, and the chapter stays out of search; book_read marks it read.)"
+
+      :ok ->
+        ""
+    end
+  end
+
+  defp peeked(_turn, _row), do: ""
+
+  defp shelf_of_books(turn) do
+    case Seshat.books(turn.resident_id) do
+      [] ->
+        "No books in your library yet; your witness imports one."
+
+      books ->
+        "Your books (book_read with a slug reads one):\n" <>
+          Enum.map_join(books, "\n", &book_line/1)
+    end
+  end
+
+  defp book_line(b) do
+    by = if b.author, do: ", by #{b.author}", else: ""
+    place = if b.current, do: ", your place at #{b.current}", else: ", not started"
+    "#{b.slug}: #{b.title}#{by}; #{length(b.units)} chapters#{place}"
+  end
+
+  defp read_book(turn, slug, unit, advance, from) do
+    advance = if is_boolean(advance), do: advance
+    stamp = from == 0 and not Map.get(turn, :trial?, false)
+
+    case Seshat.book_read(turn.resident_id, slug, unit, advance, turn.resident, stamp: stamp) do
+      {:ok, %{done: true} = r} ->
+        "#{book_head(r.book)}\nYou have read every chapter. Rereading one: book_read with its unit.\n\n" <>
+          contents_lines(r.chapters)
+
+      {:ok, r} ->
+        chapter_page(r, from, stamp)
+
+      other ->
+        other
+    end
+  end
+
+  defp chapter_page(r, from, stamp) do
+    total = String.length(r.content)
+
+    if from > 0 and from >= total do
+      @not_done <> "from #{from} is past the end; the chapter is #{total} characters."
+    else
+      chunk = String.slice(r.content, from, Config.fetch!(:brain, :library_read_chars))
+      size = String.length(chunk)
+      size = if from + size >= total, do: size, else: line_end(chunk, size)
+      title = Enum.find_value(r.chapters, &(&1.unit == r.unit and &1.title))
+
+      marked = marked_line(r, stamp)
+      more = next_page(r, from + size, total)
+
+      "#{book_head(r.book)}\n#{contents_lines(r.chapters)}\n\n" <>
+        "Chapter #{r.unit}, #{title} (#{r.path}), characters #{from} to #{from + size} of #{total}. #{marked}#{more}\n\n" <>
+        String.slice(chunk, 0, size)
+    end
+  end
+
+  defp marked_line(_r, false), do: "Nothing marked by this page."
+
+  defp marked_line(%{book: %{current: unit}, unit: unit}, true),
+    do: "Marked read; your place is here."
+
+  defp marked_line(r, true),
+    do: "Marked read; your place stays at #{r.book.current || "the start"}."
+
+  defp next_page(_r, at, total) when at >= total, do: ""
+
+  defp next_page(r, at, _total),
+    do: " The next page: book_read with slug: #{r.book.slug}, unit: #{r.unit}, from: #{at}."
+
+  defp book_head(b),
+    do:
+      "#{b.title}#{if b.author, do: ", by #{b.author}", else: ""} (books/#{b.slug}/; rights: #{b.rights})."
+
+  defp contents_lines(chapters) do
+    "Contents (read ✓, peeked ◐, unread ·; ▸ your place):\n" <>
+      Enum.map_join(chapters, "\n", fn c ->
+        mark = %{"read" => "✓", "exposed" => "◐", "unread" => "·"}[c.state]
+        "#{if c.here, do: "▸", else: " "} #{mark} #{c.unit} #{c.title}"
+      end)
+  end
+
   defp library_page(row, content, from) do
     total = String.length(content)
 

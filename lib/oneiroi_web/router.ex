@@ -340,6 +340,8 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/subscription/portal", SubscriptionController, :portal)
       get("/residents/:id/library", LibraryController, :index)
       get("/residents/:id/library/search", LibraryController, :search)
+      get("/residents/:id/books", BookController, :index)
+      post("/residents/:id/books", BookController, :import)
       get("/residents/:id/library/cited-by", LibraryController, :cited_by)
       post("/residents/:id/library/adopt", LibraryController, :adopt)
       post("/residents/:id/library/publish", LibraryController, :publish)

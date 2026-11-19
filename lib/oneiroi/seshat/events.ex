@@ -159,6 +159,23 @@ defmodule Oneiroi.Seshat.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :number, :reason]
   end
 
+  defmodule BookImported do
+    # A book the witness brought (seshat#98): where it is (books/<slug>/),
+    # its facts and rights note, and its chapters' units in reading order
+    # with their titles beside them.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :slug, :title, :author, :identifier, :rights, :caveat, :units, :titles]
+  end
+
+  defmodule BookUnitRead do
+    # A chapter of a book reached (seshat#98): `mode` is `read` (book_read,
+    # which marks it read) or `exposure` (a peek by its path, which marks
+    # nothing); `advanced` when her place in the book moved to it; `via`
+    # the tool.
+    use Oneiroi.Event, version: 1, fields: [:id, :slug, :unit, :mode, :advanced, :via]
+  end
+
   defmodule DigestAsked do
     # A digest asked of the reader (seshat#40): what reached the
     # resident's streams (her mail's newsletters and posts) since `since`,

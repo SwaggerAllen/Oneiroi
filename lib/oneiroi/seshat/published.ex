@@ -86,11 +86,19 @@ defmodule Oneiroi.Seshat.Published do
   # ---- who ----
 
   defp may_publish(resident_id, path, %Actor{kind: :resident, id: resident_id}) do
-    if Kinds.kind_of(resident_id, path).kind == "human",
-      do:
+    cond do
+      Kinds.kind_of(resident_id, path).kind == "human" ->
         {:error,
-         Error.new(:seshat_publish_not_yours, :seshat_publish_not_yours_human, path: path)},
-      else: :ok
+         Error.new(:seshat_publish_not_yours, :seshat_publish_not_yours_human, path: path)}
+
+      # A book and her reading of it stay hers (seshat#98); the folder by
+      # name, as Books would say it, without a call back into the library.
+      String.starts_with?(path, "books/") ->
+        {:error, Error.new(:seshat_book_private, :seshat_publish_book_private, path: path)}
+
+      true ->
+        :ok
+    end
   end
 
   defp may_publish(resident_id, path, %Actor{kind: :witness, id: id}) do

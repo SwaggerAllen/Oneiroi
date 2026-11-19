@@ -85,6 +85,20 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   return json as T;
 }
 
+/** A book in her library (seshat#98): its place and how far she has read. */
+export interface Book {
+  slug: string;
+  title: string;
+  author: string | null;
+  rights: string;
+  caveat: string | null;
+  chapters: number;
+  read: number;
+  current: string | null;
+  read_at: string | null;
+  imported_at: string;
+}
+
 export interface DocumentVersion {
   version: string;
   act: 'written' | 'adopted' | 'moved' | 'archived' | 'tombstone' | 'committed';
@@ -646,6 +660,27 @@ export const api = {
     if (!response.ok) throw new RequestFailed(response.status, (json as { error?: ApiError } | null)?.error ?? null);
     return json as ChatgptImport;
   },
+  // Her books (seshat#98): the list with each one's place, and an EPUB
+  // imported, sent whole as the body with its rights note in the query.
+  books: (residentId: string) => call<{ books: Book[]; rights: string[] }>('GET', `/v1/residents/${residentId}/books`),
+  importBook: async (residentId: string, epub: Blob, rights: string, caveat: string, source: string): Promise<{ slug: string; title: string; author: string | null; chapters: number }> => {
+    const query = new URLSearchParams({ rights, ...(caveat ? { caveat } : {}), ...(source ? { source } : {}) });
+    const response = await fetch(`/v1/residents/${residentId}/books?${query.toString()}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/epub+zip' },
+      body: epub,
+    });
+    const text = await response.text();
+    let json: unknown = null;
+    try {
+      json = text ? (JSON.parse(text) as unknown) : null;
+    } catch {
+      json = null;
+    }
+    if (!response.ok) throw new RequestFailed(response.status, (json as { error?: ApiError } | null)?.error ?? null);
+    return json as { slug: string; title: string; author: string | null; chapters: number };
+  },
   presence: (residentId: string) => call<PresenceState>('GET', `/v1/residents/${residentId}/presence`),
   setPresence: (residentId: string, enabled: boolean, handle: string) =>
     call<void>('PUT', `/v1/residents/${residentId}/presence`, { enabled, handle }),
@@ -687,7 +722,7 @@ export const api = {
   householdGrantTurn: (residentId: string) => call<HouseTurn>('POST', '/v1/household/beats/turns', { resident_id: residentId }),
   householdBeats: () => call<HouseBeats>('GET', '/v1/household/beats'),
   /** What the witness has not read, by workspace (gaia#58, seshat#96). */
-  unread: () => call<{ residents: { id: string; count: number }[]; house: { count: number; threads: Record<string, number> } | null }>('GET', '/v1/unread'),
+  unread: () => call<{ residents: { id: string; count: number }[]; house: { count: number; threads: Record<string, number>; seen?: Record<string, string> } | null }>('GET', '/v1/unread'),
   /** Read up to an instant: a resident's chat (her id), or a house thread. */
   markRead: (subject: string, at: string, thread?: string) => call<void>('PUT', '/v1/unread', { subject, at, ...(thread ? { thread } : {}) }),
   /** This witness's pushes from the house (seshat#95): a round's end, a thread's rounds running out. */

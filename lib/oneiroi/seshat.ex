@@ -74,6 +74,8 @@ defmodule Oneiroi.Seshat do
       Commands.RemoveDocument,
       Commands.MoveDocument,
       Commands.AskDigest,
+      Commands.ImportBook,
+      Commands.ReadBookUnit,
       Commands.AnswerDigest,
       Commands.FailDigest,
       Events.DocumentWritten,
@@ -108,6 +110,8 @@ defmodule Oneiroi.Seshat do
       Events.DocumentRemoved,
       Events.DocumentMoved,
       Events.DigestAsked,
+      Events.BookImported,
+      Events.BookUnitRead,
       Events.DigestAnswered,
       Events.DigestFailed,
       Events.OracleDispatched,
@@ -157,6 +161,7 @@ defmodule Oneiroi.Seshat do
     ]
 
   alias Oneiroi.Apsu.Jobs
+  alias Oneiroi.Seshat.Books
   alias Oneiroi.Seshat.Citations
   alias Oneiroi.Seshat.Digests
   alias Oneiroi.Seshat.Documents
@@ -176,6 +181,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Published
   alias Oneiroi.Seshat.Researches
   alias Oneiroi.Seshat.Scenes
+  alias Oneiroi.Seshat.Store.Book
   alias Oneiroi.Seshat.Theme
   alias Oneiroi.Seshat.UserKinds
   alias Oneiroi.Seshat.Versions
@@ -299,6 +305,8 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.DocumentRemoved, 1},
       {Oneiroi.Seshat.Events.DocumentMoved, 1},
       {Oneiroi.Seshat.Events.DigestAsked, 1},
+      {Oneiroi.Seshat.Events.BookImported, 1},
+      {Oneiroi.Seshat.Events.BookUnitRead, 1},
       {Oneiroi.Seshat.Events.DigestAnswered, 1},
       {Oneiroi.Seshat.Events.DigestFailed, 1},
       {Oneiroi.Seshat.Events.OracleDispatched, 1},
@@ -563,6 +571,19 @@ defmodule Oneiroi.Seshat do
        "she has no human-correspondence kind; a pasted conversation lands only there (seshat#65)",
        remedy:
          "the resident defines it as a kind of hers (kind_define), and the paste lands there"},
+      {:seshat_book_invalid,
+       "a book is a readable, DRM-free EPUB with a title and at least one chapter of words, imported with a rights note: public-domain, house-shareable or purchased-drm-free (seshat#98)",
+       remedy:
+         "upload the .epub itself (not a Kindle file), and choose the rights note that is true of it"},
+      {:seshat_book_imported,
+       "that edition is in her library already: a book is imported once (seshat#98)",
+       remedy: "it is at the path named; she reads it with book_read"},
+      {:seshat_book_no_such, "no such book, or no such chapter in it (seshat#98)",
+       remedy: "book_read with only the book's slug shows its contents and her place in it"},
+      {:seshat_book_private,
+       "a book and her reading of it stay in her library: no chapter, manifest or history is published or copied to the house; the book itself is shared only by promotion, not built yet (seshat#98)",
+       remedy:
+         "share what she thinks of it instead: a note of her own, with the quoted words and their locator"},
       {:seshat_dispatch_failed,
        "the command did not reach the library, the journal or the scenes aggregate: the command middleware or the event store refused it",
        remedy:
@@ -1163,6 +1184,47 @@ defmodule Oneiroi.Seshat do
   @impl Oneiroi.SimaQian.Library
   @spec refusal(String.t()) :: String.t() | nil
   defexport(refusal(path), do: Kinds.refusal(path))
+
+  @doc "A book imported from an EPUB's bytes by her witness (seshat#98): `rights` required, `caveat` and `source` optional."
+  @spec book_import(String.t(), binary(), map(), Oneiroi.Actor.t()) ::
+          {:ok, Book.t()} | {:error, term()}
+  defexport(book_import(resident_id, bytes, attrs, actor),
+    do: Books.import(resident_id, bytes, attrs, actor)
+  )
+
+  @doc "Her books, by title (seshat#98)."
+  @spec books(String.t()) :: [Book.t()]
+  defexport(books(resident_id), do: Books.list(resident_id))
+
+  @doc "A book's chapters with their states and her place (seshat#98)."
+  @spec book_contents(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(book_contents(resident_id, slug),
+    do: Books.contents(resident_id, slug)
+  )
+
+  @doc "book_read (seshat#98): a chapter, the read stamped unless `stamp: false`."
+  @spec book_read(
+          String.t(),
+          String.t(),
+          String.t() | nil,
+          boolean() | nil,
+          Oneiroi.Actor.t(),
+          keyword()
+        ) ::
+          {:ok, map()} | {:error, term()}
+  defexport(book_read(resident_id, slug, unit, advance, actor, opts \\ []),
+    do: Books.read(resident_id, slug, unit, advance, actor, opts)
+  )
+
+  @doc "A peek at a chapter she has not read, by its path (seshat#98): recorded as exposure, nothing else."
+  @spec book_peek(String.t(), String.t(), Oneiroi.Actor.t()) :: :exposed | :ok
+  defexport(book_peek(resident_id, path, actor),
+    do: Books.peek(resident_id, path, actor)
+  )
+
+  @doc "The rights notes a book is imported under (seshat#98)."
+  @spec book_rights() :: [String.t()]
+  defexport(book_rights(), do: Books.rights())
 
   @doc "A route's landing (xenia#19): the reader's reading written as the platform writes, into the kind the route names; the route checked the kind is one she writes."
   @spec land(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::

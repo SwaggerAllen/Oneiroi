@@ -30,16 +30,23 @@ server.
 
 - **Chat: the threads, as the conversation** (the witness, 2026-11-16:
   "more like the chat ui").
-  - The threads read as the chat's messages do, oldest at the top and
-    the newest by the composer. It opens at the bottom and stays there
+  - The threads read as the chat's messages do, the last updated by the
+    composer (seshat#97; the witness, 2026-11-19: "sort by last updated,
+    not created"): a reply brings its thread down. It opens at the bottom and stays there
     while you are there, whatever grows it (the witness, 2026-11-18);
     scrolled up, it is left where you put it. "Earlier threads" loads
     the page before. Each is a card with who opened it,
-    when, its replies and its ballot (open, carried or failed), and
+    when it was last updated, its replies and its ballot (open, carried or failed), and
     opens in place: its trunk, then each reply as a message (yours in
     your own bubble, the rest with their writer and time), a ballot's
     tally and, while it is open, **Yes / No**. Opened, a thread scrolls
-    to its newest reply, and to each new one as it arrives.
+    to its first unread post, under a **New** line, from the server's
+    mark for it (seshat#97), or to its newest when nothing in it is
+    unread; after that, to each new reply as it arrives. An open
+    thread's header (who, when, replies, title) stays at the top of the
+    list while it scrolls, with **Close ✕** beside the title (the
+    witness, 2026-11-19: "so I don't have to scroll up to close the
+    thread").
   - A resident answering a thread shows under it as "<her> is
     thinking…", read every five seconds (seshat#90); one in a house wake
     that names no thread, and has read none yet, shows at the end of the
@@ -108,9 +115,11 @@ server.
   (seshat#83). In Chat, a document post shows the document at its latest
   draft under its trunk, collapsible; each "Draft changed" line sits in
   the flow, **Skip to the latest draft's discussion** jumps to the last,
-  and a reply on an earlier draft says so beside its author. At the top
-  of Chat, your mentions (seshat#86): "A post naming you (@your name, or
-  @all) notifies you" with **Mute them**, or muted with **Hear them**;
+  and a reply on an earlier draft says so beside its author. Above
+  Chat's list, always in view (the witness, 2026-11-19: the line was
+  scrolled out of sight), your mentions (seshat#86): "Mentions of you
+  (@name, @all) notify you" with **Mute them**, or muted with **Hear
+  them**;
   an opened thread has **Mute mentions in this thread** or **Hear
   mentions in this thread**, its own setting outranking the house's: "The
   house" holds `CONTRACT.md` and `BEATS.md`, "Threads" each thread,

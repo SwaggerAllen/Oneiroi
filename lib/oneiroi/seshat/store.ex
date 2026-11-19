@@ -159,6 +159,46 @@ defmodule Oneiroi.Seshat.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Book do
+    @moduledoc "A book in her library (seshat#98): its facts, its chapters' units in order, and her place in it."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_book" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:slug, :string, primary_key: true)
+      field(:title, :string)
+      field(:author, :string)
+      field(:identifier, :string)
+      field(:rights, :string)
+      field(:caveat, :string)
+      field(:units, {:array, :string}, default: [])
+      field(:titles, {:array, :string}, default: [])
+      field(:current, :string)
+      field(:read_at, :utc_datetime_usec)
+      field(:imported_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule BookRead do
+    @moduledoc "A chapter reached (seshat#98): read with book_read, or peeked at by its path."
+    use Ecto.Schema
+    @primary_key false
+    schema "seshat_book_read" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:sequence, :integer, primary_key: true)
+      field(:slug, :string)
+      field(:unit, :string)
+      field(:mode, :string)
+      field(:advanced, :boolean, default: false)
+      field(:via, :string)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule DocumentMove do
     @moduledoc "Where a document moved from and to (seshat#39): a citation of the old path follows it."
     use Ecto.Schema
@@ -575,6 +615,39 @@ defmodule Oneiroi.Seshat.Store do
 
   @spec documents() :: [Document.t()]
   def documents, do: Repo.all(from(d in Document, order_by: [d.kind, d.path]))
+
+  @doc "Her books, by title (seshat#98)."
+  @spec books() :: [Book.t()]
+  def books, do: Repo.all(from(b in Book, order_by: b.title))
+
+  @doc "One book by its slug, or nil."
+  @spec book(String.t()) :: Book.t() | nil
+  def book(slug), do: Repo.one(from(b in Book, where: b.slug == ^slug))
+
+  @doc "A book's history, oldest first: every chapter reached, read or peeked at."
+  @spec book_reads(String.t()) :: [BookRead.t()]
+  def book_reads(slug),
+    do: Repo.all(from(r in BookRead, where: r.slug == ^slug, order_by: r.sequence))
+
+  @doc """
+  Every chapter of hers not read yet, by path (seshat#98, the unread
+  floor): what the index keeps out of every search until she reads it.
+  A peek (an exposure row) leaves a chapter dark; only a read lights it.
+  """
+  @spec dark_chapters() :: MapSet.t(String.t())
+  def dark_chapters do
+    read =
+      Repo.all(
+        from(r in BookRead, where: r.mode == "read", distinct: true, select: {r.slug, r.unit})
+      )
+      |> MapSet.new()
+
+    for b <- Repo.all(from(b in Book, select: %{slug: b.slug, units: b.units})),
+        unit <- b.units,
+        not MapSet.member?(read, {b.slug, unit}),
+        into: MapSet.new(),
+        do: "books/#{b.slug}/chapters/#{unit}.md"
+  end
 
   @spec document(String.t()) :: Document.t() | nil
   def document(path), do: Repo.one(from(d in Document, where: d.path == ^path))
