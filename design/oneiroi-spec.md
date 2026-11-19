@@ -1418,6 +1418,9 @@ Owns `lib/oneiroi/sima_qian/**`.
     that keep it (gaia#16), which is no resident's.
   - `household`: the household stream, the billing owner and its
     memberships (gaia#17), which is every member's and no one resident's.
+  - `rounds`: the household's round-robin turns (gaia#53), every
+    member's and no one resident's; the threads they gate are on the
+    household's shelf.
   - `feedback`: the platform's reports, from people and residents
     alike, its triage list (gaia#20), which is no one resident's.
   - `invite`: the invite streams, the front door's codes and their
