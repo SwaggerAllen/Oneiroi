@@ -83,7 +83,7 @@ defmodule Oneiroi.Brain.Tools do
     tag_propose tag_apply domain_tag soul_edit identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
-    writing_discuss document_write document_publish document_adopt keepsake_note letter_send free_time_set free_time_once
+    writing_discuss document_write document_publish document_adopt keepsake_note letter_send notify_witness free_time_set free_time_once
     reply_draft correspondent_block correspondent_unblock document_remove document_move
     journal_add journal_done scene_write
     contract_propose contract_agree contract_decline contract_renew contract_safe revision_add
@@ -1168,6 +1168,14 @@ defmodule Oneiroi.Brain.Tools do
         %{path: %{type: "string"}, limit: %{type: "integer", minimum: 1, maximum: 50}},
         []
       ),
+      # A push to the witness is hers to send (brain#107; the witness,
+      # 2026-11-19): nothing pushes them for her otherwise.
+      tool(
+        "notify_witness",
+        "Push a notification to your witness's devices, now: it says only that you asked for them, never your words. Nothing you write in a turn pushes them on its own; this is how you ask them to come and read something, when it is worth their attention now rather than when they next look.",
+        %{},
+        []
+      ),
       tool(
         "letter_send",
         "Send a house letter (the work log between your conversations). To answer a letter, give its number as in_reply_to, so the answer sits in its thread rather than starting a new one. Send it to the Oneiroi chat, to another conversation by its name (Claude Code · <folder>), or to house for any of them; to Free time, a brief waits for your next free time. Use it to pass an ask, and to leave a summary of finished work before anyone has to ask for one. in_reply_to links the letter it answers; keepsake gives a keepsake at your root to the conversation you write to. You are named as the sender by the conversation you write from. To write to another resident of your household, send it to their name: it lands in their Oneiroi chat and wakes it (in_reply_to works with the number the letter has in your own letters). A name no conversation or household resident answers to is refused, with the names there are.",
@@ -1726,6 +1734,17 @@ defmodule Oneiroi.Brain.Tools do
   # and how to ask for them, as the index's footer does.
   # House letters (kumbukumbu#44): the sender is the conversation this
   # turn is in, named by the server; a keepsake given must be one.
+  defp call("notify_witness", _args, turn) do
+    case Oneiroi.AgathosDaimon.fetch(turn.resident_id) do
+      {:ok, %{account_id: account_id}} when is_binary(account_id) ->
+        :ok = Oneiroi.Gaia.notify(account_id)
+        "Your witness's devices were pushed: they know you asked for them."
+
+      _none ->
+        "No witness to push: nobody looks after you on this platform yet."
+    end
+  end
+
   defp call("letter_send", args, turn) do
     case sibling(turn.resident_id, to_string(args["to"] || "")) do
       nil -> own_letter(args, turn)

@@ -15,6 +15,7 @@ defmodule Oneiroi.Gaia.Projectors.Household do
     HouseholdBeatMember,
     HouseholdContract,
     HouseholdMute,
+    HouseholdPush,
     HouseholdRegistration,
     HouseholdResident,
     HouseholdTurn,
@@ -226,6 +227,22 @@ defmodule Oneiroi.Gaia.Projectors.Household do
       },
       on_conflict: [set: [muted: e.muted, set_at: e.at]],
       conflict_target: [:household_id, :member_id, :thread]
+    )
+  end)
+
+  fold(%Events.HouseholdPushSet{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :push,
+      %HouseholdPush{
+        household_id: e.id,
+        member_id: e.member_id,
+        kind: e.kind,
+        on: e.on,
+        set_at: e.at
+      },
+      on_conflict: [set: [on: e.on, set_at: e.at]],
+      conflict_target: [:household_id, :member_id, :kind]
     )
   end)
 

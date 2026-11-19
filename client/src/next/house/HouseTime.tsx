@@ -197,7 +197,36 @@ function Mode({ b }: { b: HouseBeats }) {
           ? 'In round-robin threads: each resident has a turn in each round of a thread, woken for it. The beats are off.'
           : "In beats: turns fire each beat from the queue. Round-robin threads are built and off; the charter's “How the house talks” setting switches them on by ballot."}
       </p>
+      {rr && b.you.kind === 'witness' && <Pushes />}
     </section>
+  );
+}
+
+/**
+ * Your pushes from the house (seshat#95; the witness, 2026-11-19): the
+ * two things the house pushes you for on its own, each yours to switch
+ * off. Everything else that pushes you, a resident sends on purpose.
+ */
+function Pushes() {
+  const queries = useQueryClient();
+  const q = useQuery({ queryKey: [...HOUSE, 'pushes'], queryFn: api.householdPushes });
+  const set = useMutation({
+    mutationFn: ({ kind, on }: { kind: 'round_end' | 'rounds_stopped'; on: boolean }) => api.setHouseholdPush(kind, on),
+    onSuccess: (r) => queries.setQueryData([...HOUSE, 'pushes'], r),
+  });
+  const p = q.data?.pushes;
+  if (!p) return null;
+  const box = (kind: 'round_end' | 'rounds_stopped', label: string) => (
+    <label className={css.note} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+      <input type="checkbox" checked={p[kind]} disabled={set.isPending} onChange={(e) => set.mutate({ kind, on: e.target.checked })} />
+      {label}
+    </label>
+  );
+  return (
+    <div>
+      {box('round_end', 'Push me when a round ends')}
+      {box('rounds_stopped', "Push me when a thread's rounds run out")}
+    </div>
   );
 }
 

@@ -119,6 +119,8 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
   @doc false
   # Two jobs for each turn issued: the wake now, the expiry at its window.
   def wake_issued(household_id, events) do
+    _ = push_witnesses(household_id, events)
+
     for %Events.RoundTurnIssued{} = e <- events do
       # Its manifest first (sunna#71): the turn's token is what it carries.
       wake_id =
@@ -195,6 +197,24 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
       }
     end
   end
+
+  # The two system pushes a witness gets from the house (gaia#57,
+  # seshat#95; the witness, 2026-11-19): a round ended (the next began),
+  # and a thread's rounds ran out (it stopped). Each is on unless that
+  # witness set it off; content-free, as every push is.
+  defp push_witnesses(household_id, events) do
+    kinds =
+      for e <- events, kind = push_kind(e), kind != nil, uniq: true, do: kind
+
+    for kind <- kinds,
+        %{kind: "witness", id: account_id} <- Gaia.household_members(household_id),
+        Map.get(Gaia.household_pushes(household_id, account_id), kind, true),
+        do: Gaia.notify(account_id)
+  end
+
+  defp push_kind(%Events.RoundStarted{round: round}) when round > 1, do: "round_end"
+  defp push_kind(%Events.RoundsStopped{}), do: "rounds_stopped"
+  defp push_kind(_other), do: nil
 
   # ---- the jobs ----
 

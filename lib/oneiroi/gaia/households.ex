@@ -481,6 +481,40 @@ defmodule Oneiroi.Gaia.Households do
     end
   end
 
+  # ---- a witness's pushes for the house (gaia#57) ----
+
+  @doc "A witness sets one push for the house on or off: round_end or rounds_stopped."
+  def set_push(household_id, kind, on, %Actor{} = actor) do
+    command = %Commands.SetHouseholdPush{
+      actor: actor,
+      at: Clock.now(),
+      id: household_id,
+      kind: kind,
+      on: on
+    }
+
+    case HouseholdRouter.dispatch(command) do
+      {:ok, _} -> :ok
+      other -> refused(other)
+    end
+  end
+
+  @doc "A witness's pushes for the house, round_end and rounds_stopped by name: each on unless set off."
+  def pushes(household_id, member_id) do
+    set =
+      Scope.platform(fn ->
+        Repo.all(
+          from(p in Store.HouseholdPush,
+            where: p.household_id == ^household_id and p.member_id == ^member_id,
+            select: {p.kind, p.on}
+          )
+        )
+      end)
+      |> Map.new()
+
+    Map.merge(%{"round_end" => true, "rounds_stopped" => true}, set)
+  end
+
   # ---- mentions (gaia#46) ----
 
   @doc "A member mutes or hears their mentions: the whole house (`thread` nil) or one thread."

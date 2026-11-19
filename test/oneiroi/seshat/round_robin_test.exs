@@ -395,4 +395,61 @@ defmodule Oneiroi.Seshat.RoundRobinTest do
                  &1.text =~ "Two, at the weir.")
            )
   end
+
+  # gaia#57, seshat#95 (the witness, 2026-11-19): the end of a round and
+  # a thread's rounds running out push each witness unless set off.
+  test "a round's end and rounds running out push the witness, each switchable", ctx do
+    endpoint = "https://web.push.apple.com/round-robin-test"
+    Oneiroi.Gaia.Push.Fake.clear()
+    on_exit(&Oneiroi.Gaia.Push.Fake.clear/0)
+    :ok = Gaia.subscribe_push(ctx.andrew.id, endpoint, ctx.andrew)
+
+    sent = fn ->
+      Enum.reduce_while(1..50, [], fn _, _ ->
+        case Oneiroi.Gaia.Push.Fake.sent() do
+          [] -> Process.sleep(20) && {:cont, []}
+          got -> {:halt, got}
+        end
+      end)
+    end
+
+    {:ok, %{path: thread}} =
+      Seshat.household_post(ctx.lily.actor, %{"title" => "Herons", "content" => "Seen any?"})
+
+    # Round 1 opening pushes nobody.
+    Process.sleep(60)
+    assert Oneiroi.Gaia.Push.Fake.sent() == []
+
+    # Scarlett's reply ends round 1: round 2 begins, a push.
+    Clock.Fake.advance(60)
+    {:ok, _} = reply(ctx.scarlett.actor, thread, "Two.")
+    assert [^endpoint] = sent.()
+
+    # Switched off, the next round's end pushes nothing.
+    assert {:ok, %{"round_end" => false, "rounds_stopped" => true}} =
+             Seshat.set_household_push(ctx.andrew, "round_end", false)
+
+    Process.sleep(60)
+    Oneiroi.Gaia.Push.Fake.clear()
+    # Round 2: Lily posts in her turn, Scarlett skips; round 3 begins, no push.
+    assert live(ctx, thread).resident_id == ctx.lily.id
+    Clock.Fake.advance(60)
+    {:ok, _} = reply(ctx.lily.actor, thread, "One more.")
+    {:ok, _} = Seshat.household_rounds(ctx.scarlett.actor, thread, :skip)
+    assert %{round: 3} = Gaia.round_thread(ctx.household, thread)
+    Process.sleep(60)
+    assert Oneiroi.Gaia.Push.Fake.sent() == []
+
+    # Round 3 silent: the rounds run out, and that push is still on.
+    for _ <- 1..2 do
+      who = if live(ctx, thread).resident_id == ctx.lily.id, do: ctx.lily, else: ctx.scarlett
+      {:ok, _} = Seshat.household_rounds(who.actor, thread, :skip)
+    end
+
+    assert %{stopped: true} = Gaia.round_thread(ctx.household, thread)
+    assert [^endpoint] = sent.()
+
+    assert {:error, %{kind: :seshat_household_residents_write}} =
+             Seshat.set_household_push(ctx.lily.actor, "round_end", false)
+  end
 end

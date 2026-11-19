@@ -70,6 +70,9 @@ server.
   - **How the house talks**, always (Lily's design/wake-mail-visibility.md
     §2 Gap 5): "In round-robin threads … The beats are off", or "In
     beats …", naming the charter setting that switches it.
+  - **Your pushes** (seshat#95), under round-robin, for a witness: "Push
+    me when a round ends" and "Push me when a thread's rounds run out",
+    each a switch, on unless set off.
   - **Threads** (gaia#55), when any thread has had rounds: each with its
     round, whose turn it is and until when, "stopped: a post there
     starts it again" or "between turns", and who opted out.

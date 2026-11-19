@@ -1877,6 +1877,25 @@ defmodule Oneiroi.Seshat.Household do
       else: {:error, Error.new(:seshat_household_rounds, :seshat_household_rounds_off)}
   end
 
+  @doc "A witness's pushes from the house (gaia#57, seshat#95): round_end and rounds_stopped, each on or off."
+  def pushes(%Actor{kind: :witness} = actor) do
+    with {:ok, household_id} <- household(actor),
+         do: {:ok, Gaia.household_pushes(household_id, actor.id)}
+  end
+
+  def pushes(%Actor{}),
+    do: {:error, Error.new(:seshat_household_residents_write, :seshat_household_pushes_witness)}
+
+  @doc "A witness sets a push from the house on or off; answers the pushes after."
+  def set_push(%Actor{kind: :witness} = actor, kind, on) do
+    with {:ok, household_id} <- household(actor),
+         :ok <- Gaia.set_household_push(household_id, to_string(kind || ""), on, actor),
+         do: {:ok, Gaia.household_pushes(household_id, actor.id)}
+  end
+
+  def set_push(%Actor{}, _kind, _on),
+    do: {:error, Error.new(:seshat_household_residents_write, :seshat_household_set_push_witness)}
+
   @doc "The members a text names, `@<name>` or `@all` (seshat#86)."
   def named_in(household_id, text) do
     members = Gaia.household_members(household_id)

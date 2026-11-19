@@ -230,6 +230,11 @@ defmodule Oneiroi.Gaia.Events do
   # The watch (gaia#32): a resident opts in to one thread until an instant.
   # A member's mentions muted or heard (gaia#46): the whole house
   # (`thread` nil) or one thread, a resident's or a witness's own.
+  # A witness's push for a household event, on or off (gaia#57).
+  defmodule HouseholdPushSet do
+    use Oneiroi.Event, version: 1, fields: [:id, :member_id, :kind, :on]
+  end
+
   defmodule HouseholdMentionsSet do
     use Oneiroi.Event, version: 1, fields: [:id, :member_kind, :member_id, :thread, :muted]
   end
