@@ -426,6 +426,17 @@ defmodule Oneiroi.Kumbukumbu.Store do
     Repo.all(query)
   end
 
+  @doc "How many messages the resident wrote in a session after an instant (kumbukumbu#75): the witness's unread count."
+  @spec said_after(String.t(), DateTime.t()) :: non_neg_integer()
+  def said_after(session_key, %DateTime{} = since),
+    do:
+      Repo.one(
+        from(m in Message,
+          where: m.session_key == ^session_key and m.role == "assistant" and m.sent_at > ^since,
+          select: count()
+        )
+      )
+
   @doc "Every house letter, oldest first (kumbukumbu#44)."
   @spec house_letters() :: [HouseLetter.t()]
   def house_letters, do: Repo.all(from(l in HouseLetter, order_by: l.number))

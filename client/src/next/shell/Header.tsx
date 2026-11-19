@@ -13,9 +13,11 @@ export interface HeaderProps {
   onSettings?: () => void;
   /** Search: a resident's life, or the house's threads, records and charter (seshat#80). */
   search?: boolean;
+  /** Something unread in another workspace (gaia#58): a dot by the subject menu. */
+  unreadElsewhere?: boolean;
 }
 
-export function Header({ name, waiting, failing = false, onSubject, onBell, onSettings, search = true }: HeaderProps) {
+export function Header({ name, waiting, failing = false, unreadElsewhere = false, onSubject, onBell, onSettings, search = true }: HeaderProps) {
   const presence = usePresence();
   const connection = useShell((s) => s.connection);
   const setSearchOpen = useShell((s) => s.setSearchOpen);
@@ -38,6 +40,7 @@ export function Header({ name, waiting, failing = false, onSubject, onBell, onSe
           <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
             <span className={css.name}>{name}</span>
             <ChevronIcon />
+            {unreadElsewhere && <span className={css.unreadDot} role="img" aria-label="Unread in another workspace" />}
           </span>
           <span className={css.presence} data-working={working} aria-live="polite">
             {line}

@@ -717,6 +717,14 @@ defmodule Oneiroi.Seshat do
           {:ok, map()} | {:error, term()}
   defexport(set_household_push(actor, kind, on), do: Household.set_push(actor, kind, on))
 
+  @doc "A witness's unread in the house, in all and by thread (seshat#96)."
+  @spec household_unread(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_unread(actor), do: Household.unread(actor))
+
+  @doc "The witness has read a house thread up to an instant (seshat#96)."
+  @spec household_mark_seen(Oneiroi.Actor.t(), String.t(), DateTime.t()) :: :ok | {:error, term()}
+  defexport(household_mark_seen(actor, thread, at), do: Household.mark_seen(actor, thread, at))
+
   @doc "Who in the house is working now, and in which thread (seshat#90)."
   @spec household_working(Oneiroi.Actor.t()) :: {:ok, [map()]} | {:error, term()}
   defexport(household_working(actor), do: Household.working(actor))

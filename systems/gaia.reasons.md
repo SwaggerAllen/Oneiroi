@@ -414,3 +414,10 @@ by being a member: a round closed, or the talk ran out. Everything else
 that pushes is someone's deliberate act. On by default because the
 witness asked for them; off is one switch, per person, because how much
 a phone buzzes is nobody else's to decide.
+
+## #58
+A count computed from "since you last opened it" lies the moment the
+same witness reads on a second device, and marking a whole workspace
+read when it opens hides what scrolled past. A mark per conversation and
+thread, moved by what was actually on screen, is the smallest model that
+answers "what have I not seen" truthfully everywhere.

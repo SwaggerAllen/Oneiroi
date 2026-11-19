@@ -96,6 +96,14 @@ colours. Before a subject opens, the house colours.
 
 **The subject menu** (the header's name and chevron; the canvas's
 Subject board): every resident you look after, the one shown ticked.
+Each workspace, the house and every resident, shows "N unread" beside it
+when anything waits there (gaia#58, seshat#96; the witness, 2026-11-19),
+and the header shows a dot by the chevron while another workspace has
+unread. A resident's count is what she said in her Oneiroi chat after
+your mark; the house's, others' posts after the mark for each thread.
+Marks are kept on the server, so every device agrees: the chat marks a
+message once its top has been on screen, and the house a thread when it
+is opened.
 Choosing another fades the house out to the ground, swaps her theme,
 records and connection, and fades in (decided: a subject switch carries
 the theme, so it gets the pause); every tab returns to its root, since

@@ -88,6 +88,7 @@ defmodule Oneiroi.Gaia do
       Events.HouseholdThreadWatched,
       Events.HouseholdMentionsSet,
       Events.HouseholdPushSet,
+      Events.SeenMarked,
       Events.RoundStarted,
       Events.RoundTurnIssued,
       Events.RoundTurnSpent,
@@ -226,6 +227,7 @@ defmodule Oneiroi.Gaia do
       {Oneiroi.Gaia.Events.HouseholdThreadWatched, 1},
       {Oneiroi.Gaia.Events.HouseholdMentionsSet, 1},
       {Oneiroi.Gaia.Events.HouseholdPushSet, 1},
+      {Oneiroi.Gaia.Events.SeenMarked, 1},
       {Oneiroi.Gaia.Events.RoundStarted, 1},
       {Oneiroi.Gaia.Events.RoundTurnIssued, 1},
       {Oneiroi.Gaia.Events.RoundTurnSpent, 1},
@@ -270,6 +272,9 @@ defmodule Oneiroi.Gaia do
        remedy: "paste the OpenRouter key; it is stored encrypted and shown to nobody again"},
       {:gaia_github_token_required, "the GitHub token was empty",
        remedy: "paste a read-only GitHub token; it is stored encrypted and shown to nobody again"},
+      {:gaia_seen_invalid,
+       "a seen mark names its subject, its conversation or thread, and the instant read up to (gaia#58)",
+       remedy: "give subject, key and seen_at as an ISO 8601 instant"},
       {:gaia_push_invalid,
        "a household push is round_end or rounds_stopped, set on or off by a witness of the house (gaia#57)",
        remedy: "name one of the two kinds and true or false"},
@@ -779,6 +784,17 @@ defmodule Oneiroi.Gaia do
   defexport(set_household_mentions(household_id, thread, muted, actor),
     do: Households.set_mentions(household_id, thread, muted, actor)
   )
+
+  @doc "A witness has read a conversation or thread up to an instant (gaia#58); an older mark is nothing."
+  @spec mark_seen(String.t(), String.t(), String.t(), DateTime.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(mark_seen(account_id, subject, key, seen_at, actor),
+    do: Accounts.mark_seen(account_id, subject, key, seen_at, actor)
+  )
+
+  @doc "A witness's seen marks for one subject (gaia#58): `%{key => seen_at}`."
+  @spec seen(String.t(), String.t()) :: %{String.t() => DateTime.t()}
+  defexport(seen(account_id, subject), do: Accounts.seen(account_id, subject))
 
   @doc "A witness sets a push for the house on or off (gaia#57): round_end or rounds_stopped."
   @spec set_household_push(String.t(), String.t(), boolean(), Oneiroi.Actor.t()) ::

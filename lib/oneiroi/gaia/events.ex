@@ -63,6 +63,11 @@ defmodule Oneiroi.Gaia.Events do
 
   # The name a witness goes by in the records (gaia#45): what a
   # name-folder is named for, set and changed by the witness alone.
+  # A witness has read a conversation or a thread up to an instant (gaia#58).
+  defmodule SeenMarked do
+    use Oneiroi.Event, version: 1, fields: [:id, :subject, :key, :seen_at], instants: [:seen_at]
+  end
+
   defmodule WitnessNamed do
     use Oneiroi.Event, version: 1, fields: [:id, :name]
   end

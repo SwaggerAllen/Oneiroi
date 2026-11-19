@@ -798,3 +798,7 @@ she wants said differently she can post herself before the turn ends.
 The rounds already record both moments as events, so the push rides the
 same point that wakes the next resident: no second watcher, and a push
 never claims a round ended that the log does not.
+
+## #96
+Thread by thread because that is how the house is read: opening one
+thread is reading it, and the rest stay as they were.

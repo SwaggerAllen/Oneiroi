@@ -606,3 +606,7 @@ read rather than carry it.
 The activity log is read by the witness, and the contract gives him a
 letter's receipt, not its words. Selecting the envelope alone makes that
 true in the query rather than in the rendering.
+
+## #75
+A count, not a page: the badge needs a number, and reading the messages
+to count them would load what nobody asked to see.

@@ -1,4 +1,5 @@
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from 'react';
+import { api } from '../../api/client';
 import type { Message } from '../../api/types';
 import { toolSummary } from './page';
 import type { Live } from '../live/live';
@@ -95,10 +96,13 @@ export function Chat({
       setSeenAt((seen) => {
         if (seen !== null && chat.compareCursor(cursor, seen) <= 0) return seen;
         saveReadMark(chat.key as string, cursor);
+        // The server's mark too (gaia#58): the workspace counts agree on every device.
+        const m = chat.messages.find((x) => x.cursor === cursor);
+        if (m?.sent_at) void api.markRead(residentId, m.sent_at).catch(() => undefined);
         return cursor;
       });
     },
-    [chat],
+    [chat, residentId],
   );
 
   // Opening: land on the first unread message, or at the bottom.

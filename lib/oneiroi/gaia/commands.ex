@@ -43,6 +43,13 @@ defmodule Oneiroi.Gaia.Commands do
     use Oneiroi.Command, fields: [:id]
   end
 
+  # How far a witness has read (gaia#58): `subject` a resident's id or
+  # house:<household id>, `key` the conversation or thread, or "*" for
+  # the subject's baseline; `seen_at` the newest instant on screen.
+  defmodule MarkSeen do
+    use Oneiroi.Command, fields: [:id, :subject, :key, :seen_at]
+  end
+
   defmodule NameWitness do
     use Oneiroi.Command, fields: [:id, :name]
   end

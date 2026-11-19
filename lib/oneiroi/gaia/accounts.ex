@@ -224,6 +224,24 @@ defmodule Oneiroi.Gaia.Accounts do
     end
   end
 
+  @doc "A witness has read `key` of `subject` up to `seen_at` (gaia#58); an older mark is nothing."
+  def mark_seen(account_id, subject, key, %DateTime{} = seen_at, %Actor{} = actor) do
+    command = %Commands.MarkSeen{
+      actor: actor,
+      at: Clock.now(),
+      id: account_id,
+      subject: subject,
+      key: key,
+      seen_at: seen_at
+    }
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  @doc "A witness's marks for one subject: `%{key => seen_at}`."
+  def seen(account_id, subject),
+    do: Scope.account(account_id, fn -> Store.seen(account_id, subject) end)
+
   @doc """
   Names the witness (gaia#45): one line, 1 to 60 characters, with a
   letter or digit in it. The household calls the witness by it, and

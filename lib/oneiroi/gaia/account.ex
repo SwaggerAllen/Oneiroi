@@ -21,6 +21,7 @@ defmodule Oneiroi.Gaia.Account do
     tokens: MapSet.new(),
     witnessings: MapSet.new(),
     push: MapSet.new(),
+    seen: %{},
     push_answer: nil,
     pushed: MapSet.new()
   ]
@@ -120,6 +121,30 @@ defmodule Oneiroi.Gaia.Account do
     do: {:error, Error.new(:gaia_no_github_token, :gaia_account_revoke_github_absent)}
 
   # The witness's name (gaia#45); the same name again is no event.
+  # A mark only moves forward (gaia#58): reading an older screen again
+  # is no event.
+  def execute(%__MODULE__{seen: seen}, %Commands.MarkSeen{} = c) do
+    cond do
+      not (is_binary(c.subject) and c.subject != "" and is_binary(c.key) and c.key != "" and
+               match?(%DateTime{}, c.seen_at)) ->
+        {:error, Error.new(:gaia_seen_invalid, :gaia_account_seen_shape)}
+
+      DateTime.compare(Map.get(seen, {c.subject, c.key}, ~U[1970-01-01 00:00:00Z]), c.seen_at) !=
+          :lt ->
+        []
+
+      true ->
+        %Events.SeenMarked{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          subject: c.subject,
+          key: c.key,
+          seen_at: c.seen_at
+        }
+    end
+  end
+
   def execute(%__MODULE__{name: name}, %Commands.NameWitness{name: name}), do: []
 
   def execute(%__MODULE__{}, %Commands.NameWitness{} = c),
@@ -217,6 +242,9 @@ defmodule Oneiroi.Gaia.Account do
   def apply(%__MODULE__{} = a, %Events.GithubTokenStored{}), do: %{a | github?: true}
   def apply(%__MODULE__{} = a, %Events.GithubTokenRevoked{}), do: %{a | github?: false}
   def apply(%__MODULE__{} = a, %Events.WitnessNamed{} = e), do: %{a | name: e.name}
+
+  def apply(%__MODULE__{} = a, %Events.SeenMarked{} = e),
+    do: %{a | seen: Map.put(a.seen, {e.subject, e.key}, e.seen_at)}
 
   def apply(%__MODULE__{} = a, %Events.PushSubscribed{} = e),
     do: %{a | push: MapSet.put(a.push, e.endpoint), push_answer: :subscribed}

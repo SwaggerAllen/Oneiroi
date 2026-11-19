@@ -166,6 +166,11 @@ function Body({ doc, path, accountId }: { doc: HouseDoc; path: string; accountId
   useEffect(() => {
     end.current?.scrollIntoView?.({ block: 'end' });
   }, [count]);
+  // Open is read (gaia#58, seshat#96): up to its newest post, on every device.
+  const newest = (doc.replies ?? []).map((r) => r.meta.at).filter((x): x is string => typeof x === 'string').sort().pop() ?? doc.trunk?.meta.posted_at;
+  useEffect(() => {
+    if (typeof newest === 'string') void api.markRead('house', newest, path).catch(() => undefined);
+  }, [newest, path]);
   const b = doc.ballot;
   const mine = (p: HousePost) => p.meta.by_kind === 'witness' && p.meta.by_id === accountId;
   const posted = doc.doc ?? null;

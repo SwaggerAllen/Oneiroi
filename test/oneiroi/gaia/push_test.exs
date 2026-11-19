@@ -9,6 +9,7 @@ defmodule Oneiroi.Gaia.PushTest do
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
   alias Oneiroi.Gaia
   alias Oneiroi.Gaia.Push
@@ -105,7 +106,7 @@ defmodule Oneiroi.Gaia.PushTest do
     Process.sleep(100)
     assert Fake.sent() == []
 
-    Oneiroi.Brain.Tools.run("notify_witness", "{}", %{
+    Tools.run("notify_witness", "{}", %{
       resident_id: resident.id,
       session_key: key,
       turn_ref: "t",

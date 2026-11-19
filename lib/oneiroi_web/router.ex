@@ -145,6 +145,8 @@ defmodule OneiroiWeb.Router do
       get("/tokens", TokenController, :index)
       post("/tokens", TokenController, :create)
       delete("/tokens/:hash", TokenController, :delete)
+      get("/unread", UnreadController, :index)
+      put("/unread", UnreadController, :mark)
       resources("/residents", ResidentController, only: [:index, :create, :show])
       post("/residents/:id/awaken", ResidentController, :awaken)
       delete("/residents/:id", ResidentController, :discard)

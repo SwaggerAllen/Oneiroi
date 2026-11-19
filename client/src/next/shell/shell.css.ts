@@ -227,3 +227,12 @@ export const empty = style({
   fontSize: 14,
   lineHeight: '21px',
 });
+
+// Unread in another workspace (gaia#58): a small dot by the subject menu.
+export const unreadDot = style({
+  width: 8,
+  height: 8,
+  borderRadius: 4,
+  background: vars.color.witness.accent,
+  boxShadow: `0 0 6px ${vars.color.witness.glow}`,
+});

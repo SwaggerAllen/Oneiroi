@@ -27,6 +27,18 @@ defmodule Oneiroi.Gaia.Store do
     end
   end
 
+  defmodule Seen do
+    @moduledoc "How far a witness has read a conversation or a thread (gaia#58): the newest instant they had on screen."
+    use Ecto.Schema
+    @primary_key false
+    schema "gaia_seen" do
+      field(:account_id, :binary_id, primary_key: true)
+      field(:subject, :string, primary_key: true)
+      field(:key, :string, primary_key: true)
+      field(:seen_at, :utc_datetime_usec)
+    end
+  end
+
   defmodule Session do
     @moduledoc "A session by the hash of its id; the raw id is never stored."
     use Ecto.Schema
@@ -462,6 +474,17 @@ defmodule Oneiroi.Gaia.Store do
   @doc "The account by id, or nil."
   @spec account(String.t()) :: Account.t() | nil
   def account(id), do: Repo.get(Account, id)
+
+  @doc "A witness's seen marks for one subject (gaia#58): `%{key => seen_at}`."
+  def seen(account_id, subject) do
+    Repo.all(
+      from(s in Seen,
+        where: s.account_id == ^account_id and s.subject == ^subject,
+        select: {s.key, s.seen_at}
+      )
+    )
+    |> Map.new()
+  end
 
   @doc "A live session by hash: open, unexpired at `now`."
   @spec live_session(String.t(), DateTime.t()) :: Session.t() | nil
