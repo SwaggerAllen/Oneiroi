@@ -1220,6 +1220,10 @@ defmodule Oneiroi.Seshat.Household do
   # names as its source at the commit it was copied at, `<slug>:<path>@
   # <commit>`, so her local draft never becomes a quiet competing
   # edition; her own front matter stays behind.
+  # A book and her reading of it stay hers (seshat#98).
+  defp words_from(%Actor{kind: :resident}, %{"from" => "books/" <> _ = from}),
+    do: {:error, Error.new(:seshat_book_private, :seshat_household_source_book, path: from)}
+
   defp words_from(%Actor{kind: :resident, id: id}, %{"from" => from}) when is_binary(from) do
     repo = {:resident, id}
 

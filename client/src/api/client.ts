@@ -85,6 +85,20 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
   return json as T;
 }
 
+/** A book in her library (seshat#98): its place and how far she has read. */
+export interface Book {
+  slug: string;
+  title: string;
+  author: string | null;
+  rights: string;
+  caveat: string | null;
+  chapters: number;
+  read: number;
+  current: string | null;
+  read_at: string | null;
+  imported_at: string;
+}
+
 export interface DocumentVersion {
   version: string;
   act: 'written' | 'adopted' | 'moved' | 'archived' | 'tombstone' | 'committed';
@@ -645,6 +659,27 @@ export const api = {
     }
     if (!response.ok) throw new RequestFailed(response.status, (json as { error?: ApiError } | null)?.error ?? null);
     return json as ChatgptImport;
+  },
+  // Her books (seshat#98): the list with each one's place, and an EPUB
+  // imported, sent whole as the body with its rights note in the query.
+  books: (residentId: string) => call<{ books: Book[]; rights: string[] }>('GET', `/v1/residents/${residentId}/books`),
+  importBook: async (residentId: string, epub: Blob, rights: string, caveat: string, source: string): Promise<{ slug: string; title: string; author: string | null; chapters: number }> => {
+    const query = new URLSearchParams({ rights, ...(caveat ? { caveat } : {}), ...(source ? { source } : {}) });
+    const response = await fetch(`/v1/residents/${residentId}/books?${query.toString()}`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'content-type': 'application/epub+zip' },
+      body: epub,
+    });
+    const text = await response.text();
+    let json: unknown = null;
+    try {
+      json = text ? (JSON.parse(text) as unknown) : null;
+    } catch {
+      json = null;
+    }
+    if (!response.ok) throw new RequestFailed(response.status, (json as { error?: ApiError } | null)?.error ?? null);
+    return json as { slug: string; title: string; author: string | null; chapters: number };
   },
   presence: (residentId: string) => call<PresenceState>('GET', `/v1/residents/${residentId}/presence`),
   setPresence: (residentId: string, enabled: boolean, handle: string) =>

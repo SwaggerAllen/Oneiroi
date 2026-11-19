@@ -92,6 +92,14 @@ at `/client/#/records`. Built 2026-11-10.
   (gaia#45) before anything else. A record
   just written or moved is read again for a moment until it is
   registered.
+- **Import a book** (`book`, under Paste a conversation, seshat#98; the
+  witness, 2026-11-19: an upload button, his alone): a DRM-free EPUB and
+  its rights note (public domain, shareable in the house, or bought
+  DRM-free), a caveat optional; Import it sends the file and opens the
+  book's manifest. The page lists her books with how far she has read
+  each and her place. The book lands in books/, a chapter a document,
+  shown in the tree like any folder. Not built: removing a book, and
+  reading it in the client beyond the documents themselves.
 - **Paste a conversation** (`paste`, under Add a document, seshat#65,
   #66): an exchange you are having with someone, pasted into her
   human-correspondence/ folder. Choose a new conversation (who it is

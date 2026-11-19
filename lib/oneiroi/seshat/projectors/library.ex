@@ -9,6 +9,8 @@ defmodule Oneiroi.Seshat.Projectors.Library do
   alias Oneiroi.Seshat.Kinds
 
   alias Oneiroi.Seshat.Store.{
+    Book,
+    BookRead,
     Chunk,
     Digest,
     Discussion,
@@ -364,6 +366,59 @@ defmodule Oneiroi.Seshat.Projectors.Library do
       from(r in Research, where: r.resident_id == ^e.id and r.number == ^e.number),
       set: [status: "failed", reason: e.reason, settled_at: e.at]
     )
+  end)
+
+  fold(%Events.BookImported{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      {:book, e.slug},
+      %Book{
+        resident_id: e.id,
+        slug: e.slug,
+        title: e.title,
+        author: e.author,
+        identifier: e.identifier,
+        rights: e.rights,
+        caveat: e.caveat,
+        units: e.units,
+        titles: e.titles || [],
+        imported_at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :slug]
+    )
+  end)
+
+  # A chapter reached (seshat#98): a history row; her place moves only
+  # when the read advanced it.
+  fold(%Events.BookUnitRead{} = e, metadata, fn multi ->
+    multi =
+      Multi.insert(
+        multi,
+        {:book_read, e.slug},
+        %BookRead{
+          resident_id: e.id,
+          sequence: Map.get(metadata, :event_number, 0),
+          slug: e.slug,
+          unit: e.unit,
+          mode: e.mode,
+          advanced: e.advanced == true,
+          via: e.via,
+          at: e.at
+        },
+        on_conflict: :nothing,
+        conflict_target: [:resident_id, :sequence]
+      )
+
+    if e.advanced == true,
+      do:
+        Multi.update_all(
+          multi,
+          {:book_place, e.slug},
+          from(b in Book, where: b.resident_id == ^e.id and b.slug == ^e.slug),
+          set: [current: e.unit, read_at: e.at]
+        ),
+      else: multi
   end)
 
   fold(%Events.DigestAsked{} = e, _metadata, fn multi ->

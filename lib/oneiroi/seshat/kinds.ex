@@ -322,6 +322,22 @@ defmodule Oneiroi.Seshat.Kinds do
     # with frontmatter saying who archived it, when and why; it leaves the
     # index (no search, no ranked recall) and is read at its path. Written
     # only by the archive act, never by a document write.
+    # A book (seshat#98; Lily's design/reading-library-build.md): one
+    # import is one folder, its manifest, a chapter a document and the
+    # reading history rendered from its rows. The platform writes it: the
+    # witness brings the EPUB, and she reads it with book_read. Its unread
+    # chapters are dark to the index until she reads them.
+    %{
+      kind: "books",
+      folder: "books",
+      cites: false,
+      has_status: false,
+      layout:
+        "books/<slug>/manifest.md (the book's facts and chapters), books/<slug>/chapters/<unit>.md (a chapter's words) and books/<slug>/history.md (what she read and peeked at, when), written by the platform",
+      sidecar: nil,
+      adoption: :none,
+      access: :core
+    },
     %{
       kind: "archive",
       folder: "archive",

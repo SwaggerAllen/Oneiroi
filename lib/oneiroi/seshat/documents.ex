@@ -67,6 +67,59 @@ defmodule Oneiroi.Seshat.Documents do
     end
   end
 
+  @doc """
+  Writes several new files of a kind the platform writes as one commit
+  and one index run (seshat#98: a book's manifest, chapters and history).
+  Every file is checked first (its path, its kind, its size), so a book
+  that cannot land writes nothing; then each is recorded, then the files
+  go together.
+  """
+  def write_all(resident_id, entries, %Actor{} = actor, message) when is_list(entries) do
+    with {:ok, checked} <- check_all(resident_id, entries, actor),
+         {:ok, files} <- Repos.snapshot(repo(resident_id)),
+         :ok <- record_all(resident_id, checked, actor),
+         changes =
+           for({path, _kind, content} <- checked, do: {:put, path, content, Map.get(files, path)}),
+         {:ok, _} <- Repos.write(repo(resident_id), changes, message, Repos.author(actor)) do
+      index = Index.run(resident_id, actor)
+      {:ok, %{paths: Enum.map(checked, &elem(&1, 0)), indexed: match?({:ok, _}, index)}}
+    end
+  end
+
+  defp check_all(resident_id, entries, actor) do
+    Enum.reduce_while(entries, {:ok, []}, fn {path, content}, {:ok, acc} ->
+      with {:ok, path} <- normalize(resident_id, path),
+           {:ok, kind} <- writable_kind(resident_id, path, true, actor),
+           :ok <- size_ok(content) do
+        {:cont, {:ok, [{path, kind, content} | acc]}}
+      else
+        refused -> {:halt, refused}
+      end
+    end)
+    |> case do
+      {:ok, acc} -> {:ok, Enum.reverse(acc)}
+      refused -> refused
+    end
+  end
+
+  defp record_all(resident_id, checked, actor) do
+    Enum.reduce_while(checked, :ok, fn {path, kind, content}, :ok ->
+      case dispatch(%Commands.WriteDocument{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             path: path,
+             kind: kind.kind,
+             hash: hash(content),
+             bytes: byte_size(content),
+             note: nil
+           }) do
+        {:ok, _events} -> {:cont, :ok}
+        refused -> {:halt, refused}
+      end
+    end)
+  end
+
   defp written(resident_id, path, kind, events, actor) do
     index = Index.run(resident_id, actor)
 

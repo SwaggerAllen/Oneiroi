@@ -42,7 +42,10 @@ defmodule Oneiroi.Seshat.Index do
         |> Enum.map(&plan(&1, Repos.at(repo, files, &1.path), model))
 
       changed = for {:changed, doc, content} <- plan, do: {doc, content}
-      texts = Enum.flat_map(changed, fn {doc, content} -> chunks_of(doc, content) end)
+      # The unread floor (seshat#98): a chapter she has not read is
+      # embedded nowhere, so no search can hand it to her.
+      dark = dark(resident_id, changed)
+      texts = Enum.flat_map(changed, &lit_chunks(&1, dark))
 
       case embed(resident_id, model, Enum.map(texts, &elem(&1, 1)), actor) do
         {:ok, vectors} ->
@@ -171,6 +174,16 @@ defmodule Oneiroi.Seshat.Index do
           else: {:changed, doc, content}
     end
   end
+
+  # Read only when something is to be embedded: a run with nothing changed
+  # stays three statements.
+  defp dark(_resident_id, []), do: MapSet.new()
+
+  defp dark(resident_id, _changed),
+    do: Scope.resident(resident_id, fn -> Store.dark_chapters() end)
+
+  defp lit_chunks({doc, content}, dark),
+    do: if(MapSet.member?(dark, doc.path), do: [], else: chunks_of(doc, content))
 
   # An archived document and the tombstone at its old path stay out of
   # the index (seshat#45): read at their paths, never searched or ranked.
