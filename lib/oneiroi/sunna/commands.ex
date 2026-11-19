@@ -87,7 +87,9 @@ defmodule Oneiroi.Sunna.Commands do
   end
 
   defmodule WakeForLetters do
-    use Oneiroi.Command, fields: [:id, :numbers, :limit]
+    # `capped` false for a wake that carries no letter from another of her
+    # conversations (sunna#72): only those can wake each other in a loop.
+    use Oneiroi.Command, fields: [:id, :numbers, :limit, :capped]
   end
 
   defmodule RemoveDate do

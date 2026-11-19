@@ -1143,14 +1143,9 @@ defmodule Oneiroi.Sunna.Schedules do
            resident_id
            |> Kumbukumbu.inbox(key)
            |> Enum.filter(&(&1.to_name == name and wakes?(&1))),
-         command = %Commands.WakeForLetters{
-           actor: actor,
-           at: Clock.now(),
-           id: resident_id,
-           numbers: Enum.map(letters, & &1.number),
-           limit: Config.fetch!(:sunna, :letter_wakes_per_hour)
-         },
-         {:ok, [%Events.LettersWoke{numbers: numbers} | _]} <- dispatch(command),
+         true <- settled?(letters, Clock.now()),
+         {:ok, [%Events.LettersWoke{numbers: numbers} | _]} <-
+           letters_woke(resident_id, letters, actor),
          _ <- Wakes.run(resident_id, "letter", letter_causes(numbers)),
          {:ok, _} <- wake(resident_id, key, letters_note(letters, numbers), :chat) do
       :ok
@@ -1259,6 +1254,47 @@ defmodule Oneiroi.Sunna.Schedules do
         record_free_time(resident_id, {day, label}, nil, failure, actor)
     end
   end
+
+  # The debounce (sunna#72; the witness, 2026-11-18: "the same wake queue
+  # + debounce"): letters landing close together go in one wake. The tick
+  # waits until the newest has sat `SUNNA_LETTER_SETTLE_SECONDS`, but
+  # never holds the oldest past `SUNNA_LETTER_SETTLE_MAX_SECONDS`, so a
+  # steady stream still wakes her.
+  defp settled?(letters, now) do
+    ages = Enum.map(letters, &DateTime.diff(now, &1.sent_at))
+
+    Enum.min(ages) >= Config.fetch!(:sunna, :letter_settle_seconds) or
+      Enum.max(ages) >= Config.fetch!(:sunna, :letter_settle_max_seconds)
+  end
+
+  # The letters' wake recorded (sunna#24, #72): the hourly bound counts
+  # a wake carrying a letter from another of her conversations, the only
+  # kind that can loop; held by it, the platform's and the house's
+  # letters among them still wake her on their own.
+  defp letters_woke(resident_id, letters, actor) do
+    {conversations, others} = Enum.split_with(letters, &is_binary(&1.from_session))
+
+    case dispatch(letters_command(resident_id, letters, conversations != [], actor)) do
+      {:ok, [%Events.LettersWoke{} | _]} = woke ->
+        woke
+
+      _held when others != [] ->
+        dispatch(letters_command(resident_id, others, false, actor))
+
+      held ->
+        held
+    end
+  end
+
+  defp letters_command(resident_id, letters, capped, actor),
+    do: %Commands.WakeForLetters{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      numbers: Enum.map(letters, & &1.number),
+      limit: Config.fetch!(:sunna, :letter_wakes_per_hour),
+      capped: capped
+    }
 
   # Whether any letter a conversation sent waits unread for the one it
   # names, the house and Free time aside (neither is woken): read every

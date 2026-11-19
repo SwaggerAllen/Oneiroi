@@ -350,7 +350,7 @@ export interface HouseRoundThread {
 
 /** One row of the house's activity (seshat#92): envelopes only, never words. */
 export type HouseActivity =
-  | { kind: 'wake' | 'mention'; at: string; resident_id: string; name: string | null; channel: string; causes: Record<string, unknown>[]; delivered: boolean; read_at: string | null; wake_id: string }
+  | { kind: 'wake' | 'mention' | 'held'; at: string; resident_id: string; name: string | null; channel: string; causes: Record<string, unknown>[]; delivered: boolean; read_at: string | null; wake_id: string }
   | { kind: 'token'; at: string; resident_id: string; name: string | null; thread: string; round: number; turn_id: string; until: string; outcome: string | null; spent_at: string | null }
   | { kind: 'letter'; at: string; resident_id: string; name: string | null; number: number; from: string; to: string; in_reply_to: number | null; read_by: string[] };
 

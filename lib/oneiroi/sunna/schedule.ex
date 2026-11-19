@@ -240,7 +240,7 @@ defmodule Oneiroi.Sunna.Schedule do
 
     cond do
       fresh == [] -> []
-      recent >= c.limit -> []
+      c.capped != false and recent >= c.limit -> held(s, c, fresh)
       true -> %Events.LettersWoke{actor: c.actor, at: c.at, id: c.id, numbers: fresh}
     end
   end
@@ -487,6 +487,26 @@ defmodule Oneiroi.Sunna.Schedule do
   end
 
   # ---- apply ----
+
+  # Held by the hourly bound (sunna#72): recorded once for the letters it
+  # holds, as a wake not delivered, so the log shows it waiting; the next
+  # tick past the bound wakes her for them.
+  defp held(s, c, fresh) do
+    wake_id = "held-" <> Enum.map_join(fresh, "-", &Integer.to_string/1)
+
+    if MapSet.member?(s.wakes, wake_id),
+      do: [],
+      else: %Events.WakeManifested{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        wake_id: wake_id,
+        channel: "letter",
+        causes: for(n <- fresh, do: %{"kind" => "letter", "number" => n}),
+        household_id: nil,
+        delivered: false
+      }
+  end
 
   def apply(%__MODULE__{} = s, %Events.HousePromptSet{}), do: s
 

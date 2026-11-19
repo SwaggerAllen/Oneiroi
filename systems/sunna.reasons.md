@@ -510,3 +510,12 @@ the envelope at the moment it is made, and the read at the moment the
 note enters her turn, puts the two facts the question needs on one row.
 The read is marked past the decline checks on purpose, so an unread row
 means the wake never reached her, which is the case worth seeing.
+
+## #72
+A cap that holds a letter silently made a late letter look like a lost
+one: Lily took the reader for slow twice in a day when the bound was
+holding its answer. Settling first does the cap's job better, since a
+burst becomes one wake instead of spending the hour on it, and leaves
+the bound as a guard against loops alone, which only her own
+conversations can make. A hold that is recorded is a delay anyone can
+read; a hold that is not is a silence.
