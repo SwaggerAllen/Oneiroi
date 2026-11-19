@@ -35,7 +35,7 @@ the switch to the new client). Built 2026-11-10.
     letters, with whom, and when the last came, opening to every letter
     oldest first; each letter says plainly who it is from (kumbukumbu#76:
     her own conversation, her witness, a housemate, the house or the
-    platform), her own marked "Hers", and the thread's newest says where it
+    platform), her own marked "Hers" and in her colour (the colour her replies wear in correspondence; never on others' letters), and the thread's newest says where it
     stands (answered, read, waiting on whom); a keepsake if one rode with it;
   - **Write a letter** to one of her conversations by name, to Free
     time (her next free time reads it first), or to the house;

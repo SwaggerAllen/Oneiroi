@@ -1400,16 +1400,31 @@ defmodule Oneiroi.Sunna.Schedules do
   end
 
   defp reply_refused(resident_id, key, %{letter: l}, text, error) do
-    why = Map.get(error, :remedy) || Map.get(error, :meaning) || "it was refused"
+    # The kind's meaning says what a letter must be; its remedy is about
+    # addressing, which is not what a reply's refusal is ever about.
+    why = Map.get(error, :meaning) || Map.get(error, :remedy) || "it was refused"
 
-    Kumbukumbu.letter_to_session(
-      resident_id,
-      key,
-      "Your answer to letter ##{l.number} could not be sent as its reply: #{why} " <>
-        "letter_send with in_reply_to: #{l.number} sends it yourself. What you said, kept here so it is not lost:\n\n" <>
-        text,
-      Actor.platform()
-    )
+    head =
+      "Your answer to letter ##{l.number} could not be sent as its reply: #{String.trim_trailing(why, ".")}. " <>
+        "letter_send with in_reply_to: #{l.number} sends it yourself."
+
+    # Her words ride along; words too long for a letter (the likeliest
+    # refusal) would sink it too, so then it names where they are kept.
+    with {:error, _} <-
+           Kumbukumbu.letter_to_session(
+             resident_id,
+             key,
+             head <> " What you said, kept here so it is not lost:\n\n" <> text,
+             Actor.platform()
+           ),
+         do:
+           Kumbukumbu.letter_to_session(
+             resident_id,
+             key,
+             head <>
+               " What you said is too long to copy here; it is your last message in this chat.",
+             Actor.platform()
+           )
   end
 
   defp letters_note(letters, numbers, target),

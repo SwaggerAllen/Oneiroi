@@ -215,6 +215,60 @@ defmodule Oneiroi.Sunna.SchedulesTest do
            )
   end
 
+  # Work's ask on #106 (letter #1320): a refused send comes back to her
+  # chat with the reason, never dropped. Words too long for a letter (the
+  # likeliest refusal) cannot ride in one, so the notice says where they are.
+  test "a letter wake's answer refused as a reply comes back to her chat with the reason", ctx do
+    {main, letter, _send, _code, _lily} = letters_setup(ctx)
+    first = letter.("Can you look at the log?")
+    long = String.duplicate("a", 20_001)
+    Fake.clear(for: ctx.id)
+    Fake.reply(long, for: ctx.id)
+    assert :ok = Sunna.tick(ctx.id)
+
+    refute Enum.any?(Kumbukumbu.letters(ctx.id), &(&1.in_reply_to == first))
+
+    assert [notice] =
+             for(
+               l <- Kumbukumbu.letters(ctx.id),
+               l.to_name == "Oneiroi chat" and l.text =~ "could not be sent",
+               do: l.text
+             )
+
+    assert notice =~ "Your answer to letter ##{first} could not be sent as its reply:"
+    assert notice =~ "up to 20,000 characters"
+    assert notice =~ "letter_send with in_reply_to: #{first}"
+    assert notice =~ "it is your last message in this chat"
+    assert List.last(transcript(ctx, main)).content == long
+  end
+
+  # Work's ask on #106: her own letter_send in the thread during the wake
+  # is the reply; her closing message is not sent as a second.
+  test "a letter wake in which she replies in the thread herself sends nothing more", ctx do
+    {_main, letter, _send, _code, _lily} = letters_setup(ctx)
+    first = letter.("Can you look at the log?")
+    Fake.clear(for: ctx.id)
+
+    Fake.calls(
+      [
+        %{
+          name: "letter_send",
+          arguments: %{
+            to: "Claude Code · Oneiroi",
+            text: "Looked; it is fine.",
+            in_reply_to: first
+          }
+        }
+      ],
+      "Sent it.",
+      for: ctx.id
+    )
+
+    assert :ok = Sunna.tick(ctx.id)
+    replies = for l <- Kumbukumbu.letters(ctx.id), l.in_reply_to == first, do: l.text
+    assert replies == ["Looked; it is fine."]
+  end
+
   test "a letter wake carrying two threads sends nothing for her", ctx do
     {_main, letter, _send, _code, _lily} = letters_setup(ctx)
     letter.("One thing.")
