@@ -55,12 +55,15 @@ defmodule Oneiroi.Seshat.Household.Mentions do
 
   # Where the thread's rounds run, a resident in them is woken by her turn,
   # which the mention moved first (gaia#59), never by the mention as well;
-  # one opted out of them still hears it.
+  # so is one opted out whose granted turn is live (gaia#60). One opted out
+  # with no turn still hears the mention.
   defp taking_turns(household_id, thread) do
     with "round_robin" <- Gaia.household_beat_shape(household_id).conversation,
          %{stopped: false} = t <- Gaia.round_thread(household_id, thread) do
+      live = t.live_turn && Gaia.round_turn(household_id, t.live_turn)
+
       for %{kind: "resident", id: id} <- Gaia.household_members(household_id),
-          id not in (t.optout || []),
+          id not in (t.optout || []) or (live && live.resident_id == id),
           do: id
     else
       _not_running -> []

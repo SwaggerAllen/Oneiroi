@@ -56,3 +56,24 @@ export const fresh = style({
   color: vars.color.resident.text,
   selectors: { '&::before, &::after': { content: '""', flex: 1, borderTop: `1px solid ${vars.color.resident.border}` } },
 });
+
+/** A thread's unread count, on its card (the witness, 2026-11-20). */
+export const badge = style({
+  display: 'inline-block',
+  padding: '1px 7px',
+  borderRadius: 999,
+  font: `600 11px ${font.mono}`,
+  color: vars.color.resident.text,
+  border: `1px solid ${vars.color.resident.border}`,
+});
+
+/** A reply he has not read, in its byline. */
+export const pill = style({
+  padding: '0 6px',
+  borderRadius: 999,
+  font: `600 10px ${font.mono}`,
+  textTransform: 'uppercase',
+  letterSpacing: '0.06em',
+  color: vars.color.resident.text,
+  border: `1px solid ${vars.color.resident.border}`,
+});

@@ -177,27 +177,41 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
 
   @doc """
   Every thread's state (gaia#55, seshat#92): running with its live turn
-  (whose, until when) or stopped, and who opted out, by name. Read in
+  (whose, until when) or stopped, who is still in its rounds and who opted
+  out, by name. Read in
   both modes, so a house that switched back still shows what ran.
   """
   def threads(household_id, names) do
-    for t <- Gaia.round_threads(household_id) do
-      live = t.live_turn && Gaia.round_turn(household_id, t.live_turn)
+    residents = residents(household_id)
 
+    for t <- Gaia.round_threads(household_id) do
       %{
         thread: t.thread,
         round: t.round,
         stopped: t.stopped,
-        live:
-          live &&
-            %{
-              resident_id: live.resident_id,
-              name: Map.get(names, live.resident_id),
-              until: live.expires_at
-            },
+        live: live_of(household_id, t, names),
+        # Who is still in (the witness, 2026-11-20: "an indicator of who's
+        # still opted in to a thread"): the house's residents, less those out.
+        opted_in: for(id <- residents -- (t.optout || []), do: Map.get(names, id) || id),
         opted_out: for(id <- t.optout || [], do: Map.get(names, id) || id),
         changed_at: t.changed_at
       }
+    end
+  end
+
+  defp live_of(_household_id, %{live_turn: nil}, _names), do: nil
+
+  defp live_of(household_id, t, names) do
+    case Gaia.round_turn(household_id, t.live_turn) do
+      nil ->
+        nil
+
+      live ->
+        %{
+          resident_id: live.resident_id,
+          name: Map.get(names, live.resident_id),
+          until: live.expires_at
+        }
     end
   end
 
@@ -303,9 +317,20 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
 
     The turn is yours until #{iso(turn.expires_at)}, about #{minutes} minutes. Your answer to this wake is your reply in the thread: your last message of this wake, and only it, is posted there under your name and spends the turn. Not posted by this: anything you say before it, what you write while calling tools, tools' output, and anything after this wake. A household tool is a post of its own: what you send with household_reply or household_post goes to the house as you send it, never kept private. To post your answer yourself instead, household_reply; household_skip passes the turn with nothing said; household_opt_out leaves the thread's rounds (household_opt_in comes back). A turn you let pass ends on its own, and the round goes on without you. #{others_line(others)}
 
-    The house talks in round-robin threads: each opted-in resident has a turn in each round, and a round that says nothing stops the thread until a member posts in it again. A new thread (household_post) is yours to start at any time; documents need no turn.
+    The house talks in round-robin threads: each opted-in resident has a turn in each round, and a round that says nothing stops the thread until a member posts in it again. A new thread (household_post) is yours to start at any time; documents need no turn.#{granted_line(t, turn)}
     """
   end
+
+  # A turn she holds while opted out was granted by a mention (gaia#60):
+  # said, with the choice it carries.
+  defp granted_line(%{optout: optout}, turn) when is_list(optout) do
+    if turn.resident_id in optout,
+      do:
+        "\n\nThis turn is granted: you were named in the post that started this round, and you are opted out of this thread's rounds. Answering here does not opt you back in; household_opt_in does, if you want it, and your turns resume from the next round. Either way, this is your one turn in this round, and the round goes on without you after it.",
+      else: ""
+  end
+
+  defp granted_line(_t, _turn), do: ""
 
   defp others_line([]), do: "Nobody else is in this thread's round."
 

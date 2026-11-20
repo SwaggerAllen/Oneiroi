@@ -115,6 +115,61 @@ defmodule Oneiroi.Gaia.RoundsTest do
     assert issued(events) == ["a"]
   end
 
+  # gaia#60 (the witness, 2026-11-19: "they should get the chance to
+  # respond first in that particular round with the choice to opt back
+  # in"): named while opted out, a turn in that round alone, never an opt-in.
+  test "named while opted out: a granted first turn in that round alone, and still out after it" do
+    # Rounds run; c opts out; the rounds run out.
+    {r, _} = start(%Rounds{}, "a")
+
+    {r, _} =
+      run(r, %Commands.OptOutOfRounds{
+        actor: @actor,
+        at: @at,
+        id: "h",
+        thread: "threads/t",
+        resident_id: "c"
+      })
+
+    {r, _} = spend(r, "b", "skipped")
+    {r, _} = Enum.reduce(["b", "a"], {r, []}, fn who, {r, _} -> spend(r, who, "skipped") end)
+    assert r.threads["threads/t"].stopped
+
+    # A post naming c starts them again: c first, granted, still out.
+    {r, events} =
+      run(r, %Commands.StartRounds{
+        actor: @actor,
+        at: @at,
+        id: "h",
+        thread: "threads/t",
+        residents: ["a", "b", "c"],
+        starter: nil,
+        timeout: 600,
+        first: ["c"]
+      })
+
+    assert [%Events.RoundTurnsGranted{residents: ["c"]}] =
+             for(%Events.RoundTurnsGranted{} = e <- events, do: e)
+
+    assert issued(events) == ["c"]
+
+    # Her post spends the granted turn; the others follow; she stays out.
+    {r, events} = spend(r, "c", "posted")
+    assert issued(events) in [["a"], ["b"]]
+    assert MapSet.member?(r.threads["threads/t"].optout, "c")
+
+    # The next round is the opted-in residents alone.
+    [first_next] = issued(events)
+    {r, events} = spend(r, first_next, "skipped")
+    [second] = issued(events)
+    {_, events} = spend(r, second, "skipped")
+
+    assert [%Events.RoundStarted{order: order}] =
+             for(%Events.RoundStarted{} = e <- events, do: e)
+
+    refute "c" in order
+  end
+
   test "a late end is nothing" do
     {r, events} = start(%Rounds{}, "a")
     [%{turn_id: id}] = for %Events.RoundTurnIssued{} = e <- events, do: e

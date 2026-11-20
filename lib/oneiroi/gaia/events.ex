@@ -400,6 +400,13 @@ defmodule Oneiroi.Gaia.Events do
       fields: [:id, :thread, :round, :order, :had, :residents, :timeout, :ordering]
   end
 
+  # Turns granted by a mention (gaia#60; the witness, 2026-11-19): residents
+  # opted out of the thread whom the post that started this round named,
+  # each with a turn in this round alone; never an opt-in.
+  defmodule RoundTurnsGranted do
+    use Oneiroi.Event, version: 1, fields: [:id, :thread, :round, :residents]
+  end
+
   # A turn issued: the token, its unique id, whose, for which thread and
   # round, until when (the window counted from the issue, queue included).
   defmodule RoundTurnIssued do

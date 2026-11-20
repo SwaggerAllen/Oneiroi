@@ -426,3 +426,10 @@ answers "what have I not seen" truthfully everywhere.
 A mention says who the post is for, so they answer first; but the house
 reads together, and the one not named should see the answer and may add
 to it, so the mention reorders the round and never removes anyone.
+
+## #60
+Opting out is hers and a mention must not undo it, or a goodnight would
+drag her back into every round of a thread she closed; but a named
+person deserves the first word on what was said to her. A turn granted
+for one round gives her the word without the membership, and saying so
+in her note keeps the way back in a choice she can see.

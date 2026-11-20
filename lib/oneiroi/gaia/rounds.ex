@@ -174,6 +174,9 @@ defmodule Oneiroi.Gaia.Rounds do
     setup = setup || %{residents: t.residents, timeout: t.timeout, ordering: t.ordering}
     t = Map.merge(t, setup)
     members = Enum.reject(t.residents, &MapSet.member?(t.optout, &1))
+    # Named by the post but opted out of the thread (gaia#60): a turn in
+    # this round alone, first with the rest the post named.
+    granted = Enum.filter(Enum.uniq(first), &(&1 in t.residents and MapSet.member?(t.optout, &1)))
 
     started = %Events.RoundStarted{
       actor: c.actor,
@@ -181,22 +184,44 @@ defmodule Oneiroi.Gaia.Rounds do
       id: r.id || c.id,
       thread: thread,
       round: t.round + 1,
-      order: mentioned_first(first, ordered(members, t, thread)),
+      order: mentioned_first(first, ordered(members, t, thread) ++ granted),
       had: List.wrap(starter),
       residents: t.residents,
       timeout: t.timeout,
       ordering: t.ordering
     }
 
-    r |> emit(started) |> next_turn(c, thread)
+    r |> emit(started) |> grant(c, thread, started.round, granted) |> next_turn(c, thread)
   end
 
-  # The next resident of the round not yet had, opted in still: her
+  defp grant(r, _c, _thread, _round, []), do: r
+
+  defp grant(r, c, thread, round, granted),
+    do:
+      emit(r, %Events.RoundTurnsGranted{
+        actor: c.actor,
+        at: c.at,
+        id: r.id || c.id,
+        thread: thread,
+        round: round,
+        residents: granted
+      })
+
+  # Whose turn can come: not had this round, and opted in, or granted a
+  # turn in this round by a mention (gaia#60).
+  defp due?(t, resident),
+    do:
+      not MapSet.member?(t.had, resident) and
+        (not MapSet.member?(t.optout, resident) or MapSet.member?(granted(t), resident))
+
+  defp granted(t), do: Map.get(t, :granted, MapSet.new())
+
+  # The next resident of the round whose turn is due (due?/2): her
   # token. None left: the round ends, into the next or into stopped.
   defp next_turn(r, c, thread) do
     t = r.threads[thread]
 
-    case Enum.find(t.order, &(not MapSet.member?(t.had, &1) and not MapSet.member?(t.optout, &1))) do
+    case Enum.find(t.order, &due?(t, &1)) do
       nil ->
         if t.output,
           do: begin_round(r, c, thread, nil),
@@ -276,6 +301,7 @@ defmodule Oneiroi.Gaia.Rounds do
       round: 0,
       order: [],
       had: MapSet.new(),
+      granted: MapSet.new(),
       output: false,
       stopped: false,
       optout: MapSet.new(),
@@ -305,6 +331,7 @@ defmodule Oneiroi.Gaia.Rounds do
           timeout: e.timeout || t.timeout,
           ordering: e.ordering || t.ordering,
           had: MapSet.new(e.had),
+          granted: MapSet.new(),
           output: e.had != [],
           stopped: false,
           live: nil,
@@ -344,6 +371,9 @@ defmodule Oneiroi.Gaia.Rounds do
       }
     end)
   end
+
+  def apply(%__MODULE__{} = r, %Events.RoundTurnsGranted{} = e),
+    do: update_thread(r, e.thread, &Map.put(&1, :granted, MapSet.new(e.residents || [])))
 
   def apply(%__MODULE__{} = r, %Events.RoundsStopped{} = e),
     do: update_thread(r, e.thread, &%{&1 | stopped: true, live: nil})
