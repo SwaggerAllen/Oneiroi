@@ -167,12 +167,32 @@ describe('the house as a subject (2026-11-16)', () => {
     expect(fresh.compareDocumentPosition(screen.getByText('Read before.')) & Node.DOCUMENT_POSITION_PRECEDING).toBeTruthy();
     expect(fresh.compareDocumentPosition(screen.getByText('Not read yet.')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     await waitFor(() => expect(scrolled[0]).toBe(fresh));
-    await waitFor(() => expect(marked).toHaveBeenCalled());
+    // Marked read up to the newest by the clock (the witness, 2026-11-20):
+    // "15:50:00.5Z" is later than "15:40:00Z" though it sorts first as text.
+    await waitFor(() => expect(marked).toHaveBeenCalledWith('house', '2026-11-16T15:50:00.5Z', 'threads/checkin-2026-11-16-morning'));
+    // The unread reply wears a pill; the one read before does not.
+    const pills = screen.getAllByText('new');
+    expect(pills).toHaveLength(1);
+    expect(pills[0].closest('div')?.textContent).toContain('Not read yet.');
     // The header's close is there while it is open, and closes it.
     fireEvent.click(screen.getByRole('button', { name: 'Close “Morning, 2026-11-16”' }));
     await waitFor(() => expect(screen.queryByText('Not read yet.')).toBeNull());
     expect(container.querySelector('[role="separator"]')).toBeNull();
     Element.prototype.scrollIntoView = original;
+  });
+
+  // The witness, 2026-11-20: "a per thread indicator that says which
+  // threads have unread messages".
+  it('counts unread on each thread card, and says when unread sit in threads not loaded', async () => {
+    vi.spyOn(api, 'householdMentions').mockResolvedValue({ house: false, threads: {} });
+    vi.spyOn(api, 'unread').mockResolvedValue({
+      residents: [],
+      house: { count: 3, threads: { 'threads/checkin-2026-11-16-morning': 2, 'threads/older': 1 }, seen: {} },
+    });
+    vi.spyOn(api, 'householdShelf').mockResolvedValue({ ...shelf, next: 50 });
+    mount(<Threads />);
+    expect(await screen.findByText('2 new')).toBeTruthy();
+    expect(await screen.findByText('1 unread post is in earlier threads, not loaded yet.')).toBeTruthy();
   });
 
   it('shows a resident answering a thread under it, and one in no thread at the end (seshat#90)', async () => {

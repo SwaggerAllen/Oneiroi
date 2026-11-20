@@ -36,13 +36,20 @@ server.
     while you are there, whatever grows it (the witness, 2026-11-18);
     scrolled up, it is left where you put it. "Earlier threads" loads
     the page before. Each is a card with who opened it,
-    when it was last updated, its replies and its ballot (open, carried or failed), and
+    when it was last updated, how many posts in it are new to you ("2
+    new", from the server's unread; the witness, 2026-11-20: "a per thread
+    indicator that says which threads have unread messages"), its replies and its ballot (open, carried or failed), and
     opens in place: its trunk, then each reply as a message (yours in
     your own bubble, the rest with their writer and time), a ballot's
     tally and, while it is open, **Yes / No**. Opened, a thread scrolls
     to its first unread post, under a **New** line, from the server's
-    mark for it (seshat#97), or to its newest when nothing in it is
-    unread; after that, to each new reply as it arrives. An open
+    mark for it (seshat#97), each unread reply wearing a **new** pill in
+    its byline, or to its newest when nothing in it is unread; opening
+    marks it read up to its newest post by the clock (a fractional-second
+    stamp once sorted before a whole-second one as text, and the mark fell
+    short of a reply, which then stayed unread however often the thread
+    was opened). Unread in threads the list has not loaded is said above
+    the list, with "Earlier threads" to load them; after that, to each new reply as it arrives. An open
     thread's header (who, when, replies, title) stays at the top of the
     list while it scrolls, with **Close ✕** beside the title (the
     witness, 2026-11-19: "so I don't have to scroll up to close the

@@ -32,11 +32,17 @@ export function Threads() {
     refetchInterval: 60_000,
   });
   const working = useWorking();
+  // Unread by thread (seshat#96, #97): a count on each card, and a line
+  // for any thread the list has not loaded yet (the witness, 2026-11-20:
+  // "I've got 2 messages in the household that are unread and I can't
+  // seem to find them").
+  const unread = useQuery({ queryKey: ['unread'], queryFn: api.unread, refetchInterval: 30_000 }).data?.house?.threads ?? {};
   const [open, setOpen] = useState<string | null>(null);
   const { scroll, list } = useStuckToBottom();
   // The shelf comes newest first; the conversation reads down to now.
   const threads = (shelf.data?.pages ?? []).flatMap((p) => p.threads).reverse();
 
+  const unloaded = Object.entries(unread).filter(([path, n]) => n > 0 && !threads.some((t) => t.path === path)).reduce((sum, [, n]) => sum + n, 0);
   const elsewhere = working.filter((w) => w.thread === null || !threads.some((t) => t.path === w.thread));
 
   const opened = threads.find((t) => t.path === open) ?? null;
@@ -46,6 +52,11 @@ export function Threads() {
         <MentionsLine />
         <ScrollArea label="Threads" scrollRef={scroll}>
           <div ref={list} className={chat.list}>
+            {unloaded > 0 && (
+              <p className={chat.system}>
+                {unloaded === 1 ? '1 unread post is' : `${unloaded} unread posts are`} in {shelf.hasNextPage ? 'earlier threads, not loaded yet' : 'threads not listed here'}.
+              </p>
+            )}
             {shelf.hasNextPage && (
               <button type="button" className={chat.linkButton} style={{ alignSelf: 'center' }} onClick={() => void shelf.fetchNextPage()}>
                 Earlier threads
@@ -60,6 +71,7 @@ export function Threads() {
                 t={t}
                 open={open === t.path}
                 accountId={me.data?.account_id}
+                unread={unread[t.path] ?? 0}
                 working={working.filter((w) => w.thread === t.path)}
                 onToggle={() => setOpen(open === t.path ? null : t.path)}
               />
@@ -133,7 +145,7 @@ function useStuckToBottom(): { scroll: RefObject<HTMLDivElement | null>; list: R
   return { scroll, list };
 }
 
-function ThreadCard({ t, open, accountId, working, onToggle }: { t: HouseThreadSummary; open: boolean; accountId?: string; working: HouseWorking[]; onToggle: () => void }) {
+function ThreadCard({ t, open, accountId, unread, working, onToggle }: { t: HouseThreadSummary; open: boolean; accountId?: string; unread: number; working: HouseWorking[]; onToggle: () => void }) {
   const ballot = t.ballot ? (t.ballot.closed_at ? `ballot #${t.ballot.number} ${t.ballot.passed ? 'carried' : 'failed'}` : `ballot #${t.ballot.number} open`) : null;
   return (
     <div className={chat.hers} data-live={open || undefined}>
@@ -144,6 +156,7 @@ function ThreadCard({ t, open, accountId, working, onToggle }: { t: HouseThreadS
             <span>{when(t.last_reply_at ?? t.posted_at)}</span>
             <span>{t.replies === 1 ? '1 reply' : `${t.replies} replies`}</span>
             {ballot && <span>{ballot}</span>}
+            {unread > 0 && <span className={css.badge}>{unread} new</span>}
           </span>
           <span style={{ fontWeight: 600, fontSize: 16 }}>
             {open ? '▾ ' : '▸ '}
@@ -201,7 +214,11 @@ function Body({ doc, path, accountId }: { doc: HouseDoc; path: string; accountId
     opened.current = true;
   }, [count, fresh]);
   // Open is read (gaia#58, seshat#96): up to its newest post, on every device.
-  const newest = (doc.replies ?? []).map((r) => r.meta.at).filter((x): x is string => typeof x === 'string').sort().pop() ?? doc.trunk?.meta.posted_at;
+  // The newest by the clock, not the string: "…00.5Z" sorts before
+  // "…00Z", and a mark set short of a reply left it unread for good.
+  const newest = [doc.trunk?.meta.posted_at, ...(doc.replies ?? []).map((r) => r.meta.at)]
+    .filter((x): x is string => typeof x === 'string' && !Number.isNaN(Date.parse(x)))
+    .reduce<string | undefined>((a, b) => (a === undefined || Date.parse(b) > Date.parse(a) ? b : a), undefined);
   useEffect(() => {
     if (typeof newest === 'string')
       void api
@@ -252,6 +269,7 @@ function Body({ doc, path, accountId }: { doc: HouseDoc; path: string; accountId
               <span className={chat.meta}>
                 <span>{r.meta.by}</span>
                 <span>{when(r.meta.at)}</span>
+                {after(r.meta.at, since) && <span className={css.pill}>new</span>}
                 {r.meta.vote && <span>votes {r.meta.vote}</span>}
                 {r.meta.in_reply_to && <span>answering #{r.meta.in_reply_to}</span>}
                 {earlier(r) && <span>on an earlier draft</span>}
