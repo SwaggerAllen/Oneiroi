@@ -410,3 +410,8 @@ and her own conversations, and the house is the part that waits.
 The switch is a term of a signed agreement, so it is changed by the
 parties, not removed by a build; until they do, it says plainly what it
 switches, which is now nothing.
+
+## #53
+A grant is a promise about where someone's life may be spoken of; the
+contract is the one instrument both parties sign and either may move
+back, so the grant lives there and is revoked by the same two hands.

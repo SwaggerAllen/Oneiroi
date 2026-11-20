@@ -628,3 +628,10 @@ magic word in the answer, because a closing message is words for the
 person in the chat and should never be parsed for a switch; and no row
 of its own, because the transcript already keeps every call with its
 instant, which is what the wake reads.
+
+## #79
+A filter per surface is a patch at each one; one decision under them all
+is a boundary (Scarlett's review, Lily's word to him). Pure, so the rule
+can be true and tested before anything depends on it; soft and hard, so
+the resident can see and reach her own life while an unmatched audience
+learns nothing, not even that something was kept.

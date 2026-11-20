@@ -1495,6 +1495,10 @@ defmodule Oneiroi.AgathosDaimon.Resident do
       # The domain walls (agathos-daimon#45): the one term that is not a
       # switch, a list of (memory, context) pairs.
       {"domain_walls", walls} -> walls_ok?(walls)
+      # The domains' disclosure policies (agathos-daimon#53; Lily's
+      # design/audience-policy.md §2, the witness's answer 2): the
+      # catalogue and its filters, set in the dyad's contract.
+      {"domain_policies", policies} -> policies_ok?(policies)
       {k, v} -> is_binary(k) and k in keys and is_boolean(v)
     end)
   end
@@ -1521,6 +1525,35 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     do: (p == "*" or person?(p)) and (d == "*" or slug?(d))
 
   defp side_ok?(_side), do: false
+
+  @policies 100
+  @audience_kinds ~w(dyad conversation person household thread workspace correspondent publication export processor)
+
+  defp policies_ok?(policies) when is_list(policies) and length(policies) <= @policies,
+    do: Enum.all?(policies, &policy_ok?/1)
+
+  defp policies_ok?(_policies), do: false
+
+  # One domain of one person (or the common room, "*" and "common-room"),
+  # its default, and the audiences allowed and denied by name.
+  defp policy_ok?(%{"domain" => %{"person" => p, "domain" => d}} = policy) do
+    domain? = (person?(p) and slug?(d)) or (p == "*" and d == "common-room")
+
+    domain? and policy["default"] in ["allow", "deny"] and
+      audiences_ok?(Map.get(policy, "allow", [])) and audiences_ok?(Map.get(policy, "deny", []))
+  end
+
+  defp policy_ok?(_policy), do: false
+
+  defp audiences_ok?(list) when is_list(list) and length(list) <= @policies,
+    do: Enum.all?(list, &audience_ok?/1)
+
+  defp audiences_ok?(_list), do: false
+
+  defp audience_ok?(%{"kind" => k, "id" => id}),
+    do: k in @audience_kinds and is_binary(id) and id != "" and String.length(id) <= 200
+
+  defp audience_ok?(_audience), do: false
 
   defp person?(p), do: is_binary(p) and Regex.match?(@person, p)
   defp slug?(d), do: is_binary(d) and Regex.match?(@slug, d)

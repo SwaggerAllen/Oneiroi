@@ -729,6 +729,10 @@ defmodule Oneiroi.AgathosDaimon do
   @spec domain_walls(String.t()) :: [map()]
   defexport(domain_walls(id), do: Agreements.domain_walls(id))
 
+  @doc "The domains' disclosure policies in force (agathos-daimon#53), with their contract version: the catalogue and its filters."
+  @spec domain_policies(String.t()) :: %{version: pos_integer() | nil, policies: [map()]}
+  defexport(domain_policies(id), do: Agreements.domain_policies(id))
+
   @doc "The switch registry for the resident: every switch, its value in force and in the open proposal."
   @spec switches(String.t()) :: [map()]
   defexport(switches(id), do: Agreements.switches(id))
