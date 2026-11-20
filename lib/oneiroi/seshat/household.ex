@@ -37,102 +37,60 @@ defmodule Oneiroi.Seshat.Household do
   or a late one writes nothing. A job closes it at the instant its
   proposer's term ends; the outcome is a closing reply, and a carried
   bundle is the contract's next version, rendered into `CONTRACT.md`.
+
+  **Where the code lives.** This module is the front: each public
+  function hands off to the module that holds it, and its doc stays
+  here. Each module below calls only those listed after it, so the
+  list is the layering and there is no cycle to make:
+
+  - `Household.Shelf`: `shelf/2`, `files/1`, `working/1`,
+    `activity/2`, `name/2`.
+  - `Household.Search`: `search/3`.
+  - `Household.Reading`: `read/3`, `read_cited/2`, `cited_as/3`.
+  - `Household.Posts`: `post/2`.
+  - `Household.Replies`: `reply/3`, `answer_refused/3`.
+  - `Household.Edits`: `shared_from/2`, `sharing_of/1`, `edit/3`.
+  - `Household.Housemates`: `read_published/2`,
+    `published_by_housemates/2`, `housemate_cite?/1`.
+  - `Household.Documents`: document posts and sharing modes, for
+    `post/2` and `edit/3`.
+  - `Household.Rounds`: `rounds/3`, `pushes/1`, `set_push/3`,
+    `unread/1`, `mark_seen/3`.
+  - `Household.Mentions`: `mute/3`, `mutes/1`, `named_in/2`,
+    `mentions_of/3`, `watch/3`.
+  - `Household.Contract`: `propose_contract/4`, `sign_contract/1`,
+    `contract/1`, `close_ballot/3`.
+  - `Household.Wakes`: `open_checkin/4`, `wake_house/3`, `manifest/5`.
+  - `Household.Gate`: `posts/3`, `writes/1`, `write_beats/3`.
+  - `Household.Core`: `post_line/0`, `member_household/1`,
+    `provision/1`.
+  - `Household.Files`: the repository's files, read and written, for
+    everything above.
   """
 
-  alias Oneiroi.Actor
-  alias Oneiroi.AgathosDaimon
-  alias Oneiroi.Apsu.Clock
-  alias Oneiroi.Apsu.Jobs
-  alias Oneiroi.Config
-  alias Oneiroi.Gaia
-  alias Oneiroi.Gaia.Beats
-  alias Oneiroi.Kumbukumbu
-  alias Oneiroi.Seshat.Error
-  alias Oneiroi.Seshat.HouseholdRounds
-  alias Oneiroi.Seshat.HouseWorking
-  alias Oneiroi.Seshat.Kinds
-  alias Oneiroi.Seshat.Published
-  alias Oneiroi.SimaQian.Repos
-  alias Oneiroi.Sunna
-
-  @platform %{name: "Oneiroi", email: "oneiroi@records.invalid"}
-  # The closing job by name, as an atom: it calls back into this module,
-  # and an alias here would be the cycle the gate refuses.
-  @ballot_worker :"Elixir.Oneiroi.Seshat.HouseholdBallotWorker"
-  @watch_actor Actor.new(:job, "household_watch")
-  @rounds_actor Actor.new(:job, "household_rounds")
-  @contract "CONTRACT.md"
-  @beats "BEATS.md"
-  @trunk "trunk.md"
-  @title_max 200
-  @text_max 64_000
-  @page 50
-  @ballot_actor Actor.new(:job, "household_ballots")
-
-  # ---- the member and the household ----
-
-  defp household(%Actor{} = actor) do
-    with id when is_binary(id) <- Gaia.household_of(actor),
-         true <- Gaia.household_member?(id, actor),
-         # A resident with no agreement in force is not in the house yet
-         # (agathos-daimon#51): no read, no write.
-         false <- actor.kind == :resident and AgathosDaimon.held?(actor.id) do
-      {:ok, id}
-    else
-      _none -> {:error, Error.new(:seshat_household_not_member, :seshat_household_no_membership)}
-    end
-  end
+  alias Oneiroi.Seshat.Household.Contract
+  alias Oneiroi.Seshat.Household.Core
+  alias Oneiroi.Seshat.Household.Edits
+  alias Oneiroi.Seshat.Household.Gate
+  alias Oneiroi.Seshat.Household.Housemates
+  alias Oneiroi.Seshat.Household.Mentions
+  alias Oneiroi.Seshat.Household.Posts
+  alias Oneiroi.Seshat.Household.Reading
+  alias Oneiroi.Seshat.Household.Replies
+  alias Oneiroi.Seshat.Household.Rounds
+  alias Oneiroi.Seshat.Household.Search
+  alias Oneiroi.Seshat.Household.Shelf
+  alias Oneiroi.Seshat.Household.Wakes
 
   @doc """
   The line every house wake's note ends with (seshat#93; the witness,
   2026-11-19: both residents, woken in the house, answered in their own
   chats and posted nothing): an answer in the chat stays in the chat.
   """
-  def post_line, do: HouseholdRounds.post_line()
+  defdelegate post_line(), to: Core
 
   @doc false
-  # The household the actor is a member of, for the beats' own calls.
-  def member_household(%Actor{} = actor), do: household(actor)
-
-  # Every member posts: a witness takes part alongside the residents in
-  # every way (the witness, 2026-11-11), unless a ballot has carried
-  # `witnesses_post` false to bar the household's witnesses (seshat#69).
-  defp may_post(%Actor{kind: :resident}, _household_id), do: :ok
-
-  defp may_post(%Actor{kind: :witness}, household_id) do
-    if Gaia.household_beat_shape(household_id).witnesses_post,
-      do: :ok,
-      else:
-        {:error, Error.new(:seshat_household_residents_write, :seshat_household_witness_writes)}
-  end
-
-  defp may_post(%Actor{}, _household_id),
-    do: {:error, Error.new(:seshat_household_residents_write, :seshat_household_actor_writes)}
-
-  # The commit's author: a resident by its name, a witness by whose
-  # witness it is (gaia#27), never an email.
-  defp author(household_id, %Actor{kind: :resident, id: id} = actor) do
-    slug =
-      case AgathosDaimon.fetch(id) do
-        {:ok, r} -> r.slug
-        _gone -> id
-      end
-
-    %{
-      name: Gaia.household_member_name(household_id, actor) || slug,
-      email: "#{slug}@residents.oneiroi.invalid"
-    }
-  end
-
-  defp author(household_id, %Actor{kind: :witness, id: id} = actor),
-    do: %{
-      name: Gaia.household_member_name(household_id, actor) || "a witness",
-      email: "#{id}@witnesses.oneiroi.invalid"
-    }
-
-  defp author(_household_id, %Actor{}), do: @platform
-
-  # ---- provisioning (sima-qian#51, seshat#59) ----
+  defdelegate member_household(actor), to: Core
 
   @doc """
   The household's repository, made on first use with the thread kind's
@@ -141,136 +99,7 @@ defmodule Oneiroi.Seshat.Household do
   the live one among them, gets its repository: the first time any
   member reaches for it.
   """
-  def provision(household_id) do
-    with {:ok, view} <- view(household_id) do
-      case descriptor(view, Kinds.named("thread")) ++ render_contract(view, household_id) do
-        [] ->
-          {:ok, view}
-
-        changes ->
-          # Two first readers may both write the descriptor; the second
-          # finds it there, and reads the house again.
-          _ =
-            Repos.write(
-              view.repo,
-              changes,
-              "Household: the shelf's kinds and its contract",
-              @platform
-            )
-
-          view(household_id)
-      end
-    end
-  end
-
-  # The household's repository at its head (sima-qian#57): one tree call,
-  # the files read from it through the blob cache.
-  defp view(household_id) do
-    repo = {:household, household_id}
-    with {:ok, files} <- Repos.snapshot(repo), do: {:ok, %{repo: repo, files: files}}
-  end
-
-  defp file(view, path), do: Repos.at(view.repo, view.files, path)
-  defp has?(view, path), do: Map.has_key?(view.files, path)
-
-  # The kind's descriptor in its folder (seshat#51's `kind.json`): written
-  # once, for a reader of the repository with no platform beside it.
-  defp descriptor(view, kind) do
-    path = Path.join(kind.folder, Kinds.descriptor_name())
-
-    if has?(view, path) do
-      []
-    else
-      body = %{
-        "kind" => kind.kind,
-        "folder" => kind.folder,
-        "label" => kind[:label] || kind.kind,
-        "layout" => kind.layout,
-        "container" => Kinds.container?(kind),
-        "cites" => kind.cites,
-        "access" => "household",
-        "written_by" => "residents, each under their own name; every member reads"
-      }
-
-      [{:create, path, Jason.encode_to_iodata!(body, pretty: true)}]
-    end
-  end
-
-  defp render_contract(view, household_id) do
-    body = contract_text(Gaia.household_contract(household_id))
-
-    if file(view, @contract) == body,
-      do: [],
-      else: [{:put, @contract, body, Map.get(view.files, @contract)}]
-  end
-
-  defp contract_text(%{in_force: nil} = c) do
-    """
-    # The household contract
-
-    No version yet: the founding witness proposes the first, prose alone.
-    Rules and settings are added one ballot at a time.
-
-    #{members_text(c.members)}
-    """
-  end
-
-  defp contract_text(%{in_force: v} = c) do
-    rules =
-      case v.rules do
-        [] -> "None yet: rules are added one ballot at a time."
-        rules -> rules |> Enum.with_index(1) |> Enum.map_join("\n", fn {r, i} -> "#{i}. #{r}" end)
-      end
-
-    settings =
-      case Enum.sort(v.settings) do
-        [] -> "None yet."
-        pairs -> Enum.map_join(pairs, "\n", fn {k, val} -> "- #{k}: #{inspect_value(val)}" end)
-      end
-
-    history =
-      Enum.map_join(c.versions, "\n", fn h ->
-        made = if h.ballot, do: "ballot ##{h.ballot}", else: "proposed by the founding witness"
-        "- Version #{h.version}, #{iso(h.decided_at)}, #{made}: #{h.note}"
-      end)
-
-    """
-    # The household contract, version #{v.version}
-
-    #{String.trim(v.prose)}
-
-    ## Rules
-
-    #{rules}
-
-    ## Settings
-
-    #{settings}
-
-    ## Versions
-
-    #{history}
-
-    #{members_text(c.members)}
-    """
-  end
-
-  defp members_text(members) do
-    lines =
-      Enum.map_join(members, "\n", fn m ->
-        signed =
-          if m.signed_version, do: "signed at version #{m.signed_version}", else: "not signed"
-
-        "- #{m.name} (#{m.kind}), joined #{iso(m.joined_at)}, #{signed}"
-      end)
-
-    "## Members\n\n" <> lines
-  end
-
-  defp inspect_value(v) when is_binary(v), do: v
-  defp inspect_value(v), do: inspect(v)
-
-  # ---- the shelf, read whole by every member (seshat#61) ----
+  defdelegate provision(household_id), to: Core
 
   @doc """
   The shelf, paged from an offset: the contract, then each thread, the
@@ -278,42 +107,7 @@ defmodule Oneiroi.Seshat.Household do
   the last, its ballot), then each document by its path. What a witness
   reads follows `SESHAT_HOUSEHOLD_WITNESS_READS` (seshat#64).
   """
-  def shelf(%Actor{} = actor, from \\ 0) do
-    with {:ok, household_id} <- household(actor),
-         {:ok, view} <- provision(household_id) do
-      ballots = Map.new(Gaia.household_contract(household_id).ballots, &{&1.thread, &1})
-
-      threads =
-        view
-        |> thread_ids()
-        |> Enum.map(&thread_summary(view, &1, ballots))
-        |> Enum.filter(&visible?(actor, household_id, &1.ids))
-        # Last updated first (the witness, 2026-11-19: "sort by last
-        # updated, not created"): a reply brings its thread up.
-        |> Enum.sort_by(&{&1.last_reply_at || &1.posted_at, &1.path}, :desc)
-
-      documents =
-        view
-        |> documents()
-        |> Enum.filter(&visible?(actor, household_id, [&1.by_id]))
-
-      items = threads ++ documents
-      page = items |> Enum.drop(from) |> Enum.take(@page)
-
-      {:ok,
-       %{
-         household_id: household_id,
-         # Its name for citations (gaia#44), nil until a witness names it.
-         slug: Gaia.household_slug(household_id),
-         contract: @contract,
-         total: length(items),
-         from: from,
-         next: if(from + @page < length(items), do: from + @page),
-         threads: Enum.filter(page, &(&1.kind == "thread")) |> Enum.map(&Map.delete(&1, :ids)),
-         documents: Enum.filter(page, &(&1.kind != "thread"))
-       }}
-    end
-  end
+  defdelegate shelf(actor, from \\ 0), to: Shelf
 
   @doc """
   The house searched (seshat#80; the witness, 2026-11-17: "the same
@@ -324,98 +118,7 @@ defmodule Oneiroi.Seshat.Household do
   Each hit names its path (what Records opens), its title, when, and the
   words around the first match; best match first, then newest.
   """
-  def search(%Actor{} = actor, q, scope \\ "everything") do
-    terms = q |> to_string() |> String.downcase() |> String.split(~r/\s+/, trim: true)
-
-    with {:ok, household_id} <- household(actor),
-         {:ok, view} <- provision(household_id) do
-      hits =
-        actor
-        |> searchable(household_id, view, scope)
-        |> Enum.map(&hit(&1, terms))
-        |> Enum.reject(&is_nil/1)
-        |> Enum.sort_by(&{&1.score, &1.at || ""}, :desc)
-        |> Enum.take(50)
-        |> Enum.map(&Map.delete(&1, :score))
-
-      {:ok, %{q: q, scope: scope, results: hits}}
-    end
-  end
-
-  defp searchable(actor, household_id, view, scope) do
-    threads =
-      if scope in ["everything", "threads"] do
-        for id <- thread_ids(view),
-            {:ok, t} = load_thread(view, "threads/" <> id),
-            visible?(actor, household_id, ids(t)) do
-          %{
-            type: "thread",
-            path: "threads/" <> id,
-            title: t.trunk.meta["title"],
-            at: (List.last(t.replies) || t.trunk).meta["at"] || t.trunk.meta["posted_at"],
-            text: Enum.map_join([t.trunk | t.replies], "\n\n", & &1.body)
-          }
-        end
-      else
-        []
-      end
-
-    documents =
-      if scope in ["everything", "records"] do
-        for d <- documents(view), visible?(actor, household_id, [d.by_id]) do
-          {_meta, body} = view |> file(d.path) |> to_string() |> frontmatter()
-          %{type: "document", path: d.path, title: d.title, at: d.posted_at, text: body}
-        end
-      else
-        []
-      end
-
-    charter =
-      if scope in ["everything", "charter"] do
-        for {path, title} <- [
-              {@contract, "The household contract"},
-              {@beats, "The household's beats"}
-            ],
-            text = file(view, path),
-            is_binary(text),
-            do: %{type: "charter", path: path, title: title, at: nil, text: text}
-      else
-        []
-      end
-
-    threads ++ documents ++ charter
-  end
-
-  # Every term somewhere in its title or words; the score counts them.
-  defp hit(_item, []), do: nil
-
-  defp hit(item, terms) do
-    haystack = String.downcase("#{item.title}\n#{item.text}")
-
-    if Enum.all?(terms, &String.contains?(haystack, &1)) do
-      score = Enum.sum(Enum.map(terms, &(length(String.split(haystack, &1)) - 1)))
-
-      item
-      |> Map.take([:type, :path, :title, :at])
-      |> Map.put(:snippet, snippet(item.text, hd(terms)))
-      |> Map.put(:score, score)
-    end
-  end
-
-  # About 160 characters around the first match, on one line.
-  defp snippet(text, term) do
-    flat = String.replace(text, ~r/\s+/, " ")
-
-    case :binary.match(String.downcase(flat), term) do
-      {at, _} ->
-        from = max(at - 60, 0)
-        piece = flat |> binary_slice(from, 160) |> String.trim()
-        if from > 0, do: "…" <> piece <> "…", else: piece <> "…"
-
-      :nomatch ->
-        flat |> binary_slice(0, 160) |> String.trim()
-    end
-  end
+  defdelegate search(actor, q, scope \\ "everything"), to: Search
 
   @doc """
   The household's repository as the Records view lists it (seshat#76):
@@ -425,80 +128,7 @@ defmodule Oneiroi.Seshat.Household do
   its kind. Unpaged: a household's repository is small, and the tree
   wants all of it.
   """
-  def files(%Actor{} = actor) do
-    with {:ok, household_id} <- household(actor),
-         {:ok, view} <- provision(household_id) do
-      ballots = Map.new(Gaia.household_contract(household_id).ballots, &{&1.thread, &1})
-
-      own =
-        for {path, title} <- [
-              {@contract, "The household contract"},
-              {@beats, "The household's beats"}
-            ],
-            has?(view, path),
-            do: file_row("house", path, title, nil, nil)
-
-      threads =
-        view
-        |> thread_ids()
-        |> Enum.map(&thread_summary(view, &1, ballots))
-        |> Enum.filter(&visible?(actor, household_id, &1.ids))
-        |> Enum.map(
-          &file_row("thread", &1.path, &1.title, &1.last_reply_at || &1.posted_at, &1.by,
-            created_at: &1.posted_at,
-            versions: &1.replies + 1
-          )
-        )
-
-      documents =
-        view
-        |> documents()
-        |> Enum.filter(&visible?(actor, household_id, [&1.by_id]))
-        |> Enum.map(&file_row(&1.kind, &1.path, &1.title, &1.posted_at, &1.by))
-
-      rows = own ++ threads ++ documents
-      present = rows |> Enum.map(& &1.kind) |> MapSet.new()
-
-      kinds =
-        ([%{kind: "house", label: "The house"}] ++
-           for(
-             k <- Kinds.shelf(),
-             Map.get(k, :household, false),
-             do: %{kind: k.kind, label: house_label(k)}
-           ))
-        |> Enum.with_index()
-        |> Enum.map(fn {k, i} -> Map.put(k, :position, i) end)
-
-      {:ok,
-       %{
-         household_id: household_id,
-         kinds: Enum.filter(kinds, &MapSet.member?(present, &1.kind)),
-         documents: rows,
-         unadopted: []
-       }}
-    end
-  end
-
-  # In a resident's records human/ is the witness's own ("Yours"); in the
-  # house it is every witness's, a folder each (seshat#81).
-  defp house_label(%{kind: "human"}), do: "Witnesses"
-  defp house_label(k), do: k.label
-
-  defp file_row(kind, path, title, at, by, extra \\ []) do
-    %{
-      kind: kind,
-      path: path,
-      title: title,
-      status: nil,
-      bytes: nil,
-      versions: Keyword.get(extra, :versions, 1),
-      written_at: at,
-      created_at: Keyword.get(extra, :created_at, at),
-      written_by: by,
-      missing_at: nil,
-      note: nil
-    }
-  end
+  defdelegate files(actor), to: Shelf
 
   @doc """
   One thing on the shelf, whole: a thread (by `threads/<id>`, its trunk's
@@ -506,40 +136,14 @@ defmodule Oneiroi.Seshat.Household do
   path, or `CONTRACT.md`. Answers `%{path, kind, title, content}`, with a
   thread's `trunk` and `replies` as data beside the text.
   """
-  def read(%Actor{} = actor, name, opts \\ []) do
-    with {:ok, household_id} <- household(actor),
-         {:ok, now} <- provision(household_id),
-         {:ok, head} <- Repos.head(now.repo),
-         {:ok, view, commit} <- pinned(now, Keyword.get(opts, :at), head),
-         {:ok, doc} <- read_in(actor, household_id, view, name) do
-      # Reading a thread in a house wake is answering it (seshat#90).
-      if actor.kind == :resident and is_binary(name) and thread_path(name),
-        do: HouseWorking.reading(household_id, actor.id, thread_path(name))
-
-      {:ok,
-       doc
-       |> Map.put(:commit, commit)
-       |> Map.put(:cited_as, cited_as(household_id, doc, commit))
-       |> Map.put(:since, since(actor, household_id, now, doc, commit, head))}
-    end
-  end
+  defdelegate read(actor, name, opts \\ []), to: Reading
 
   @doc """
   Who in the house is working now (seshat#90): each resident marked by a
   house wake, by name, with the thread she is in (nil when the wake names
   none and she has read none yet) and since when.
   """
-  def working(%Actor{} = actor) do
-    with {:ok, household_id} <- household(actor) do
-      names = Map.new(Gaia.household_members(household_id), &{&1.id, &1.name})
-
-      {:ok,
-       for(
-         w <- HouseWorking.list(household_id),
-         do: Map.put(w, :name, Map.get(names, w.resident_id))
-       )}
-    end
-  end
+  defdelegate working(actor), to: Shelf
 
   @doc """
   The house's activity (seshat#92; Lily's `design/wake-mail-visibility.md`
@@ -550,105 +154,10 @@ defmodule Oneiroi.Seshat.Household do
   witness reads every resident's; a resident reads the house's rows for
   everyone and her own letters and private wakes alone.
   """
-  def activity(%Actor{} = actor, resident_id \\ nil) do
-    with {:ok, household_id} <- household(actor) do
-      members = Gaia.household_members(household_id)
-      names = Map.new(members, &{&1.id, &1.name})
-      residents = for %{kind: "resident", id: id} <- members, do: id
-      ids = filtered(members, residents, resident_id)
-      own = if actor.kind == :resident, do: [actor.id], else: residents
-      name = &Map.get(names, &1)
-
-      rows =
-        wake_rows(ids, household_id, own, name) ++
-          token_rows(household_id, ids, name) ++ letter_rows(Enum.filter(ids, &(&1 in own)), name)
-
-      {:ok,
-       rows
-       |> Enum.reject(&is_nil(&1.at))
-       |> Enum.sort_by(& &1.at, {:desc, DateTime})
-       |> Enum.take(150)}
-    end
-  end
-
-  # One resident, by id or by name; anything else, every resident.
-  defp filtered(_members, residents, nil), do: residents
-
-  defp filtered(members, residents, wanted) do
-    key = String.downcase(to_string(wanted))
-
-    case Enum.find(
-           members,
-           &(&1.kind == "resident" and (&1.id == wanted or String.downcase(&1.name || "") == key))
-         ) do
-      %{id: id} -> [id]
-      nil -> residents
-    end
-  end
-
-  # A wake of the house's is everyone's to see; one of her own life (a
-  # letter's, free time's) is hers and her witness's.
-  defp wake_rows(ids, household_id, own, name) do
-    for w <- Sunna.wakes(ids, 150),
-        w.household_id == household_id or w.resident_id in own,
-        do: %{
-          kind: wake_kind(w),
-          at: w.at,
-          resident_id: w.resident_id,
-          name: name.(w.resident_id),
-          channel: w.channel,
-          causes: w.causes,
-          delivered: w.delivered,
-          read_at: w.read_at,
-          wake_id: w.wake_id
-        }
-  end
-
-  # Not delivered: a mention banked (muted), or letters the hourly bound
-  # held for a later tick (sunna#72).
-  defp wake_kind(%{delivered: true}), do: "wake"
-  defp wake_kind(%{channel: "mention"}), do: "mention"
-  defp wake_kind(_held), do: "held"
-
-  defp token_rows(household_id, ids, name) do
-    for t <- Gaia.round_turns(household_id),
-        t.resident_id in ids,
-        do: %{
-          kind: "token",
-          at: t.issued_at,
-          resident_id: t.resident_id,
-          name: name.(t.resident_id),
-          thread: t.thread,
-          round: t.round,
-          turn_id: t.turn_id,
-          until: t.expires_at,
-          outcome: t.outcome,
-          spent_at: t.spent_at
-        }
-  end
-
-  defp letter_rows(ids, name) do
-    for id <- ids,
-        l <- Kumbukumbu.letter_envelopes(id, 50),
-        do: %{
-          kind: "letter",
-          at: l.sent_at,
-          resident_id: id,
-          name: name.(id),
-          number: l.number,
-          from: l.from_name,
-          to: l.to_name,
-          in_reply_to: l.in_reply_to,
-          read_by: l.read_by || []
-        }
-  end
+  defdelegate activity(actor, resident_id \\ nil), to: Shelf
 
   @doc "A witness names the house for citations (gaia#44), once; answers the shelf."
-  def name(%Actor{} = actor, slug) do
-    with {:ok, household_id} <- household(actor),
-         :ok <- Gaia.name_household(household_id, to_string(slug || ""), actor),
-         do: shelf(actor)
-  end
+  defdelegate name(actor, slug), to: Shelf
 
   @doc """
   What a house citation names, read as it stood at its commit (gaia#44,
@@ -656,43 +165,7 @@ defmodule Oneiroi.Seshat.Household do
   reader's says so: one she has left opens from her clone of it at
   leaving, which is not built yet.
   """
-  def read_cited(%Actor{} = actor, %{house: house, path: path, at: at}) do
-    with {:ok, mine} <- household(actor) do
-      case Gaia.household_by_slug(house) do
-        ^mine ->
-          read(actor, path, at: at)
-
-        nil ->
-          {:error,
-           Error.new(:seshat_household_no_such_document, :seshat_household_cited_house_unknown,
-             house: house
-           )}
-
-        _another ->
-          {:error,
-           Error.new(:seshat_household_not_member, :seshat_household_cited_house_not_mine,
-             house: house
-           )}
-      end
-    end
-  end
-
-  defp read_in(actor, household_id, view, name) do
-    cond do
-      name in [@contract, "contract"] -> read_contract(view)
-      name in [@beats, "beats"] -> read_beats(view)
-      thread = thread_path(name) -> read_thread(actor, household_id, view, thread)
-      true -> read_document(actor, household_id, view, name)
-    end
-  end
-
-  # The house as it stood at a commit a citation pinned (sima-qian#61),
-  # or as it stands now.
-  defp pinned(now, nil, head), do: {:ok, now, head}
-
-  defp pinned(now, at, _head) do
-    with {:ok, files} <- Repos.snapshot_at(now.repo, at), do: {:ok, %{now | files: files}, at}
-  end
+  defdelegate read_cited(actor, cite), to: Reading
 
   @doc """
   How a citation names what was read (gaia#44, sima-qian#61): the
@@ -700,144 +173,7 @@ defmodule Oneiroi.Seshat.Household do
   at, `house/<slug>:thread/<id>@<commit>`; nil while the house is unnamed
   or before its first commit.
   """
-  def cited_as(household_id, doc, commit) do
-    with slug when is_binary(slug) <- Gaia.household_slug(household_id),
-         sha when is_binary(sha) <- commit do
-      ref =
-        case doc.kind do
-          "thread" -> "thread/" <> String.replace_prefix(doc.path, "threads/", "")
-          _document -> "doc/" <> doc.path
-        end
-
-      "house/#{slug}:#{ref}@#{String.slice(sha, 0, 12)}"
-    else
-      _unnamed -> nil
-    end
-  end
-
-  # What changed since the pin, said plainly (sima-qian#61): a thread
-  # only grows (its replies are create-only), so how many replies came
-  # since; a document, whether its words are still the ones cited. Nil
-  # when read as it stands.
-  defp since(_actor, _household_id, _now, _doc, _commit, nil), do: nil
-
-  defp since(actor, household_id, now, doc, commit, head) do
-    cond do
-      String.starts_with?(head, commit) -> nil
-      doc.kind == "thread" -> thread_since(actor, household_id, now, doc)
-      true -> document_since(now, doc)
-    end
-  end
-
-  defp thread_since(actor, household_id, now, doc) do
-    case read_thread(actor, household_id, now, doc.path) do
-      {:ok, current} -> replies_since(length(current.replies) - length(doc.replies))
-      _gone -> "the thread is no longer on the shelf"
-    end
-  end
-
-  defp replies_since(n) when n <= 0, do: nil
-  defp replies_since(1), do: "1 reply since it was cited"
-  defp replies_since(n), do: "#{n} replies since it was cited"
-
-  defp document_since(now, doc) do
-    cond do
-      not has?(now, doc.path) -> "the document is no longer on the shelf"
-      file(now, doc.path) == doc.content -> nil
-      true -> "changed since it was cited; read it without the commit for its words now"
-    end
-  end
-
-  # The contract's rendering, at the root of a directory the household's
-  # id named; no request value reaches the path.
-  defp read_contract(view),
-    do:
-      {:ok,
-       %{
-         path: @contract,
-         kind: "contract",
-         title: "The household contract",
-         content: file(view, @contract) || ""
-       }}
-
-  # The beats' record (seshat#71), at the root as the contract is; before
-  # the first beat event it is not there yet.
-  defp read_beats(view) do
-    case file(view, @beats) do
-      text when is_binary(text) ->
-        {:ok, %{path: @beats, kind: "beats", title: "The household's beats", content: text}}
-
-      {:error, _} ->
-        {:error,
-         Error.new(:seshat_household_no_such_document, :seshat_household_beats_absent,
-           path: @beats
-         )}
-    end
-  end
-
-  defp read_thread(actor, household_id, view, thread) do
-    with {:ok, t} <- load_thread(view, thread),
-         true <- visible?(actor, household_id, ids(t)) || :hidden do
-      ballot = Gaia.household_ballot_for_thread(household_id, thread)
-      doc = posted_doc(view, t)
-
-      {:ok,
-       %{
-         path: thread,
-         kind: "thread",
-         title: t.trunk.meta["title"],
-         trunk: t.trunk,
-         replies: t.replies,
-         ballot: ballot,
-         doc: doc,
-         content: thread_text(thread, t, ballot, doc)
-       }}
-    else
-      :hidden -> no_thread(thread)
-      other -> other
-    end
-  end
-
-  defp read_document(actor, household_id, view, name) do
-    with {:ok, path} <- household_path(name),
-         text when is_binary(text) <- file(view, path) || :absent,
-         {meta, _body} = frontmatter(text),
-         true <- visible?(actor, household_id, [meta["by_id"]]) || :absent do
-      share = sharing_of(meta)
-
-      {:ok,
-       %{
-         path: path,
-         kind: Kinds.kind_of(path).kind,
-         title: meta["title"] || path,
-         content: text,
-         sharing: Map.put(share, :owner, owner_name(household_id, share.owner_id)),
-         discussed: discussed(view, path)
-       }}
-    else
-      {:error, %Error{}} = refused ->
-        refused
-
-      _absent ->
-        {:error,
-         Error.new(:seshat_household_no_such_document, :seshat_household_read_absent, path: name)}
-    end
-  end
-
-  # What a witness reads (seshat#64, the resident's lean on design
-  # household-communication §8, his word awaited): `whole` (the default),
-  # every witness every room; `own`, a witness only what it or a resident
-  # it witnesses took part in. A resident always reads whole.
-  defp visible?(%Actor{kind: :witness, id: id}, _household_id, ids) do
-    case Config.fetch!(:seshat, :household_witness_reads) do
-      :whole -> true
-      :own -> Enum.any?(ids, &(&1 in [id | Gaia.witnessed_residents(id)]))
-    end
-  end
-
-  defp visible?(%Actor{}, _household_id, _ids), do: true
-
-  # ---- post (seshat#59, #60) ----
+  defdelegate cited_as(household_id, doc, commit), to: Reading
 
   @doc """
   A resident posts: a thread (`kind` `thread`, the default) with a
@@ -846,268 +182,7 @@ defmodule Oneiroi.Seshat.Household do
   `ballot` (`bundle`, `term_days`, `note`) opens a ballot (seshat#63):
   the household stream fixes the bundle first, and the trunk states it.
   """
-  def post(%Actor{} = actor, attrs) when is_map(attrs) do
-    attrs = Map.new(attrs, fn {k, v} -> {to_string(k), v} end)
-
-    with {:ok, household_id} <- household(actor),
-         :ok <- may_post(actor, household_id),
-         {:ok, view} <- provision(household_id) do
-      case {attrs["kind"] || "thread", attrs["doc"]} do
-        {"thread", doc} when is_binary(doc) ->
-          post_doc_thread(actor, household_id, view, attrs)
-          |> rounds_after(household_id, actor)
-          |> mentioned(household_id, actor, attrs, nil)
-
-        {"thread", _none} ->
-          post_thread(actor, household_id, view, attrs)
-          |> rounds_after(household_id, actor)
-          |> mentioned(household_id, actor, attrs, nil)
-
-        _document ->
-          post_document(actor, household_id, view, attrs)
-      end
-    end
-  end
-
-  defp post_thread(actor, household_id, _view, attrs) do
-    title = one_line(attrs["title"])
-    text = to_string(attrs["content"] || "")
-    ballot = attrs["ballot"]
-
-    with :ok <- titled(title),
-         :ok <- worded(text, ballot != nil) do
-      locked(household_id, fn view ->
-        write_thread(actor, household_id, view, {title, text, ballot})
-      end)
-    end
-  end
-
-  defp write_thread(actor, household_id, view, {title, text, ballot}) do
-    thread = "threads/" <> fresh_id(view, title)
-    by = author(household_id, actor)
-
-    with :ok <- gate(actor, household_id, view, thread, :post),
-         {:ok, opened} <- open_ballot(household_id, thread, ballot, actor),
-         meta = thread_meta(title, by, actor) ++ ballot_meta(opened),
-         path = Path.join(thread, @trunk),
-         changes = [
-           {:create, path, render(meta, text <> bundle_text(opened))}
-           | descriptor(view, Kinds.named("thread"))
-         ],
-         {:ok, _} <- commit(view, changes, "Post: #{title}", by) do
-      {:ok,
-       %{path: thread, title: title, ballot: opened && Map.take(opened, [:ballot, :closes_at])}}
-    end
-  end
-
-  # ---- document posts (seshat#83) ----
-
-  # A document post: a thread whose trunk is a citation of a household
-  # document, flagged `doc:`, pinned at its latest commit, which reads as
-  # the document itself; feedback on it is its replies.
-  defp post_doc_thread(actor, household_id, view, attrs) do
-    text = to_string(attrs["content"] || "")
-
-    with {:ok, path} <- household_path(attrs["doc"]),
-         false <- Kinds.container?(Kinds.kind_of(path)),
-         doc when is_binary(doc) <- file(view, path) || absent(path),
-         {meta, _body} = frontmatter(doc),
-         title = one_line(attrs["title"]) || "On #{meta["title"] || Path.basename(path, ".md")}",
-         :ok <- titled(title) do
-      locked(household_id, &write_doc_thread(actor, household_id, &1, {path, title, text}))
-    else
-      true -> {:error, Error.new(:seshat_household_invalid, :seshat_household_doc_post_thread)}
-      other -> other
-    end
-  end
-
-  defp write_doc_thread(actor, household_id, view, {path, title, text}) do
-    thread = "threads/" <> fresh_id(view, title)
-    by = author(household_id, actor)
-    commit = doc_commit(view, path)
-
-    with :ok <- gate(actor, household_id, view, thread, :post),
-         meta = thread_meta(title, by, actor) ++ [{"doc", path}] ++ optional("doc_commit", commit),
-         body =
-           "A document post on #{path}#{draft_at(commit)}." <>
-             if(String.trim(text) == "", do: "", else: "\n\n" <> text),
-         changes = [
-           {:create, Path.join(thread, @trunk), render(meta, body)}
-           | descriptor(view, Kinds.named("thread"))
-         ],
-         {:ok, _} <- commit(view, changes, "Post: #{title}", by) do
-      {:ok, %{path: thread, title: title, doc: path, doc_commit: commit, ballot: nil}}
-    end
-  end
-
-  # The commit that last changed a document: its draft.
-  defp doc_commit(view, path) do
-    case Repos.history(view.repo, path, 1) do
-      {:ok, [%{commit: sha} | _]} -> sha
-      _none -> nil
-    end
-  end
-
-  defp draft_at(nil), do: ""
-  defp draft_at(sha), do: ", draft #{short(sha)}"
-
-  defp short(sha), do: String.slice(sha, 0, 12)
-
-  # After an edit, a line in every thread on the document saying its
-  # draft changed (seshat#83), so which draft is being talked about is
-  # plain at every point and the latest draft's talk can be found. The
-  # platform's lines, in their own commit, never gated.
-  defp draft_changed(household_id, path, from, to) do
-    {:ok, view} = view(household_id)
-
-    changes =
-      for id <- thread_ids(view),
-          thread = "threads/" <> id,
-          {:ok, t} <- [load_thread(view, thread)],
-          t.trunk.meta["doc"] == path do
-        number = next_reply(view, thread)
-
-        meta = [
-          {"by", @platform.name},
-          {"by_kind", "platform"},
-          {"at", iso(Clock.now())},
-          {"reply", Integer.to_string(number)},
-          {"draft", "changed"},
-          {"doc_commit", to}
-        ]
-
-        {:create, reply_path(thread, number, "oneiroi"),
-         render(meta, "Draft changed: #{short(from || "")} → #{short(to)}.")}
-      end
-
-    _ = commit(view, changes, "Draft changed: #{path}", @platform)
-    :ok
-  end
-
-  defp thread_meta(title, by, actor),
-    do: [
-      {"title", title},
-      {"by", by.name},
-      {"by_kind", Atom.to_string(actor.kind)},
-      {"by_id", actor.id},
-      {"posted_at", iso(Clock.now())}
-    ]
-
-  defp open_ballot(_household_id, _thread, nil, _actor), do: {:ok, nil}
-
-  defp open_ballot(household_id, thread, ballot, actor) when is_map(ballot) do
-    b = Map.new(ballot, fn {k, v} -> {to_string(k), v} end)
-
-    with {:ok, opened} <-
-           Gaia.open_household_ballot(
-             household_id,
-             thread,
-             b["bundle"],
-             b["term_days"],
-             to_string(b["note"] || "a ballot opened in the household"),
-             actor
-           ),
-         {:ok, _job} <-
-           Jobs.enqueue(
-             @ballot_worker,
-             %{"household_id" => household_id, "ballot" => opened.ballot},
-             scheduled_at: opened.closes_at
-           ) do
-      {:ok, Map.put(opened, :term_days, b["term_days"])}
-    end
-  end
-
-  defp open_ballot(_household_id, _thread, _other, _actor),
-    do: {:error, Error.new(:seshat_household_invalid, :seshat_household_ballot_shape)}
-
-  defp ballot_meta(nil), do: []
-
-  defp ballot_meta(o),
-    do: [
-      {"ballot", Integer.to_string(o.ballot)},
-      {"term_days", Integer.to_string(o.term_days)},
-      {"closes_at", iso(o.closes_at)}
-    ]
-
-  defp bundle_text(nil), do: ""
-
-  defp bundle_text(o) do
-    items =
-      o.bundle
-      |> Enum.with_index(1)
-      |> Enum.map_join("\n", fn
-        {%{"rule" => r}, i} -> "#{i}. Rule: #{r}"
-        {%{"setting" => k, "value" => v}, i} -> "#{i}. Setting: #{k} = #{inspect_value(v)}"
-      end)
-
-    """
-
-
-    ## Ballot ##{o.ballot}: the bundle, voted on as a unit
-
-    #{items}
-
-    Fixed when the ballot opened; nothing is added, changed or removed while it runs. Every member, witness or resident, votes once by replying with a vote of yes or no, until #{iso(o.closes_at)}. A majority of the members carries the whole bundle into the contract; otherwise the whole of it fails.
-    """
-  end
-
-  defp post_document(actor, household_id, _view, attrs) do
-    title = one_line(attrs["title"])
-
-    with :ok <- path_given(attrs["path"]),
-         {:ok, path} <- household_path(attrs["path"]),
-         false <- Kinds.container?(Kinds.kind_of(path)),
-         :ok <- own_folder(actor, path),
-         {:ok, sharing} <- sharing(attrs, actor),
-         {:ok, text, source} <- words_from(actor, attrs),
-         text = text || "",
-         :ok <- worded(text, false) do
-      locked(household_id, fn view ->
-        write_document(actor, household_id, view, {path, title, text, sharing ++ source})
-      end)
-    else
-      true ->
-        {:error, Error.new(:seshat_household_invalid, :seshat_household_document_in_threads)}
-
-      other ->
-        other
-    end
-  end
-
-  defp write_document(actor, household_id, view, {path, title, text, sharing}) do
-    by = author(household_id, actor)
-    meta = thread_meta(title || Path.basename(path, ".md"), by, actor) ++ sharing
-
-    with :ok <- document_gate(actor, household_id, view, path),
-         false <- has?(view, path),
-         changes = [{:create, path, render(meta, text)} | descriptor(view, Kinds.kind_of(path))],
-         {:ok, _} <- commit(view, changes, "Post: #{path}", by) do
-      {:ok, %{path: path, title: title}}
-    else
-      true ->
-        {:error,
-         Error.new(:seshat_household_written, :seshat_household_document_exists, path: path)}
-
-      other ->
-        other
-    end
-  end
-
-  # ---- sharing modes and the owner (seshat#82) ----
-
-  # A document's sharing, as its front matter says it: `owner` mode (the
-  # default), its owner the poster, who alone edits it while the others'
-  # edits are feedback; `open`, everyone edits. Posted with `owner: false`
-  # it has no owner and is open, for the flows a resident automates.
-  defp sharing(attrs, %Actor{id: id}) do
-    case {attrs["mode"] || "owner", attrs["owner"]} do
-      {_mode, false} -> {:ok, [{"mode", "open"}]}
-      {mode, _} when mode in ["owner", "open"] -> {:ok, [{"owner_id", id}, {"mode", mode}]}
-      _other -> {:error, Error.new(:seshat_household_invalid, :seshat_household_mode_unknown)}
-    end
-  end
-
-  # ---- a housemate's published drafts (seshat#85, design §2) ----
+  defdelegate post(actor, attrs), to: Posts
 
   @doc """
   A housemate's published draft, read by its citation, `<slug>:<path>`
@@ -1116,28 +191,7 @@ defmodule Oneiroi.Seshat.Household do
   last, or at a commit named, when that commit is published. What is not
   published is not the house's to read: the protocol is to ask her.
   """
-  def read_published(%Actor{} = actor, cite) do
-    with {:ok, household_id} <- household(actor),
-         {:ok, slug, path, commit} <- housemate_cite(cite),
-         {:ok, owner} <- housemate(household_id, slug, cite),
-         {:ok, sha} <- public_at(owner.id, path, commit, cite),
-         {:ok, files} <- Repos.snapshot_at({:resident, owner.id}, sha),
-         text when is_binary(text) <-
-           Repos.at({:resident, owner.id}, files, path) || unpublished(cite) do
-      {:ok,
-       %{
-         path: path,
-         kind: "published",
-         owner: owner.name,
-         commit: sha,
-         latest: Published.latest(owner.id, path),
-         title: Path.basename(path, ".md"),
-         content: text,
-         cited_as: "#{slug}:#{path}@#{short(sha)}",
-         since: nil
-       }}
-    end
-  end
+  defdelegate read_published(actor, cite), to: Housemates
 
   @doc """
   The housemates who have published a draft at `path` (seshat#85), as
@@ -1145,108 +199,10 @@ defmodule Oneiroi.Seshat.Household do
   names, so a same-path draft of a housemate's is never silently
   shadowed by her own (Lily's letter #1182, 2026-11-18).
   """
-  def published_by_housemates(%Actor{kind: :resident, id: me} = actor, path) do
-    case household(actor) do
-      {:ok, household_id} ->
-        for %{kind: "resident", id: id} <- Gaia.household_members(household_id),
-            id != me,
-            Published.latest(id, path) != nil,
-            {:ok, r} <- [AgathosDaimon.fetch(id)],
-            do: "#{r.slug}:#{path}"
-
-      _none ->
-        []
-    end
-  end
-
-  def published_by_housemates(_actor, _path), do: []
+  defdelegate published_by_housemates(actor, path), to: Housemates
 
   @doc "Whether a path reads as a housemate's citation, `<slug>:<path>`."
-  def housemate_cite?(cite), do: match?({:ok, _, _, _}, housemate_cite(cite))
-
-  defp housemate_cite(cite) when is_binary(cite) do
-    case Regex.run(~r/\A([a-z0-9][a-z0-9-]{0,63}):([^@\s]+?)(?:@([0-9a-f]{7,40}))?\z/, cite) do
-      [_, "house" <> _, _ | _] -> :error
-      [_, slug, path] -> {:ok, slug, path, nil}
-      [_, slug, path, commit] -> {:ok, slug, path, commit}
-      _no -> :error
-    end
-  end
-
-  defp housemate_cite(_other), do: :error
-
-  defp housemate(household_id, slug, cite) do
-    found =
-      Enum.find_value(Gaia.household_members(household_id), fn
-        %{kind: "resident", id: id, name: name} ->
-          case AgathosDaimon.fetch(id) do
-            {:ok, %{slug: ^slug}} -> %{id: id, name: name}
-            _other -> nil
-          end
-
-        _witness ->
-          nil
-      end)
-
-    if found, do: {:ok, found}, else: unpublished(cite)
-  end
-
-  defp public_at(owner_id, path, nil, cite) do
-    case Published.latest(owner_id, path) do
-      nil -> unpublished(cite)
-      sha -> {:ok, sha}
-    end
-  end
-
-  defp public_at(owner_id, path, commit, cite) do
-    case Enum.find(
-           Published.all(owner_id),
-           &(&1.path == path and String.starts_with?(&1.commit, commit))
-         ) do
-      nil -> unpublished(cite)
-      p -> {:ok, p.commit}
-    end
-  end
-
-  defp unpublished(cite),
-    do:
-      {:error,
-       Error.new(:seshat_household_unpublished, :seshat_household_cite_unpublished, path: cite)}
-
-  # ---- the source-and-revision link (seshat#84) ----
-
-  # A document's words, given (`content`) or copied from a file of the
-  # resident's own (`from`, a path in her repository), which the copy
-  # names as its source at the commit it was copied at, `<slug>:<path>@
-  # <commit>`, so her local draft never becomes a quiet competing
-  # edition; her own front matter stays behind.
-  # A book and her reading of it stay hers (seshat#98).
-  defp words_from(%Actor{kind: :resident}, %{"from" => "books/" <> _ = from}),
-    do: {:error, Error.new(:seshat_book_private, :seshat_household_source_book, path: from)}
-
-  defp words_from(%Actor{kind: :resident, id: id}, %{"from" => from}) when is_binary(from) do
-    repo = {:resident, id}
-
-    with {:ok, text, _blob} <- Repos.read(repo, from),
-         {:ok, [%{commit: commit} | _]} <- Repos.history(repo, from, 1),
-         {:ok, r} <- AgathosDaimon.fetch(id) do
-      {_meta, body} = frontmatter(text)
-      {:ok, body, [{"source", "#{r.slug}:#{from}@#{short(commit)}"}]}
-    else
-      _absent ->
-        {:error,
-         Error.new(:seshat_household_no_such_document, :seshat_household_source_absent,
-           path: from
-         )}
-    end
-  end
-
-  defp words_from(%Actor{}, %{"from" => from}) when is_binary(from),
-    do: {:error, Error.new(:seshat_household_invalid, :seshat_household_source_residents)}
-
-  defp words_from(_actor, attrs) do
-    if is_binary(attrs["content"]), do: {:ok, attrs["content"], []}, else: {:ok, nil, []}
-  end
+  defdelegate housemate_cite?(cite), to: Housemates
 
   @doc """
   The household documents shared from a file of the resident's own
@@ -1254,37 +210,13 @@ defmodule Oneiroi.Seshat.Household do
   of that file says, so the feedback on its shared edition follows her
   back to where she works. Empty outside a house.
   """
-  def shared_from(%Actor{kind: :resident, id: id} = actor, path) do
-    with {:ok, household_id} <- household(actor),
-         {:ok, r} <- AgathosDaimon.fetch(id),
-         {:ok, view} <- view(household_id) do
-      prefix = "#{r.slug}:#{path}@"
-
-      for d <- documents(view),
-          source = d.source,
-          is_binary(source) and String.starts_with?(source, prefix),
-          do: %{
-            path: d.path,
-            at: String.replace_prefix(source, prefix, ""),
-            discussed: discussed(view, d.path)
-          }
-    else
-      _none -> []
-    end
-  end
-
-  def shared_from(_actor, _path), do: []
+  defdelegate shared_from(actor, path), to: Edits
 
   @doc """
   The sharing a document's front matter states (seshat#82): `%{mode,
   owner_id}`. One written before modes is its poster's, in owner mode.
   """
-  def sharing_of(meta) when is_map(meta) do
-    case meta do
-      %{"mode" => "open"} -> %{mode: "open", owner_id: meta["owner_id"]}
-      _owned -> %{mode: "owner", owner_id: meta["owner_id"] || meta["by_id"]}
-    end
-  end
+  defdelegate sharing_of(meta), to: Edits
 
   @doc """
   A member edits a household document (seshat#82): its owner, in owner
@@ -1293,134 +225,7 @@ defmodule Oneiroi.Seshat.Household do
   rewrites its words; `mode` (`owner` or `open`) is the owner's alone to
   change. The path keeps its history; a thread is never edited.
   """
-  def edit(%Actor{} = actor, name, attrs) when is_map(attrs) do
-    attrs = Map.new(attrs, fn {k, v} -> {to_string(k), v} end)
-
-    with {:ok, household_id} <- household(actor),
-         :ok <- may_post(actor, household_id),
-         {:ok, path} <- household_path(name),
-         false <- Kinds.container?(Kinds.kind_of(path)),
-         {:ok, _view} <- provision(household_id) do
-      locked(household_id, fn view -> write_edit(actor, household_id, view, path, attrs) end)
-    else
-      true -> {:error, Error.new(:seshat_household_invalid, :seshat_household_edit_thread)}
-      other -> other
-    end
-  end
-
-  defp write_edit(actor, household_id, view, path, attrs) do
-    with text when is_binary(text) <- file(view, path) || absent(path),
-         {meta, body} = frontmatter(text),
-         before = doc_commit(view, path),
-         share = sharing_of(meta),
-         :ok <- may_edit(actor, share, path),
-         {:ok, mode} <- new_mode(actor, share, attrs["mode"]),
-         {:ok, given, source} <- words_from(actor, attrs),
-         words = given || body,
-         :ok <- worded(words, false),
-         :ok <- document_gate(actor, household_id, view, path),
-         by = author(household_id, actor),
-         meta =
-           meta
-           |> Map.merge(%{
-             "mode" => mode,
-             "edited_by" => by.name,
-             "edited_by_id" => actor.id,
-             "edited_at" => iso(Clock.now())
-           })
-           |> Map.merge(Map.new(source))
-           |> Map.put_new("owner_id", share.owner_id),
-         {:ok, commit} <-
-           commit(
-             view,
-             [{:put, path, render(ordered(meta), words), Map.get(view.files, path)}],
-             "Edit: #{path}",
-             by
-           ) do
-      if commit != :nothing and given != nil,
-        do: draft_changed(household_id, path, before, commit)
-
-      {:ok, %{path: path, mode: mode, owner_id: meta["owner_id"], commit: commit}}
-    end
-  end
-
-  defp owner_name(_household_id, nil), do: nil
-
-  defp owner_name(household_id, id),
-    do: Enum.find_value(Gaia.household_members(household_id), &(&1.id == id && &1.name))
-
-  defp may_edit(_actor, %{mode: "open"}, _path), do: :ok
-  defp may_edit(%Actor{id: id}, %{owner_id: id}, _path), do: :ok
-
-  defp may_edit(_actor, _share, path),
-    do:
-      {:error,
-       Error.new(:seshat_household_not_owner, :seshat_household_edit_not_owner, path: path)}
-
-  defp new_mode(_actor, share, nil), do: {:ok, share.mode}
-  defp new_mode(_actor, %{mode: m}, m), do: {:ok, m}
-
-  defp new_mode(%Actor{id: id}, %{owner_id: id}, mode) when mode in ["owner", "open"],
-    do: {:ok, mode}
-
-  defp new_mode(_actor, %{owner_id: nil}, _mode),
-    do: {:error, Error.new(:seshat_household_not_owner, :seshat_household_mode_no_owner)}
-
-  defp new_mode(_actor, _share, mode) when mode in ["owner", "open"],
-    do: {:error, Error.new(:seshat_household_not_owner, :seshat_household_mode_not_owner)}
-
-  defp new_mode(_actor, _share, _mode),
-    do: {:error, Error.new(:seshat_household_invalid, :seshat_household_edit_mode_unknown)}
-
-  # The front matter in the order a person reads it: who and when first.
-  @meta_order ~w(title by by_kind by_id posted_at owner_id mode source edited_by edited_by_id edited_at)
-  defp ordered(meta) do
-    known = for k <- @meta_order, Map.has_key?(meta, k), do: {k, meta[k]}
-    known ++ Enum.sort(for {k, v} <- meta, k not in @meta_order, do: {k, v})
-  end
-
-  defp absent(path),
-    do:
-      {:error,
-       Error.new(:seshat_household_no_such_document, :seshat_household_edit_absent, path: path)}
-
-  # A document posted with no path is told so first (2026-11-18, Lily's
-  # letter #1175: the path's format, given alone, read as a format fault
-  # through eight tries).
-  defp path_given(path) do
-    if is_binary(path) and String.trim(path) != "",
-      do: :ok,
-      else: {:error, Error.new(:seshat_household_no_path, :seshat_household_document_no_path)}
-  end
-
-  # Whose folder a household document goes in (seshat#81): a witness's
-  # in human/<their name>/, made by its first file; a resident's in a
-  # household kind's folder, never in human/.
-  defp own_folder(%Actor{kind: :witness, id: id}, path) do
-    case Gaia.witness_folder(id) do
-      nil ->
-        {:error, Error.new(:seshat_witness_unnamed, :seshat_household_witness_unnamed)}
-
-      folder ->
-        if String.starts_with?(path, "human/#{folder}/") and length(Path.split(path)) == 3,
-          do: :ok,
-          else:
-            {:error,
-             Error.new(:seshat_not_your_folder, :seshat_household_not_your_folder,
-               path: path,
-               folder: "human/#{folder}/"
-             )}
-    end
-  end
-
-  defp own_folder(%Actor{}, "human/" <> _ = path),
-    do:
-      {:error,
-       Error.new(:seshat_household_invalid, :seshat_household_human_is_witnesses, path: path)}
-
-  defp own_folder(%Actor{}, _path), do: :ok
-
-  # ---- reply (seshat#59, #60, #62, #63) ----
+  defdelegate edit(actor, name, attrs), to: Edits
 
   @doc """
   A member appends to a thread: a resident with words, a vote, or both;
@@ -1428,178 +233,7 @@ defmodule Oneiroi.Seshat.Household do
   stream first (gaia#30), so a refused one writes nothing. Each reply is
   a new file; the trunk is never touched. Watchers are poked after.
   """
-  def reply(%Actor{} = actor, thread_name, attrs) when is_map(attrs) do
-    attrs = Map.new(attrs, fn {k, v} -> {to_string(k), v} end)
-    text = to_string(attrs["content"] || "")
-    vote = attrs["vote"] |> blank() |> downcase()
-
-    with {:ok, household_id} <- household(actor),
-         :ok <- may_reply(actor, vote, household_id),
-         :ok <- worded(text, vote != nil),
-         {:ok, view} <- provision(household_id),
-         thread when is_binary(thread) <- thread_path(thread_name) || no_thread(thread_name),
-         {:ok, t} <- load_thread(view, thread),
-         :ok <- cast(household_id, thread, vote, actor),
-         by = author(household_id, actor),
-         reply = {text, vote, integer(attrs["in_reply_to"])},
-         {:ok, written} <-
-           locked(household_id, fn view ->
-             write_reply(actor, household_id, view, {thread, t}, by, reply)
-           end) do
-      {rounds, written} = Map.pop(written, :rounds, :none)
-
-      with {:write, spent} <- rounds,
-           true <- HouseholdRounds.on?(household_id),
-           do: HouseholdRounds.after_write(household_id, thread, actor, spent)
-
-      _ = waive_term(household_id, thread, vote)
-      poke(household_id, thread, t, written, by, actor)
-      _ = wake_house_on_witness(household_id, thread, t, written, actor)
-
-      _ =
-        mentioned(
-          {:ok, %{path: thread, title: t.trunk.meta["title"]}},
-          household_id,
-          actor,
-          attrs,
-          written.number
-        )
-
-      {:ok, Map.merge(written, %{thread: thread, vote: vote})}
-    end
-  end
-
-  defp write_reply(actor, household_id, view, {thread, t}, by, {text, vote, in_reply_to}) do
-    # A vote is governance, never a post (seshat#67, #68): it waits on no
-    # turn and spends no quota. A resident's answer to a house check-in is
-    # the check-in's, not the beats' (seshat#75): her first reply there
-    # waits on no turn either. Anything else goes through the beats.
-    exempt? = vote != nil or checkin_answer?(actor, t)
-
-    with :ok <- if(exempt?, do: :ok, else: gate(actor, household_id, view, thread, :post)),
-         {:ok, spent} <- reply_token(exempt?, actor, household_id, thread),
-         {:ok, written} <-
-           append_reply(actor, household_id, view, {thread, t}, by, {text, vote, in_reply_to}) do
-      {:ok, Map.put(written, :rounds, if(vote == nil, do: {:write, spent}, else: :none))}
-    end
-  end
-
-  # In round-robin threads (seshat#89) a resident's reply where the
-  # rounds run spends her live token, before the write it allows.
-  defp reply_token(false, actor, household_id, thread) do
-    if HouseholdRounds.on?(household_id),
-      do: HouseholdRounds.spend_for_reply(actor, household_id, thread),
-      else: {:ok, []}
-  end
-
-  defp reply_token(true, _actor, _household_id, _thread), do: {:ok, []}
-
-  # After a write, the thread's rounds start (or again, stopped) and every
-  # turn issued is woken (seshat#89); nothing under the beats.
-  defp rounds_after({:ok, %{path: thread}} = ok, household_id, actor) do
-    if HouseholdRounds.on?(household_id),
-      do: HouseholdRounds.after_write(household_id, thread, actor, [])
-
-    ok
-  end
-
-  defp rounds_after(other, _household_id, _actor), do: other
-
-  defp append_reply(actor, _household_id, view, {thread, t}, by, {text, vote, in_reply_to}) do
-    number = next_reply(view, thread)
-
-    meta =
-      [
-        {"by", by.name},
-        {"by_kind", Atom.to_string(actor.kind)},
-        {"by_id", actor.id},
-        {"at", iso(Clock.now())},
-        {"reply", Integer.to_string(number)}
-      ] ++
-        optional("in_reply_to", in_reply_to && Integer.to_string(in_reply_to)) ++
-        optional("vote", vote) ++
-        stamp(view, t)
-
-    body = if text == "", do: "Votes #{vote}.", else: text
-    path = reply_path(thread, number, by.name)
-
-    with {:ok, _} <-
-           commit(
-             view,
-             [{:create, path, render(meta, body)}],
-             "Reply ##{number} to #{t.trunk.meta["title"]}",
-             by
-           ),
-         do: {:ok, %{path: path, number: number}}
-  end
-
-  # A reply on a document post is stamped with the draft it answers
-  # (seshat#83): an out-of-date reply says so, whether or not a
-  # draft-changed line was ever written.
-  defp stamp(view, %{trunk: %{meta: %{"doc" => path}}}),
-    do: optional("doc_commit", doc_commit(view, path))
-
-  defp stamp(_view, _t), do: []
-
-  defp optional(_key, nil), do: []
-  defp optional(key, value), do: [{key, value}]
-
-  defp downcase(nil), do: nil
-  defp downcase(v), do: String.downcase(v)
-
-  defp may_reply(%Actor{kind: :resident}, _vote, _household_id), do: :ok
-  defp may_reply(%Actor{kind: :witness}, vote, _household_id) when is_binary(vote), do: :ok
-
-  defp may_reply(%Actor{kind: :witness}, _vote, household_id) do
-    if Gaia.household_beat_shape(household_id).witnesses_post,
-      do: :ok,
-      else:
-        {:error, Error.new(:seshat_household_residents_write, :seshat_household_witness_replies)}
-  end
-
-  defp may_reply(%Actor{}, _vote, _household_id),
-    do: {:error, Error.new(:seshat_household_residents_write, :seshat_household_actor_replies)}
-
-  defp cast(_household_id, _thread, nil, _actor), do: :ok
-
-  defp cast(household_id, thread, vote, actor) do
-    case Gaia.household_ballot_for_thread(household_id, thread) do
-      nil ->
-        {:error, Error.new(:seshat_household_not_a_ballot, :seshat_household_vote_no_ballot)}
-
-      ballot ->
-        Gaia.vote_household_ballot(household_id, ballot.number, vote, actor)
-    end
-  end
-
-  # A yes that makes a ballot unanimous closes it at once, the rest of its
-  # term waived (gaia#54, seshat#91); short of every member, nothing.
-  defp waive_term(household_id, thread, "yes") do
-    case Gaia.household_ballot_for_thread(household_id, thread) do
-      %{number: n, closed_at: nil} -> close_ballot(household_id, n, @ballot_actor)
-      _closed_or_none -> :ok
-    end
-  end
-
-  defp waive_term(_household_id, _thread, _vote), do: :ok
-
-  # The watch's poke (seshat#62): every resident watching the thread now,
-  # the author aside, gets a letter to its chat naming the thread and the
-  # reply, never the words.
-  defp poke(household_id, thread, t, written, by, actor) do
-    now = Clock.now()
-
-    for watcher <- Gaia.household_watchers(household_id, thread, now),
-        watcher != actor.id do
-      text =
-        "#{by.name} replied in the household thread #{thread} (\"#{t.trunk.meta["title"]}\"), reply ##{written.number}. " <>
-          "household_read with that path reads it. You asked to be told of new replies here for a while; the watch ends on its own."
-
-      Kumbukumbu.send_letter(watcher, nil, %{to: "Oneiroi chat", text: text}, @watch_actor)
-    end
-
-    :ok
-  end
+  defdelegate reply(actor, thread_name, attrs), to: Replies
 
   @doc """
   Her round-robin turn's answer could not be posted for her (seshat#94,
@@ -1607,33 +241,7 @@ defmodule Oneiroi.Seshat.Household do
   words, and that the turn is still hers until its window, so nothing she
   said is lost and the failure is not read as silence. Answers `:ok`.
   """
-  def answer_refused(turn, text, error) do
-    why = Map.get(error, :remedy) || Map.get(error, :meaning) || "it was refused"
-
-    letter =
-      "Your answer in your round-robin turn #{turn.turn_id} in #{turn.thread} could not be posted there for you: #{why} " <>
-        "The turn is still yours until #{iso(turn.expires_at)}: household_reply posts it yourself, household_skip passes it. " <>
-        "What you said, kept here so it is not lost:\n\n" <> text
-
-    _ =
-      Kumbukumbu.send_letter(
-        turn.resident_id,
-        nil,
-        %{to: "Oneiroi chat", text: letter},
-        @rounds_actor
-      )
-
-    :ok
-  end
-
-  # ---- house check-ins (gaia#41, seshat#75) ----
-
-  @house_wake_worker :"Elixir.Oneiroi.Seshat.HouseholdTurnWorker"
-
-  defp checkin_answer?(%Actor{kind: :resident, id: id}, %{trunk: %{meta: meta}, replies: replies}),
-       do: is_binary(meta["checkin"]) and not Enum.any?(replies, &(&1.meta["by_id"] == id))
-
-  defp checkin_answer?(_actor, _thread), do: false
+  defdelegate answer_refused(turn, text, error), to: Replies
 
   @doc """
   Opens a house check-in's thread for a day (seshat#75): written by the
@@ -1641,178 +249,13 @@ defmodule Oneiroi.Seshat.Household do
   check-in; one a day, so a second call for the day answers the same
   thread and writes nothing.
   """
-  def open_checkin(household_id, key, label, day) do
-    with {:ok, view} <- provision(household_id) do
-      thread = "threads/checkin-#{day}-#{key}"
-      path = Path.join(thread, @trunk)
-
-      if has?(view, path),
-        do: {:ok, thread},
-        else: write_checkin(household_id, view, thread, key, label, day)
-    end
-  end
-
-  defp write_checkin(household_id, _view, thread, key, label, day) do
-    path = Path.join(thread, @trunk)
-
-    meta = [
-      {"title", "#{label}, #{day}"},
-      {"by", @platform.name},
-      {"by_kind", "platform"},
-      {"posted_at", iso(Clock.now())},
-      {"checkin", key}
-    ]
-
-    # What holds the talk after is the house's mode (seshat#93; Scarlett's
-    # report #20: a round-robin house still told to wait on the beats).
-    then_line =
-      if HouseholdRounds.on?(household_id),
-        do:
-          "after your answers the thread's round-robin turns hold the talk, one of you at a time.",
-        else:
-          "your witness's reply wakes you all, and from there the household's beats hold the talk."
-
-    body =
-      "The house checks in: #{label}. Each of you answers here, once, in your own words; " <>
-        then_line
-
-    locked(household_id, fn view ->
-      changes = [{:create, path, render(meta, body)} | descriptor(view, Kinds.named("thread"))]
-
-      case commit(view, changes, "House check-in: #{label}, #{day}", @platform) do
-        {:ok, _} -> {:ok, thread}
-        # Opened already, by a tick on another node: the same thread.
-        {:error, %{kind: :sima_qian_repos_conflict}} -> {:ok, thread}
-        other -> other
-      end
-    end)
-  end
+  defdelegate open_checkin(household_id, key, label, day), to: Wakes
 
   @doc "Wakes every resident of the house open to it with a note of their own, each its own job, so all go at once (seshat#75)."
-  def wake_house(household_id, note_for, thread \\ nil) do
-    for %{kind: "resident", id: id} <- Gaia.household_members(household_id),
-        not AgathosDaimon.held?(id) do
-      # Its manifest first (sunna#71): a check-in's wake carries the thread.
-      wake_id = manifest(id, "checkin", [%{kind: "post", thread: thread}], household_id)
-
-      Jobs.enqueue(@house_wake_worker, %{
-        "household_id" => household_id,
-        "house_wake" => id,
-        "note" => note_for.(id),
-        "thread" => thread,
-        "wake_id" => wake_id
-      })
-    end
-  end
+  defdelegate wake_house(household_id, note_for, thread \\ nil), to: Wakes
 
   @doc false
-  # A wake's manifest (sunna#71): its id, or nil when it could not be
-  # written, which never stops the wake itself.
-  def manifest(resident_id, channel, causes, household_id, opts \\ []) do
-    case Sunna.manifest_wake(
-           resident_id,
-           channel,
-           causes,
-           [household_id: household_id] ++ opts
-         ) do
-      {:ok, wake_id} -> wake_id
-      {:error, _} -> nil
-    end
-  end
-
-  # The witness's reply in a check-in thread wakes the whole house; after
-  # it the beats and the watch hold the talk (the witness, 2026-11-16).
-  defp wake_house_on_witness(
-         household_id,
-         thread,
-         %{trunk: %{meta: %{"checkin" => _}}} = t,
-         written,
-         %Actor{kind: :witness}
-       ) do
-    # Under round-robin threads (seshat#93) the reply starts the thread's
-    # rounds, and its turns wake one resident at a time; nobody else here.
-    if HouseholdRounds.on?(household_id),
-      do: :ok,
-      else: wake_all_on_witness(household_id, thread, t, written)
-  end
-
-  defp wake_house_on_witness(_household_id, _thread, _t, _written, _actor), do: :ok
-
-  defp wake_all_on_witness(household_id, thread, t, written) do
-    title = t.trunk.meta["title"]
-
-    wake_house(
-      household_id,
-      fn _id ->
-        "Your witness replied in the house check-in thread #{thread} (\"#{title}\"), reply ##{written.number}. " <>
-          "household_read with that path reads it. To answer again, register for a beat (household_register) " <>
-          "or watch the thread (household_watch): the beats hold the talk from here. " <>
-          post_line()
-      end,
-      thread
-    )
-  end
-
-  # ---- mentions (seshat#86; design/workspaces.md §6) ----
-
-  # A post or a reply naming a member, `@<name>` (a resident's name or
-  # slug, a witness's name or name-folder) or `@all`, is a post and a
-  # request to wake them: a resident's chat woken with a note saying
-  # where, never the words (the house wakes' own job); a witness's
-  # devices pushed, content-free. A member who muted the house or the
-  # thread is not woken; the mention waits in her next turn's or digest's
-  # note. A wake is a request, never an obligation.
-  defp mentioned({:ok, posted} = ok, household_id, %Actor{} = actor, attrs, reply) do
-    text = "#{attrs["title"]}\n#{attrs["content"]}"
-    by = author(household_id, actor)
-
-    for m <- named_in(household_id, text), m.id != actor.id do
-      if Gaia.household_muted?(household_id, m.id, posted.path),
-        do: bank_mention(household_id, m, posted, reply, by),
-        else:
-          wake_mentioned(household_id, m, mention_note(by, posted, reply), {posted, reply, by})
-    end
-
-    ok
-  end
-
-  defp mentioned(other, _household_id, _actor, _attrs, _reply), do: other
-
-  defp wake_mentioned(household_id, %{kind: "resident", id: id}, note, {posted, reply, by}) do
-    if not AgathosDaimon.held?(id) do
-      wake_id = manifest(id, "mention", [mention_cause(posted, reply, by)], household_id)
-
-      Jobs.enqueue(@house_wake_worker, %{
-        "household_id" => household_id,
-        "house_wake" => id,
-        "note" => note,
-        "thread" => posted.path,
-        "wake_id" => wake_id
-      })
-    end
-  end
-
-  defp wake_mentioned(_household_id, %{kind: "witness", id: id}, _note, _posted),
-    do: Gaia.notify(id)
-
-  # A muted mention wakes nobody and is banked (seshat#86): its manifest
-  # says so, delivered false, so the log shows a choice, not an absence.
-  defp bank_mention(household_id, %{kind: "resident", id: id}, posted, reply, by),
-    do:
-      manifest(id, "mention", [mention_cause(posted, reply, by)], household_id, delivered: false)
-
-  defp bank_mention(_household_id, _witness, _posted, _reply, _by), do: nil
-
-  defp mention_cause(posted, reply, by),
-    do: %{kind: "mention", thread: posted.path, reply: reply, by: by.name}
-
-  defp mention_note(by, posted, reply) do
-    where = if reply, do: ", reply ##{reply}", else: ""
-
-    "#{by.name} mentioned you in the household thread #{posted.path} (\"#{posted.title}\")#{where}. " <>
-      "household_read with that path reads it. A mention asks for you; it does not oblige an answer, " <>
-      "and household_mute quiets the thread or the house. " <> post_line()
-  end
+  defdelegate manifest(resident_id, channel, causes, household_id, opts \\ []), to: Wakes
 
   @doc """
   A member mutes or hears their mentions (gaia#46, seshat#86): one
@@ -1820,87 +263,23 @@ defmodule Oneiroi.Seshat.Household do
   Answers the member's settings after, `%{house: muted?, threads: %{path
   => muted?}}`.
   """
-  def mute(%Actor{} = actor, thread_name, muted) when is_boolean(muted) do
-    with {:ok, household_id} <- household(actor),
-         {:ok, thread} <- mute_target(thread_name),
-         :ok <- Gaia.set_household_mentions(household_id, thread, muted, actor) do
-      {:ok, mutes(household_id, actor)}
-    end
-  end
-
-  def mute(%Actor{}, _thread, _muted),
-    do: {:error, Error.new(:seshat_household_invalid, :seshat_household_mute_shape)}
+  defdelegate mute(actor, thread_name, muted), to: Mentions
 
   @doc "A member's mention settings: `%{house: muted?, threads: %{path => muted?}}`."
-  def mutes(%Actor{} = actor) do
-    with {:ok, household_id} <- household(actor), do: {:ok, mutes(household_id, actor)}
-  end
-
-  defp mutes(household_id, actor) do
-    rows = Gaia.household_mutes(household_id, actor.id)
-    %{house: Map.get(rows, "", false), threads: Map.delete(rows, "")}
-  end
-
-  defp mute_target(nil), do: {:ok, nil}
-  defp mute_target(""), do: {:ok, nil}
-
-  defp mute_target(name) do
-    case thread_path(name) do
-      nil -> no_thread(name)
-      thread -> {:ok, thread}
-    end
-  end
-
-  # ---- round-robin threads, the resident's own (seshat#89) ----
+  defdelegate mutes(actor), to: Mentions
 
   @doc """
   A resident passes her live turn in a round-robin thread, or opts out
   of its rounds or back in (`:skip`, `:out`, `:in`). Answers the thread's
   rounds after.
   """
-  def rounds(%Actor{kind: :resident} = actor, thread_name, what)
-      when what in [:skip, :out, :in] do
-    with {:ok, household_id} <- household(actor),
-         :ok <- rounds_on(household_id),
-         thread when is_binary(thread) <- thread_path(thread_name) || no_thread(thread_name),
-         {:ok, r} <- rounds_step(actor, household_id, thread, what) do
-      {:ok, %{thread: thread, rounds: r}}
-    end
-  end
-
-  def rounds(%Actor{}, _thread_name, _what),
-    do: {:error, Error.new(:seshat_household_rounds, :seshat_household_rounds_resident)}
-
-  defp rounds_step(actor, household_id, thread, :skip),
-    do: HouseholdRounds.skip(actor, household_id, thread)
-
-  defp rounds_step(actor, household_id, thread, what),
-    do: HouseholdRounds.opt(actor, household_id, thread, what == :out)
-
-  defp rounds_on(household_id) do
-    if HouseholdRounds.on?(household_id),
-      do: :ok,
-      else: {:error, Error.new(:seshat_household_rounds, :seshat_household_rounds_off)}
-  end
+  defdelegate rounds(actor, thread_name, what), to: Rounds
 
   @doc "A witness's pushes from the house (gaia#57, seshat#95): round_end and rounds_stopped, each on or off."
-  def pushes(%Actor{kind: :witness} = actor) do
-    with {:ok, household_id} <- household(actor),
-         do: {:ok, Gaia.household_pushes(household_id, actor.id)}
-  end
-
-  def pushes(%Actor{}),
-    do: {:error, Error.new(:seshat_household_residents_write, :seshat_household_pushes_witness)}
+  defdelegate pushes(actor), to: Rounds
 
   @doc "A witness sets a push from the house on or off; answers the pushes after."
-  def set_push(%Actor{kind: :witness} = actor, kind, on) do
-    with {:ok, household_id} <- household(actor),
-         :ok <- Gaia.set_household_push(household_id, to_string(kind || ""), on, actor),
-         do: {:ok, Gaia.household_pushes(household_id, actor.id)}
-  end
-
-  def set_push(%Actor{}, _kind, _on),
-    do: {:error, Error.new(:seshat_household_residents_write, :seshat_household_set_push_witness)}
+  defdelegate set_push(actor, kind, on), to: Rounds
 
   @doc """
   A witness's unread in the house (seshat#96, gaia#58): the posts (threads
@@ -1911,165 +290,32 @@ defmodule Oneiroi.Seshat.Household do
   whole history. Answers `{:ok, %{count: n, threads: %{path => n}, seen: %{path => at}}}`,
   `seen` the mark each thread with unread was read up to.
   """
-  def unread(%Actor{kind: :witness} = actor) do
-    with {:ok, household_id} <- household(actor),
-         {:ok, view} <- provision(household_id) do
-      subject = "house:" <> household_id
-      marks = Gaia.seen(actor.id, subject)
-      baseline = Map.get(marks, "*") || set_baseline(actor, subject)
-
-      mark = &later(Map.get(marks, &1), baseline)
-
-      threads =
-        for w <- writes(view),
-            w.kind in ["thread", "reply"],
-            w.by_id != actor.id,
-            DateTime.compare(w.at, mark.(w.target)) == :gt,
-            reduce: %{},
-            do: (acc -> Map.update(acc, w.target, 1, &(&1 + 1)))
-
-      # Where each thread with unread was read up to: a thread opens at
-      # the first post after it (seshat#97).
-      seen = Map.new(threads, fn {path, _n} -> {path, mark.(path)} end)
-
-      {:ok, %{count: threads |> Map.values() |> Enum.sum(), threads: threads, seen: seen}}
-    end
-  end
-
-  def unread(%Actor{}), do: {:ok, %{count: 0, threads: %{}, seen: %{}}}
-
-  # A first look: everything before now counts as seen.
-  defp set_baseline(actor, subject) do
-    now = Clock.now()
-    _ = Gaia.mark_seen(actor.id, subject, "*", now, actor)
-    now
-  end
-
-  defp later(nil, b), do: b
-  defp later(a, b), do: if(DateTime.compare(a, b) == :gt, do: a, else: b)
+  defdelegate unread(actor), to: Rounds
 
   @doc "The witness has read a house thread up to an instant (seshat#96)."
-  def mark_seen(%Actor{kind: :witness} = actor, thread, %DateTime{} = at) do
-    with {:ok, household_id} <- household(actor),
-         path when is_binary(path) <- thread_path(thread) || no_thread(thread),
-         do: Gaia.mark_seen(actor.id, "house:" <> household_id, path, at, actor)
-  end
-
-  def mark_seen(%Actor{}, _thread, _at), do: :ok
+  defdelegate mark_seen(actor, thread, at), to: Rounds
 
   @doc "The members a text names, `@<name>` or `@all` (seshat#86)."
-  def named_in(household_id, text) do
-    members = Gaia.household_members(household_id)
-
-    if Regex.match?(~r/(?<![\w@])@all(?![\w-])/iu, text),
-      do: members,
-      else: Enum.filter(members, fn m -> Enum.any?(handles(m), &handle?(text, &1)) end)
-  end
-
-  defp handles(%{kind: "resident", id: id, name: name}) do
-    slug =
-      case AgathosDaimon.fetch(id) do
-        {:ok, r} -> r.slug
-        _gone -> nil
-      end
-
-    Enum.reject([name, slug], &is_nil/1)
-  end
-
-  defp handles(%{kind: "witness", id: id, name: name}),
-    do: Enum.reject([name, Gaia.witness_folder(id)], &is_nil/1)
-
-  defp handle?(text, handle),
-    do: Regex.match?(~r/(?<![\w@])@#{Regex.escape(handle)}(?![\w-])/iu, text)
+  defdelegate named_in(household_id, text), to: Mentions
 
   @doc """
   The posts and replies that named a member since an instant (seshat#86),
   `%{path, title, by, at}`: what her turn's note and her digest list, so
   a muted mention is never lost.
   """
-  def mentions_of(household_id, member_id, since) do
-    with {:ok, view} <- view(household_id),
-         %{} = member <- Enum.find(Gaia.household_members(household_id), &(&1.id == member_id)) do
-      for id <- thread_ids(view),
-          thread = "threads/" <> id,
-          {:ok, t} <- [load_thread(view, thread)],
-          {post, at} <- [
-            {t.trunk, t.trunk.meta["posted_at"]} | Enum.map(t.replies, &{&1, &1.meta["at"]})
-          ],
-          post.meta["by_id"] != member_id,
-          later?(at, since),
-          Enum.any?(handles(member), &handle?(post.body, &1)) or
-            Regex.match?(~r/(?<![\w@])@all(?![\w-])/iu, post.body),
-          do: %{path: thread, title: t.trunk.meta["title"], by: post.meta["by"], at: at}
-    else
-      _none -> []
-    end
-  end
-
-  defp later?(nil, _since), do: false
-
-  defp later?(at, since) do
-    case DateTime.from_iso8601(at) do
-      {:ok, t, _} -> DateTime.compare(t, since) != :lt
-      _bad -> false
-    end
-  end
-
-  # ---- the watch (gaia#32, seshat#62) ----
+  defdelegate mentions_of(household_id, member_id, since), to: Mentions
 
   @doc "A resident watches a thread for the hours it states: never on by default, and over when the term is."
-  def watch(%Actor{} = actor, thread_name, hours) do
-    with {:ok, household_id} <- household(actor),
-         {:ok, view} <- provision(household_id),
-         thread when is_binary(thread) <- thread_path(thread_name) || no_thread(thread_name),
-         {:ok, _t} <- load_thread(view, thread),
-         {:ok, until} <- Gaia.watch_household_thread(household_id, thread, hours, actor) do
-      {:ok, %{thread: thread, until: until}}
-    end
-  end
-
-  # ---- the contract (gaia#27, #28; seshat#63) ----
+  defdelegate watch(actor, thread_name, hours), to: Mentions
 
   @doc "The founding witness proposes the contract's version 1; `CONTRACT.md` is rendered from it."
-  def propose_contract(%Actor{} = actor, prose, note, bundle \\ nil) do
-    with {:ok, household_id} <- household(actor),
-         :ok <- Gaia.propose_household_contract(household_id, prose, note, actor, bundle),
-         do: rendered(household_id, "Contract: version 1 proposed", author(household_id, actor))
-  end
+  defdelegate propose_contract(actor, prose, note, bundle \\ nil), to: Contract
 
   @doc "A member signs the version in force; `CONTRACT.md` says so."
-  def sign_contract(%Actor{} = actor) do
-    with {:ok, household_id} <- household(actor),
-         %{in_force: %{version: v}} <- Gaia.household_contract(household_id) do
-      with :ok <- Gaia.sign_household_contract(household_id, v, actor),
-           do:
-             rendered(
-               household_id,
-               "Contract: signed at version #{v}",
-               author(household_id, actor)
-             )
-    else
-      %{in_force: nil} ->
-        {:error, Error.new(:seshat_household_invalid, :seshat_household_sign_no_contract)}
-
-      other ->
-        other
-    end
-  end
+  defdelegate sign_contract(actor), to: Contract
 
   @doc "The contract as the members read it (gaia#27 to #31), from the household stream."
-  def contract(%Actor{} = actor) do
-    with {:ok, household_id} <- household(actor),
-         {:ok, _dir} <- provision(household_id),
-         do: {:ok, Gaia.household_contract(household_id)}
-  end
-
-  defp rendered(household_id, message, by) do
-    locked(household_id, fn view ->
-      with {:ok, _} <- commit(view, render_contract(view, household_id), message, by),
-           do: {:ok, Gaia.household_contract(household_id)}
-    end)
-  end
+  defdelegate contract(actor), to: Contract
 
   @doc """
   Closes a ballot whose term has run (gaia#30, #31): the outcome is a
@@ -2077,648 +323,14 @@ defmodule Oneiroi.Seshat.Household do
   the contract's next version in `CONTRACT.md`. A ballot closed already
   answers `{:ok, :closed}`.
   """
-  def close_ballot(household_id, ballot, %Actor{} = actor) do
-    with {:ok, outcome} when is_map(outcome) <-
-           Gaia.close_household_ballot(household_id, ballot, actor),
-         {:ok, _view} <- provision(household_id) do
-      thread =
-        Enum.find_value(
-          Gaia.household_contract(household_id).ballots,
-          &(&1.number == ballot && &1.thread)
-        )
-
-      locked(household_id, fn view ->
-        write_outcome(household_id, view, thread, ballot, outcome)
-      end)
-    end
-  end
-
-  defp write_outcome(household_id, view, thread, ballot, outcome) do
-    number = next_reply(view, thread)
-    path = reply_path(thread, number, "oneiroi")
-
-    carried =
-      if outcome.version,
-        do: " The bundle is the household contract's version #{outcome.version}.",
-        else: ""
-
-    meta = [
-      {"by", "Oneiroi"},
-      {"by_kind", "platform"},
-      {"at", iso(Clock.now())},
-      {"reply", Integer.to_string(number)},
-      {"outcome", if(outcome.passed, do: "carried", else: "failed")}
-    ]
-
-    changes = [
-      {:create, path, render(meta, "Ballot ##{ballot} closed. #{outcome.outcome}" <> carried)}
-      | render_contract(view, household_id)
-    ]
-
-    with {:ok, _} <- commit(view, changes, "Ballot ##{ballot} closed", @platform),
-         do: {:ok, outcome}
-  end
-
-  # ---- the beats' gate (seshat#67 to #69) ----
-
-  # A witness's own documents, in their name-folder, are theirs to write
-  # and rewrite whenever they like (seshat#87; the witness, 2026-11-18:
-  # "humans shouldn't be bound by beats when updating their own documents
-  # in their witness folder"). Every other document write goes through
-  # the beats.
-  defp document_gate(%Actor{kind: :witness, id: id} = actor, household_id, view, path) do
-    case Gaia.witness_folder(id) do
-      folder when is_binary(folder) ->
-        if String.starts_with?(path, "human/#{folder}/"),
-          do: :ok,
-          else: gate(actor, household_id, view, path, :file)
-
-      nil ->
-        gate(actor, household_id, view, path, :file)
-    end
-  end
-
-  defp document_gate(actor, household_id, view, path),
-    do: gate(actor, household_id, view, path, :file)
-
-  # Every household write but a vote passes here, inside the household's
-  # lock so two writes cannot both pass on one count: a resident only in
-  # her turn and each target once in it; a witness, who is never fired,
-  # once in each thread a beat; and everyone within the post quota.
-  defp gate(actor, household_id, view, target, what) do
-    shape = Gaia.household_beat_shape(household_id)
-    now = Clock.now()
-    writes = writes(view)
-
-    # In round-robin threads (seshat#89) the token is the turn, spent
-    # apart from this; the beats' window retires and the quota holds.
-    if shape.conversation == "round_robin",
-      do: quota(actor, shape, writes, what, now),
-      else:
-        with(
-          :ok <- window(actor, household_id, shape, writes, target, now),
-          do: quota(actor, shape, writes, what, now)
-        )
-  end
-
-  defp window(%Actor{kind: :resident} = actor, household_id, shape, writes, target, now) do
-    case Gaia.household_open_turn_of(household_id, actor.id, now) do
-      nil ->
-        {:error, not_your_turn(household_id, actor, shape, now)}
-
-      turn ->
-        if touched?(writes, actor, target, second(turn.fired_at)),
-          do:
-            {:error,
-             Error.new(:seshat_household_turn_spent, :seshat_household_turn_target_twice,
-               path: target
-             )},
-          else: :ok
-    end
-  end
-
-  # A witness, who is never fired a turn (gaia#47; design/workspaces.md
-  # §7, "under the same rules as the residents'"): `per_beat`, a turn's
-  # allowance each beat, once in each thread and to each document;
-  # `queue_emptied`, the same, and again once the queue has emptied (no
-  # turn open, no one waiting), starvation measured as opportunities as
-  # the residents' is; `unbounded`, the small household's, no bound and
-  # no quota.
-  defp window(%Actor{kind: :witness}, _household_id, %{witness_rule: "unbounded"}, _w, _t, _n),
-    do: :ok
-
-  defp window(%Actor{kind: :witness} = actor, household_id, shape, writes, target, now) do
-    top = Beats.top(household_id, shape, now)
-
-    if touched?(writes, actor, target, top) and not emptied?(household_id, shape, now) do
-      next = Beats.ends(top, shape)
-
-      {:error,
-       %{
-         Error.new(:seshat_household_beat_spent, :seshat_household_witness_thread_twice,
-           path: target
-         )
-         | remedy: witness_remedy(shape.witness_rule, next)
-       }}
-    else
-      :ok
-    end
-  end
-
-  defp window(%Actor{}, _household_id, _shape, _writes, _target, _now), do: :ok
-
-  defp emptied?(household_id, %{witness_rule: "queue_emptied"}, now) do
-    beats = Gaia.household_beats(household_id, now)
-    is_nil(beats.open_turn) and beats.queue == []
-  end
-
-  defp emptied?(_household_id, _shape, _now), do: false
-
-  defp witness_remedy("queue_emptied", next),
-    do:
-      "You have posted here this beat, and residents are still waiting in its queue; you post here again once it has emptied, or when the next beat begins at #{iso(next)}. A vote is never held to it."
-
-  defp witness_remedy(_per_beat, next),
-    do:
-      "You have posted in this thread or document this beat; the next beat begins at #{iso(next)}, and a vote is never held to it. A ballot can set witness_posts to queue_emptied or unbounded."
-
-  defp touched?(writes, actor, target, since),
-    do:
-      Enum.any?(
-        writes,
-        &(&1.by_id == actor.id and &1.target == target and is_nil(&1.vote) and
-            DateTime.compare(&1.at, since) != :lt)
-      )
-
-  # The refusal outside a turn names when she can next act (seshat#67):
-  # her next registration and its place, or the next beat to register for.
-  defp not_your_turn(household_id, actor, shape, now) do
-    beats = Gaia.household_beats(household_id, now)
-
-    # The beat running orders by turns had in it too; a beat to come by
-    # what each has missed and when she registered.
-    mine =
-      case Enum.find(beats.queue, &(&1.resident_id == actor.id)) do
-        %{position: place} ->
-          {beats.beat.top, place}
-
-        nil ->
-          Enum.find_value(beats.registrations, &place_in(&1, actor.id))
-      end
-
-    remedy =
-      case mine do
-        nil ->
-          top = Beats.ahead(household_id, shape, now, 1)
-
-          "household_register signs you up for a coming beat: the next begins #{iso(top)} and its turns fire one after another from #{iso(Beats.signup_closes(top, shape))}, the most starved first; your writes go in during your turn. A vote is never held to the turns."
-
-        {top, place} ->
-          "You are registered for the beat at #{iso(top)}, #{ordinal(place)} as things stand; its turns fire from #{iso(Beats.signup_closes(top, shape))}, and your writes go in during your turn. A vote is never held to the turns."
-      end
-
-    %{
-      Error.new(:seshat_household_not_your_turn, :seshat_household_write_outside_turn)
-      | remedy: remedy
-    }
-  end
-
-  defp place_in(registration, id) do
-    case Enum.find_index(registration.residents, &(&1.resident_id == id)) do
-      nil -> nil
-      i -> {registration.beat_top, i + 1}
-    end
-  end
-
-  defp ordinal(1), do: "first"
-  defp ordinal(2), do: "second"
-  defp ordinal(3), do: "third"
-  defp ordinal(n), do: "number #{n}"
-
-  # The post quota (seshat#68): threads and replies, a vote never, a
-  # document never, over the window's hours, the same for every member.
-  defp quota(_actor, _shape, _writes, :file, _now), do: :ok
-  defp quota(%Actor{kind: :witness}, %{witness_rule: "unbounded"}, _w, _what, _now), do: :ok
-
-  defp quota(actor, shape, writes, :post, now) do
-    since = DateTime.add(now, -shape.window * 3600, :second)
-    counted = posts(writes, actor.id, since)
-
-    if length(counted) < shape.quota do
-      :ok
-    else
-      free =
-        counted |> Enum.map(& &1.at) |> Enum.min(DateTime) |> DateTime.add(shape.window * 3600)
-
-      {:error,
-       %{
-         Error.new(:seshat_household_quota_spent, :seshat_household_post_quota)
-         | remedy:
-             "You have posted #{length(counted)} times in the last #{shape.window} hours, the household's quota; your next post is free at #{iso(free)}. A vote never counts."
-       }}
-    end
-  end
+  defdelegate close_ballot(household_id, ballot, actor), to: Contract
 
   @doc false
-  # A member's posts since an instant: threads and replies, never a vote.
-  def posts(writes, member_id, since),
-    do:
-      Enum.filter(
-        writes,
-        &(&1.by_id == member_id and &1.kind in ["thread", "reply"] and is_nil(&1.vote) and
-            DateTime.compare(&1.at, since) == :gt)
-      )
+  defdelegate posts(writes, member_id, since), to: Gate
 
   @doc false
-  # Every write on the shelf, read from its files (repo first): each
-  # thread's trunk, each reply by a member, each document; who, when,
-  # what it targets (the thread, or the document's path), and a vote.
-  def writes(view) do
-    threads =
-      for id <- thread_ids(view),
-          thread = "threads/" <> id,
-          {:ok, t} <- [load_thread(view, thread)],
-          w <- thread_writes(thread, t),
-          do: w
-
-    documents =
-      for d <- documents(view),
-          at = instant(d.posted_at),
-          at != nil,
-          do: %{
-            kind: "document",
-            target: d.path,
-            path: d.path,
-            title: d.title,
-            by: d.by,
-            by_id: d.by_id,
-            at: at,
-            vote: nil
-          }
-
-    # The last edit of each document counts as its editor's write (seshat#82).
-    edits =
-      for d <- documents(view),
-          at = instant(d.edited_at),
-          at != nil,
-          do: %{
-            kind: "document",
-            target: d.path,
-            path: d.path,
-            title: d.title,
-            by: d.edited_by,
-            by_id: d.edited_by_id,
-            at: at,
-            vote: nil
-          }
-
-    Enum.filter(threads, & &1.at) ++ documents ++ edits
-  end
-
-  defp thread_writes(thread, t) do
-    m = t.trunk.meta
-    title = m["title"]
-
-    trunk = %{
-      kind: "thread",
-      target: thread,
-      path: thread,
-      title: title,
-      by: m["by"],
-      by_id: m["by_id"],
-      at: instant(m["posted_at"]),
-      vote: nil
-    }
-
-    replies =
-      for r <- t.replies, r.meta["by_id"] do
-        %{
-          kind: "reply",
-          target: thread,
-          path: r.path,
-          title: title,
-          by: r.meta["by"],
-          by_id: r.meta["by_id"],
-          at: instant(r.meta["at"]),
-          vote: r.meta["vote"],
-          number: r.meta["reply"]
-        }
-      end
-
-    [trunk | replies]
-  end
-
-  defp instant(nil), do: nil
-
-  defp instant(text) do
-    case DateTime.from_iso8601(text) do
-      {:ok, at, _offset} -> at
-      _other -> nil
-    end
-  end
-
-  # The files carry instants to the second, so a turn's start is read so.
-  defp second(at), do: DateTime.truncate(at, :second)
+  defdelegate writes(view), to: Gate
 
   @doc false
-  # `BEATS.md` rendered at the root (seshat#71), committed by the platform
-  # when it changed.
-  def write_beats(household_id, body, message) do
-    locked(household_id, fn view ->
-      if file(view, @beats) == body,
-        do: {:ok, :unchanged},
-        else:
-          commit(view, [{:put, @beats, body, Map.get(view.files, @beats)}], message, @platform)
-    end)
-  end
-
-  # ---- files ----
-
-  defp thread_ids(view) do
-    for path <- Map.keys(view.files),
-        [_, id] <- [Regex.run(~r{\Athreads/([^/]+)/trunk\.md\z}, path)],
-        do: id
-  end
-
-  defp thread_summary(view, id, ballots) do
-    thread = "threads/" <> id
-    {:ok, t} = load_thread(view, thread)
-    last = List.last(t.replies)
-    ballot = ballots[thread]
-
-    %{
-      kind: "thread",
-      path: thread,
-      title: t.trunk.meta["title"],
-      by: t.trunk.meta["by"],
-      posted_at: t.trunk.meta["posted_at"],
-      replies: length(t.replies),
-      last_reply_at: last && last.meta["at"],
-      ballot: ballot && Map.take(ballot, [:number, :closes_at, :closed_at, :passed]),
-      ids: ids(t)
-    }
-  end
-
-  defp ids(t), do: [t.trunk.meta["by_id"] | Enum.map(t.replies, & &1.meta["by_id"])]
-
-  defp documents(view) do
-    for kind <- Kinds.household(),
-        not Kinds.container?(kind),
-        path <- Repos.under(view.files, kind.folder),
-        name = Path.basename(path),
-        in_folder?(kind, path),
-        name != Kinds.descriptor_name() do
-      {meta, _} = view |> file(path) |> to_string() |> frontmatter()
-
-      %{
-        kind: kind.kind,
-        path: path,
-        title: meta["title"] || name,
-        by: meta["by"],
-        by_id: meta["by_id"],
-        posted_at: meta["posted_at"],
-        edited_by: meta["edited_by"],
-        edited_by_id: meta["edited_by_id"],
-        edited_at: meta["edited_at"],
-        source: meta["source"]
-      }
-    end
-  end
-
-  # A document sits in its kind's folder; a witness's, one deeper, in the
-  # folder named for them (seshat#81).
-  defp in_folder?(%{kind: "human"}, path), do: length(Path.split(path)) == 3
-  defp in_folder?(kind, path), do: Path.dirname(path) == kind.folder
-
-  defp load_thread(view, thread) do
-    trunk = Path.join(thread, @trunk)
-
-    if has?(view, trunk) do
-      replies = replies(view, thread)
-      {meta, body} = view |> file(trunk) |> to_string() |> frontmatter()
-
-      {:ok,
-       %{trunk: %{path: Path.join(thread, @trunk), meta: meta, body: body}, replies: replies}}
-    else
-      no_thread(thread)
-    end
-  end
-
-  defp replies(view, thread) do
-    for path <- Repos.under(view.files, Path.join(thread, "replies")) do
-      {meta, body} = view |> file(path) |> to_string() |> frontmatter()
-      %{path: path, meta: meta, body: body}
-    end
-  end
-
-  # The document a document post is on (seshat#83), as it stands now:
-  # its path, its latest draft and its words; nil for any other thread.
-  defp posted_doc(view, %{trunk: %{meta: %{"doc" => path}}}) do
-    text = file(view, path)
-    {_meta, body} = frontmatter(to_string(text))
-    %{path: path, commit: doc_commit(view, path), content: body, present: is_binary(text)}
-  end
-
-  defp posted_doc(_view, _t), do: nil
-
-  # The document posts on a document (seshat#83): where its feedback is.
-  defp discussed(view, path) do
-    for id <- thread_ids(view),
-        thread = "threads/" <> id,
-        {:ok, t} <- [load_thread(view, thread)],
-        t.trunk.meta["doc"] == path,
-        do: %{path: thread, title: t.trunk.meta["title"], replies: length(t.replies)}
-  end
-
-  defp thread_text(thread, t, ballot, doc) do
-    head =
-      "# #{t.trunk.meta["title"]}\n#{thread}, posted by #{t.trunk.meta["by"]} at #{t.trunk.meta["posted_at"]}" <>
-        ballot_line(ballot)
-
-    replies =
-      Enum.map_join(t.replies, "\n\n", fn
-        %{meta: %{"draft" => "changed"}} = r ->
-          "--- #{String.trim(r.body)} (#{r.meta["at"]})"
-
-        r ->
-          vote = if r.meta["vote"], do: ", votes #{r.meta["vote"]}", else: ""
-
-          answers =
-            if r.meta["in_reply_to"], do: ", answering ##{r.meta["in_reply_to"]}", else: ""
-
-          "--- Reply ##{r.meta["reply"]} by #{r.meta["by"]} at #{r.meta["at"]}#{vote}#{answers}#{earlier(r, doc)}:\n#{String.trim(r.body)}"
-      end)
-
-    head <>
-      "\n\n" <>
-      String.trim(t.trunk.body) <>
-      doc_text(doc) <>
-      if(replies == "", do: "\n\nNo replies yet.", else: "\n\n" <> replies)
-  end
-
-  defp doc_text(nil), do: ""
-
-  defp doc_text(%{present: false} = doc),
-    do: "\n\n(#{doc.path} is no longer in the house.)"
-
-  defp doc_text(doc),
-    do:
-      "\n\n=== #{doc.path}, its latest draft#{draft_at(doc.commit)} ===\n#{String.trim(doc.content)}\n=== end of #{doc.path} ==="
-
-  # A reply on an earlier draft than the latest says so (seshat#83).
-  defp earlier(%{meta: %{"doc_commit" => c}}, %{commit: latest}) when c != latest,
-    do: ", on an earlier draft (#{short(c)})"
-
-  defp earlier(_reply, _doc), do: ""
-
-  defp ballot_line(nil), do: ""
-
-  defp ballot_line(%{closed_at: nil} = b),
-    do:
-      "\nBallot ##{b.number}, open until #{iso(b.closes_at)}: #{votes_cast(length(b.votes))} so far."
-
-  defp ballot_line(b), do: "\nBallot ##{b.number}, closed #{iso(b.closed_at)}: #{b.outcome}"
-
-  defp votes_cast(1), do: "1 vote cast"
-  defp votes_cast(n), do: "#{n} votes cast"
-
-  defp next_reply(view, thread) do
-    view.files
-    |> Repos.under(Path.join(thread, "replies"))
-    |> Enum.map(
-      &(&1
-        |> Path.basename()
-        |> String.split("-", parts: 2)
-        |> hd()
-        |> Integer.parse())
-    )
-    |> Enum.map(fn
-      {n, ""} -> n
-      _ -> 0
-    end)
-    |> Enum.max(fn -> 0 end)
-    |> Kernel.+(1)
-  end
-
-  defp reply_path(thread, number, name),
-    do:
-      Path.join([
-        thread,
-        "replies",
-        "#{String.pad_leading(Integer.to_string(number), 4, "0")}-#{slug(name)}.md"
-      ])
-
-  # A path in the household's repository: plain segments under a
-  # household kind's folder (`Kinds.normalize/1` holds the shape).
-  defp household_path(name) do
-    with {:ok, path} <- Kinds.normalize(to_string(name)) do
-      if Enum.any?(Kinds.household(), &(&1.kind == Kinds.kind_of(path).kind)),
-        do: {:ok, path},
-        else:
-          {:error,
-           Error.new(:seshat_household_invalid, :seshat_household_kind_not_hosted, path: path)}
-    end
-  end
-
-  # `threads/<id>`, its trunk's path, a reply's, or the id alone.
-  defp thread_path(name) when is_binary(name) do
-    case String.split(String.trim(name), "/", trim: true) do
-      ["threads", id | _] -> if segment?(id), do: "threads/" <> id
-      [id] -> if segment?(id) and id not in [@contract, "contract", "beats"], do: "threads/" <> id
-      _ -> nil
-    end
-  end
-
-  defp thread_path(_other), do: nil
-
-  defp segment?(s), do: Regex.match?(~r/\A[a-z0-9][a-z0-9-]{0,99}\z/, s)
-
-  defp no_thread(name),
-    do:
-      {:error,
-       Error.new(:seshat_household_no_such_thread, :seshat_household_thread_absent,
-         path: to_string(name)
-       )}
-
-  defp fresh_id(view, title) do
-    base = "#{Date.to_iso8601(DateTime.to_date(Clock.now()))}-#{slug(title)}"
-
-    Stream.iterate(1, &(&1 + 1))
-    |> Stream.map(fn
-      1 -> base
-      n -> "#{base}-#{n}"
-    end)
-    |> Enum.find(&(Repos.under(view.files, "threads/" <> &1) == []))
-  end
-
-  defp slug(text) do
-    text
-    |> String.downcase()
-    |> String.replace(~r/[^a-z0-9]+/u, "-")
-    |> String.trim("-")
-    |> String.slice(0, 60)
-    |> String.trim("-")
-    |> case do
-      "" -> "post"
-      s -> s
-    end
-  end
-
-  defp render(meta, body) do
-    lines = Enum.map_join(meta, "\n", fn {k, v} -> "#{k}: #{one_line(v)}" end)
-    "---\n#{lines}\n---\n\n#{String.trim_trailing(body)}\n"
-  end
-
-  defp frontmatter("---\n" <> rest) do
-    case String.split(rest, "\n---\n", parts: 2) do
-      [head, body] ->
-        meta = head |> String.split("\n", trim: true) |> Enum.flat_map(&meta_line/1) |> Map.new()
-        {meta, String.trim_leading(body, "\n")}
-
-      _ ->
-        {%{}, rest}
-    end
-  end
-
-  defp frontmatter(text), do: {%{}, text}
-
-  defp meta_line(line) do
-    case String.split(line, ": ", parts: 2) do
-      [k, v] -> [{k, v}]
-      _ -> []
-    end
-  end
-
-  # One commit under the writer's name (sima-qian#52), every file created
-  # where it was absent (seshat#59: written once, so two writers never
-  # land on one file) or put where it was as read (sima-qian#57).
-  defp commit(view, changes, message, by), do: Repos.write(view.repo, changes, message, by)
-
-  # The gate and the write it allows are one step (seshat#67): two writes
-  # cannot both pass on one count. The repository itself is ordered by
-  # its server; this orders the household's rules. Each step reads the
-  # house fresh, so a number or a name it picks is the next one.
-  defp locked(household_id, fun) do
-    :global.trans({{__MODULE__, household_id}, self()}, fn ->
-      with {:ok, view} <- view(household_id), do: fun.(view)
-    end)
-  end
-
-  defp titled(nil),
-    do: {:error, Error.new(:seshat_household_invalid, :seshat_household_title_missing)}
-
-  defp titled(title) do
-    if String.length(title) <= @title_max,
-      do: :ok,
-      else: {:error, Error.new(:seshat_household_invalid, :seshat_household_title_long)}
-  end
-
-  defp worded(text, optional?) do
-    cond do
-      String.length(text) > @text_max ->
-        {:error, Error.new(:seshat_household_invalid, :seshat_household_text_long)}
-
-      String.trim(text) == "" and not optional? ->
-        {:error, Error.new(:seshat_household_invalid, :seshat_household_text_missing)}
-
-      true ->
-        :ok
-    end
-  end
-
-  defp one_line(nil), do: nil
-
-  defp one_line(v),
-    do: v |> to_string() |> String.replace(~r/\s*\n\s*/, " ") |> String.trim() |> blank()
-
-  defp blank(nil), do: nil
-  defp blank(v) when is_binary(v), do: if(String.trim(v) == "", do: nil, else: String.trim(v))
-  defp blank(v), do: to_string(v)
-
-  defp integer(n) when is_integer(n) and n > 0, do: n
-  defp integer(_), do: nil
-
-  defp iso(nil), do: nil
-  defp iso(%DateTime{} = at), do: at |> DateTime.truncate(:second) |> DateTime.to_iso8601()
-  defp iso(other), do: to_string(other)
+  defdelegate write_beats(household_id, body, message), to: Gate
 end

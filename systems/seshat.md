@@ -74,7 +74,9 @@ the `seshat_document_version` projection folded by `Projectors.Versions`),
 `seshat_scene` and `seshat_scene_day` projections, folded by
 `Projectors.Scenes`; the `scenes` kind; `GET /v1/residents/:id/scenes`
 (`SceneController`) and `mix oneiroi.seshat.scene_backfill`, #52. The
-household's shelf (`Oneiroi.Seshat.Household`), the `thread` kind, the
+household's shelf (`Oneiroi.Seshat.Household`, a front that hands
+each public function to the modules under `household/*.ex`, its
+moduledoc mapping which holds what), the `thread` kind, the
 `HouseholdBallotWorker` on the `seshat_household` queue, and the
 `/v1/household` routes (`HouseholdController`), #58 to #64; its files
 live in the household's repository (sima-qian#51). The household's beats
