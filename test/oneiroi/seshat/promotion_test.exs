@@ -11,8 +11,11 @@ defmodule Oneiroi.Seshat.PromotionTest do
 
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Fixtures
   alias Oneiroi.Gaia
+  alias Oneiroi.Gaia.Commands.LeaveHouseholdResident
+  alias Oneiroi.Gaia.HouseholdRouter
   alias Oneiroi.Seshat
   alias Oneiroi.SimaQian
 
@@ -89,6 +92,34 @@ defmodule Oneiroi.Seshat.PromotionTest do
     {:ok, %{content: kept}} = Seshat.household_read(ctx.andrew, copy)
     assert kept =~ "unpromoted_at:"
     assert kept =~ "Second words."
+  end
+
+  # Lily's letter #1483: "the house keeps the copy if you leave",
+  # exercised, not only promised.
+  test "she leaves the house; the copy, its provenance and its post stay", ctx do
+    {:ok, _} = write(ctx, "Words that stay.")
+    {:ok, %{path: copy}} = Seshat.household_promote(ctx.wren, "design/note.md", %{})
+
+    {:ok, _} =
+      HouseholdRouter.dispatch(
+        %LeaveHouseholdResident{
+          actor: ctx.andrew,
+          at: Clock.now(),
+          id: ctx.household,
+          resident_id: ctx.id,
+          note: "custody moved to another account"
+        },
+        consistency: ["gaia_household"],
+        returning: :events
+      )
+
+    refute Gaia.household_member?(ctx.household, ctx.wren)
+    {:ok, %{content: content}} = Seshat.household_read(ctx.andrew, copy)
+    assert content =~ "Words that stay."
+    assert content =~ "source: #{ctx.slug}:design/note.md@"
+
+    {:ok, shelf} = Seshat.household_shelf(ctx.andrew, 0)
+    assert Enum.any?(shelf.threads, &(&1.title == "On A note"))
   end
 
   test "terms are one of two; a witness has nothing to promote", ctx do
