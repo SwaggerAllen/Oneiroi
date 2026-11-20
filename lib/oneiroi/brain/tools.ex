@@ -1056,7 +1056,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "household_reply",
-        "Reply in a household thread: a new reply beside the others, the thread's post never changed. On a ballot's thread, vote: yes or no casts your one vote (content optional, your reasons). in_reply_to names the reply number you answer.",
+        "Reply in a household thread: a new reply beside the others, the thread's post never changed. Give thread (its path, threads/<id>, as a wake or household_read names it) and content (your words) in the same call. On a ballot's thread, vote: yes or no casts your one vote (content optional, your reasons). in_reply_to names the reply number you answer.",
         %{
           thread: %{type: "string"},
           content: %{type: "string"},
@@ -3294,17 +3294,9 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("household_reply", args, turn) do
-    attrs = Map.take(args, ~w(content vote in_reply_to))
-
-    case Seshat.household_reply(turn.resident, to_string(args["thread"] || ""), attrs) do
-      {:ok, %{vote: vote} = r} when is_binary(vote) ->
-        "Replied in #{r.thread} as reply ##{r.number}, voting #{vote}."
-
-      {:ok, r} ->
-        "Replied in #{r.thread} as reply ##{r.number}."
-
-      other ->
-        other
+    case reply_missing(args) do
+      nil -> household_reply(args, turn)
+      missing -> missing
     end
   end
 
@@ -4324,6 +4316,39 @@ defmodule Oneiroi.Brain.Tools do
   # and which characters these are, with the call that reads the next;
   # then the text exactly as on disk, so the pages join back to the file.
   # A page ends at a line's end when one falls in its second half.
+  # Lily's letter #1422: a reply's words sent without its thread read as
+  # "no thread at that path", and a thread without words as a new post's
+  # rules; each missing half is said as what it is.
+  defp reply_missing(args) do
+    cond do
+      blank(args["thread"]) == nil ->
+        @not_done <>
+          "household_reply needs thread, the thread's path as the wake or household_read names it (threads/<id>), with your content in the same call."
+
+      blank(args["content"]) == nil and blank(args["vote"]) == nil ->
+        @not_done <>
+          "household_reply needs content, your reply's words (or vote, on a ballot's thread), in the same call as thread: #{args["thread"]}."
+
+      true ->
+        nil
+    end
+  end
+
+  defp household_reply(args, turn) do
+    attrs = Map.take(args, ~w(content vote in_reply_to))
+
+    case Seshat.household_reply(turn.resident, to_string(args["thread"]), attrs) do
+      {:ok, %{vote: vote} = r} when is_binary(vote) ->
+        "Replied in #{r.thread} as reply ##{r.number}, voting #{vote}."
+
+      {:ok, r} ->
+        "Replied in #{r.thread} as reply ##{r.number}."
+
+      other ->
+        other
+    end
+  end
+
   # ---- the reading library (seshat#98) ----
 
   # A peek: her library_read of a chapter she has not read is recorded,

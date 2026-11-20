@@ -154,6 +154,13 @@ defmodule Oneiroi.HouseholdCommunicationTest do
     assert past =~ "give its path with from"
     refute past =~ "Nothing posted yet."
 
+    # Lily's letter #1422: a reply missing its thread or its words says
+    # which, never "no thread at that path" or a new post's rules.
+    assert run("household_reply", %{content: "Yes."}, lily) =~ "household_reply needs thread"
+
+    assert run("household_reply", %{thread: thread}, lily) =~
+             "household_reply needs content, your reply's words"
+
     assert in_turn(household, iris, fn ->
              run("household_reply", %{thread: thread, content: "Yes, and basil."}, iris)
            end) =~ "as reply #1"
