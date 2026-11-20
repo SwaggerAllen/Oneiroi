@@ -642,3 +642,14 @@ approve a draft without knowing what context composed it. The check
 sits where the words leave, at one dispatch for the brain's tools and at
 the two places her answer is delivered for her, so no outbound path is
 left to remember it.
+
+## #81
+A hard check alone turns every house turn with private talk in its window
+into a refusal: she composes from everything and is then told she may not
+send it. Assembling for the audience first lets her answer from what the
+house may hear, which is the point of the soft mode (§5.1): the boundary
+shapes what she writes instead of vetoing it afterwards. The citation
+line keeps her from mistaking a gap for forgetting, and names the domain
+only to her (§5.4). Recording the assembled set as the ledger keeps the
+two checks one rule: what reaches the house is decided once, on what she
+was actually given.

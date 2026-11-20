@@ -34,11 +34,41 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
 
   @doc "A turn's inputs, labelled."
   def inputs(resident_id, session_key, turn_ref, window \\ @window) do
-    identity(resident_id) ++
-      messages(resident_id, session_key, window) ++
-      lanes(resident_id, session_key) ++
-      timeline(resident_id) ++ TurnReads.of(resident_id, turn_ref)
+    seen =
+      case TurnReads.assembled_of(resident_id, turn_ref) do
+        # Assembled for an audience (kumbukumbu#81): what was put in,
+        # and nothing that was withheld from it.
+        inputs when is_list(inputs) -> inputs
+        nil -> window_inputs(resident_id, session_key, window)
+      end
+
+    seen ++ TurnReads.of(resident_id, turn_ref)
   end
+
+  defp window_inputs(resident_id, session_key, window),
+    do:
+      identity(resident_id) ++
+        messages(resident_id, session_key, window) ++
+        lanes(resident_id, session_key) ++ timeline(resident_id)
+
+  @doc "The window's messages, labelled by their domains, one input per stored row (kumbukumbu#81)."
+  def message_inputs(resident_id, session_key, window \\ @window),
+    do: messages(resident_id, session_key, window)
+
+  @doc "The timeline lane's labels (kumbukumbu#81): every domain its anchors hold, or the common room."
+  def timeline_labels(resident_id) do
+    resident_id
+    |> timeline()
+    |> Enum.flat_map(fn %{labels: l} -> if is_list(l), do: l, else: [] end)
+    |> Enum.uniq()
+    |> case do
+      [] -> :common_room
+      labels -> labels
+    end
+  end
+
+  @doc "The labels of the turn's memory lanes: the session's current domain, or the common room."
+  def lane_labels(resident_id, session_key), do: label(Domains.current(resident_id, session_key))
 
   @doc """
   Whether a turn's composition may be delivered to `audience`: `{:ok,
@@ -63,6 +93,64 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
          )}
     end
   end
+
+  # Sections that carry the session's current domain: what was recalled
+  # into this room. Those of unsure provenance are unclassified; the rest
+  # (her prompt, her own files but USER.md, her state, her plans) are the
+  # common room.
+  @lane_sections ~w(pins index madeleine character where domain)
+  @unclassified_sections ~w(USER.md summary self-conversation)
+
+  @doc """
+  Assembles a turn for an audience past the dyad (kumbukumbu#81, the soft
+  path): each of the turn's sections (by name) and each of its window's
+  messages labelled, decided `:soft` against `audience`, and what may
+  reach it recorded as the turn's ledger, so its delivery is checked
+  against what she was given and not against what was held back. Returns
+  the section names and window rows kept, and the citations of what was
+  withheld, in her words: they name the domains, to her alone.
+  """
+  def assemble(resident_id, session_key, turn_ref, audience, names, rows) do
+    lane = lane_labels(resident_id, session_key)
+    timeline = timeline_labels(resident_id)
+
+    sections =
+      for name <- Enum.uniq(names),
+          do: %{id: "section/" <> name, ref: name, labels: section_label(name, lane, timeline)}
+
+    numbered = Enum.with_index(rows)
+
+    messages =
+      for {r, i} <- numbered,
+          do: %{
+            id: "message/#{i}",
+            ref: "transcript/#{session_key}/#{Map.get(r, :sequence)}",
+            labels: label(Domains.pair(Map.get(r, :domain_person), Map.get(r, :domain)))
+          }
+
+    decision = Audience.decide_for(resident_id, sections ++ messages, audience, :soft)
+    kept = MapSet.new(decision.allowed)
+
+    TurnReads.assembled(
+      resident_id,
+      turn_ref,
+      Enum.filter(sections ++ messages, &(&1.id in kept))
+    )
+
+    %{
+      sections: for(s <- sections, s.id in kept, do: s.ref),
+      rows: for({r, i} <- numbered, "message/#{i}" in kept, do: r),
+      withheld: Enum.map(decision.withheld, &Audience.told(decision, &1)),
+      decision: decision.id
+    }
+  end
+
+  defp section_label(name, _lane, _timeline) when name in @unclassified_sections,
+    do: :unclassified
+
+  defp section_label(name, lane, _timeline) when name in @lane_sections, do: lane
+  defp section_label("timeline", _lane, timeline), do: timeline
+  defp section_label(_name, _lane, _timeline), do: :common_room
 
   @doc "The labels of inputs a tool read: a bookmark opened, a transcript turn read."
   def bookmark_input(resident_id, %{number: n} = bookmark) do

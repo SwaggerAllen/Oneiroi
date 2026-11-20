@@ -37,7 +37,7 @@ defmodule Oneiroi.Seshat.HouseholdTurnWorker do
 
     HouseWorking.during(household_id, turn && turn.resident_id, turn && turn.thread, fn ->
       case HouseholdRounds.run_turn(household_id, turn_id, args["wake_id"]) do
-        {:answered, turn, text} -> post_answer(household_id, turn, text)
+        {:answered, turn, text, ref} -> post_answer(household_id, turn, text, ref)
         other -> other
       end
     end)
@@ -66,8 +66,8 @@ defmodule Oneiroi.Seshat.HouseholdTurnWorker do
   # spending the token, as household_reply would have. A post refused (the
   # quota, Scarlett's report #21) is never silence: the turn stays live to
   # its window and she is told, her words with it.
-  defp post_answer(household_id, turn, text) do
-    with {:ok, _decision} <- answer_allowed(household_id, turn),
+  defp post_answer(household_id, turn, text, ref) do
+    with {:ok, _decision} <- answer_allowed(household_id, turn, ref),
          {:ok, _} <-
            Household.reply(Oneiroi.Actor.new(:resident, turn.resident_id), turn.thread, %{
              "content" => text
@@ -79,8 +79,10 @@ defmodule Oneiroi.Seshat.HouseholdTurnWorker do
   end
 
   # Her answer goes to the house: what her chat's turn saw is asked first
-  # (kumbukumbu#80); a refusal comes back to her with her words.
-  defp answer_allowed(household_id, turn) do
+  # (kumbukumbu#80), and the turn was assembled for the house
+  # (kumbukumbu#81), so it is asked what she was given; a refusal comes
+  # back to her with her words.
+  defp answer_allowed(household_id, turn, ref) do
     with {:ok, %{account_id: account}} when is_binary(account) <-
            Oneiroi.AgathosDaimon.fetch(turn.resident_id),
          {:ok, key} <-
@@ -88,7 +90,7 @@ defmodule Oneiroi.Seshat.HouseholdTurnWorker do
       Oneiroi.Kumbukumbu.delivery_check(
         turn.resident_id,
         key,
-        nil,
+        ref,
         Oneiroi.Kumbukumbu.audience("household", household_id)
       )
     else

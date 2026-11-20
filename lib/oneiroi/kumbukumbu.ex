@@ -485,6 +485,12 @@ defmodule Oneiroi.Kumbukumbu do
     do: Ledger.check(resident_id, session_key, turn_ref, audience)
   )
 
+  @doc "A turn assembled for an audience past the dyad (kumbukumbu#81): the sections and window rows kept, the citations withheld, the ledger recorded."
+  @spec assemble_for(String.t(), String.t(), String.t(), map(), [String.t()], [map()]) :: map()
+  defexport(assemble_for(resident_id, session_key, turn_ref, audience, names, rows),
+    do: Ledger.assemble(resident_id, session_key, turn_ref, audience, names, rows)
+  )
+
   @doc "A turn read these inputs deliberately (kumbukumbu#80): its ledger counts them."
   @spec note_read(String.t(), String.t() | nil, [map()]) :: :ok
   defexport(note_read(resident_id, turn_ref, inputs),

@@ -271,6 +271,9 @@ defmodule Oneiroi.Brain.Turn do
       resident: Actor.new(:resident, resident_id, model),
       as: as,
       purpose: Keyword.get(opts, :purpose, :chat),
+      # Where the answer goes, when past the dyad (kumbukumbu#81): her
+      # context is assembled for it.
+      audience: audience(resident_id, Keyword.get(opts, :audience)),
       opening: %{role: opening_role(as), content: text, sent_at: started_at, actor: actor},
       earlier: earlier,
       batch: length(earlier) + 1,
@@ -291,6 +294,18 @@ defmodule Oneiroi.Brain.Turn do
       notice_kinds: for({kind, [_ | _]} <- notices, do: kind)
     }
   end
+
+  # The house a household wake answers to is hers, resolved here: the
+  # schedule that wakes her does not know it.
+  defp audience(resident_id, :household) do
+    case Oneiroi.Gaia.resident_household(resident_id) do
+      %{id: id} -> Kumbukumbu.audience("household", id)
+      # No house: the wake still answers, to nobody past the dyad.
+      _none -> nil
+    end
+  end
+
+  defp audience(_resident_id, audience), do: audience
 
   @doc """
   The next turn of `session_key` as a dry run, for the witness's
@@ -1192,6 +1207,7 @@ defmodule Oneiroi.Brain.Turn do
     zone = History.zone(turn.resident_id)
 
     {rows, earlier, reason} = window(turn, count)
+    {sections, rows, withheld} = for_audience(turn, sections, rows)
     history = earlier ++ History.messages(rows, zone)
 
     transcript = %{
@@ -1232,10 +1248,51 @@ defmodule Oneiroi.Brain.Turn do
 
     messages =
       (sections |> Enum.map(& &1.message) |> Enum.reject(&is_nil/1)) ++
-        history ++ notices ++ batched ++ [opening]
+        history ++ notices ++ withheld ++ batched ++ [opening]
 
     %{sections: sections, injections: injections, messages: messages}
   end
+
+  # A turn whose answer goes past the dyad (kumbukumbu#81, the soft path):
+  # what that audience may not hear is left out of her context before she
+  # composes, and one line tells her what, by citation and domain, so she
+  # knows what she is not holding. Her own conversations, and a turn with
+  # no audience, are assembled whole.
+  defp for_audience(%{audience: %{kind: kind} = audience} = turn, sections, rows)
+       when kind not in ["dyad", "conversation"] do
+    kept =
+      Kumbukumbu.assemble_for(
+        turn.resident_id,
+        turn.session_key,
+        turn.turn_ref,
+        audience,
+        Enum.map(sections, & &1.label),
+        rows
+      )
+
+    note =
+      case kept.withheld do
+        [] ->
+          []
+
+        lines ->
+          [
+            %{
+              role: :system,
+              content:
+                Prompt.render!("audience_withheld", %{
+                  audience: "#{audience.kind}:#{audience.id}",
+                  lines: Enum.map_join(lines, "\n", &("- " <> &1)),
+                  decision: kept.decision
+                })
+            }
+          ]
+      end
+
+    {Enum.filter(sections, &(&1.label in kept.sections)), kept.rows, note}
+  end
+
+  defp for_audience(_turn, sections, rows), do: {sections, rows, []}
 
   # The transcript's window. Compacted (brain#60's `on`): the messages
   # since the session's compaction, under its summary. Truncated (`off`,

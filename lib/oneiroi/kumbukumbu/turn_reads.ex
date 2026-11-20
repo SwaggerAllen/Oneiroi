@@ -37,6 +37,33 @@ defmodule Oneiroi.Kumbukumbu.TurnReads do
 
   def note(_resident_id, _turn_ref, _inputs), do: :ok
 
+  @doc "What a resident's turn was assembled from, for an audience past the dyad (kumbukumbu#81): replaces the raw window in its ledger."
+  def assembled(resident_id, turn_ref, inputs) when is_binary(turn_ref) and is_list(inputs) do
+    now = Clock.now()
+
+    safely(fn ->
+      sweep(now)
+      :ets.delete(@table, {resident_id, turn_ref, :assembled})
+      :ets.insert(@table, {{resident_id, turn_ref, :assembled}, inputs, now})
+    end)
+
+    :ok
+  end
+
+  def assembled(_resident_id, _turn_ref, _inputs), do: :ok
+
+  @doc "What a resident's turn was assembled from, or nil when nothing was recorded."
+  def assembled_of(resident_id, turn_ref) when is_binary(turn_ref) do
+    safely(fn ->
+      case :ets.lookup(@table, {resident_id, turn_ref, :assembled}) do
+        [{_, inputs, _}] -> inputs
+        [] -> nil
+      end
+    end)
+  end
+
+  def assembled_of(_resident_id, _turn_ref), do: nil
+
   @doc "What a resident's turn read, oldest first."
   def of(resident_id, turn_ref) when is_binary(turn_ref),
     do:

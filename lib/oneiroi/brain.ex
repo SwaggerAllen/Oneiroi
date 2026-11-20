@@ -457,16 +457,22 @@ defmodule Oneiroi.Brain do
   @spec wake(String.t(), String.t(), String.t(), atom()) :: {:ok, map()} | {:error, term()}
   @impl Oneiroi.Sunna.Wake
   defexport(wake(resident_id, session_key, note, purpose),
-    do: wake_admitted(resident_id, session_key, note, purpose)
+    do: wake_admitted(resident_id, session_key, note, purpose, [])
+  )
+
+  @doc "A wake whose answer reaches an audience past the dyad (kumbukumbu#81): her context assembled for it."
+  @impl Oneiroi.Sunna.Wake
+  defexport(wake_for(resident_id, session_key, note, purpose, opts),
+    do: wake_admitted(resident_id, session_key, note, purpose, Keyword.take(opts, [:audience]))
   )
 
   # Every wake the platform makes passes here (agathos-daimon#46): a
   # resident formed through the creation flow is woken by nothing but
   # the witness's own words until their first agreement is in force.
-  defp wake_admitted(resident_id, session_key, note, purpose) do
+  defp wake_admitted(resident_id, session_key, note, purpose, opts) do
     case AgathosDaimon.admission(resident_id) do
       :open ->
-        Session.wake(resident_id, session_key, note, purpose)
+        Session.wake(resident_id, session_key, note, purpose, opts)
 
       admission ->
         {:error, Error.new(:brain_resident_guarded, :brain_wake_guarded, admission: admission)}
