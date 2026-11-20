@@ -531,3 +531,11 @@ The letter wake asked her a question and her answer went nowhere unless
 she remembered a tool; making the answer the reply is what the wake was
 for. One thread at a time, because an answer to two threads cannot be
 split honestly by the platform.
+
+## #75
+A record held open by a step that never comes is the same fault each
+time (sunna#69's duplicate, now the outlasted turn), and its cost lands
+on a different line: the work loop, which trusts the free-time record.
+Closing it from the path that opened it keeps the trust honest. The
+silent :care made a three-hour wait look like a dead loop; a reason in
+the queue lets both parties see care working.

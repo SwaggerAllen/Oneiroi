@@ -847,6 +847,16 @@ defmodule Oneiroi.Sunna.Schedules do
   defp ran_on({:error, %{kind: :brain_wake_outlasted}}), do: {:ok, nil}
   defp ran_on(other), do: other
 
+  # After the slot's first turn: carried on by its result; or, when it
+  # outlasted the wait (nil), its planning turn queued now, behind the
+  # turn still running in the session, so the run is closed when she is
+  # done (sunna#75; Lily's 14:30 run of 2026-11-19 was never closed, and
+  # read as free time underway it held the work line three hours).
+  defp after_first(resident_id, key, nil, run),
+    do: free_time_worker().enqueue_plan(resident_id, key, run)
+
+  defp after_first(resident_id, key, result, run), do: carry_on(resident_id, key, result, 2, run)
+
   defp open_free_time(resident_id, day, slot, %Actor{} = actor) do
     with {:ok, row} <- resident(resident_id),
          {:ok, key} <-
@@ -873,7 +883,7 @@ defmodule Oneiroi.Sunna.Schedules do
              )
            ) do
       recorded = record_free_time(resident_id, {day, slot}, key, nil, actor)
-      if result, do: carry_on(resident_id, key, result, 2, run_of(day, slot))
+      after_first(resident_id, key, result, run_of(day, slot))
       recorded
     else
       {:error, %{site: _} = e} ->

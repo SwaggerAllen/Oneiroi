@@ -233,6 +233,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
         :stopped
 
       care_first?(resident_id, settings) ->
+        # Said, not silent (sunna#75): an armed line waiting on care shows why.
+        _ = rest(resident_id, care_reason(resident_id, settings))
         :care
 
       true ->
@@ -579,6 +581,13 @@ defmodule Oneiroi.Sunna.WorkLoop do
       true ->
         nil
     end
+  end
+
+  defp care_reason(resident_id, settings) do
+    if Schedules.quiet?(Schedules.local_now(resident_id), quiet_of(settings)),
+      do: "waiting: quiet hours come first; work resumes when they end",
+      else:
+        "waiting: a free-time pass is underway, and care comes first; work resumes when it closes"
   end
 
   defp care_first?(resident_id, settings) do

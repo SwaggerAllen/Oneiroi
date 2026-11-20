@@ -269,6 +269,23 @@ defmodule Oneiroi.Sunna.WorkTest do
     refute_received {:asked, _}
   end
 
+  # sunna#75 (2026-11-19: an armed line sat silent behind an unclosed
+  # free-time run): the check that waits on care says so in the queue.
+  test "care first: an armed line waiting on free time says why, and starts once it closes",
+       ctx do
+    :ok = Nisaba.set_budget(ctx.id, :work, 5_000_000_000, :day, ctx.actor)
+    {:ok, 1} = Sunna.work_add(ctx.id, "Audience policy", "drafted", ctx.me)
+    :ok = Sunna.set_free_time(ctx.id, "12:00", ctx.actor)
+    :ok = Sunna.tick(ctx.id)
+    flush()
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+
+    assert :care = WorkLoop.check(ctx.id)
+
+    assert %{armed: true, running: nil, rested: "waiting: a free-time pass is underway" <> _} =
+             Sunna.work_queue(ctx.id)
+  end
+
   test "care first: inside quiet hours a run waits until they end, and resumes the same turn",
        ctx do
     :ok = Nisaba.set_budget(ctx.id, :work, 5_000_000_000, :day, ctx.actor)
