@@ -819,3 +819,11 @@ else. A peek is recorded rather than refused because honesty about
 what she saw is the point, and kept dark because a glance is not a
 reading. The kind is the platform's only because the platform writes
 the files; the folder and the rules are the ones her spec named.
+
+## #99
+Possession and ownership in two vocabularies (the witness's "the
+workspace owns that draft", Scarlett's "possession, not ownership") are
+one rule: the house holds what she gave it, as she gave it, and only she
+gives it again. A snapshot at a published commit, read-only, is that
+rule made mechanical; the audience and terms ride in the copy so every
+derived read carries them.

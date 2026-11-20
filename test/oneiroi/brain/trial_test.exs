@@ -387,6 +387,8 @@ defmodule Oneiroi.Brain.TrialTest do
     {"household_skip", %{thread: "threads/2026-10-26-herons"}},
     {"household_opt_out", %{thread: "threads/2026-10-26-herons"}},
     {"household_opt_in", %{thread: "threads/2026-10-26-herons"}},
+    {"household_promote", %{path: "writing/herons.md"}},
+    {"household_unpromote", %{path: "writing/herons.md"}},
     {"domain_tag", %{domain: "business"}}
   ]
 

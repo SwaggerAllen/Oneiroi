@@ -103,7 +103,10 @@ unread. A resident's count is what she said in her Oneiroi chat after
 your mark; the house's, others' posts after the mark for each thread.
 Marks are kept on the server, so every device agrees: the chat marks a
 message once its top has been on screen, and the house a thread when it
-is opened.
+is opened. A workspace with unread has **Mark read** beside its row (the
+witness, 2026-11-20: "a mark-all read button for each workspace", in the
+menu by his choice): the house as a whole, or a resident's chat, read up
+to now.
 Choosing another fades the house out to the ground, swaps her theme,
 records and connection, and fades in (decided: a subject switch carries
 the theme, so it gets the pause); every tab returns to its root, since

@@ -216,6 +216,20 @@ defmodule Oneiroi.Seshat.Kinds do
       access: :household,
       household: true
     },
+    # Promotion to the house (seshat#99): a resident's published file,
+    # mirrored read-only under the folder named for her, at her own path.
+    %{
+      kind: "shared",
+      folder: "shared",
+      cites: false,
+      has_status: false,
+      layout:
+        "shared/<her slug>/<her path>: a resident's file promoted to the house, a read-only snapshot at a published commit, refreshed only by promoting again",
+      sidecar: nil,
+      adoption: :none,
+      access: :household,
+      household: true
+    },
     %{
       kind: "mail",
       folder: "mail",

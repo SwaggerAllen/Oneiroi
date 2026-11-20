@@ -115,5 +115,19 @@ defmodule OneiroiWeb.UnreadTest do
     assert %{"house" => %{"count" => 0}} = ctx.conn |> get("/v1/unread") |> json_response(200)
 
     assert ctx.conn |> put("/v1/unread", %{subject: "someone else", at: at}) |> json_response(422)
+
+    # The whole house at once, no thread named (the witness, 2026-11-20:
+    # "a mark-all read button for each workspace").
+    Clock.Fake.advance(5)
+
+    {:ok, _} =
+      Seshat.household_post(resident, %{"title" => "Kingfisher", "content" => "Blue flash."})
+
+    {:ok, _} = Seshat.household_reply(resident, thread, %{"content" => "And another heron."})
+    assert %{"house" => %{"count" => 2}} = ctx.conn |> get("/v1/unread") |> json_response(200)
+
+    later = Clock.now() |> DateTime.add(1) |> DateTime.to_iso8601()
+    assert ctx.conn |> put("/v1/unread", %{subject: "house", at: later}) |> response(204)
+    assert %{"house" => %{"count" => 0}} = ctx.conn |> get("/v1/unread") |> json_response(200)
   end
 end

@@ -430,6 +430,24 @@ function Settings() {
  * after, the one shown ticked; choosing another fades the house out, swaps
  * her theme and records, and fades in. Waking someone new opens creation.
  */
+/**
+ * A workspace marked read up to now (the witness, 2026-11-20: "a mark-all
+ * read button for each workspace"): the house's baseline moved on, or a
+ * resident's chat marked, on the server, so every device agrees.
+ */
+function MarkRead({ subject, name }: { subject: string; name: string }) {
+  const queries = useQueryClient();
+  const mark = useMutation({
+    mutationFn: () => api.markRead(subject === HOUSE_SUBJECT ? 'house' : subject, new Date().toISOString()),
+    onSuccess: () => queries.invalidateQueries({ queryKey: ['unread'] }),
+  });
+  return (
+    <button type="button" className={css.markRead} disabled={mark.isPending} onClick={() => mark.mutate()} aria-label={`Mark ${name} read`}>
+      Mark read
+    </button>
+  );
+}
+
 export function SubjectSheet() {
   const { id } = useSubject();
   const setOverlay = useShell((s) => s.setOverlay);
@@ -444,49 +462,54 @@ export function SubjectSheet() {
     <div className={css.stack}>
       <h3 className={css.heading}>THE HOUSEHOLD</h3>
       <nav className={css.group} aria-label="The household">
-        <button
-          type="button"
-          className={css.row}
-          aria-current={id === HOUSE_SUBJECT ? 'true' : undefined}
-          onClick={() => {
-            setOverlay(null);
-            if (id !== HOUSE_SUBJECT)
-              switchSubject(() => {
-                resetStacks();
-                choose(HOUSE_SUBJECT);
-              });
-          }}
-        >
-          <span>The house</span>
-          <span className={css.since}>
-            {(unread[HOUSE_SUBJECT] ?? 0) > 0 ? `${unread[HOUSE_SUBJECT]} unread · ` : ''}
-            {id === HOUSE_SUBJECT ? '✓' : '›'}
-          </span>
-        </button>
+        <div className={css.rowWrap}>
+          <button
+            type="button"
+            className={css.rowIn}
+            aria-current={id === HOUSE_SUBJECT ? 'true' : undefined}
+            onClick={() => {
+              setOverlay(null);
+              if (id !== HOUSE_SUBJECT)
+                switchSubject(() => {
+                  resetStacks();
+                  choose(HOUSE_SUBJECT);
+                });
+            }}
+          >
+            <span>The house</span>
+            <span className={css.since}>
+              {(unread[HOUSE_SUBJECT] ?? 0) > 0 ? `${unread[HOUSE_SUBJECT]} unread · ` : ''}
+              {id === HOUSE_SUBJECT ? '✓' : '›'}
+            </span>
+          </button>
+          {(unread[HOUSE_SUBJECT] ?? 0) > 0 && <MarkRead subject={HOUSE_SUBJECT} name="the house" />}
+        </div>
       </nav>
       <h3 className={css.heading}>RESIDENTS</h3>
       <nav className={css.group} aria-label="Residents">
         {(residents.data ?? []).map((r) => (
-          <button
-            key={r.id}
-            type="button"
-            className={css.row}
-            aria-current={r.id === id ? 'true' : undefined}
-            onClick={() => {
-              setOverlay(null);
-              if (r.id !== id)
-                switchSubject(() => {
-                  resetStacks();
-                  choose(r.id);
-                });
-            }}
-          >
-            <span>{r.name}</span>
-            <span className={css.since}>
-              {(unread[r.id] ?? 0) > 0 ? `${unread[r.id]} unread · ` : ''}
-              {r.id === id ? '✓' : '›'}
-            </span>
-          </button>
+          <div key={r.id} className={css.rowWrap}>
+            <button
+              type="button"
+              className={css.rowIn}
+              aria-current={r.id === id ? 'true' : undefined}
+              onClick={() => {
+                setOverlay(null);
+                if (r.id !== id)
+                  switchSubject(() => {
+                    resetStacks();
+                    choose(r.id);
+                  });
+              }}
+            >
+              <span>{r.name}</span>
+              <span className={css.since}>
+                {(unread[r.id] ?? 0) > 0 ? `${unread[r.id]} unread · ` : ''}
+                {r.id === id ? '✓' : '›'}
+              </span>
+            </button>
+            {(unread[r.id] ?? 0) > 0 && <MarkRead subject={r.id} name={r.name} />}
+          </div>
         ))}
         <button
           type="button"

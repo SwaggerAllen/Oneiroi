@@ -103,6 +103,15 @@ defmodule Oneiroi.Seshat.Household.Rounds do
   defp later(a, b), do: if(DateTime.compare(a, b) == :gt, do: a, else: b)
 
   @doc false
+  # No thread: the whole house read up to `at` (the witness, 2026-11-20:
+  # "a mark-all read button for each workspace"), its baseline moved on,
+  # which every thread's unread counts from when it is later than the
+  # thread's own mark.
+  def mark_seen(%Actor{kind: :witness} = actor, nil, %DateTime{} = at) do
+    with {:ok, household_id} <- Core.household(actor),
+         do: Gaia.mark_seen(actor.id, "house:" <> household_id, "*", at, actor)
+  end
+
   def mark_seen(%Actor{kind: :witness} = actor, thread, %DateTime{} = at) do
     with {:ok, household_id} <- Core.household(actor),
          path when is_binary(path) <- Files.thread_path(thread) || Files.no_thread(thread),

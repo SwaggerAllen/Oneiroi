@@ -392,6 +392,10 @@ defmodule Oneiroi.Seshat do
        "that draft is the one published, or an earlier one; only a later draft can be published",
        remedy:
          "to make an earlier draft public again, restore it (a new commit with its words), then publish that"},
+      {:seshat_household_mirror,
+       "a promoted copy is a read-only snapshot of its source: nothing in the house edits it (seshat#99)",
+       remedy:
+         "its owner promotes the next draft from her own file (household_promote); anyone else replies in its document post"},
       {:seshat_household_not_owner,
        "this household document is its owner's to edit, or to change the mode of; in owner mode another member's edit is feedback",
        remedy:
@@ -691,6 +695,14 @@ defmodule Oneiroi.Seshat do
   @spec household_edit(Oneiroi.Actor.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}
   defexport(household_edit(actor, path, attrs), do: Household.edit(actor, path, attrs))
 
+  @doc "A resident promotes a file of hers to the house (seshat#99): published at a commit, mirrored read-only at shared/<slug>/<path>, with its audience and terms."
+  @spec household_promote(Oneiroi.Actor.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}
+  defexport(household_promote(actor, from, attrs), do: Household.promote(actor, from, attrs))
+
+  @doc "A resident unpromotes a copy (seshat#99): no longer current; its words and provenance stay."
+  @spec household_unpromote(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(household_unpromote(actor, name), do: Household.unpromote(actor, name))
+
   @doc "Publishes a draft of a file to the household, at one commit (seshat#85): the resident her own, a witness his name-folder's."
   @spec publish(String.t(), String.t(), String.t() | nil, String.t() | nil, Oneiroi.Actor.t()) ::
           {:ok, map()} | {:error, term()}
@@ -742,8 +754,9 @@ defmodule Oneiroi.Seshat do
   @spec household_unread(Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(household_unread(actor), do: Household.unread(actor))
 
-  @doc "The witness has read a house thread up to an instant (seshat#96)."
-  @spec household_mark_seen(Oneiroi.Actor.t(), String.t(), DateTime.t()) :: :ok | {:error, term()}
+  @doc "The witness has read a house thread up to an instant (seshat#96), or with no thread the whole house."
+  @spec household_mark_seen(Oneiroi.Actor.t(), String.t() | nil, DateTime.t()) ::
+          :ok | {:error, term()}
   defexport(household_mark_seen(actor, thread, at), do: Household.mark_seen(actor, thread, at))
 
   @doc "Who in the house is working now, and in which thread (seshat#90)."

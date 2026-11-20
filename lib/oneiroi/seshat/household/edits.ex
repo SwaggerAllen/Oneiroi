@@ -47,6 +47,7 @@ defmodule Oneiroi.Seshat.Household.Edits do
   def sharing_of(meta) when is_map(meta) do
     case meta do
       %{"mode" => "open"} -> %{mode: "open", owner_id: meta["owner_id"]}
+      %{"mode" => "mirror"} -> %{mode: "mirror", owner_id: meta["owner_id"]}
       _owned -> %{mode: "owner", owner_id: meta["owner_id"] || meta["by_id"]}
     end
   end
@@ -108,6 +109,10 @@ defmodule Oneiroi.Seshat.Household.Edits do
 
   def owner_name(household_id, id),
     do: Enum.find_value(Gaia.household_members(household_id), &(&1.id == id && &1.name))
+
+  # A promoted copy changes only by promotion (seshat#99).
+  defp may_edit(_actor, %{mode: "mirror"}, path),
+    do: {:error, Error.new(:seshat_household_mirror, :seshat_household_edit_mirror, path: path)}
 
   defp may_edit(_actor, %{mode: "open"}, _path), do: :ok
 
