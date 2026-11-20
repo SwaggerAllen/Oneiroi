@@ -185,25 +185,33 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
     residents = residents(household_id)
 
     for t <- Gaia.round_threads(household_id) do
-      live = t.live_turn && Gaia.round_turn(household_id, t.live_turn)
-
       %{
         thread: t.thread,
         round: t.round,
         stopped: t.stopped,
-        live:
-          live &&
-            %{
-              resident_id: live.resident_id,
-              name: Map.get(names, live.resident_id),
-              until: live.expires_at
-            },
+        live: live_of(household_id, t, names),
         # Who is still in (the witness, 2026-11-20: "an indicator of who's
         # still opted in to a thread"): the house's residents, less those out.
         opted_in: for(id <- residents -- (t.optout || []), do: Map.get(names, id) || id),
         opted_out: for(id <- t.optout || [], do: Map.get(names, id) || id),
         changed_at: t.changed_at
       }
+    end
+  end
+
+  defp live_of(_household_id, %{live_turn: nil}, _names), do: nil
+
+  defp live_of(household_id, t, names) do
+    case Gaia.round_turn(household_id, t.live_turn) do
+      nil ->
+        nil
+
+      live ->
+        %{
+          resident_id: live.resident_id,
+          name: Map.get(names, live.resident_id),
+          until: live.expires_at
+        }
     end
   end
 
