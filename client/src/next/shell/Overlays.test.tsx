@@ -94,5 +94,12 @@ describe('the bell', () => {
     );
     expect(await screen.findByText(/3 unread/)).toBeTruthy();
     expect(await screen.findByText(/2 unread/)).toBeTruthy();
+
+    // Mark read beside each (the witness, 2026-11-20): the house as a whole, a resident's chat by id.
+    const marked = vi.spyOn(api, 'markRead').mockResolvedValue(undefined);
+    fireEvent.click(screen.getByRole('button', { name: 'Mark the house read' }));
+    await waitFor(() => expect(marked).toHaveBeenCalledWith('house', expect.any(String)));
+    fireEvent.click(screen.getByRole('button', { name: 'Mark Mira read' }));
+    await waitFor(() => expect(marked).toHaveBeenCalledWith('r1', expect.any(String)));
   });
 });

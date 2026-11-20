@@ -120,6 +120,26 @@ export const row = style({
   cursor: 'pointer',
   selectors: { '&:last-child': { borderBottom: 'none' } },
 });
+/** A workspace's row with its "Mark read" beside it (the witness, 2026-11-20). */
+export const rowWrap = style({
+  display: 'flex',
+  alignItems: 'stretch',
+  borderBottom: `1px solid ${vars.color.border}`,
+  background: vars.color.surface,
+  selectors: { '&:last-child': { borderBottom: 'none' } },
+});
+export const rowIn = style([row, { flex: 1, minWidth: 0, borderBottom: 'none', background: 'none' }]);
+export const markRead = style({
+  flexShrink: 0,
+  padding: '0 14px',
+  border: 'none',
+  borderLeft: `1px solid ${vars.color.border}`,
+  background: 'none',
+  font: `500 12px ${font.ui}`,
+  color: vars.color.witness.text,
+  cursor: 'pointer',
+  selectors: { '&:disabled': { opacity: 0.5, cursor: 'default' } },
+});
 export const account = style({ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 });
 
 export const kinds = style({ display: 'flex', gap: 6 });
