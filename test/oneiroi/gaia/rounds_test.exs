@@ -78,6 +78,43 @@ defmodule Oneiroi.Gaia.RoundsTest do
     assert [%Events.RoundStarted{round: 3}] = for(%Events.RoundStarted{} = e <- events, do: e)
   end
 
+  # gaia#59 (the witness, 2026-11-19): a post's @mentions take the first
+  # turns of the round it starts, in the order named; nobody is dropped.
+  test "the mentioned go first, in the order named; the rest follow; none narrowed" do
+    {r, events} =
+      run(%Rounds{}, %Commands.StartRounds{
+        actor: @actor,
+        at: @at,
+        id: "h",
+        thread: "threads/t",
+        residents: ["a", "b", "c"],
+        starter: nil,
+        timeout: 600,
+        first: ["c", "b"]
+      })
+
+    assert [%Events.RoundStarted{order: ["c", "b", "a"]}] =
+             for(%Events.RoundStarted{} = e <- events, do: e)
+
+    assert issued(events) == ["c"]
+
+    # The writer is never first (her post is her turn), and one not in
+    # the round (opted out, or no resident) is no turn.
+    {_, events} =
+      run(r, %Commands.StartRounds{
+        actor: @actor,
+        at: @at,
+        id: "h",
+        thread: "threads/u",
+        residents: ["a", "b", "c"],
+        starter: "b",
+        timeout: 600,
+        first: ["b", "z"]
+      })
+
+    assert issued(events) == ["a"]
+  end
+
   test "a late end is nothing" do
     {r, events} = start(%Rounds{}, "a")
     [%{turn_id: id}] = for %Events.RoundTurnIssued{} = e <- events, do: e

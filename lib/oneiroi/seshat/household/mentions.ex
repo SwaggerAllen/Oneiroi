@@ -33,17 +33,71 @@ defmodule Oneiroi.Seshat.Household.Mentions do
     text = "#{attrs["title"]}\n#{attrs["content"]}"
     by = Core.author(household_id, actor)
 
+    turns = taking_turns(household_id, posted.path)
+
     for m <- named_in(household_id, text), m.id != actor.id do
-      if Gaia.household_muted?(household_id, m.id, posted.path),
-        do: bank_mention(household_id, m, posted, reply, by),
-        else:
+      cond do
+        Gaia.household_muted?(household_id, m.id, posted.path) ->
+          bank_mention(household_id, m, posted, reply, by)
+
+        m.id in turns ->
+          :her_turn_wakes_her
+
+        true ->
           wake_mentioned(household_id, m, mention_note(by, posted, reply), {posted, reply, by})
+      end
     end
 
     ok
   end
 
   def mentioned(other, _household_id, _actor, _attrs, _reply), do: other
+
+  # Where the thread's rounds run, a resident in them is woken by her turn,
+  # which the mention moved first (gaia#59), never by the mention as well;
+  # one opted out of them still hears it.
+  defp taking_turns(household_id, thread) do
+    with "round_robin" <- Gaia.household_beat_shape(household_id).conversation,
+         %{stopped: false} = t <- Gaia.round_thread(household_id, thread) do
+      for %{kind: "resident", id: id} <- Gaia.household_members(household_id),
+          id not in (t.optout || []),
+          do: id
+    else
+      _not_running -> []
+    end
+  end
+
+  @doc false
+  # The residents a post's words @mention, in the order it names them,
+  # for the first turns of a round it starts (gaia#59): not its writer,
+  # not one who muted the thread, and none for @all.
+  def first_in(household_id, text, %Actor{} = actor, thread) do
+    if Regex.match?(~r/(?<![\w@])@all(?![\w-])/iu, text) do
+      []
+    else
+      for %{kind: "resident", id: id} = m <- Gaia.household_members(household_id),
+          id != actor.id,
+          not Gaia.household_muted?(household_id, id, thread),
+          at = first_at(text, m),
+          at != nil do
+        {at, id}
+      end
+      |> Enum.sort()
+      |> Enum.map(&elem(&1, 1))
+    end
+  end
+
+  defp first_at(text, m) do
+    m
+    |> handles()
+    |> Enum.flat_map(fn h ->
+      case Regex.run(~r/(?<![\w@])@#{Regex.escape(h)}(?![\w-])/iu, text, return: :index) do
+        [{at, _len}] -> [at]
+        nil -> []
+      end
+    end)
+    |> Enum.min(fn -> nil end)
+  end
 
   defp wake_mentioned(household_id, %{kind: "resident", id: id}, note, {posted, reply, by}) do
     if not AgathosDaimon.held?(id) do

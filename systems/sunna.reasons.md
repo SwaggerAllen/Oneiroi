@@ -553,3 +553,8 @@ queue wants nobody: it runs on her own line, under a daily cap that
 already brakes it, so holding it to his quiet hours protected no one
 and cost a night of her work. Free time stays, because two of her acts
 at once is the attention the rule was for.
+
+## #78
+A prompt that names only letters teaches the hour to be a dyad's. The
+house was always reachable; naming it beside the mail makes it company
+she can choose, and saying where privacy ends keeps the choice hers.

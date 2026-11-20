@@ -258,7 +258,7 @@ defmodule Oneiroi.Gaia.Commands do
   # witness's; `timeout` the turn window in seconds, `order` the thread's.
   defmodule StartRounds do
     use Oneiroi.Command,
-      fields: [:id, :thread, :residents, :starter, :timeout, :order],
+      fields: [:id, :thread, :residents, :starter, :timeout, :order, :first],
       bounds: [thread: 255]
   end
 

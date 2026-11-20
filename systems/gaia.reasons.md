@@ -421,3 +421,8 @@ same witness reads on a second device, and marking a whole workspace
 read when it opens hides what scrolled past. A mark per conversation and
 thread, moved by what was actually on screen, is the smallest model that
 answers "what have I not seen" truthfully everywhere.
+
+## #59
+A mention says who the post is for, so they answer first; but the house
+reads together, and the one not named should see the answer and may add
+to it, so the mention reorders the round and never removes anyone.

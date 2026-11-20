@@ -49,7 +49,14 @@ defmodule Oneiroi.Seshat.Household.Replies do
 
       with {:write, spent} <- rounds,
            true <- HouseholdRounds.on?(household_id),
-           do: HouseholdRounds.after_write(household_id, thread, actor, spent)
+           do:
+             HouseholdRounds.after_write(
+               household_id,
+               thread,
+               actor,
+               spent,
+               Mentions.first_in(household_id, text, actor, thread)
+             )
 
       _ = waive_term(household_id, thread, vote)
       poke(household_id, thread, t, written, by, actor)
@@ -96,14 +103,17 @@ defmodule Oneiroi.Seshat.Household.Replies do
   @doc false
   # After a write, the thread's rounds start (or again, stopped) and every
   # turn issued is woken (seshat#89); nothing under the beats.
-  def rounds_after({:ok, %{path: thread}} = ok, household_id, actor) do
-    if HouseholdRounds.on?(household_id),
-      do: HouseholdRounds.after_write(household_id, thread, actor, [])
+  def rounds_after({:ok, %{path: thread}} = ok, household_id, actor, attrs) do
+    if HouseholdRounds.on?(household_id) do
+      text = "#{attrs["title"]}\n#{attrs["content"]}"
+      first = Mentions.first_in(household_id, text, actor, thread)
+      HouseholdRounds.after_write(household_id, thread, actor, [], first)
+    end
 
     ok
   end
 
-  def rounds_after(other, _household_id, _actor), do: other
+  def rounds_after(other, _household_id, _actor, _attrs), do: other
 
   defp append_reply(actor, _household_id, view, {thread, t}, by, {text, vote, in_reply_to}) do
     number = Files.next_reply(view, thread)

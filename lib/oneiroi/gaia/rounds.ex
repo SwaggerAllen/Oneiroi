@@ -74,7 +74,7 @@ defmodule Oneiroi.Gaia.Rounds do
     starter = if c.starter in c.residents, do: c.starter
 
     %{r | id: c.id}
-    |> begin_round(c, c.thread, starter, setup)
+    |> begin_round(c, c.thread, starter, setup, List.wrap(c.first))
     |> events()
   end
 
@@ -169,7 +169,7 @@ defmodule Oneiroi.Gaia.Rounds do
     Map.update(r, :emitted, [event], &[event | &1])
   end
 
-  defp begin_round(r, c, thread, starter, setup \\ nil) do
+  defp begin_round(r, c, thread, starter, setup \\ nil, first \\ []) do
     t = Map.get(r.threads, thread) || new_thread(nil)
     setup = setup || %{residents: t.residents, timeout: t.timeout, ordering: t.ordering}
     t = Map.merge(t, setup)
@@ -181,7 +181,7 @@ defmodule Oneiroi.Gaia.Rounds do
       id: r.id || c.id,
       thread: thread,
       round: t.round + 1,
-      order: ordered(members, t, thread),
+      order: mentioned_first(first, ordered(members, t, thread)),
       had: List.wrap(starter),
       residents: t.residents,
       timeout: t.timeout,
@@ -254,6 +254,18 @@ defmodule Oneiroi.Gaia.Rounds do
       _least_recent ->
         Enum.sort_by(members, &{at(t.last_post[&1]), &1})
     end
+  end
+
+  # A post's @mentions go first in the round it starts (gaia#59; the
+  # witness, 2026-11-19: "@mention still starts a round, just with the @ed
+  # person going first"), in the order they were named; the rest follow
+  # as the ordering has them. Never narrowed: whoever is not named keeps
+  # a turn.
+  defp mentioned_first([], order), do: order
+
+  defp mentioned_first(first, order) do
+    named = Enum.filter(Enum.uniq(first), &(&1 in order))
+    named ++ (order -- named)
   end
 
   defp at(nil), do: 0

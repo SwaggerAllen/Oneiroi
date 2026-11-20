@@ -29,12 +29,12 @@ defmodule Oneiroi.Seshat.Household.Posts do
       case {attrs["kind"] || "thread", attrs["doc"]} do
         {"thread", doc} when is_binary(doc) ->
           Documents.post_doc_thread(actor, household_id, view, attrs)
-          |> Replies.rounds_after(household_id, actor)
+          |> Replies.rounds_after(household_id, actor, attrs)
           |> Mentions.mentioned(household_id, actor, attrs, nil)
 
         {"thread", _none} ->
           post_thread(actor, household_id, view, attrs)
-          |> Replies.rounds_after(household_id, actor)
+          |> Replies.rounds_after(household_id, actor, attrs)
           |> Mentions.mentioned(household_id, actor, attrs, nil)
 
         _document ->

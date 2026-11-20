@@ -58,9 +58,11 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
   @doc """
   After a post or a reply is written: the thread's rounds start, or start
   again when stopped (nothing while they run), and every turn issued,
-  by this or by the token spent before the write, is woken.
+  by this or by the token spent before the write, is woken. `first`: the
+  residents the post @mentioned, who take the round's first turns
+  (seshat#97's sibling, gaia#59).
   """
-  def after_write(household_id, thread, %Actor{} = actor, spent) do
+  def after_write(household_id, thread, %Actor{} = actor, spent, first \\ []) do
     shape = Gaia.household_beat_shape(household_id)
     starter = if actor.kind == :resident, do: actor.id
 
@@ -72,7 +74,8 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
              starter,
              shape.turn * 60,
              nil,
-             @actor
+             @actor,
+             first
            ) do
         {:ok, events} -> events
         {:error, _} -> []
