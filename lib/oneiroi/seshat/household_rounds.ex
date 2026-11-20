@@ -312,7 +312,7 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
   defp granted_line(%{optout: optout}, turn) when is_list(optout) do
     if turn.resident_id in optout,
       do:
-        "\n\nThis turn is granted: you were named in the post that started this round, and you are opted out of this thread's rounds. Answering here does not opt you back in; household_opt_in does, if you want it, and your turns resume from the next round. Otherwise this is your one turn in this round, and the round goes on without you after it.",
+        "\n\nThis turn is granted: you were named in the post that started this round, and you are opted out of this thread's rounds. Answering here does not opt you back in; household_opt_in does, if you want it, and your turns resume from the next round. Either way, this is your one turn in this round, and the round goes on without you after it.",
       else: ""
   end
 
