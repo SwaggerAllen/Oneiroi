@@ -69,6 +69,7 @@ defmodule Oneiroi.Sunna do
       Commands.ArmWork,
       Commands.DisarmWork,
       Commands.ResetWorkRuns,
+      Commands.SkipCareWait,
       Events.WorkAdded,
       Events.WorkMoved,
       Events.WorkHeld,
@@ -80,6 +81,7 @@ defmodule Oneiroi.Sunna do
       Events.WorkArmed,
       Events.WorkDisarmed,
       Events.WorkRunsReset,
+      Events.WorkCareSkipped,
       Events.LettersWoke,
       Events.WakeManifested,
       Events.WakeRead,
@@ -335,7 +337,8 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.WorkRested, 1},
       {Oneiroi.Sunna.Events.WorkArmed, 1},
       {Oneiroi.Sunna.Events.WorkDisarmed, 1},
-      {Oneiroi.Sunna.Events.WorkRunsReset, 1}
+      {Oneiroi.Sunna.Events.WorkRunsReset, 1},
+      {Oneiroi.Sunna.Events.WorkCareSkipped, 1}
     ]
   end
 
@@ -599,6 +602,12 @@ defmodule Oneiroi.Sunna do
   @spec work_reset_runs(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(work_reset_runs(resident_id, note, actor),
     do: WorkLoop.reset_runs_by(resident_id, note, actor)
+  )
+
+  @doc "Skips the free-time wait (sunna#76): the witness's, with a note; the loop checks at once."
+  @spec work_skip_care(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(work_skip_care(resident_id, note, actor),
+    do: WorkLoop.skip_care_by(resident_id, note, actor)
   )
 
   @doc "The work queue: its items in order and the loop's state, both parties' read."

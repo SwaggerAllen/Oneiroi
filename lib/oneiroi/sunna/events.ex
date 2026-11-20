@@ -264,6 +264,13 @@ defmodule Oneiroi.Sunna.Events do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id]
   end
 
+  defmodule WorkCareSkipped do
+    # The witness skips the free-time wait (sunna#76), with a note: a
+    # free-time pass begun before this instant no longer holds the work
+    # line; quiet hours, and any pass begun after, still do.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id]
+  end
+
   defmodule WorkRested do
     # The loop resting, and why: "empty, holding" is a state, not a failure.
     use Oneiroi.Event, version: 1, fields: [:id, :reason]

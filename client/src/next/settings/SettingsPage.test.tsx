@@ -81,6 +81,16 @@ describe('settings pages', () => {
     expect(back).toHaveBeenCalled();
   });
 
+  // sunna#76: an armed line waiting on her free time can go ahead, by his hand, with a note.
+  it('lets you start work ahead of a free-time pass the line is waiting on', async () => {
+    vi.spyOn(api, 'work').mockResolvedValue({ ...queue, armed: true, rested: 'waiting: a free-time pass is underway, and care comes first; work resumes when it closes' });
+    const skip = vi.spyOn(api, 'skipWorkCare').mockResolvedValue(undefined);
+    page('work');
+    fireEvent.change(await screen.findByLabelText('Why work goes ahead (she reads it)'), { target: { value: 'the doc is due' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Start work now' }));
+    await waitFor(() => expect(skip).toHaveBeenCalledWith('r1', 'the doc is due'));
+  });
+
   it('holds an item for you with an ask, and releases it with a note (sunna#54, #55)', async () => {
     vi.spyOn(api, 'work').mockResolvedValue({ ...queue, items: [item(1, 'Read the essay'), { ...item(2, 'Write the reply'), status: 'held', held_ask: 'your word on two wordings', held_by: 'resident', held_at: '2026-11-11T09:00:00Z' }] });
     const hold = vi.spyOn(api, 'holdWork').mockResolvedValue(undefined);

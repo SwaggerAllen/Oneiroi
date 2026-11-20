@@ -6,6 +6,7 @@ defmodule Oneiroi.Sunna.FreeTimeSlotOnceTest do
   running a slot, another tick does not open it again.
   """
   use Oneiroi.DataCase, async: false
+  use Oban.Testing, repo: Oneiroi.Repo
 
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
@@ -15,6 +16,7 @@ defmodule Oneiroi.Sunna.FreeTimeSlotOnceTest do
   alias Oneiroi.Nisaba.Provider.Fake
   alias Oneiroi.Scope
   alias Oneiroi.Sunna
+  alias Oneiroi.Sunna.FreeTimeWorker
   alias Oneiroi.Sunna.Store
 
   # The fake clock's epoch, 2026-10-26 12:00Z, is 08:00 in New York.
@@ -58,6 +60,11 @@ defmodule Oneiroi.Sunna.FreeTimeSlotOnceTest do
              Scope.resident(ctx.id, fn -> Store.free_time_runs(@day) end)
 
     refute outcome =~ "outlasted"
+
+    # Its planning turn is queued behind it (sunna#75), so the run is
+    # closed when she is done rather than held open three hours.
+    assert [%{args: %{"turn" => "plan", "run" => "2026-10-26 08:00"}}] =
+             for(j <- all_enqueued(worker: FreeTimeWorker), j.args["turn"] == "plan", do: j)
 
     Clock.Fake.advance(60)
     :ok = Sunna.tick(ctx.id)

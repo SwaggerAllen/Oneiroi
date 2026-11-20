@@ -17,9 +17,9 @@ defmodule Oneiroi.Sunna.WorkLoop do
   The run's end buys the next check at once, and the minute tick checks
   too, so a loop paused for care resumes after it.
 
-  Care outranks work: no work turn starts inside quiet hours or while a
-  free-time pass is underway; one that would is put off and tried
-  again. The queue accelerates her drafting, never the witness's
+  Care outranks work: no work turn starts while a free-time pass is
+  underway; one that would is put off and tried again. Quiet hours do
+  not hold it (sunna#77): the runs-a-day cap is its brake. The queue accelerates her drafting, never the witness's
   deciding: the run's note says so, and nothing here acts on the
   platform.
   """
@@ -47,6 +47,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
   @free_time_window 3 * 3600
   # How long a work turn waits when care comes first.
   @care_wait 600
+  # What an armed line waiting on her free time says (sunna#75).
+  @care_reason "waiting: a free-time pass is underway, and care comes first; work resumes when it closes"
 
   # ---- the queue's edge ----
 
@@ -61,7 +63,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
     }
 
     case dispatch(command) do
-      {:ok, [event]} -> {:ok, event.number}
+      {:ok, [event]} -> checked(resident_id, {:ok, event.number})
       {:ok, []} -> {:error, Error.new(:sunna_work_invalid, :sunna_work_add_not_recorded)}
       other -> other
     end
@@ -79,7 +81,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
       note: note
     }
 
-    with {:ok, _} <- dispatch(command), do: :ok
+    with {:ok, _} <- dispatch(command), do: checked(resident_id, :ok)
   end
 
   @doc """
@@ -99,7 +101,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
       note: if(blank?(note), do: "Held for the witness's word.", else: note)
     }
 
-    with {:ok, _} <- dispatch(command), do: :ok
+    with {:ok, _} <- dispatch(command), do: checked(resident_id, :ok)
   end
 
   defp blank?(text), do: not is_binary(text) or String.trim(text) == ""
@@ -107,7 +109,14 @@ defmodule Oneiroi.Sunna.WorkLoop do
   @doc "Puts the numbers given first, in that order; the rest keep theirs after."
   def order(resident_id, numbers, %Actor{} = actor) do
     command = %Commands.OrderWork{actor: actor, at: Clock.now(), id: resident_id, order: numbers}
-    with {:ok, _} <- dispatch(command), do: :ok
+    with {:ok, _} <- dispatch(command), do: checked(resident_id, :ok)
+  end
+
+  # A change to the queue asks the loop at once (sunna#76; Lily's letter
+  # #1414), as arming and a run's end do, rather than waiting on the tick.
+  defp checked(resident_id, result) do
+    worker().enqueue_check(resident_id)
+    result
   end
 
   @doc "Her wrap of the running item: what shipped, what slipped, why, and where it stands."
@@ -150,6 +159,20 @@ defmodule Oneiroi.Sunna.WorkLoop do
   @doc "The witness gives the day's runs back (sunna#53), with a note; the loop checks at once."
   def reset_runs_by(resident_id, note, %Actor{} = actor) do
     command = %Commands.ResetWorkRuns{actor: actor, at: Clock.now(), id: resident_id, note: note}
+
+    with {:ok, _} <- dispatch(command) do
+      worker().enqueue_check(resident_id)
+      :ok
+    end
+  end
+
+  @doc """
+  The witness skips the free-time wait (sunna#76), with a note: a pass
+  begun before now no longer holds the line, and the loop checks at once.
+  Quiet hours still hold it, and so does any pass begun later.
+  """
+  def skip_care_by(resident_id, note, %Actor{} = actor) do
+    command = %Commands.SkipCareWait{actor: actor, at: Clock.now(), id: resident_id, note: note}
 
     with {:ok, _} <- dispatch(command) do
       worker().enqueue_check(resident_id)
@@ -217,10 +240,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
   the run's end ask again).
   """
   def check(resident_id) do
-    {items, state, settings} =
-      Scope.resident(resident_id, fn ->
-        {Store.work_items(), Store.work_queue(), Store.settings()}
-      end)
+    {items, state} =
+      Scope.resident(resident_id, fn -> {Store.work_items(), Store.work_queue()} end)
 
     cond do
       left_behind?(state, items) ->
@@ -232,7 +253,9 @@ defmodule Oneiroi.Sunna.WorkLoop do
       state && state.rested_reason == Work.stopped_rest() ->
         :stopped
 
-      care_first?(resident_id, settings) ->
+      care_first?(resident_id) ->
+        # Said, not silent (sunna#75): an armed line waiting on care shows why.
+        _ = rest(resident_id, @care_reason)
         :care
 
       true ->
@@ -564,37 +587,35 @@ defmodule Oneiroi.Sunna.WorkLoop do
   # runs when care is done. Inside quiet hours it waits until they end;
   # behind a free-time pass, ten minutes at a time until its planning
   # turn closes it.
+  # Care first is her free time alone (sunna#77; the witness, 2026-11-19:
+  # "the runs-a-day cap is the brake"): quiet hours guard wakes that want
+  # him, and the queue wants nobody, so they no longer hold it.
   defp care_wait(resident_id) do
-    quiet = quiet_of(settings(resident_id))
-    local = Schedules.local_now(resident_id)
-    since = DateTime.add(Clock.now(), -@free_time_window, :second)
+    if Scope.resident(resident_id, fn ->
+         Store.free_time_underway?(free_time_since(resident_id))
+       end),
+       do: @care_wait,
+       else: nil
+  end
 
-    cond do
-      Schedules.quiet?(local, quiet) ->
-        max(DateTime.diff(Schedules.quiet_end(local, quiet), local, :second), 60)
+  # The free-time passes that hold the line: begun within the window, and
+  # after the witness's last skip of the wait (sunna#76).
+  defp free_time_since(resident_id) do
+    window = DateTime.add(Clock.now(), -@free_time_window, :second)
 
-      Scope.resident(resident_id, fn -> Store.free_time_underway?(since) end) ->
-        @care_wait
+    case Scope.resident(resident_id, fn -> Store.work_queue() end) do
+      %{care_skipped_at: %DateTime{} = skipped} ->
+        if DateTime.compare(skipped, window) == :gt, do: skipped, else: window
 
-      true ->
-        nil
+      _none ->
+        window
     end
   end
 
-  defp care_first?(resident_id, settings) do
-    local = Schedules.local_now(resident_id)
-    since = DateTime.add(Clock.now(), -@free_time_window, :second)
-
-    Schedules.quiet?(local, quiet_of(settings)) or
-      Scope.resident(resident_id, fn -> Store.free_time_underway?(since) end)
+  defp care_first?(resident_id) do
+    since = free_time_since(resident_id)
+    Scope.resident(resident_id, fn -> Store.free_time_underway?(since) end)
   end
-
-  defp quiet_of(%{quiet_from: from, quiet_to: to}) when is_binary(from) and is_binary(to),
-    do: %{from: from, to: to}
-
-  defp quiet_of(_settings), do: nil
-
-  defp settings(resident_id), do: Scope.resident(resident_id, fn -> Store.settings() end)
 
   # What the armed line allows a turn (sunna#35): with no cap, unlimited;
   # with one, what is left, or `:spent`, when the run goes to its wrap.

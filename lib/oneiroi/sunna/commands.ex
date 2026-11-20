@@ -159,6 +159,11 @@ defmodule Oneiroi.Sunna.Commands do
     use Oneiroi.Command, fields: [:id], decision: true
   end
 
+  # The witness skips the free-time wait (sunna#76), with a note.
+  defmodule SkipCareWait do
+    use Oneiroi.Command, fields: [:id], decision: true
+  end
+
   defmodule RestWork do
     use Oneiroi.Command, fields: [:id, :reason]
   end

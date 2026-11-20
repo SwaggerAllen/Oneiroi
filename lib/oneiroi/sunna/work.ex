@@ -240,6 +240,14 @@ defmodule Oneiroi.Sunna.Work do
   def execute(%__MODULE__{}, %Commands.ResetWorkRuns{}),
     do: {:error, Error.new(:sunna_work_not_a_party, :sunna_work_reset_witness_only)}
 
+  # The free-time wait skipped (sunna#76): the witness's alone, never hers,
+  # since care outranking work is what keeps her hour from her queue.
+  def execute(%__MODULE__{}, %Commands.SkipCareWait{actor: %{kind: :witness}} = c),
+    do: %Events.WorkCareSkipped{actor: c.actor, at: c.at, id: c.id, note: c.note}
+
+  def execute(%__MODULE__{}, %Commands.SkipCareWait{}),
+    do: {:error, Error.new(:sunna_work_not_a_party, :sunna_work_skip_care_witness_only)}
+
   def execute(%__MODULE__{running: nil, rested: rested}, %Commands.RestWork{} = c) do
     if c.reason == rested or not words?(c.reason, 300),
       do: [],
@@ -292,6 +300,7 @@ defmodule Oneiroi.Sunna.Work do
   def apply(%__MODULE__{} = s, %Events.WorkDisarmed{}), do: %{s | armed: false}
   # The count lives in the projection; the stream keeps the act and its note.
   def apply(%__MODULE__{} = s, %Events.WorkRunsReset{}), do: s
+  def apply(%__MODULE__{} = s, %Events.WorkCareSkipped{}), do: %{s | rested: nil}
 
   @doc "The rest a stopped run leaves the loop in, until either party touches the queue."
   def stopped_rest,
