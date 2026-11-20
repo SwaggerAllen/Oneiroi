@@ -144,6 +144,23 @@ defmodule OneiroiWeb.WorkController do
     end
   end
 
+  operation(:skip_care,
+    summary:
+      "Skip the free-time wait (sunna#76): a free-time pass begun before now no longer holds the work line, and the loop checks at once; quiet hours still do; the witness's, with a note",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the note", "application/json",
+       %Schema{type: :object, required: [:note], properties: %{note: %Schema{type: :string}}}},
+    responses: [no_content: "skipped"]
+  )
+
+  def skip_care(conn, %{"id" => id} = params) do
+    case Sunna.work_skip_care(id, params["note"], actor(conn)) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
   # Held carries the ask (sunna#54); every other status is a plain move.
   defp moved(id, n, %{"status" => "held"} = params, actor),
     do: Sunna.work_hold(id, n, params["ask"], params["note"], actor)

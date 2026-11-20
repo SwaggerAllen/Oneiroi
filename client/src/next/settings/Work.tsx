@@ -29,6 +29,7 @@ export function Work() {
   const [what, setWhat] = useState('');
   const [doneWhen, setDoneWhen] = useState('');
   const [resetNote, setResetNote] = useState('');
+  const [skipNote, setSkipNote] = useState('');
   const act = useAct();
   const run = (work: () => Promise<string>) => void act.run(work, ['resident', id, 'sessions'], ['resident', id, 'bell']);
 
@@ -59,6 +60,31 @@ export function Work() {
               </button>
             </div>
             {q.running !== null && <span className={css.note}>The run in work finishes; nothing starts after it until the line is armed again.</span>}
+          </div>
+        )}
+        {q.armed && q.running === null && (q.rested ?? '').startsWith('waiting: a free-time pass') && (
+          <div className={css.column}>
+            <span className={css.note}>
+              Waiting on {name}'s free time (care comes first). You can let work go ahead of this pass; quiet hours and any later pass still come first.
+            </span>
+            <Field label="Why work goes ahead (she reads it)" value={skipNote} onChange={(e) => setSkipNote(e.target.value)} />
+            <div>
+              <button
+                type="button"
+                className={css.secondary}
+                disabled={act.busy}
+                onClick={() =>
+                  run(() =>
+                    api.skipWorkCare(id, skipNote.trim() || 'Work goes ahead of this free-time pass.').then(() => {
+                      setSkipNote('');
+                      return 'Work goes ahead; the loop checks now.';
+                    }),
+                  )
+                }
+              >
+                Start work now
+              </button>
+            </div>
           </div>
         )}
         {q.runs_today > 0 && (

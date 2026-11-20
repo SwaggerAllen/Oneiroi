@@ -218,6 +218,7 @@ defmodule Oneiroi.Sunna.Store do
       field(:armed, :boolean, default: false)
       field(:armed_at, :utc_datetime_usec)
       field(:armed_by, :string)
+      field(:care_skipped_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}

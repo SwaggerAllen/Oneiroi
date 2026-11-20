@@ -149,7 +149,7 @@ clipboard, or "Couldn't copy; select it" when the browser refuses
 - **Work queue** (sunna#33, #35, #38, #42, #43, #54, #55, #58):
   - the line in words: running, resting, runs today, armed by whom and
     what is left of its cap; "Arm the work line" when it is off and
-    something is open, "Turn the work line off" when armed; once a run has been used today, how many of the day's runs are used and "Reset today's runs" with a note she reads (sunna#53);
+    something is open, "Turn the work line off" when armed; once a run has been used today, how many of the day's runs are used and "Reset today's runs" with a note she reads (sunna#53); while the armed line waits on her free time, "Start work now" with a note she reads (optional; a plain line goes when none is given), which lets work go ahead of that pass (sunna#76);
   - the live items in order: status, who added it, done when, the
     last wrap (shipped, slipped, why), the note; with a note: Blocked on
     another item, Unblock, Done, Drop; "Move up";

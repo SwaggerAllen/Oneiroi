@@ -286,6 +286,27 @@ defmodule Oneiroi.Sunna.WorkTest do
              Sunna.work_queue(ctx.id)
   end
 
+  # sunna#76 (the witness, 2026-11-19): he lets work go ahead of a
+  # free-time pass; she cannot; a pass begun after his skip holds it again.
+  test "the witness skips the free-time wait with a note, and work starts; hers is refused",
+       ctx do
+    :ok = Nisaba.set_budget(ctx.id, :work, 5_000_000_000, :day, ctx.actor)
+    {:ok, 1} = Sunna.work_add(ctx.id, "Audience policy", "drafted", ctx.me)
+    :ok = Sunna.set_free_time(ctx.id, "12:00", ctx.actor)
+    :ok = Sunna.tick(ctx.id)
+    flush()
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    assert :care = WorkLoop.check(ctx.id)
+
+    assert {:error, %{kind: :sunna_work_not_a_party}} =
+             Sunna.work_skip_care(ctx.id, "mine first", ctx.me)
+
+    Clock.Fake.advance(1)
+    assert :ok = Sunna.work_skip_care(ctx.id, "the doc is due", ctx.actor)
+    assert %{rested: nil} = Sunna.work_queue(ctx.id)
+    assert {:started, 1} = WorkLoop.check(ctx.id)
+  end
+
   test "care first: inside quiet hours a run waits until they end, and resumes the same turn",
        ctx do
     :ok = Nisaba.set_budget(ctx.id, :work, 5_000_000_000, :day, ctx.actor)

@@ -539,3 +539,10 @@ on a different line: the work loop, which trusts the free-time record.
 Closing it from the path that opened it keeps the trust honest. The
 silent :care made a three-hour wait look like a dead loop; a reason in
 the queue lets both parties see care working.
+
+## #76
+The care fence protects her hour from her own queue, so only the hand
+that holds the cap may open it, and only for the pass that is running:
+recording the instant, not a switch, means the fence closes itself the
+next time free time begins. Quiet hours stay closed because they are
+rest at night, not a pass running long.

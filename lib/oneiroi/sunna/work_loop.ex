@@ -61,7 +61,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
     }
 
     case dispatch(command) do
-      {:ok, [event]} -> {:ok, event.number}
+      {:ok, [event]} -> checked(resident_id, {:ok, event.number})
       {:ok, []} -> {:error, Error.new(:sunna_work_invalid, :sunna_work_add_not_recorded)}
       other -> other
     end
@@ -79,7 +79,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
       note: note
     }
 
-    with {:ok, _} <- dispatch(command), do: :ok
+    with {:ok, _} <- dispatch(command), do: checked(resident_id, :ok)
   end
 
   @doc """
@@ -99,7 +99,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
       note: if(blank?(note), do: "Held for the witness's word.", else: note)
     }
 
-    with {:ok, _} <- dispatch(command), do: :ok
+    with {:ok, _} <- dispatch(command), do: checked(resident_id, :ok)
   end
 
   defp blank?(text), do: not is_binary(text) or String.trim(text) == ""
@@ -107,7 +107,14 @@ defmodule Oneiroi.Sunna.WorkLoop do
   @doc "Puts the numbers given first, in that order; the rest keep theirs after."
   def order(resident_id, numbers, %Actor{} = actor) do
     command = %Commands.OrderWork{actor: actor, at: Clock.now(), id: resident_id, order: numbers}
-    with {:ok, _} <- dispatch(command), do: :ok
+    with {:ok, _} <- dispatch(command), do: checked(resident_id, :ok)
+  end
+
+  # A change to the queue asks the loop at once (sunna#76; Lily's letter
+  # #1414), as arming and a run's end do, rather than waiting on the tick.
+  defp checked(resident_id, result) do
+    worker().enqueue_check(resident_id)
+    result
   end
 
   @doc "Her wrap of the running item: what shipped, what slipped, why, and where it stands."
@@ -150,6 +157,20 @@ defmodule Oneiroi.Sunna.WorkLoop do
   @doc "The witness gives the day's runs back (sunna#53), with a note; the loop checks at once."
   def reset_runs_by(resident_id, note, %Actor{} = actor) do
     command = %Commands.ResetWorkRuns{actor: actor, at: Clock.now(), id: resident_id, note: note}
+
+    with {:ok, _} <- dispatch(command) do
+      worker().enqueue_check(resident_id)
+      :ok
+    end
+  end
+
+  @doc """
+  The witness skips the free-time wait (sunna#76), with a note: a pass
+  begun before now no longer holds the line, and the loop checks at once.
+  Quiet hours still hold it, and so does any pass begun later.
+  """
+  def skip_care_by(resident_id, note, %Actor{} = actor) do
+    command = %Commands.SkipCareWait{actor: actor, at: Clock.now(), id: resident_id, note: note}
 
     with {:ok, _} <- dispatch(command) do
       worker().enqueue_check(resident_id)
@@ -569,7 +590,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   defp care_wait(resident_id) do
     quiet = quiet_of(settings(resident_id))
     local = Schedules.local_now(resident_id)
-    since = DateTime.add(Clock.now(), -@free_time_window, :second)
+    since = free_time_since(resident_id)
 
     cond do
       Schedules.quiet?(local, quiet) ->
@@ -590,9 +611,23 @@ defmodule Oneiroi.Sunna.WorkLoop do
         "waiting: a free-time pass is underway, and care comes first; work resumes when it closes"
   end
 
+  # The free-time passes that hold the line: begun within the window, and
+  # after the witness's last skip of the wait (sunna#76).
+  defp free_time_since(resident_id) do
+    window = DateTime.add(Clock.now(), -@free_time_window, :second)
+
+    case Scope.resident(resident_id, fn -> Store.work_queue() end) do
+      %{care_skipped_at: %DateTime{} = skipped} ->
+        if DateTime.compare(skipped, window) == :gt, do: skipped, else: window
+
+      _none ->
+        window
+    end
+  end
+
   defp care_first?(resident_id, settings) do
     local = Schedules.local_now(resident_id)
-    since = DateTime.add(Clock.now(), -@free_time_window, :second)
+    since = free_time_since(resident_id)
 
     Schedules.quiet?(local, quiet_of(settings)) or
       Scope.resident(resident_id, fn -> Store.free_time_underway?(since) end)
