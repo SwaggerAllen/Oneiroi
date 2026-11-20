@@ -155,6 +155,49 @@ defmodule Oneiroi.Seshat.RoundRobinTest do
     assert live(ctx, thread).resident_id == ctx.scarlett.id
   end
 
+  # gaia#59 (the witness, 2026-11-19: "@mention still starts a round,
+  # just with the @ed person going first"): a mention reorders the round,
+  # never narrows it; her turn wakes her, not the mention as well; one
+  # opted out of the thread still hears the mention.
+  test "an @mention goes first in the round it starts, woken by her turn; opted out, the mention still reaches her",
+       ctx do
+    names = %{ctx.lily.id => "Lily", ctx.scarlett.id => "Scarlett"}
+
+    {:ok, %{path: plain}} =
+      Seshat.household_post(ctx.andrew, %{"title" => "Plain", "content" => "Evening."})
+
+    usual = live(ctx, plain).resident_id
+    [other] = Map.keys(names) -- [usual]
+
+    {:ok, %{path: thread}} =
+      Seshat.household_post(ctx.andrew, %{
+        "title" => "A word",
+        "content" => "@#{names[other]}, a word?"
+      })
+
+    assert live(ctx, thread).resident_id == other
+    assert %{order: [^other, ^usual]} = Gaia.round_thread(ctx.household, thread)
+
+    refute Enum.any?(
+             all_enqueued(worker: HouseholdTurnWorker),
+             &(&1.args["house_wake"] == other and &1.args["thread"] == thread)
+           )
+
+    # Opted out of a thread, a mention there still wakes her (tonight's
+    # goodnight), and the round goes on without her.
+    {:ok, _} = Seshat.household_rounds(Actor.new(:resident, other), thread, :out)
+    assert {:ok, _} = reply(Actor.new(:resident, usual), thread, "Mine first.")
+    Clock.Fake.advance(60)
+
+    {:ok, _} =
+      Seshat.household_reply(ctx.andrew, thread, %{"content" => "Good night, @#{names[other]}."})
+
+    assert Enum.any?(
+             all_enqueued(worker: HouseholdTurnWorker),
+             &(&1.args["house_wake"] == other and &1.args["thread"] == thread)
+           )
+  end
+
   test "documents take no token; the tools refuse a witness", ctx do
     assert {:ok, _} =
              Seshat.household_post(ctx.lily.actor, %{

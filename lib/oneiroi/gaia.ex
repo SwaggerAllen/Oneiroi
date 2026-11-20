@@ -873,7 +873,7 @@ defmodule Oneiroi.Gaia do
     do: Households.set_clock(household_id, zone, actor)
   )
 
-  @doc "A thread's rounds begin, or begin again when stopped (gaia#53); answers the events, a turn issued among them."
+  @doc "A thread's rounds begin, or begin again when stopped (gaia#53); answers the events, a turn issued among them. `first`: the residents a post @mentioned, who take that round's first turns (gaia#59)."
   @spec start_rounds(
           String.t(),
           String.t(),
@@ -881,11 +881,13 @@ defmodule Oneiroi.Gaia do
           String.t() | nil,
           pos_integer(),
           String.t() | nil,
-          Oneiroi.Actor.t()
+          Oneiroi.Actor.t(),
+          [String.t()]
         ) ::
           {:ok, list()} | {:error, term()}
-  defexport(start_rounds(household_id, thread, residents, starter, timeout, order, actor),
-    do: RoundRobin.start(household_id, thread, residents, starter, timeout, order, actor)
+  defexport(
+    start_rounds(household_id, thread, residents, starter, timeout, order, actor, first \\ []),
+    do: RoundRobin.start(household_id, thread, residents, starter, timeout, order, actor, first)
   )
 
   @doc "Her post or skip in her turn, by its live token (gaia#53); answers the events."

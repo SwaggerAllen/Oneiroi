@@ -17,18 +17,28 @@ defmodule Oneiroi.Gaia.RoundRobin do
   alias Oneiroi.Scope
 
   @doc "A thread's rounds begin, or begin again when stopped (or never begun); nothing while they run."
-  def start(household_id, thread, residents, starter, timeout, order, %Actor{} = actor),
-    do:
-      dispatch(%Commands.StartRounds{
-        actor: actor,
-        at: Clock.now(),
-        id: household_id,
-        thread: thread,
-        residents: residents,
-        starter: starter,
-        timeout: timeout,
-        order: order
-      })
+  def start(
+        household_id,
+        thread,
+        residents,
+        starter,
+        timeout,
+        order,
+        %Actor{} = actor,
+        first \\ []
+      ),
+      do:
+        dispatch(%Commands.StartRounds{
+          actor: actor,
+          at: Clock.now(),
+          id: household_id,
+          thread: thread,
+          residents: residents,
+          starter: starter,
+          timeout: timeout,
+          order: order,
+          first: first
+        })
 
   @doc "Her post or skip in her turn: refused unless her live token for that thread."
   def spend(household_id, thread, resident_id, how, %Actor{} = actor),
