@@ -1533,11 +1533,92 @@ defmodule Oneiroi.Brain.Tools do
           "#{switch.label} is switched off in your agreement with your witness; a version that turns it on, agreed by you both, brings it back."
 
       {nil, {:ok, args}} ->
-        guarded(name, args, turn)
+        withheld(name, args, turn) || guarded(name, args, turn)
 
       {nil, :error} ->
         @not_done <> "the arguments were not a JSON object."
     end
+  end
+
+  # The domains of a conversation read deliberately, each once, as ledger
+  # inputs (kumbukumbu#80): none named is the common room.
+  defp transcript_inputs(key, messages) do
+    for m <- messages,
+        pair = m.domain && %{person: m.domain_person, domain: m.domain},
+        uniq: true,
+        do: %{
+          id: "transcript/#{key}/#{inspect(pair)}",
+          ref: "transcript/#{key}",
+          labels: if(pair, do: [pair], else: :common_room)
+        }
+  end
+
+  defp transcript_answer({:ok, session, messages}, ref, _from) when is_binary(ref) and ref != "",
+    do: transcript_message(session, messages, ref)
+
+  defp transcript_answer({:ok, session, messages}, _ref, from),
+    do: transcript_page(session, messages, from)
+
+  # ---- the audience check before a delivery (kumbukumbu#80) ----
+  #
+  # A tool that carries her composition past the dyad asks, before it
+  # acts, whether what this turn's model saw may reach that audience (the
+  # turn's input ledger against the dyad's domain policies). Withheld,
+  # nothing is delivered; she is told which domains are in conflict, in
+  # her own context, and the audience learns nothing. A trial delivers
+  # nothing and asks nothing.
+  defp withheld(_name, _args, %{trial?: true}), do: nil
+
+  defp withheld(name, args, turn) do
+    with %{} = audience <- delivery_audience(name, args, turn),
+         {:error, %{kind: :kumbukumbu_withheld_by_policy} = e} <-
+           Kumbukumbu.delivery_check(
+             turn.resident_id,
+             Map.get(turn, :session_key),
+             Map.get(turn, :turn_ref),
+             audience
+           ) do
+      withheld_words(e)
+    else
+      _delivered -> nil
+    end
+  end
+
+  # Who each delivering tool reaches. Her own conversations, the house
+  # letter to them and free time are the dyad's, and asked nothing.
+  @to_house ~w(household_post household_reply household_edit household_promote document_publish)
+  defp delivery_audience(name, _args, turn) when name in @to_house do
+    case Oneiroi.Gaia.resident_household(turn.resident_id) do
+      %{id: id} -> Kumbukumbu.audience("household", id)
+      _none -> nil
+    end
+  end
+
+  defp delivery_audience("letter_send", args, turn) do
+    case sibling(turn.resident_id, to_string(args["to"] || "")) do
+      {sibling, _me} -> Kumbukumbu.audience("person", "resident:" <> sibling.id)
+      nil -> nil
+    end
+  end
+
+  defp delivery_audience("reply_draft", args, _turn),
+    do:
+      Kumbukumbu.audience("correspondent", "#{args["platform"]}:#{args["account"] || args["to"]}")
+
+  # A like or a bare restack carries none of her words; a comment (or a
+  # restack with words) is her composition, made public.
+  defp delivery_audience("presence_stage", args, _turn) do
+    if is_binary(args["text"]) and String.trim(args["text"]) != "",
+      do: Kumbukumbu.audience("publication", "substack")
+  end
+
+  defp delivery_audience(_name, _args, _turn), do: nil
+
+  defp withheld_words(%{details: d}) do
+    conflicts = Enum.join(Keyword.get(d, :conflicts, []), ", ")
+
+    @not_done <>
+      "withheld by policy (decision #{d[:decision]}): this turn's context holds #{conflicts}, which your agreement's domain policies keep from #{d[:audience]}. Nothing was delivered, and the audience learns nothing of it. Say it where the policies allow (here, or to an audience they grant), or let the turn's context move on; the policies are yours and your witness's to change by agreement."
   end
 
   # A tool whose contract switch is off is refused in words, whatever the
@@ -1765,6 +1846,12 @@ defmodule Oneiroi.Brain.Tools do
   defp call("bookmark_open", args, turn) do
     case Kumbukumbu.bookmark(turn.resident_id, integer(args["number"])) do
       {:ok, b, messages} ->
+        # What she opened reaches the turn's input ledger (kumbukumbu#80).
+        :ok =
+          Kumbukumbu.note_read(turn.resident_id, Map.get(turn, :turn_ref), [
+            Kumbukumbu.bookmark_input(turn.resident_id, b)
+          ])
+
         lines = Enum.map(messages, &"#{&1.role}: #{&1.content}")
 
         revisions =
@@ -2695,11 +2782,15 @@ defmodule Oneiroi.Brain.Tools do
     # Her deliberate reach is never scoped (P23-R1 §2): any conversation
     # of hers, in any domain.
     case {Kumbukumbu.transcript({:resident, turn.resident_id}, key), args["message"]} do
-      {{:ok, session, messages}, ref} when is_binary(ref) and ref != "" ->
-        transcript_message(session, messages, ref)
+      {{:ok, _session, messages} = read, ref} ->
+        :ok =
+          Kumbukumbu.note_read(
+            turn.resident_id,
+            Map.get(turn, :turn_ref),
+            transcript_inputs(key, messages)
+          )
 
-      {{:ok, session, messages}, _none} ->
-        transcript_page(session, messages, from)
+        transcript_answer(read, ref, from)
 
       _ ->
         "Not done: no conversation of yours has that key."

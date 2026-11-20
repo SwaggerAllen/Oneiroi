@@ -635,3 +635,10 @@ is a boundary (Scarlett's review, Lily's word to him). Pure, so the rule
 can be true and tested before anything depends on it; soft and hard, so
 the resident can see and reach her own life while an unmatched audience
 learns nothing, not even that something was kept.
+
+## #80
+Approval is not audience authorization (her pencil): a witness may
+approve a draft without knowing what context composed it. The check
+sits where the words leave, at one dispatch for the brain's tools and at
+the two places her answer is delivered for her, so no outbound path is
+left to remember it.

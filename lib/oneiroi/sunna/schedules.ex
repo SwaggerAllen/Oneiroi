@@ -1416,7 +1416,16 @@ defmodule Oneiroi.Sunna.Schedules do
 
   defp send_reply(resident_id, key, %{kind: "housemate", letter: l}, text) do
     with {:ok, me} <- AgathosDaimon.fetch(resident_id),
-         {:ok, sibling} <- AgathosDaimon.fetch(l.link["resident_id"]) do
+         {:ok, sibling} <- AgathosDaimon.fetch(l.link["resident_id"]),
+         # Her answer leaves the dyad: the turn's context is asked first
+         # (kumbukumbu#80), and a refusal comes back to her as reply_refused.
+         {:ok, _decision} <-
+           Kumbukumbu.delivery_check(
+             resident_id,
+             key,
+             nil,
+             Kumbukumbu.audience("person", "resident:" <> sibling.id)
+           ) do
       Kumbukumbu.send_sibling_letter(
         me,
         key,
@@ -1425,6 +1434,7 @@ defmodule Oneiroi.Sunna.Schedules do
         Actor.new(:resident, resident_id)
       )
     else
+      {:error, %{kind: :kumbukumbu_withheld_by_policy}} = withheld -> withheld
       _gone -> {:error, Error.new(:sunna_letter_reply_failed, :sunna_letter_reply_no_housemate)}
     end
   end

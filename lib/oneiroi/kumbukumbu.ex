@@ -135,13 +135,16 @@ defmodule Oneiroi.Kumbukumbu do
       Store.RetrievalUse
     ]
 
+  alias Oneiroi.Kumbukumbu.Audience
   alias Oneiroi.Kumbukumbu.Conversations
   alias Oneiroi.Kumbukumbu.Days
   alias Oneiroi.Kumbukumbu.Domains
+  alias Oneiroi.Kumbukumbu.Ledger
   alias Oneiroi.Kumbukumbu.Madeleine
   alias Oneiroi.Kumbukumbu.Memories
   alias Oneiroi.Kumbukumbu.Passages
   alias Oneiroi.Kumbukumbu.Search
+  alias Oneiroi.Kumbukumbu.TurnReads
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -394,6 +397,10 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_revision_text_invalid,
        "a revision is one text of at most 2,000 characters, not blank",
        remedy: "say what is right"},
+      {:kumbukumbu_withheld_by_policy,
+       "withheld by policy: what this turn's context holds may not reach that audience, by the dyad's domain policies; nothing was delivered (kumbukumbu#80)",
+       remedy:
+         "say it where the policies allow (in your own chat, or to an audience they grant), or let the turn's context move on; the policies are the dyad's to change by agreement"},
       {:kumbukumbu_unwrap_refused,
        "an unwrap releases one withheld input from her own composition by her deliberate act, with a note; delivery to an audience has no unwrap (kumbukumbu#79)",
        remedy: "name an input the decision withheld, and say why you release it"},
@@ -452,13 +459,43 @@ defmodule Oneiroi.Kumbukumbu do
   end
 
   @impl Oneiroi.Component
+  def processes, do: [{:kumbukumbu_turn_reads, :local}]
+
+  @impl Oneiroi.Component
   def children,
     do: [
+      # What each turn read deliberately, for its input ledger (kumbukumbu#80).
+      Oneiroi.Kumbukumbu.TurnReads,
       Oneiroi.Kumbukumbu.Projectors.Conversations,
       Oneiroi.Kumbukumbu.Projectors.Memory,
       Oneiroi.Kumbukumbu.Projectors.Edges,
       Oneiroi.Kumbukumbu.Projectors.Reacts
     ]
+
+  @doc "A resolved audience (kumbukumbu#79): kind, id, and optionally participants, visibility and route."
+  @spec audience(String.t(), String.t(), keyword()) :: map()
+  defexport(audience(kind, id, opts \\ []),
+    do: Audience.audience(kind, id, opts)
+  )
+
+  @doc "Whether a turn's composition may be delivered to an audience (kumbukumbu#80): `{:ok, decision}`, or withheld by policy, nothing delivered."
+  @spec delivery_check(String.t(), String.t() | nil, String.t() | nil, map()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(delivery_check(resident_id, session_key, turn_ref, audience),
+    do: Ledger.check(resident_id, session_key, turn_ref, audience)
+  )
+
+  @doc "A turn read these inputs deliberately (kumbukumbu#80): its ledger counts them."
+  @spec note_read(String.t(), String.t() | nil, [map()]) :: :ok
+  defexport(note_read(resident_id, turn_ref, inputs),
+    do: TurnReads.note(resident_id, turn_ref, inputs)
+  )
+
+  @doc "A bookmark as a ledger input, labelled by its domain (kumbukumbu#80)."
+  @spec bookmark_input(String.t(), map()) :: map()
+  defexport(bookmark_input(resident_id, bookmark),
+    do: Ledger.bookmark_input(resident_id, bookmark)
+  )
 
   @doc "Opens a session of a kind for the resident with the accounts party to it; returns its key."
   @spec open_session(String.t(), String.t(), String.t(), [String.t()], Oneiroi.Actor.t()) ::
