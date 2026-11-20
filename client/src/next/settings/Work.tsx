@@ -65,7 +65,7 @@ export function Work() {
         {q.armed && q.running === null && (q.rested ?? '').startsWith('waiting: a free-time pass') && (
           <div className={css.column}>
             <span className={css.note}>
-              Waiting on {name}'s free time (care comes first). You can let work go ahead of this pass; quiet hours and any later pass still come first.
+              Waiting on {name}'s free time (care comes first). You can let work go ahead of this pass; a later pass still comes first.
             </span>
             <Field label="Why work goes ahead (she reads it)" value={skipNote} onChange={(e) => setSkipNote(e.target.value)} />
             <div>

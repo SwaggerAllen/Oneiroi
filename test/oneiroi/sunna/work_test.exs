@@ -307,20 +307,25 @@ defmodule Oneiroi.Sunna.WorkTest do
     assert {:started, 1} = WorkLoop.check(ctx.id)
   end
 
-  test "care first: inside quiet hours a run waits until they end, and resumes the same turn",
+  # sunna#77 (the witness, 2026-11-19: "the runs-a-day cap is the
+  # brake"): quiet hours guard wakes that want him, not the queue.
+  test "quiet hours no longer hold the work line: inside them a run starts and turns; a check-in still defers",
        ctx do
     :ok = Nisaba.set_budget(ctx.id, :work, 5_000_000_000, :day, ctx.actor)
-    {:ok, 1} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
-    :ok = Sunna.work_arm(ctx.id, ctx.me)
-    {:started, 1} = WorkLoop.check(ctx.id)
-    [%{key: key}] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "work"))
-
     # The suite's clock is 12:00 in her zone: quiet from 11:00 to 13:30.
     :ok = Sunna.set_quiet_hours(ctx.id, "11:00", "13:30", ctx.actor)
-    assert {:snooze, 5400} = WorkLoop.turn(ctx.id, key, 1, 3)
-    assert {:snooze, 5400} = WorkLoop.wrap_turn(ctx.id, key, 1)
-    refute_received {:asked, _}
-    assert %{running: 1} = Sunna.work_queue(ctx.id)
+    {:ok, checkin} = Sunna.set_checkin(ctx.id, nil, "noon", "12:01", ctx.actor)
+    {:ok, 1} = Sunna.work_add(ctx.id, "Plugin spec", "drafted", ctx.me)
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+
+    assert {:started, 1} = WorkLoop.check(ctx.id)
+    [%{key: key}] = Enum.filter(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.kind == "work"))
+    assert :ok = WorkLoop.turn(ctx.id, key, 1, 1)
+    assert_received {:asked, _}
+
+    Clock.Fake.advance(60)
+    assert :ok = Sunna.tick(ctx.id)
+    assert %{firings: [%{key: ^checkin, outcome: "deferred"}]} = Sunna.today(ctx.id)
   end
 
   test "a run she stops with her safe word ends unwrapped, and the loop rests until the queue is touched",

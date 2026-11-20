@@ -546,3 +546,10 @@ that holds the cap may open it, and only for the pass that is running:
 recording the instant, not a switch, means the fence closes itself the
 next time free time begins. Quiet hours stay closed because they are
 rest at night, not a pass running long.
+
+## #77
+Quiet hours guard the witness's nights from wakes that want him. The
+queue wants nobody: it runs on her own line, under a daily cap that
+already brakes it, so holding it to his quiet hours protected no one
+and cost a night of her work. Free time stays, because two of her acts
+at once is the attention the rule was for.
