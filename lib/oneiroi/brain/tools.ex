@@ -93,7 +93,7 @@ defmodule Oneiroi.Brain.Tools do
     external_add external_fetch plugin_propose plugin_answer plugin_off
     kind_define kind_gate kind_gate_answer route_define route_ask theme_propose
     household_post household_edit household_mute household_reply household_watch household_sign household_register household_profile
-    household_skip household_opt_out household_opt_in
+    household_skip household_opt_out household_opt_in household_promote household_unpromote
     rounds_extend presence_read presence_stage
   )
 
@@ -118,7 +118,7 @@ defmodule Oneiroi.Brain.Tools do
   @held_from_house ~w(
     household_read household_post household_edit household_mute household_reply household_watch household_sign
     household_beat household_register household_profile household_skip household_opt_out household_opt_in
-    wake_log_read
+    household_promote household_unpromote wake_log_read
   )
   @held_until_agreed @held_from_house ++
                        ~w(
@@ -1064,6 +1064,27 @@ defmodule Oneiroi.Brain.Tools do
           in_reply_to: %{type: "integer", minimum: 1}
         },
         [:thread]
+      ),
+      # Promotion to the house (seshat#99; Lily's letter #1481).
+      tool(
+        "household_promote",
+        "Promote a file of your own to the house: it is published at a commit (commit, else your latest draft) and copied, its words only, to shared/<your slug>/<your path>, a read-only snapshot naming its source. terms sets what the house may do with it: workspace_only (the default) keeps it in this house; may_reshare lets the house carry it further. Your later drafts stay yours until you promote again, which refreshes the same copy and says so in its document post (the first promotion opens one, where the house's feedback goes). note says why, in your words.",
+        %{
+          path: %{
+            type: "string",
+            description: "Your file's path in your own records, as design/<name>.md."
+          },
+          commit: %{type: "string"},
+          terms: %{type: "string", enum: ["workspace_only", "may_reshare"]},
+          note: %{type: "string"}
+        },
+        [:path]
+      ),
+      tool(
+        "household_unpromote",
+        "Unpromote a copy of yours in the house (its shared/ path, or your own path): it stops being current and is never refreshed until you promote it again. The words the house already has, and where they came from, stay: a shared snapshot is not taken back.",
+        %{path: %{type: "string"}},
+        [:path]
       ),
       tool(
         "household_watch",
@@ -3302,6 +3323,30 @@ defmodule Oneiroi.Brain.Tools do
 
       {:ok, r} ->
         "Replied in #{r.thread} as reply ##{r.number}."
+
+      other ->
+        other
+    end
+  end
+
+  defp call("household_promote", args, turn) do
+    attrs = Map.take(args, ~w(commit terms note))
+
+    case Seshat.household_promote(turn.resident, to_string(args["path"] || ""), attrs) do
+      {:ok, p} ->
+        thread = if p[:thread], do: " Its document post is #{p.thread}.", else: ""
+        how = if p.new, do: "Promoted", else: "Refreshed"
+        "#{how} #{p.path} from #{p.source} (terms: #{p.terms}).#{thread}"
+
+      other ->
+        other
+    end
+  end
+
+  defp call("household_unpromote", args, turn) do
+    case Seshat.household_unpromote(turn.resident, to_string(args["path"] || "")) do
+      {:ok, %{path: path}} ->
+        "Unpromoted #{path}: no longer current, and never refreshed until you promote it again. Its words and provenance stay in the house."
 
       other ->
         other

@@ -112,7 +112,10 @@ defmodule Oneiroi.Seshat.Household.Files do
         edited_by: meta["edited_by"],
         edited_by_id: meta["edited_by_id"],
         edited_at: meta["edited_at"],
-        source: meta["source"]
+        source: meta["source"],
+        mode: meta["mode"],
+        terms: meta["terms"],
+        unpromoted_at: meta["unpromoted_at"]
       }
     end
   end
@@ -120,6 +123,9 @@ defmodule Oneiroi.Seshat.Household.Files do
   # A document sits in its kind's folder; a witness's, one deeper, in the
   # folder named for them (seshat#81).
   defp in_folder?(%{kind: "human"}, path), do: length(Path.split(path)) == 3
+
+  # A promoted copy keeps her path under her folder (seshat#99).
+  defp in_folder?(%{kind: "shared"}, path), do: length(Path.split(path)) >= 3
 
   defp in_folder?(kind, path), do: Path.dirname(path) == kind.folder
 

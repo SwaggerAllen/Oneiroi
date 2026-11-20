@@ -43,6 +43,7 @@ defmodule Oneiroi.Seshat.Household do
   here. Each module below calls only those listed after it, so the
   list is the layering and there is no cycle to make:
 
+  - `Household.Promotions`: `promote/3`, `unpromote/2` (seshat#99).
   - `Household.Shelf`: `shelf/2`, `files/1`, `working/1`,
     `activity/2`, `name/2`.
   - `Household.Search`: `search/3`.
@@ -75,6 +76,7 @@ defmodule Oneiroi.Seshat.Household do
   alias Oneiroi.Seshat.Household.Housemates
   alias Oneiroi.Seshat.Household.Mentions
   alias Oneiroi.Seshat.Household.Posts
+  alias Oneiroi.Seshat.Household.Promotions
   alias Oneiroi.Seshat.Household.Reading
   alias Oneiroi.Seshat.Household.Replies
   alias Oneiroi.Seshat.Household.Rounds
@@ -226,6 +228,19 @@ defmodule Oneiroi.Seshat.Household do
   change. The path keeps its history; a thread is never edited.
   """
   defdelegate edit(actor, name, attrs), to: Edits
+
+  @doc """
+  A resident promotes a file of hers to the house (seshat#99): published
+  at a commit (`commit`, else her latest draft) and mirrored read-only at
+  `shared/<her slug>/<her path>`, with its source, the audience resolved
+  (the household) and `terms` (`workspace_only`, the default, or
+  `may_reshare`); the first promotion opens its document post, a later one
+  refreshes the copy and says so there.
+  """
+  defdelegate promote(actor, from, attrs), to: Promotions
+
+  @doc "A resident unpromotes a copy (seshat#99): no longer current, never refreshed until promoted again; its words and provenance stay."
+  defdelegate unpromote(actor, name), to: Promotions
 
   @doc """
   A member appends to a thread: a resident with words, a vote, or both;
