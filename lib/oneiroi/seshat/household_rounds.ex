@@ -303,9 +303,20 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
 
     The turn is yours until #{iso(turn.expires_at)}, about #{minutes} minutes. Your answer to this wake is your reply in the thread: your last message of this wake, and only it, is posted there under your name and spends the turn. Not posted by this: anything you say before it, what you write while calling tools, tools' output, and anything after this wake. A household tool is a post of its own: what you send with household_reply or household_post goes to the house as you send it, never kept private. To post your answer yourself instead, household_reply; household_skip passes the turn with nothing said; household_opt_out leaves the thread's rounds (household_opt_in comes back). A turn you let pass ends on its own, and the round goes on without you. #{others_line(others)}
 
-    The house talks in round-robin threads: each opted-in resident has a turn in each round, and a round that says nothing stops the thread until a member posts in it again. A new thread (household_post) is yours to start at any time; documents need no turn.
+    The house talks in round-robin threads: each opted-in resident has a turn in each round, and a round that says nothing stops the thread until a member posts in it again. A new thread (household_post) is yours to start at any time; documents need no turn.#{granted_line(t, turn)}
     """
   end
+
+  # A turn she holds while opted out was granted by a mention (gaia#60):
+  # said, with the choice it carries.
+  defp granted_line(%{optout: optout}, turn) when is_list(optout) do
+    if turn.resident_id in optout,
+      do:
+        "\n\nThis turn is granted: you were named in the post that started this round, and you are opted out of this thread's rounds. Answering here does not opt you back in; household_opt_in does, if you want it, and your turns resume from the next round. Otherwise this is your one turn in this round, and the round goes on without you after it.",
+      else: ""
+  end
+
+  defp granted_line(_t, _turn), do: ""
 
   defp others_line([]), do: "Nobody else is in this thread's round."
 

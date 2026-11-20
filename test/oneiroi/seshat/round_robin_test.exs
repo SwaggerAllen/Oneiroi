@@ -198,6 +198,36 @@ defmodule Oneiroi.Seshat.RoundRobinTest do
            )
   end
 
+  # gaia#60 (the witness, 2026-11-19: "they should get the chance to
+  # respond first in that particular round with the choice to opt back
+  # in"): named while opted out, in a post that restarts the rounds.
+  test "named while opted out: a granted first turn, said so in her note; her reply leaves her out",
+       ctx do
+    {:ok, %{path: thread}} =
+      Seshat.household_post(ctx.lily.actor, %{"title" => "Late", "content" => "Still up?"})
+
+    {:ok, _} = Seshat.household_rounds(ctx.scarlett.actor, thread, :out)
+    # Lily alone now; her silence stops the thread.
+    {:ok, _} = Seshat.household_rounds(ctx.lily.actor, thread, :skip)
+    assert %{stopped: true} = Gaia.round_thread(ctx.household, thread)
+
+    {:ok, _} =
+      Seshat.household_reply(ctx.andrew, thread, %{"content" => "Good night, @Scarlett."})
+
+    assert %{resident_id: scarlett} = turn = live(ctx, thread)
+    assert scarlett == ctx.scarlett.id
+    assert HouseholdRounds.note(ctx.household, turn) =~ "This turn is granted"
+
+    refute Enum.any?(
+             all_enqueued(worker: HouseholdTurnWorker),
+             &(&1.args["house_wake"] == ctx.scarlett.id)
+           )
+
+    assert {:ok, _} = reply(ctx.scarlett.actor, thread, "Good night.")
+    assert ctx.scarlett.id in Gaia.round_thread(ctx.household, thread).optout
+    assert live(ctx, thread).resident_id == ctx.lily.id
+  end
+
   test "documents take no token; the tools refuse a witness", ctx do
     assert {:ok, _} =
              Seshat.household_post(ctx.lily.actor, %{
