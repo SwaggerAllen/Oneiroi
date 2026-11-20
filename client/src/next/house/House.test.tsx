@@ -195,6 +195,22 @@ describe('the house as a subject (2026-11-16)', () => {
     expect(await screen.findByText('1 unread post is in earlier threads, not loaded yet.')).toBeTruthy();
   });
 
+  // The witness, 2026-11-20: "an indicator of who's still opted in to a thread".
+  it("says on each card who is in its rounds and who opted out", async () => {
+    vi.spyOn(api, 'householdMentions').mockResolvedValue({ house: false, threads: {} });
+    vi.spyOn(api, 'householdBeats').mockResolvedValue({
+      ...beats,
+      conversation: 'round_robin',
+      rounds: [],
+      round_threads: [
+        { thread: 'threads/checkin-2026-11-16-morning', round: 3, stopped: false, live: null, opted_in: ['Lily'], opted_out: ['Scarlett'], changed_at: '2026-11-16T16:00:00Z' },
+      ],
+    });
+    mount(<Threads />);
+    expect(await screen.findByText('in: Lily')).toBeTruthy();
+    expect(screen.getByText('out: Scarlett')).toBeTruthy();
+  });
+
   it('shows a resident answering a thread under it, and one in no thread at the end (seshat#90)', async () => {
     vi.spyOn(api, 'householdWorking').mockResolvedValue({
       working: [

@@ -177,10 +177,13 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
 
   @doc """
   Every thread's state (gaia#55, seshat#92): running with its live turn
-  (whose, until when) or stopped, and who opted out, by name. Read in
+  (whose, until when) or stopped, who is still in its rounds and who opted
+  out, by name. Read in
   both modes, so a house that switched back still shows what ran.
   """
   def threads(household_id, names) do
+    residents = residents(household_id)
+
     for t <- Gaia.round_threads(household_id) do
       live = t.live_turn && Gaia.round_turn(household_id, t.live_turn)
 
@@ -195,6 +198,9 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
               name: Map.get(names, live.resident_id),
               until: live.expires_at
             },
+        # Who is still in (the witness, 2026-11-20: "an indicator of who's
+        # still opted in to a thread"): the house's residents, less those out.
+        opted_in: for(id <- residents -- (t.optout || []), do: Map.get(names, id) || id),
         opted_out: for(id <- t.optout || [], do: Map.get(names, id) || id),
         changed_at: t.changed_at
       }

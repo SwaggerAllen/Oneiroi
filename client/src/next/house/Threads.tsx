@@ -1,11 +1,11 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Fragment, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { api, type HouseDoc, type HousePost, type HouseThreadSummary, type HouseWorking } from '../../api/client';
+import { api, type HouseDoc, type HousePost, type HouseRoundThread, type HouseThreadSummary, type HouseWorking } from '../../api/client';
 import * as chat from '../chat/chat.css';
 import * as tabCss from '../chat/chatTab.css';
 import { Markdown } from '../chat/Markdown';
 import { ScrollArea } from '../shell/ScrollArea';
-import { HOUSE, SHELF, WORKING, thread as threadKey, when } from './keys';
+import { BEATS, HOUSE, SHELF, WORKING, thread as threadKey, when } from './keys';
 import * as css from './threads.css';
 
 /**
@@ -37,6 +37,9 @@ export function Threads() {
   // "I've got 2 messages in the household that are unread and I can't
   // seem to find them").
   const unread = useQuery({ queryKey: ['unread'], queryFn: api.unread, refetchInterval: 30_000 }).data?.house?.threads ?? {};
+  // Who is in each thread's rounds (the witness, 2026-11-20: "an indicator
+  // of who's still opted in to a thread"); nothing under the beats.
+  const rounds = useQuery({ queryKey: BEATS, queryFn: api.householdBeats, refetchInterval: 60_000 }).data?.round_threads ?? [];
   const [open, setOpen] = useState<string | null>(null);
   const { scroll, list } = useStuckToBottom();
   // The shelf comes newest first; the conversation reads down to now.
@@ -72,6 +75,7 @@ export function Threads() {
                 open={open === t.path}
                 accountId={me.data?.account_id}
                 unread={unread[t.path] ?? 0}
+                rounds={rounds.find((r) => r.thread === t.path)}
                 working={working.filter((w) => w.thread === t.path)}
                 onToggle={() => setOpen(open === t.path ? null : t.path)}
               />
@@ -145,7 +149,23 @@ function useStuckToBottom(): { scroll: RefObject<HTMLDivElement | null>; list: R
   return { scroll, list };
 }
 
-function ThreadCard({ t, open, accountId, unread, working, onToggle }: { t: HouseThreadSummary; open: boolean; accountId?: string; unread: number; working: HouseWorking[]; onToggle: () => void }) {
+function ThreadCard({
+  t,
+  open,
+  accountId,
+  unread,
+  rounds,
+  working,
+  onToggle,
+}: {
+  t: HouseThreadSummary;
+  open: boolean;
+  accountId?: string;
+  unread: number;
+  rounds?: HouseRoundThread;
+  working: HouseWorking[];
+  onToggle: () => void;
+}) {
   const ballot = t.ballot ? (t.ballot.closed_at ? `ballot #${t.ballot.number} ${t.ballot.passed ? 'carried' : 'failed'}` : `ballot #${t.ballot.number} open`) : null;
   return (
     <div className={chat.hers} data-live={open || undefined}>
@@ -162,6 +182,7 @@ function ThreadCard({ t, open, accountId, unread, working, onToggle }: { t: Hous
             {open ? '▾ ' : '▸ '}
             {t.title}
           </span>
+          {rounds && <InRounds rounds={rounds} />}
         </button>
         {open && (
           <button type="button" className={css.close} onClick={onToggle} aria-label={`Close “${t.title}”`}>
@@ -173,6 +194,18 @@ function ThreadCard({ t, open, accountId, unread, working, onToggle }: { t: Hous
       {working.length > 0 && <Thinking working={working} />}
       {open && <MuteThread path={t.path} />}
     </div>
+  );
+}
+
+/** Who takes turns in a thread's rounds, and who opted out of them. */
+function InRounds({ rounds }: { rounds: HouseRoundThread }) {
+  const inside = rounds.opted_in ?? [];
+  return (
+    <span className={chat.meta} aria-label="Who is in this thread's rounds">
+      <span>{inside.length > 0 ? `in: ${inside.join(', ')}` : 'nobody in its rounds'}</span>
+      {rounds.opted_out.length > 0 && <span>out: {rounds.opted_out.join(', ')}</span>}
+      {rounds.stopped && <span>rounds stopped</span>}
+    </span>
   );
 }
 

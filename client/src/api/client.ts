@@ -358,6 +358,8 @@ export interface HouseRoundThread {
   round: number;
   stopped: boolean;
   live: { resident_id: string; name: string | null; until: string } | null;
+  /** Who is still in its rounds, by name (the witness, 2026-11-20). */
+  opted_in?: string[];
   opted_out: string[];
   changed_at: string;
 }

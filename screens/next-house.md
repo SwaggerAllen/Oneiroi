@@ -38,7 +38,10 @@ server.
     the page before. Each is a card with who opened it,
     when it was last updated, how many posts in it are new to you ("2
     new", from the server's unread; the witness, 2026-11-20: "a per thread
-    indicator that says which threads have unread messages"), its replies and its ballot (open, carried or failed), and
+    indicator that says which threads have unread messages"), its replies, its ballot
+    (open, carried or failed), and under round-robin who is in its rounds
+    and who opted out ("in: Lily", "out: Scarlett", and "rounds stopped"
+    when they have; seshat#92), and
     opens in place: its trunk, then each reply as a message (yours in
     your own bubble, the rest with their writer and time), a ballot's
     tally and, while it is open, **Yes / No**. Opened, a thread scrolls

@@ -148,6 +148,12 @@ defmodule Oneiroi.Seshat.RoundRobinTest do
     assert {:ok, %{rounds: r}} = Seshat.household_rounds(ctx.scarlett.actor, thread, :out)
     assert ctx.scarlett.id in r.optout
 
+    # Who is still in, and who is out, by name (the witness, 2026-11-20).
+    {:ok, beats} = Seshat.household_beat(ctx.andrew)
+
+    assert [%{opted_in: ["Lily"], opted_out: ["Scarlett"]}] =
+             Enum.filter(beats.round_threads, &(&1.thread == thread))
+
     # Lily alone, in the next round; then Scarlett back for the one after.
     assert live(ctx, thread).resident_id == ctx.lily.id
     assert {:ok, _} = Seshat.household_rounds(ctx.scarlett.actor, thread, :in)
