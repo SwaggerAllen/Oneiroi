@@ -141,6 +141,13 @@ defmodule Oneiroi.AgathosDaimon.Events do
       fields: [:id, :turn_ref, :tier, :words, :reason, :judge_model]
   end
 
+  defmodule ProposalsTold do
+    # She was told of the witness's proposals that arrived up to
+    # `through` (brain#110; Lily's letter #1594): each proposal is told
+    # once, on her next turn, and waits patiently after.
+    use Oneiroi.Event, version: 1, fields: [:id, :through], instants: [:through]
+  end
+
   defmodule ImportTold do
     # The resident was told, on its first turn, where it woke: on
     # Oneiroi, from which repository, whether the attestation held, and

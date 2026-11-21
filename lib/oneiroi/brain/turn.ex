@@ -45,6 +45,7 @@ defmodule Oneiroi.Brain.Turn do
   alias Oneiroi.Brain.Reactions
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Uses
+  alias Oneiroi.Brain.WaitingOnHer
   alias Oneiroi.Config
   alias Oneiroi.Gaia.Boots
   alias Oneiroi.Kumbukumbu
@@ -244,6 +245,8 @@ defmodule Oneiroi.Brain.Turn do
     # The witness's reacts not yet told her (kumbukumbu#56): one line,
     # once, on whichever turn comes next; marked told when it is captured.
     reacts = Reactions.untold(resident_id, session_key)
+    # The witness's proposals not yet told her (brain#110), the same way.
+    proposals = WaitingOnHer.untold(resident_id, row.proposals_told_through)
 
     # A resident formed in the creation flow, woken and not yet agreed
     # (agathos-daimon#46): nothing interjects in their first conversation.
@@ -260,7 +263,8 @@ defmodule Oneiroi.Brain.Turn do
           import: import_notice(row),
           restart: restart_notice(resident_id, session_key),
           batch: batch_notice(earlier, rounds_each()),
-          reacts: reacts_notice(reacts)
+          reacts: reacts_notice(reacts),
+          proposals: reacts_notice(proposals)
         ],
         guarded?
       )
@@ -300,7 +304,9 @@ defmodule Oneiroi.Brain.Turn do
       # A night pass's turn (brain#91): its own tools, seed_plant among them.
       housekeeping?: Kumbukumbu.session_kind(resident_id, session_key) == "housekeeping",
       letters_to_deliver: letters_to_deliver(row, resident_id),
-      reacts_through: reacts && elem(reacts, 1),
+      reacts_through: through(reacts, false),
+      # A guarded resident is not told them yet, so nothing is marked told.
+      proposals_through: through(proposals, guarded?),
       notices: Enum.flat_map(notices, &elem(&1, 1)),
       notice_kinds: for({kind, [_ | _]} <- notices, do: kind)
     }
@@ -375,6 +381,10 @@ defmodule Oneiroi.Brain.Turn do
 
   defp notice_reason(:lapse), do: "the lapse, told once (spec §6.11)"
   defp notice_reason(:reacts), do: "the witness's reacts, told once (kumbukumbu#56)"
+
+  defp notice_reason(:proposals),
+    do: "the witness's proposals that arrived, told once (brain#110)"
+
   defp notice_reason(:model_change), do: "the change of model, told once (spec §6.4)"
 
   defp notice_reason(:letters),
@@ -908,6 +918,11 @@ defmodule Oneiroi.Brain.Turn do
       if turn.reacts_through,
         do: :ok = Kumbukumbu.tell_reacts(resident_id, turn.reacts_through, key)
 
+      if turn.proposals_through,
+        do:
+          :ok =
+            Oneiroi.AgathosDaimon.proposals_told(resident_id, turn.proposals_through, resident)
+
       if turn.lapse_to_tell, do: :ok = Oneiroi.Nisaba.lapse_told(resident_id, resident)
       if turn.import_to_tell, do: :ok = Oneiroi.AgathosDaimon.import_told(resident_id, resident)
       broadcast(resident_id, key, {:turn, ref, captured})
@@ -1036,6 +1051,10 @@ defmodule Oneiroi.Brain.Turn do
   # turn, so a turn cut off by a restart is never read as her own
   # breakage. Derived from the record alone: a conversation whose last
   # message comes after the boot has been told.
+  # The mark a told notice moves, or nil when nothing was told.
+  defp through({_line, mark}, false), do: mark
+  defp through(_untold, _guarded?), do: nil
+
   defp reacts_notice(nil), do: []
 
   defp reacts_notice({line, _through}),

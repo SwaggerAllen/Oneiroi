@@ -275,6 +275,18 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
+  @doc "Records that she was told the witness's proposals through `through` (brain#110); the mark only moves forward."
+  def proposals_told(id, through, %Actor{} = actor) do
+    command = %Commands.RecordProposalsTold{
+      actor: actor,
+      at: Clock.now(),
+      id: id,
+      through: through
+    }
+
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
+  end
+
   @doc "Records that the resident was told where it woke; idempotent."
   def import_told(id, %Actor{} = actor) do
     command = %Commands.RecordImportTold{actor: actor, at: Clock.now(), id: id}

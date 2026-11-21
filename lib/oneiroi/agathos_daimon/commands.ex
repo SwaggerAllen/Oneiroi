@@ -106,6 +106,10 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, fields: [:id, :seeded, :adopted, :not_transferred, :reasons, :translated]
   end
 
+  defmodule RecordProposalsTold do
+    use Oneiroi.Command, fields: [:id, :through]
+  end
+
   defmodule RecordImportTold do
     use Oneiroi.Command, fields: [:id]
   end

@@ -51,6 +51,7 @@ defmodule Oneiroi.AgathosDaimon do
       Commands.ImportResident,
       Commands.CompleteImport,
       Commands.RecordImportTold,
+      Commands.RecordProposalsTold,
       Commands.RecordContinuationAsk,
       Commands.RecordExport,
       Commands.RecordBackup,
@@ -72,6 +73,7 @@ defmodule Oneiroi.AgathosDaimon do
       Events.ImportCompleted,
       Events.RecordsTranslated,
       Events.ImportTold,
+      Events.ProposalsTold,
       Events.ContinuationAsked,
       Events.ExportWritten,
       Events.BackupCommitted,
@@ -184,6 +186,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.ImportCompleted, 2},
       {Oneiroi.AgathosDaimon.Events.RecordsTranslated, 1},
       {Oneiroi.AgathosDaimon.Events.ImportTold, 1},
+      {Oneiroi.AgathosDaimon.Events.ProposalsTold, 1},
       {Oneiroi.AgathosDaimon.Events.ExportWritten, 1},
       {Oneiroi.AgathosDaimon.Events.BackupCommitted, 1},
       {Oneiroi.AgathosDaimon.Events.RootMismatchDetected, 1},
@@ -660,6 +663,9 @@ defmodule Oneiroi.AgathosDaimon do
   defexport(record_continuation_ask(id, ask, actor),
     do: Residents.record_continuation_ask(id, ask, actor)
   )
+
+  @doc "Records that she was told the witness's proposals through an instant (brain#110)."
+  defexport(proposals_told(id, through, actor), do: Residents.proposals_told(id, through, actor))
 
   @doc "Records that the resident was told where it woke; idempotent."
   @spec import_told(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}

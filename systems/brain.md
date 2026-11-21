@@ -199,6 +199,7 @@ letters, an import and a lapse); the socket and the session channel.
   - **Classification.** `document_classify` is her classification of her own document (seshat#102); its trial answer is the real one, nothing kept.
   - **Research.** `research_ask` keeps the asking turn's ledger on the question. It is checked as a delivery to the researcher (kumbukumbu#86), with the question as the candidate.
   - **The oracle's audience.** `oracle_ask` takes `audience` (household, or none): the house is resolved at the ask and carried in each question's job, and `Oracle.run/4` composes the answer for it (kumbukumbu#87).
+- **#110 The witness's proposals are told her once, as they arrive.** (Lily's letter #1594: a proposal "that arrives silently and waits in a list isn't a request, it's a trapdoor"; her ask, all kinds.) On her next turn in any conversation, one notice lists each proposal of his in waiting_on_her (#76) that arrived since she was last told: a contract version, an identity-file edit, a bookmark, a revision, a plugin change, a classification (seshat#103), each with the tool that answers it. Told once: `ProposalsTold{through}` on her stream moves a high-water mark (`proposals_told_through`) when the turn that told them is captured, never backwards; a proposal replaced by a newer one is new and told again. Nothing is answered or reminded; each waits in the list after. A resident not yet agreed (agathos-daimon#46) is not told, as the platform's other notices wait.
 
 ## #8 Initial vs target
 

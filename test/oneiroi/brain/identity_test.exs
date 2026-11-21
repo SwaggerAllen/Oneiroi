@@ -110,7 +110,9 @@ defmodule Oneiroi.Brain.IdentityTest do
     assert {:ok, %{messages: messages}} =
              Oneiroi.Brain.turn(id, ctx.key, "see my proposal?", ctx.actor)
 
-    [_, list, accept, edit, unknown, cited, _reply] = messages
+    # His proposal is told her once, ahead of the turn (brain#110).
+    [told, _, list, accept, edit, unknown, cited, _reply] = messages
+    assert told.content =~ "An edit to SOUL.md (soul_edit_accept or soul_edit_decline)"
     assert list.content =~ ref and list.content =~ "you have grown"
     assert accept.content =~ "Done."
     assert edit.content =~ "Done."

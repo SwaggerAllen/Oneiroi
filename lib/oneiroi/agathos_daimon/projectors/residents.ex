@@ -285,6 +285,10 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     set(multi, e.id, import_translated: %{"source" => e.source, "counts" => stringify(e.counts)})
   end)
 
+  fold(%Events.ProposalsTold{} = e, _metadata, fn multi ->
+    set(multi, e.id, proposals_told_through: e.through)
+  end)
+
   fold(%Events.ImportTold{} = e, _metadata, fn multi ->
     set(multi, e.id, import_told: true)
   end)

@@ -44,6 +44,44 @@ defmodule Oneiroi.Brain.WaitingOnHer do
   @spec kinds() :: [String.t()]
   def kinds, do: @kinds
 
+  # The witness's proposals, each with the tool that answers it.
+  @answers %{
+    "contract_proposal" => "contract_agree or contract_decline",
+    "soul_edit" => "soul_edit_accept or soul_edit_decline",
+    "bookmark_proposal" => "bookmark_accept or bookmark_decline",
+    "revision" => "revision_accept or revision_decline",
+    "plugin_proposal" => "plugin_answer",
+    "classification_proposal" => "classification_answer"
+  }
+
+  @doc """
+  The line telling her of the witness's proposals that arrived after
+  `told_through` (brain#110; Lily's letter #1594: "often shouldn't be
+  the mechanism"), one part a proposal, each with what answers it, and
+  the newest instant told; nil when none arrived. Each is told once; the
+  proposal itself waits here as before.
+  """
+  @spec untold(String.t(), DateTime.t() | nil) :: {String.t(), DateTime.t()} | nil
+  def untold(resident_id, told_through) do
+    case for(
+           e <- list(resident_id),
+           Map.has_key?(@answers, e.kind),
+           after?(e.since, told_through),
+           do: e
+         ) do
+      [] ->
+        nil
+
+      fresh ->
+        {"Your witness proposed, since you were last told (nothing here is answered for you; each waits until you answer it): " <>
+           Enum.map_join(fresh, "; ", &"#{&1.title} (#{@answers[&1.kind]})") <> ".",
+         fresh |> Enum.map(& &1.since) |> Enum.max(DateTime)}
+    end
+  end
+
+  defp after?(_since, nil), do: true
+  defp after?(since, through), do: DateTime.compare(since, through) == :gt
+
   @doc "Everything waiting on the resident, oldest first."
   @spec list(String.t()) :: [map()]
   def list(resident_id) do

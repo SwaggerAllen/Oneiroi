@@ -29,6 +29,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     state: :absent,
     sequences: %{},
     exported_through: 0,
+    # The witness's proposals told her through this instant (brain#110).
+    proposals_told: nil,
     last_backup: nil,
     files: %{},
     # Identity files she has taken out of her prefix (agathos-daimon#50).
@@ -196,6 +198,13 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     do: %Events.ImportTold{actor: c.actor, at: c.at, id: c.id}
 
   def execute(%__MODULE__{}, %Commands.RecordImportTold{}), do: []
+
+  # The mark only moves forward (brain#110).
+  def execute(%__MODULE__{proposals_told: told}, %Commands.RecordProposalsTold{} = c) do
+    if told && DateTime.compare(c.through, told) != :gt,
+      do: [],
+      else: %Events.ProposalsTold{actor: c.actor, at: c.at, id: c.id, through: c.through}
+  end
 
   # A fixture's alone: the law is about test subjects, and a resident is
   # never tested by this path.
@@ -1218,6 +1227,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     do: %{r | import: Map.merge(import, %{not_transferred: e.not_transferred, told: false})}
 
   def apply(%__MODULE__{} = r, %Events.RecordsTranslated{}), do: r
+
+  def apply(%__MODULE__{} = r, %Events.ProposalsTold{} = e), do: %{r | proposals_told: e.through}
 
   def apply(%__MODULE__{import: import} = r, %Events.ImportTold{}),
     do: %{r | import: Map.put(import, :told, true)}

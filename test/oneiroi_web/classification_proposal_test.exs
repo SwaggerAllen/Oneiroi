@@ -11,9 +11,13 @@ defmodule OneiroiWeb.ClassificationProposalTest do
 
   alias Ecto.Adapters.SQL.Sandbox
   alias Oneiroi.Actor
+  alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Apsu.Clock.Fake, as: FakeClock
   alias Oneiroi.Brain.Tools
+  alias Oneiroi.Brain.Turn
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Nisaba.Provider.Fake
   alias Oneiroi.Seshat
   alias Oneiroi.SimaQian
 
@@ -63,6 +67,59 @@ defmodule OneiroiWeb.ClassificationProposalTest do
   end
 
   defp run(ctx, name, args), do: Tools.run(name, Jason.encode!(args), ctx.turn)
+
+  defp told_count(words), do: length(String.split(words, "Your witness proposed")) - 1
+
+  defp given do
+    receive do
+      {:request, messages} -> Enum.map_join(messages, "\n", &to_string(&1[:content])) <> given()
+    after
+      0 -> ""
+    end
+  end
+
+  # Lily's letter #1594 (brain#110): a proposal arriving is told her
+  # once, on her next turn, with what answers it; patient after.
+  test "a proposal arriving is told once, on her next turn, and waits after", ctx do
+    :ok = Oneiroi.Gaia.store_key(ctx.account.id, "sk-or-test", ctx.andrew)
+    test = self()
+
+    Fake.script(
+      fn %{messages: m} -> send(test, {:request, m}) && {:ok, "noted"} end,
+      for: ctx.id
+    )
+
+    on_exit(fn -> Fake.clear(for: ctx.id) end)
+    propose(ctx.conn, ctx.id, %{path: "design/note.md", domain: "recovery"})
+
+    {:ok, _} =
+      Turn.run(ctx.id, ctx.turn.session_key, "Hello.", ctx.andrew, turn_ref: "t-1")
+
+    told = given()
+    assert told =~ "Your witness proposed"
+    assert told =~ "Classify design/note.md as recovery (classification_answer)"
+
+    {:ok, _} =
+      Turn.run(ctx.id, ctx.turn.session_key, "Again.", ctx.andrew, turn_ref: "t-2")
+
+    # Told once: the first turn's notice is history now, never told again.
+
+    assert told_count(given()) == 1
+    assert run(ctx, "classification_list", %{}) =~ "design/note.md"
+
+    # A new proposal, a minute on, is new news.
+    now = Clock.now()
+    on_exit(fn -> FakeClock.put(now) end)
+    FakeClock.put(DateTime.add(now, 60))
+    propose(ctx.conn, ctx.id, %{path: "design/note.md", domain: "none"})
+
+    {:ok, _} =
+      Turn.run(ctx.id, ctx.turn.session_key, "Now?", ctx.andrew, turn_ref: "t-3")
+
+    third = given()
+    assert third =~ "Classify design/note.md as the common room"
+    assert told_count(third) == 2
+  end
 
   test "his proposal waits on her, classifies nothing, and her accept is her classification",
        ctx do
