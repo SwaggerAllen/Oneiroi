@@ -1344,8 +1344,18 @@ defmodule Oneiroi.Brain.Turn do
         rows
       )
 
+    # An oracle's answer comes to her before anyone (her repository): it
+    # names the domains. A house wake's answer is posted for her, so its
+    # citations name the ref alone, or "recovery" could ride out in her
+    # own clean words with no judge to read them (kumbukumbu#81, Lily's
+    # #1540).
+    {lines, prompt} =
+      if Map.get(turn, :oracle?),
+        do: {kept.withheld, "audience_withheld"},
+        else: {kept.withheld_refs, "audience_withheld_unnamed"}
+
     note =
-      case kept.withheld do
+      case lines do
         [] ->
           []
 
@@ -1354,7 +1364,7 @@ defmodule Oneiroi.Brain.Turn do
             %{
               role: :system,
               content:
-                Prompt.render!("audience_withheld", %{
+                Prompt.render!(prompt, %{
                   audience: "#{audience.kind}:#{audience.id}",
                   lines: Enum.map_join(lines, "\n", &("- " <> &1)),
                   decision: kept.decision

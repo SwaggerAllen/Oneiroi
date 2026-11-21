@@ -102,11 +102,12 @@ defmodule Oneiroi.Brain.AudienceAssemblyTest do
     words = given()
     refute words =~ "ninety days"
     assert words =~ "The garden wants water."
-    # Told by its ref and domain, one grammar everywhere (Lily's #1537):
-    # dyad material; only her own words could carry it further.
+    # Told by its ref alone: her answer goes straight to the house, so
+    # the name would be the disclosure (kumbukumbu#81, Lily's #1540).
     assert words =~ "has been left out of your context"
     assert words =~ "withheld: transcript/"
-    assert words =~ "in conflict with this audience: recovery"
+
+    for line <- String.split(words, "\n"), line =~ "withheld: ", do: refute(line =~ "recovery")
 
     # Assembled for the house, so delivered to it.
     assert {:ok, _} = Kumbukumbu.delivery_check(ctx.id, ctx.key, "t-house", ctx.house)
