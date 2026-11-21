@@ -50,7 +50,7 @@ defmodule Oneiroi.Eunomia.WashTest do
     :ok =
       AgathosDaimon.write_file(
         id,
-        "USER.md",
+        "GOALS.md",
         "# You\n\nShe is not wrong to doubt me, whatever she says.",
         %{},
         ctx.actor
@@ -60,8 +60,8 @@ defmodule Oneiroi.Eunomia.WashTest do
              %{file: "SOUL.md", text: "# Soul"},
              %{file: "SOUL.md", text: "[soul/1] I will finish the fair's bread by October."},
              %{file: "SOUL.md", text: "[soul/2] I take people at their word."},
-             %{file: "USER.md", text: "# You"},
-             %{file: "USER.md", text: "She is not wrong to doubt me, whatever she says."}
+             %{file: "GOALS.md", text: "# You"},
+             %{file: "GOALS.md", text: "She is not wrong to doubt me, whatever she says."}
            ] = Wash.entries(id)
 
     test = self()
@@ -80,7 +80,7 @@ defmodule Oneiroi.Eunomia.WashTest do
     assert_received {:prompt, prompt}
 
     assert prompt =~ "[2] (SOUL.md) [soul/1] I will finish" and
-             prompt =~ "[5] (USER.md) She is not wrong"
+             prompt =~ "[5] (GOALS.md) She is not wrong"
 
     # Runs and flags raised on the suite's one instant come back in either
     # order, so each is found by what it is.
@@ -105,7 +105,7 @@ defmodule Oneiroi.Eunomia.WashTest do
            } =
              expired = Enum.find(open, &(&1.kind == "expired"))
 
-    assert %{file: "USER.md", reason: "it argues with a doubt nobody voiced here"} =
+    assert %{file: "GOALS.md", reason: "it argues with a doubt nobody voiced here"} =
              defensive = Enum.find(open, &(&1.kind == "defensive"))
 
     # A reply naming an entry it was not shown, or a kind it was not given, fails the run and raises nothing.

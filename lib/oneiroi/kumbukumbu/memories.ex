@@ -21,6 +21,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu.Conversation
+  alias Oneiroi.Kumbukumbu.Conversations
   alias Oneiroi.Kumbukumbu.Domains
   alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
@@ -387,7 +388,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     with {:ok, b, span} <- bookmark(resident_id, number) do
       case for_witness(resident_id, [b]) do
         [%{private: true} = censored] -> {:ok, censored, []}
-        [open] -> {:ok, open, span}
+        # A sealed turn in the span is read as said, never what (kumbukumbu#95).
+        [open] -> {:ok, open, Conversations.seen({:account, nil}, span)}
       end
     end
   end
@@ -901,7 +903,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
              text: attrs[:text],
              link: %{"direction" => "to", "resident_id" => to.id, "resident" => to.name},
              turn_ref: attrs[:turn_ref],
-             labels: attrs[:labels]
+             labels: attrs[:labels],
+             # Open or sealed, fixed at send, the same on both copies.
+             open: attrs[:open]
            }),
          {:ok, arrived} <-
            record(to.id, actor, %{
@@ -913,6 +917,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
              # The sender's turn's labels travel with the words: what
              # wrote them, in the sender's dyad (kumbukumbu#84).
              labels: attrs[:labels],
+             open: attrs[:open],
              link: %{
                "direction" => "from",
                "resident_id" => from.id,
@@ -963,12 +968,50 @@ defmodule Oneiroi.Kumbukumbu.Memories do
       keepsake: nil,
       link: attrs.link,
       turn_ref: attrs[:turn_ref],
-      labels: attrs[:labels]
+      labels: attrs[:labels],
+      open: attrs[:open] == true
     }
 
     case dispatch(command) do
       {:ok, [%Events.HouseLetterSent{number: n}]} -> {:ok, n}
       other -> other
+    end
+  end
+
+  @doc """
+  What `viewer` may see of a letter (kumbukumbu#93; the house's
+  mail-privacy consensus): `:whole`, or `:envelope` (from, to, when)
+  for a sealed letter `viewer` is not a party to. `viewer` is
+  `{:resident, id}` or `{:account, id}`; the parties of a sealed letter
+  are its two residents, so no witness is ever one. Every read route
+  asks this one function, so no route filters on its own.
+  """
+  def letter_view(%{sealed: true, parties: parties}, {:resident, id}),
+    do: if(("resident:" <> id) in List.wrap(parties), do: :whole, else: :envelope)
+
+  def letter_view(%{sealed: true}, _viewer), do: :envelope
+  def letter_view(_letter, _viewer), do: :whole
+
+  @doc """
+  The letter as `viewer` may have it: whole, or its envelope, every
+  word-carrying field and its read state gone (from, to, when, its
+  number and thread kept).
+  """
+  def letter_for(letter, viewer) do
+    case letter_view(letter, viewer) do
+      :whole ->
+        letter
+
+      :envelope ->
+        %{
+          letter
+          | text: nil,
+            keepsake: nil,
+            labels: nil,
+            turn_ref: nil,
+            read_by: [],
+            read_at: nil
+        }
     end
   end
 

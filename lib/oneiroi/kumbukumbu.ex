@@ -344,7 +344,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.SessionOpened, 3},
       {Oneiroi.Kumbukumbu.Events.SessionMadePrivate, 1},
       {Oneiroi.Kumbukumbu.Events.TurnStarted, 1},
-      {Oneiroi.Kumbukumbu.Events.TurnCaptured, 1},
+      {Oneiroi.Kumbukumbu.Events.TurnCaptured, 2},
       {Oneiroi.Kumbukumbu.Events.ContextAssembled, 1},
       {Oneiroi.Kumbukumbu.Events.DisclosureJudged, 1},
       {Oneiroi.Kumbukumbu.Events.RetrievalRecorded, 2},
@@ -367,7 +367,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionApplied, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionDeclined, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 4},
+      {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 5},
       {Oneiroi.Kumbukumbu.Events.Memory.HouseLettersRead, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagApproved, 1},
@@ -430,6 +430,10 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_revision_text_invalid,
        "a revision is one text of at most 2,000 characters, not blank",
        remedy: "say what is right"},
+      {:kumbukumbu_domain_undeclared,
+       "that domain is not declared in the agreement in force: a domain is named only once the dyad has declared it with its policy (kumbukumbu#90, agathos-daimon#57)",
+       remedy:
+         "name one of the declared domains, or none for the common room; a new domain is declared in the agreement first"},
       {:kumbukumbu_withheld_by_policy,
        "withheld by policy: what this turn's context holds may not reach that audience, by the dyad's domain policies, and no review released it; nothing was delivered (kumbukumbu#80, #82)",
        remedy:
@@ -608,6 +612,11 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "Kept labels as a kept ledger, one entry each (kumbukumbu#89)."
   defexport(labels_ledger(labels), do: Ledger.labels_ledger(labels))
 
+  @doc "Her own request for a judge's read of her words against the soul lines an audience may not hear (kumbukumbu#91); the soul never calls the judge otherwise."
+  defexport(review_soul(resident_id, session_key, turn_ref, audience, text),
+    do: Ledger.review_soul(resident_id, session_key, turn_ref, audience, text)
+  )
+
   @doc "The union of a kept ledger's labels (kumbukumbu#84), for a file read."
   @spec ledger_labels([map()] | nil) :: [term()] | nil
   defexport(ledger_labels(ledger),
@@ -678,6 +687,14 @@ defmodule Oneiroi.Kumbukumbu do
           :ok | {:error, term()}
   defexport(capture(resident_id, key, turn_ref, started_at, messages, actor),
     do: Conversations.capture(resident_id, key, turn_ref, started_at, messages, actor)
+  )
+
+  @doc "What a witness reads in place of a sealed turn's words (kumbukumbu#95)."
+  defexport(sealed_words(), do: Conversations.sealed_words())
+
+  @doc "A turn captured sealed to a letter's parties (kumbukumbu#95): `sealed:` the parties, its words theirs."
+  defexport(capture(resident_id, key, turn_ref, started_at, messages, actor, opts),
+    do: Conversations.capture(resident_id, key, turn_ref, started_at, messages, actor, opts)
   )
 
   @doc """
@@ -768,6 +785,13 @@ defmodule Oneiroi.Kumbukumbu do
     do: Domains.walled?(resident_id, key, current)
   )
 
+  @doc "Whether a domain may be named in a session (kumbukumbu#90): the common room always, any other only when declared in the agreement."
+  @spec check_domain(String.t(), String.t(), String.t() | nil, String.t() | nil) ::
+          :ok | {:error, term()}
+  defexport(check_domain(resident_id, key, person, domain),
+    do: Conversations.check_domain(resident_id, key, person, domain)
+  )
+
   @doc "Tags a turn's messages into a domain (kumbukumbu#72), by its ref, before or after it is captured; `domain` nil is the common room, `person` nil the conversation's counterpart."
   @spec tag_domain(
           String.t(),
@@ -800,6 +824,16 @@ defmodule Oneiroi.Kumbukumbu do
           {:ok, Oneiroi.Kumbukumbu.Store.Session.t(), [Oneiroi.Kumbukumbu.Store.Message.t()]}
           | {:error, term()}
   defexport(transcript(scope, key), do: Conversations.transcript(scope, key))
+
+  @doc "A page of a session by place (kumbukumbu#94): `{:ok, session, messages, total}`, from a 0-based offset, at most `limit`, read in the database."
+  defexport(transcript_range(scope, key, offset, limit),
+    do: Conversations.transcript_range(scope, key, offset, limit)
+  )
+
+  @doc "Where a turn sits in its session (kumbukumbu#94): `{offset, count}`, or nil."
+  defexport(turn_place(scope, key, turn_ref),
+    do: Conversations.turn_place(scope, key, turn_ref)
+  )
 
   @doc "A page of a session's transcript: the last `limit` messages before a `{sequence, position}` cursor (nil for the newest), and whether earlier ones remain."
   @spec transcript_page(
@@ -1390,6 +1424,12 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "Every house letter, oldest first, with the conversations that read each."
   @spec letters(String.t()) :: [Oneiroi.Kumbukumbu.Store.HouseLetter.t()]
   defexport(letters(resident_id), do: Memories.letters(resident_id))
+
+  @doc "What a viewer may see of a letter (kumbukumbu#93): `:whole` or `:envelope`; the one rule every read route asks."
+  defexport(letter_view(letter, viewer), do: Memories.letter_view(letter, viewer))
+
+  @doc "The letter as a viewer may have it (kumbukumbu#93): whole, or its envelope (from, to, when) with no words or read state."
+  defexport(letter_for(letter, viewer), do: Memories.letter_for(letter, viewer))
 
   @doc """
   The house letters holding `text`, case aside (kumbukumbu#70): newest

@@ -601,7 +601,7 @@ defmodule OneiroiWeb.ContractTest do
            } =
              conn
              |> put_req_header("origin", origin())
-             |> post("/v1/residents/#{id}/files/USER.md/draft", %{prompt: "make it kind"})
+             |> post("/v1/residents/#{id}/files/GOALS.md/draft", %{prompt: "make it kind"})
              |> json_response(200)
 
     assert %{

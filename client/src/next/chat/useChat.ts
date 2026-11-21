@@ -15,9 +15,9 @@ import { useShell } from '../state/store';
 
 const PAGE = 40;
 
+/** The turn under way: which it is, never its words (her reply lands whole). */
 export interface Stream {
   turnRef: string;
-  text: string;
 }
 
 export function useChat(residentId: string, live: Live) {
@@ -82,6 +82,9 @@ export function useChat(residentId: string, live: Live) {
     const close = live.session(residentId, key, {
       joined: () => void refreshNewest(),
       started: (ref) => {
+        // Her reply is not streamed (the witness, 2026-11-21): the turn shows
+        // as working, its step and time, and lands whole.
+        setStream({ turnRef: ref });
         setOutbox((o) => update(o, ref, { state: 'running' }));
         setPresence({ residentId, state: 'thinking', since: Date.now() });
       },
@@ -94,12 +97,6 @@ export function useChat(residentId: string, live: Live) {
           const sameStep = current.state === state && current.detail === detail?.name;
           setPresence({ residentId, state, detail: detail?.name, since: sameStep ? current.since : Date.now() });
         }
-      },
-      delta: (ref, text) => {
-        setStream((s) => (s && s.turnRef === ref ? { turnRef: ref, text: s.text + text } : { turnRef: ref, text }));
-        const current = useShell.getState().presence;
-        if (current.state !== 'writing') setPresence({ residentId, state: 'writing', since: Date.now() });
-        setOutbox((o) => update(o, ref, { state: 'writing' }));
       },
       turn: () => {
         void refreshNewest().then(() => setStream(null));

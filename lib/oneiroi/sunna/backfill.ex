@@ -61,7 +61,10 @@ defmodule Oneiroi.Sunna.Backfill do
          true <- Date.compare(first, last) != :gt,
          true <- Date.compare(last, today(resident_id)) == :lt,
          {:ok, his} <- slugs(lists["his"]),
-         {:ok, hers} <- slugs(lists["hers"]) do
+         {:ok, hers} <- slugs(lists["hers"]),
+         # Only declared domains (agathos-daimon#57): his life's, then hers.
+         :ok <- declared(resident_id, :witness, his),
+         :ok <- declared(resident_id, :resident, hers) do
       stop(resident_id)
 
       {:ok, _job} =
@@ -78,6 +81,7 @@ defmodule Oneiroi.Sunna.Backfill do
 
       {:ok, Date.diff(last, first) + 1}
     else
+      {:error, _} = undeclared -> undeclared
       _invalid -> {:error, Error.new(:sunna_backfill_invalid, :sunna_backfill_start_invalid)}
     end
   end
@@ -202,6 +206,26 @@ defmodule Oneiroi.Sunna.Backfill do
   end
 
   @slug ~r/\A[a-z][a-z0-9-]{1,31}\z/
+
+  defp declared(resident_id, whose, slugs) do
+    person =
+      case {whose, AgathosDaimon.fetch(resident_id)} do
+        {:resident, _} -> "resident:" <> resident_id
+        {:witness, {:ok, %{account_id: account}}} -> "account:" <> to_string(account)
+        _none -> nil
+      end
+
+    case Enum.reject(slugs, &AgathosDaimon.domain_declared?(resident_id, person, &1)) do
+      [] ->
+        :ok
+
+      undeclared ->
+        {:error,
+         Error.new(:sunna_backfill_invalid, :sunna_backfill_start_undeclared,
+           undeclared: undeclared
+         )}
+    end
+  end
 
   defp slugs(nil), do: {:ok, []}
 

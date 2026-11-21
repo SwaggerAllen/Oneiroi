@@ -22,6 +22,7 @@ defmodule Oneiroi.Kumbukumbu.DomainsTest do
   setup do
     witness = Fixtures.account!()
     resident = Fixtures.resident!(witness)
+    Fixtures.declare_domains!(resident.id, witness.id, ~w(business family intimate recovery))
     actor = Actor.new(:witness, witness.id)
     brain = Actor.new(:resident, resident.id, "fake/model")
     :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)
@@ -286,7 +287,8 @@ defmodule Oneiroi.Kumbukumbu.DomainsTest do
         ctx.actor
       )
 
-    assert %{version: nil, policies: []} = AgathosDaimon.domain_policies(id)
+    # Only proposed: the policies in force are the setup's declarations.
+    refute Enum.any?(AgathosDaimon.domain_policies(id).policies, &(&1.allow != []))
     :ok = AgathosDaimon.agree_contract(id, v, "agreed", ctx.brain)
 
     assert %{version: ^v, policies: [%{default: "deny", allow: [%{kind: "household"}]}]} =

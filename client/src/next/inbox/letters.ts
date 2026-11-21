@@ -11,11 +11,14 @@ export type LetterState =
   | { kind: 'answered'; by: number }
   | { kind: 'closed'; readBy: string[] }
   | { kind: 'in_hand'; readBy: string[] }
-  | { kind: 'waiting'; on: string; clock: boolean };
+  | { kind: 'waiting'; on: string; clock: boolean }
+  | { kind: 'sealed' };
 
 export function letterState(letter: HouseLetter, all: HouseLetter[]): LetterState {
   const reply = all.find((l) => l.in_reply_to === letter.number);
   if (reply) return { kind: 'answered', by: reply.number };
+  // A sealed letter's read state is its parties' alone (kumbukumbu#93).
+  if (letter.sealed) return { kind: 'sealed' };
   if (letter.read_by.length > 0 && letter.in_reply_to !== null) return { kind: 'closed', readBy: letter.read_by };
   if (letter.read_by.length > 0) return { kind: 'in_hand', readBy: letter.read_by };
   if (letter.to === 'Free time') return { kind: 'waiting', on: 'the next free time', clock: true };
@@ -38,5 +41,7 @@ export function stateLine(state: LetterState): string {
       return `read by ${state.readBy.join(', ')}, not answered yet`;
     case 'waiting':
       return state.clock ? `waiting for ${state.on}` : `unread, waiting for ${state.on}`;
+    case 'sealed':
+      return 'sealed between them';
   }
 }

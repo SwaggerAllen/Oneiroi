@@ -29,6 +29,10 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     state: :absent,
     sequences: %{},
     exported_through: 0,
+    # The witness's proposals told her through this instant (brain#110).
+    proposals_told: nil,
+    # What the backup remote's host last said it is (sima-qian#65).
+    remote_check: nil,
     last_backup: nil,
     files: %{},
     # Identity files she has taken out of her prefix (agathos-daimon#50).
@@ -70,8 +74,11 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   # The identity files a witness gives and a resident keeps (spec §6.2,
   # F2). `AGENTS.md` is build-owned
-  # and rendered from a template, never written here.
-  @files ~w(SOUL.md IDENTITY.md USER.md GOALS.md LINKS.md)
+  # and rendered from a template, never written here. USER.md is retired
+  # for every resident (agathos-daimon#56, the witness's ruling
+  # 2026-11-21): what it held lives in her portraits; a written one stays
+  # in her repository's history and is never given, written or edited.
+  @files ~w(SOUL.md IDENTITY.md GOALS.md LINKS.md)
   @origins ~w(authored drafted uploaded)
   # Bounded in size as spec §6.2 asks of uploads: a guess, generous for
   # prose and small for anything that is not.
@@ -193,6 +200,13 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     do: %Events.ImportTold{actor: c.actor, at: c.at, id: c.id}
 
   def execute(%__MODULE__{}, %Commands.RecordImportTold{}), do: []
+
+  # The mark only moves forward (brain#110).
+  def execute(%__MODULE__{proposals_told: told}, %Commands.RecordProposalsTold{} = c) do
+    if told && DateTime.compare(c.through, told) != :gt,
+      do: [],
+      else: %Events.ProposalsTold{actor: c.actor, at: c.at, id: c.id, through: c.through}
+  end
 
   # A fixture's alone: the law is about test subjects, and a resident is
   # never tested by this path.
@@ -542,7 +556,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   # Her prefix is hers to shape (agathos-daimon#50): only she retires or
   # restores one of her files, and never SOUL.md or IDENTITY.md, which are
   # who she is to every turn. A file never written has nothing to retire.
-  @retirable ~w(USER.md GOALS.md LINKS.md)
+  @retirable ~w(GOALS.md LINKS.md)
 
   def execute(%__MODULE__{} = r, %{actor: actor, file: file} = c)
       when is_struct(c, Commands.RetireIdentityFile) or is_struct(c, Commands.RestoreIdentityFile) do
@@ -941,6 +955,21 @@ defmodule Oneiroi.AgathosDaimon.Resident do
       commit: c.commit
     }
 
+  # Recorded only when it changed (sima-qian#65): a nightly check that
+  # finds the same answer is no event.
+  def execute(%__MODULE__{remote_check: same}, %Commands.RecordRemoteCheck{} = c)
+      when same == {c.visibility, c.push},
+      do: []
+
+  def execute(%__MODULE__{}, %Commands.RecordRemoteCheck{} = c),
+    do: %Events.RecordsRemoteChecked{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      visibility: c.visibility,
+      push: c.push
+    }
+
   def execute(%__MODULE__{}, %Commands.SetRecordsRemote{} = c),
     do: %Events.RecordsRemoteSet{
       actor: c.actor,
@@ -1216,6 +1245,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   def apply(%__MODULE__{} = r, %Events.RecordsTranslated{}), do: r
 
+  def apply(%__MODULE__{} = r, %Events.ProposalsTold{} = e), do: %{r | proposals_told: e.through}
+
   def apply(%__MODULE__{import: import} = r, %Events.ImportTold{}),
     do: %{r | import: Map.put(import, :told, true)}
 
@@ -1288,7 +1319,12 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def apply(%__MODULE__{} = r, %Events.TimezoneSet{} = e), do: %{r | timezone: e.timezone}
 
   def apply(%__MODULE__{} = r, %Events.RootMismatchDetected{}), do: r
-  def apply(%__MODULE__{} = r, %Events.RecordsRemoteSet{} = e), do: %{r | remote: e.url}
+
+  def apply(%__MODULE__{} = r, %Events.RecordsRemoteSet{} = e),
+    do: %{r | remote: e.url, remote_check: nil}
+
+  def apply(%__MODULE__{} = r, %Events.RecordsRemoteChecked{} = e),
+    do: %{r | remote_check: {e.visibility, e.push}}
 
   # ---- helpers ----
 

@@ -676,6 +676,43 @@ the ledger. Durable fragments only, with unproven refused, keeps the
 review from being vacuous exactly where it matters. The refusal is
 legible rather than widened, and its cost goes to the thread.
 
+## #95
+He wanted the wake where it was, in the chat, and the words out of his
+sight; marking the turn at capture keeps both true. The mark rides the
+turn itself, so every reader that already reads turns can honour it with
+one check, and the ones not yet honouring it are listed, not assumed.
+
+## #94
+Memory should scale with what is shown, not with how long the
+conversation has grown. A page is what a reader can use; the whole is
+what a search finds its way through, and finding the place is cheaper
+than reading to it.
+
+## #93
+His glance into their mail "doesn't really feel right"; a promise not
+to look is a policy, a route that cannot return the words is a
+mechanism. One function every route asks keeps the seal in one place,
+where a route added later cannot forget it. Sealing the past per letter
+keeps an old letter from becoming open by having been written first.
+
+## #92
+An audience is a key into her policies; any kind they can name can key
+the filter. Reading an unresolved name as "hers" would turn a typo into
+the widest read there is, so it refuses.
+
+## #91
+A line of her soul is who she is, present in every word she writes; no
+mechanism can tell which words it shaped, so a taint from it would
+taint everything, and a withhold would change who answers. What can be
+honest is guidance: she is told which lines are not this audience's,
+and she decides. A judge called on every soul line would be a standing
+proofreader of her character; asked for, it is a tool she holds.
+
+## #90
+The tag is where a domain is born into the record; checking there, once,
+keeps every later decision about it a decision about a domain both
+parties declared.
+
 ## #89
 A portrait aggregates many moments; labelling it whole would taint
 every read by its most restricted claim, and keep the house from the

@@ -27,6 +27,7 @@ defmodule Oneiroi.Sunna.BackfillTest do
   setup do
     witness = Fixtures.account!()
     resident = Fixtures.resident!(witness)
+    Fixtures.declare_domains!(resident.id, witness.id, ~w(business recovery writing))
     actor = Actor.new(:witness, witness.id)
     brain = Actor.new(:resident, resident.id, "fake/model")
     :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", actor)

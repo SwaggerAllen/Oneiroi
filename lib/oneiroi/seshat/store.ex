@@ -29,6 +29,11 @@ defmodule Oneiroi.Seshat.Store do
       field(:class_person, :string)
       field(:class_domain, :string)
       field(:classified_at, :utc_datetime_usec)
+      # The witness's proposal waiting on her (seshat#103); nil when none.
+      field(:proposed_person, :string)
+      field(:proposed_domain, :string)
+      field(:proposed_note, :string)
+      field(:proposed_at, :utc_datetime_usec)
       field(:versions, :integer, default: 0)
       field(:embedded_with, :string)
       field(:chunks, :integer, default: 0)
@@ -630,6 +635,14 @@ defmodule Oneiroi.Seshat.Store do
 
   @spec documents() :: [Document.t()]
   def documents, do: Repo.all(from(d in Document, order_by: [d.kind, d.path]))
+
+  @doc "The documents with a classification proposal waiting (seshat#103), oldest first."
+  @spec classification_proposals() :: [Document.t()]
+  def classification_proposals,
+    do:
+      Repo.all(
+        from(d in Document, where: not is_nil(d.proposed_at), order_by: [d.proposed_at, d.path])
+      )
 
   @doc "Her books, by title (seshat#98)."
   @spec books() :: [Book.t()]

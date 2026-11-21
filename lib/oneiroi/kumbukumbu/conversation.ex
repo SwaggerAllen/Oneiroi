@@ -171,7 +171,8 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
           session_key: c.session_key,
           turn_ref: c.turn_ref,
           started_at: c.started_at,
-          messages: c.messages
+          messages: c.messages,
+          sealed: c.sealed
         }
     end
   end

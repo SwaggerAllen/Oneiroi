@@ -11,6 +11,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu.Commands
@@ -143,35 +144,70 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     do: {:domain, Domains.current(resident_id, session_key)}
 
   @doc """
+  Whether `domain` may be named in session `key` (kumbukumbu#90): the
+  common room always; any other only when the agreement declares it for
+  `person`, or the conversation's counterpart when nil.
+  """
+  def check_domain(resident_id, key, person, domain) do
+    person = whose(resident_id, key, person)
+    domain = blank_nil(domain)
+
+    # A malformed slug or person is the aggregate's to refuse, by its
+    # own kind; only a well-formed one is asked whether it is declared.
+    if not well_formed?(person, domain) or
+         AgathosDaimon.domain_declared?(resident_id, person, domain),
+       do: :ok,
+       else:
+         {:error,
+          Error.new(:kumbukumbu_domain_undeclared, :kumbukumbu_conversations_tag_undeclared,
+            domain: domain,
+            declared: Enum.map(AgathosDaimon.declared_domains(resident_id), & &1.domain)
+          )}
+  end
+
+  defp well_formed?(person, domain),
+    do:
+      is_binary(domain) and Regex.match?(~r/\A[a-z][a-z0-9-]{1,31}\z/, domain) and
+        is_binary(person) and Regex.match?(~r/\A(account|resident):/, person)
+
+  defp whose(resident_id, key, person) do
+    person ||
+      Scope.resident(resident_id, fn ->
+        case Store.session(key) do
+          nil -> nil
+          session -> Domains.counterpart(session, resident_id)
+        end
+      end) || "resident:" <> resident_id
+  end
+
+  @doc """
   Tags a turn's messages into a domain (P23-R1, kumbukumbu#72), by its
   ref, before or after it is captured; `domain` nil is the common room.
   `person` is whose life (`"account:<id>"` or `"resident:<id>"`); nil
   takes the conversation's counterpart, the witness's in a conversation
-  with him and hers in her own.
+  with him and hers in her own. Only a declared domain (kumbukumbu#90).
   """
   def tag_domain(resident_id, key, turn_ref, person, domain, %Actor{} = actor) do
-    person =
-      person ||
-        Scope.resident(resident_id, fn ->
-          case Store.session(key) do
-            nil -> nil
-            session -> Domains.counterpart(session, resident_id)
-          end
-        end)
+    person = whose(resident_id, key, person)
+    domain = blank_nil(domain)
 
-    dispatch(%Commands.TagDomain{
-      actor: actor,
-      at: Clock.now(),
-      id: stream(resident_id, key),
-      resident_id: resident_id,
-      session_key: key,
-      turn_ref: turn_ref,
-      person: person || "resident:" <> resident_id,
-      domain: blank_nil(domain)
-    })
-    |> case do
-      {:ok, _} -> :ok
-      error -> error
+    # Only a domain the agreement declares is named (agathos-daimon#57,
+    # kumbukumbu#90): none exists without its rule.
+    with :ok <- check_domain(resident_id, key, person, domain) do
+      dispatch(%Commands.TagDomain{
+        actor: actor,
+        at: Clock.now(),
+        id: stream(resident_id, key),
+        resident_id: resident_id,
+        session_key: key,
+        turn_ref: turn_ref,
+        person: person,
+        domain: domain
+      })
+      |> case do
+        {:ok, _} -> :ok
+        error -> error
+      end
     end
   end
 
@@ -220,7 +256,17 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   deduplicates on is the content's. `turn_ref` is the id the brain or
   the adapter gave the turn; `started_at` is when it began.
   """
-  def capture(resident_id, key, turn_ref, %DateTime{} = started_at, messages, %Actor{} = actor)
+  def capture(resident_id, key, turn_ref, started_at, messages, actor, opts \\ [])
+
+  def capture(
+        resident_id,
+        key,
+        turn_ref,
+        %DateTime{} = started_at,
+        messages,
+        %Actor{} = actor,
+        opts
+      )
       when is_list(messages) do
     # Her inline reacts lifted out as a live turn of hers is kept, in any
     # runtime (kumbukumbu#56); an import's transcript is kept as it was.
@@ -237,7 +283,9 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       session_key: key,
       turn_ref: turn_ref,
       started_at: started_at,
-      messages: Enum.map(messages, &wire_message/1)
+      messages: Enum.map(messages, &wire_message/1),
+      # The sealed letter's parties, when the turn answers one (kumbukumbu#95).
+      sealed: Keyword.get(opts, :sealed)
     }
 
     with {:ok, _events} <- dispatch(command),
@@ -399,14 +447,58 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   # this refusal say the same thing.
   def transcript(scope, key) do
     with {:ok, session, _} <- visible(scope, key),
-         do: {:ok, session, Scope.run(scope, fn -> Store.messages(key) end)}
+         do: {:ok, session, seen(scope, Scope.run(scope, fn -> Store.messages(key) end))}
+  end
+
+  @sealed_words "[sealed: her answer to a letter between residents; its words are the letter's parties' alone (kumbukumbu#95)]"
+
+  @doc "What a witness reads in place of a sealed turn's words (kumbukumbu#95)."
+  def sealed_words, do: @sealed_words
+
+  @doc """
+  The messages as `scope` may read them (kumbukumbu#95): a witness's
+  account reads a sealed turn's messages as having been said, never
+  what; the resident reads her own whole.
+  """
+  def seen({:account, _id}, messages),
+    do:
+      Enum.map(
+        messages,
+        &if(Map.get(&1, :sealed) == true, do: %{&1 | content: @sealed_words}, else: &1)
+      )
+
+  def seen(_scope, messages), do: messages
+
+  defp seen_window({:ok, session, window}, scope),
+    do: {:ok, session, %{window | messages: seen(scope, window.messages)}}
+
+  defp seen_window(other, _scope), do: other
+
+  @doc """
+  A page of a conversation by place (kumbukumbu#94): `{:ok, session,
+  messages, total}`, the messages from `offset` (0-based), at most
+  `limit`, read in the database; refused as `transcript/2` refuses.
+  """
+  def transcript_range(scope, key, offset, limit) do
+    with {:ok, session, _} <- visible(scope, key) do
+      Scope.run(scope, fn ->
+        {:ok, session, seen(scope, Store.messages_range(key, offset, limit)),
+         Store.message_count(key)}
+      end)
+    end
+  end
+
+  @doc "Where a turn sits in its conversation (kumbukumbu#94): `{offset, count}` or nil."
+  def turn_place(scope, key, turn_ref) do
+    with {:ok, _session, _} <- visible(scope, key),
+         do: Scope.run(scope, fn -> Store.turn_place(key, turn_ref) end)
   end
 
   @doc "A page of a session's transcript under a scope: the session, the last `limit` messages before the `{sequence, position}` cursor (nil for the newest), and whether earlier ones remain."
   def transcript_page(scope, key, before, limit) do
     with {:ok, session, _} <- visible(scope, key) do
       {messages, more} = Scope.run(scope, fn -> Store.messages_page(key, before, limit) end)
-      {:ok, session, messages, more}
+      {:ok, session, seen(scope, messages), more}
     end
   end
 
@@ -416,7 +508,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       {messages, more} =
         Scope.run(scope, fn -> Store.messages_after(key, after_cursor, limit) end)
 
-      {:ok, session, messages, more}
+      {:ok, session, seen(scope, messages), more}
     end
   end
 
@@ -429,7 +521,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   """
   def transcript_around(scope, key, anchor, limit) do
     with {:ok, session, _} <- visible(scope, key) do
-      Scope.run(scope, fn -> around(session, key, anchor, limit) end)
+      scope |> Scope.run(fn -> around(session, key, anchor, limit) end) |> seen_window(scope)
     end
   end
 
@@ -644,6 +736,10 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     end)
   end
 
+  # A witness's search never matches a sealed turn (kumbukumbu#95).
+  def search({:account, _} = scope, text, limit),
+    do: Scope.run(scope, fn -> Store.search_unsealed(text, limit) end)
+
   def search(scope, text, limit), do: Scope.run(scope, fn -> Store.search(text, limit) end)
 
   @doc "Messages holding `text` within the current domain of `session_key` and the common room (kumbukumbu#72)."
@@ -654,7 +750,27 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
 
   def failures(scope), do: Scope.run(scope, fn -> Store.open_failures() end)
 
+  # The context inspector, as a witness reads it (kumbukumbu#95; the
+  # witness, 2026-11-21: "we'll need to censor the context inspector"):
+  # each section's label, tokens and reason, but no words for a turn of a
+  # private session of hers or a sealed turn. Before, it answered every
+  # section's text whatever the session.
+  def injections({:account, _} = scope, turn_ref) do
+    rows = Scope.run(scope, fn -> Store.injections(turn_ref) end)
+
+    if censored?(scope, rows, turn_ref),
+      do: Enum.map(rows, &%{&1 | text: nil}),
+      else: rows
+  end
+
   def injections(scope, turn_ref), do: Scope.run(scope, fn -> Store.injections(turn_ref) end)
+
+  defp censored?(_scope, [], _turn_ref), do: false
+
+  defp censored?(scope, [row | _], turn_ref) do
+    not match?({:ok, _, _}, visible(scope, row.session_key)) or
+      Scope.run(scope, fn -> Store.turn_sealed?(turn_ref) end)
+  end
 
   @doc "The sha256 of a message's content, hex: the key a message is stored under."
   @spec hash(String.t()) :: String.t()

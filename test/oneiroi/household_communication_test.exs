@@ -343,12 +343,18 @@ defmodule Oneiroi.HouseholdCommunicationTest do
     Fake.clear()
     Fake.reply("Yes, Sunday.", for: iris.id)
     assert :ok = Sunna.tick(iris.id)
-    {:ok, _session, woken} = Kumbukumbu.transcript({:account, ctx.witness.id}, iris.chat)
+    {:ok, _session, woken} = Kumbukumbu.transcript({:resident, iris.id}, iris.chat)
 
     assert Enum.any?(
              woken,
              &(&1.role == "system" and &1.content =~ "##{to_her.number} from your housemate Lily")
            )
+
+    # The letter is sealed, so the wake's turn is too (kumbukumbu#95): the
+    # witness reads that it ran in her chat, never its words.
+    {:ok, _session, his} = Kumbukumbu.transcript({:account, ctx.witness.id}, iris.chat)
+    refute Enum.any?(his, &(&1.content =~ "from your housemate Lily"))
+    assert Enum.any?(his, &(&1.content == Kumbukumbu.sealed_words()))
 
     # Iris's inbox names the other copy, qualified by Lily's name.
     assert run("letter_inbox", %{}, iris) =~ "(lily##{her_copy.number} in Lily's letters)"

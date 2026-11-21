@@ -161,7 +161,8 @@ defmodule Oneiroi.Seshat.Household.Shelf do
 
       rows =
         wake_rows(ids, household_id, own, name) ++
-          token_rows(household_id, ids, name) ++ letter_rows(Enum.filter(ids, &(&1 in own)), name)
+          token_rows(household_id, ids, name) ++
+          letter_rows(Enum.filter(ids, &(&1 in own)), name, viewer(actor))
 
       {:ok,
        rows
@@ -229,9 +230,15 @@ defmodule Oneiroi.Seshat.Household.Shelf do
         }
   end
 
-  defp letter_rows(ids, name) do
+  # A sealed letter's read state is its parties' alone (kumbukumbu#93):
+  # a witness sees that it was sent, never whether it was read.
+  defp viewer(%Actor{kind: :resident, id: id}), do: {:resident, id}
+  defp viewer(%Actor{id: id}), do: {:account, id}
+
+  defp letter_rows(ids, name, viewer) do
     for id <- ids,
         l <- Kumbukumbu.letter_envelopes(id, 50),
+        l = if(Kumbukumbu.letter_view(l, viewer) == :whole, do: l, else: %{l | read_by: []}),
         do: %{
           kind: "letter",
           at: l.sent_at,

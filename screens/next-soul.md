@@ -134,7 +134,12 @@ turn.
     ("your recovery is never named into your business"), or that there
     are none and another domain's memory is a door; the open version's
     walls when they differ;
-  - **Propose a version**: every switch, the domain walls (the ones in
+  - **Propose a version**: every switch, the declared domains
+    (agathos-daimon#57: the policies in force carried in; each in words,
+    whose and its default, its grants and denials each removable and
+    one added by allow or deny, audience kind and id; a new one by whose
+    life, its slug and its default, "Declare the domain"; the only place
+    a domain is typed), the domain walls (the ones in
     force carried in, each removable; a new one from whose domain, its
     slug, whose context and its slug or any, "Add the wall"), your vows
     in prose and a required note, the switches it changes named;

@@ -391,11 +391,14 @@ export interface HouseLetter {
   from: string;
   to: string;
   in_reply_to: number | null;
-  text: string;
+  /** Null on a sealed letter's envelope (kumbukumbu#93): from, to and when alone. */
+  text: string | null;
   keepsake: string | null;
   sent_at: string;
   read_by: string[];
   read_at: string | null;
+  /** Sealed to two residents, and you are not one of them: its envelope alone (kumbukumbu#93). */
+  sealed?: boolean;
   /** Who it is from, said plainly (kumbukumbu#76): own, witness, housemate, house or platform. */
   origin?: 'own' | 'witness' | 'housemate' | 'house' | 'platform';
   origin_words?: string;
@@ -464,6 +467,10 @@ export interface LibraryDocument {
   missing_at: string | null;
   // Why a keepsake mattered, in the resident's words (seshat#32).
   note: string | null;
+  // Her classification (seshat#102) and the witness's proposal waiting
+  // on her (seshat#103); null when there is none.
+  classification?: { person: string | null; domain: string | null; at: string } | null;
+  proposal?: { person: string | null; domain: string | null; note: string | null; at: string } | null;
 }
 
 // A document kind as the shelf shows it (seshat#35): its name and its
@@ -546,7 +553,8 @@ export interface NeedsYouEntry {
     | 'notifications'
     | 'provider_credits'
     | 'turn_failed'
-    | 'contract_to_answer';
+    | 'contract_to_answer'
+    | 'remote_public';
   ref: number | string;
   since: string;
   screen: 'inbox' | 'schedule' | 'agreement' | 'work' | 'kinds' | 'theme' | 'settings';
@@ -556,7 +564,7 @@ export interface NeedsYouEntry {
 
 /** What waits on her: the witness's proposals and letters she hasn't answered or read (brain#76). */
 export interface WaitingOnHerEntry {
-  kind: 'contract_proposal' | 'soul_edit' | 'bookmark_proposal' | 'revision' | 'plugin_proposal' | 'letter' | 'lease_wait';
+  kind: 'contract_proposal' | 'soul_edit' | 'bookmark_proposal' | 'revision' | 'plugin_proposal' | 'classification_proposal' | 'letter' | 'lease_wait';
   ref: number | string;
   title: string;
   since: string;

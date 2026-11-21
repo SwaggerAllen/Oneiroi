@@ -154,6 +154,30 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
     %{version: in_force && in_force.version, policies: policies_of(in_force && in_force.terms)}
   end
 
+  @doc """
+  The domains the agreement in force declares (agathos-daimon#57, the
+  witness's ruling 2026-11-21): every `%{person, domain}` its domain
+  policies or its domain walls name, wildcards aside. A domain is used
+  only once declared, so none exists without a rule attached.
+  """
+  def declared_domains(resident_id) do
+    policies = for %{domain: d} <- domain_policies(resident_id).policies, do: d
+
+    walls =
+      for %{memory: m, context: c} <- domain_walls(resident_id), d <- [m, c], do: d
+
+    for %{person: p, domain: d} <- policies ++ walls,
+        p != "*" and d != "*" and is_binary(d),
+        uniq: true,
+        do: %{person: p, domain: d}
+  end
+
+  @doc "Whether the agreement in force declares `domain` of `person`'s life."
+  def declared?(_resident_id, _person, nil), do: true
+
+  def declared?(resident_id, person, domain),
+    do: %{person: person, domain: domain} in declared_domains(resident_id)
+
   @doc "A version's domain policies, from its terms."
   def policies_of(%{"domain_policies" => policies}) when is_list(policies),
     do:

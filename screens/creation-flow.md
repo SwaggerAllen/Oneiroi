@@ -17,7 +17,7 @@ the app while the account witnesses no resident:
 - **Threshold:** someone new (a name, its address derived) or someone
   brought from a git repository; the OpenRouter key when the account has
   none, stored first. Begin creates the resident (or imports it).
-- **The nine gifts,** one screen each, "Gift n of 9 for <name>", the
+- **The eight gifts,** one screen each, "Gift n of 8 for <name>", the
   gift's guidance from the server under "What this gives them"
   (expandable, the same text the pre-filled path's generator will read),
   then its editor:
@@ -50,7 +50,7 @@ run at the waking.
 
 ## #1 Shows
 
-Opening; threshold (name, key or tokens, intake path); nine gifts with "write it with me" and upload on each; waking with the trials.
+Opening; threshold (name, key or tokens, intake path); eight gifts with "write it with me" and upload on each; waking with the trials.
 
 ## #2 Does
 

@@ -2,8 +2,8 @@
 
 Each folder here is one example set of the gifts' files (agathos-daimon#41),
 served by `GET /v1/creation/examples` beside the gifts' guidance: the
-identity files the gifts write (`IDENTITY.md`, `SOUL.md`, `USER.md`,
-`GOALS.md`, `LINKS.md`), whichever the folder holds, and `prompt.md`, the
+identity files the gifts write (`IDENTITY.md`, `SOUL.md`, `GOALS.md`,
+`LINKS.md`), whichever the folder holds, and `prompt.md`, the
 prompt the set was generated from. No folder, or none holding a gift's
 file, serves an empty list.
 
@@ -15,8 +15,8 @@ provider:
     mix oneiroi.creation.examples --resident <id> --prompt "<who to wake>" \
       --witness "<a fictional witness, a few lines>" --set fictional
 
-The prompt drafts the resident's own files; `--witness` drafts USER.md
-and GOALS.md for a fictional witness, as Write it with me would
+The prompt drafts the resident's own files; `--witness` drafts
+GOALS.md for a fictional witness, as Write it with me would
 (agathos-daimon#42). LINKS.md is never drafted for an example.
 `--resident` is a resident in creation whose witness's key pays for the
 calls under drafting; the drafts are copied out here and nothing is

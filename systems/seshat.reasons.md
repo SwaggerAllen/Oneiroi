@@ -840,6 +840,12 @@ The journal and research answers are what her turns write down most.
 Without the writing turn's labels, they are where a restricted room's
 words go to lose their taint.
 
+## #103
+A classification is her act, and should stay one; but he sees her
+files from the outside and can notice what she missed. A proposal lets
+him say so without his word becoming the gate: nothing changes until
+she accepts, and her accept is the same act #102 records.
+
 ## #102
 Without a classification, a file born before births were kept could
 never reach the house, and a clean file born in a restricted room

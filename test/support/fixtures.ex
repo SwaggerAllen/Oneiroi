@@ -52,4 +52,37 @@ defmodule Oneiroi.Fixtures do
 
     resident_id
   end
+
+  @doc """
+  Declares `slugs` in the resident's agreement (agathos-daimon#57), each
+  for the witness's life and hers, default deny: a test may then tag,
+  classify and annotate them. Agreed as a new version.
+  """
+  def declare_domains!(resident_id, witness_account_id, slugs) do
+    witness = Actor.new(:witness, witness_account_id)
+
+    policies =
+      for slug <- slugs,
+          person <- ["account:" <> witness_account_id, "resident:" <> resident_id],
+          do: %{"domain" => %{"person" => person, "domain" => slug}, "default" => "deny"}
+
+    {:ok, v} =
+      Oneiroi.AgathosDaimon.propose_contract(
+        resident_id,
+        %{"domain_policies" => policies},
+        "Domains declared for the test.",
+        "declared",
+        witness
+      )
+
+    :ok =
+      Oneiroi.AgathosDaimon.agree_contract(
+        resident_id,
+        v,
+        "yes",
+        Actor.new(:resident, resident_id)
+      )
+
+    resident_id
+  end
 end

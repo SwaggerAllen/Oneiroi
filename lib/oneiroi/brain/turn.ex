@@ -45,6 +45,7 @@ defmodule Oneiroi.Brain.Turn do
   alias Oneiroi.Brain.Reactions
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Uses
+  alias Oneiroi.Brain.WaitingOnHer
   alias Oneiroi.Config
   alias Oneiroi.Gaia.Boots
   alias Oneiroi.Kumbukumbu
@@ -244,6 +245,8 @@ defmodule Oneiroi.Brain.Turn do
     # The witness's reacts not yet told her (kumbukumbu#56): one line,
     # once, on whichever turn comes next; marked told when it is captured.
     reacts = Reactions.untold(resident_id, session_key)
+    # The witness's proposals not yet told her (brain#110), the same way.
+    proposals = WaitingOnHer.untold(resident_id, row.proposals_told_through)
 
     # A resident formed in the creation flow, woken and not yet agreed
     # (agathos-daimon#46): nothing interjects in their first conversation.
@@ -260,7 +263,8 @@ defmodule Oneiroi.Brain.Turn do
           import: import_notice(row),
           restart: restart_notice(resident_id, session_key),
           batch: batch_notice(earlier, rounds_each()),
-          reacts: reacts_notice(reacts)
+          reacts: reacts_notice(reacts),
+          proposals: reacts_notice(proposals)
         ],
         guarded?
       )
@@ -285,6 +289,10 @@ defmodule Oneiroi.Brain.Turn do
       # Where the answer goes, when past the dyad (kumbukumbu#81): her
       # context is assembled for it.
       audience: audience(resident_id, Keyword.get(opts, :audience)),
+      # The sealed letter's parties when this turn answers one
+      # (kumbukumbu#95): captured sealed, and pushed to the witness without
+      # its words.
+      sealed: Keyword.get(opts, :sealed),
       opening: %{role: opening_role(as), content: text, sent_at: started_at, actor: actor},
       earlier: earlier,
       batch: length(earlier) + 1,
@@ -300,7 +308,9 @@ defmodule Oneiroi.Brain.Turn do
       # A night pass's turn (brain#91): its own tools, seed_plant among them.
       housekeeping?: Kumbukumbu.session_kind(resident_id, session_key) == "housekeeping",
       letters_to_deliver: letters_to_deliver(row, resident_id),
-      reacts_through: reacts && elem(reacts, 1),
+      reacts_through: through(reacts, false),
+      # A guarded resident is not told them yet, so nothing is marked told.
+      proposals_through: through(proposals, guarded?),
       notices: Enum.flat_map(notices, &elem(&1, 1)),
       notice_kinds: for({kind, [_ | _]} <- notices, do: kind)
     }
@@ -375,6 +385,10 @@ defmodule Oneiroi.Brain.Turn do
 
   defp notice_reason(:lapse), do: "the lapse, told once (spec §6.11)"
   defp notice_reason(:reacts), do: "the witness's reacts, told once (kumbukumbu#56)"
+
+  defp notice_reason(:proposals),
+    do: "the witness's proposals that arrived, told once (brain#110)"
+
   defp notice_reason(:model_change), do: "the change of model, told once (spec §6.4)"
 
   defp notice_reason(:letters),
@@ -587,8 +601,10 @@ defmodule Oneiroi.Brain.Turn do
     Process.put(@said, "")
     Process.delete(@stopped)
 
+    # The provider's stream is read here for the stop and the safe word
+    # alone; nothing of it is broadcast (the witness, 2026-11-21: her
+    # reply lands whole, brain#111).
     sink = fn delta ->
-      broadcast(turn.resident_id, turn.session_key, {:delta, turn.turn_ref, delta})
       said = Process.get(@said, "") <> delta
       Process.put(@said, said)
 
@@ -880,7 +896,7 @@ defmodule Oneiroi.Brain.Turn do
   defp finish(turn, messages) do
     %{resident_id: resident_id, session_key: key, turn_ref: ref, resident: resident} = turn
 
-    with :ok <- Kumbukumbu.capture(resident_id, key, ref, turn.started_at, messages, resident),
+    with :ok <- capture(turn, messages),
          :ok <- Kumbukumbu.record_context(resident_id, key, ref, turn.injections, resident),
          :ok <- Kumbukumbu.record_retrieval(resident_id, key, ref, uses(turn, messages), resident) do
       captured = %{
@@ -908,12 +924,50 @@ defmodule Oneiroi.Brain.Turn do
       if turn.reacts_through,
         do: :ok = Kumbukumbu.tell_reacts(resident_id, turn.reacts_through, key)
 
+      if turn.proposals_through,
+        do:
+          :ok =
+            Oneiroi.AgathosDaimon.proposals_told(resident_id, turn.proposals_through, resident)
+
       if turn.lapse_to_tell, do: :ok = Oneiroi.Nisaba.lapse_told(resident_id, resident)
       if turn.import_to_tell, do: :ok = Oneiroi.AgathosDaimon.import_told(resident_id, resident)
-      broadcast(resident_id, key, {:turn, ref, captured})
+      broadcast(resident_id, key, {:turn, ref, witnessed(captured, turn)})
       {:ok, captured}
     end
   end
+
+  defp capture(%{sealed: [_ | _] = parties} = turn, messages),
+    do:
+      Kumbukumbu.capture(
+        turn.resident_id,
+        turn.session_key,
+        turn.turn_ref,
+        turn.started_at,
+        messages,
+        turn.resident,
+        sealed: parties
+      )
+
+  defp capture(turn, messages),
+    do:
+      Kumbukumbu.capture(
+        turn.resident_id,
+        turn.session_key,
+        turn.turn_ref,
+        turn.started_at,
+        messages,
+        turn.resident
+      )
+
+  # What the witness's channel is pushed (kumbukumbu#95): a sealed turn
+  # lands without its words.
+  defp witnessed(captured, %{sealed: [_ | _]}),
+    do: %{
+      captured
+      | messages: Enum.map(captured.messages, &Map.put(&1, :content, Kumbukumbu.sealed_words()))
+    }
+
+  defp witnessed(captured, _turn), do: captured
 
   # The witness's devices are told when she writes in the chat without
   # being written to (gaia#15): a check-in, a letter that woke the chat, a
@@ -1036,6 +1090,10 @@ defmodule Oneiroi.Brain.Turn do
   # turn, so a turn cut off by a restart is never read as her own
   # breakage. Derived from the record alone: a conversation whose last
   # message comes after the boot has been told.
+  # The mark a told notice moves, or nil when nothing was told.
+  defp through({_line, mark}, false), do: mark
+  defp through(_untold, _guarded?), do: nil
+
   defp reacts_notice(nil), do: []
 
   defp reacts_notice({line, _through}),
@@ -1363,26 +1421,30 @@ defmodule Oneiroi.Brain.Turn do
           ]
       end
 
-    sections =
-      for s <- sections, s.label in kept.sections, do: without_lines(s, kept.soul_withheld)
+    # Her soul is given whole; what her annotations keep from this
+    # audience is guidance, never a withhold (kumbukumbu#91).
+    guidance =
+      case kept.soul_guidance do
+        [] ->
+          []
 
-    {sections, kept.rows, note}
+        lines ->
+          [
+            %{
+              role: :system,
+              content:
+                Prompt.render!("soul_guidance", %{
+                  audience: "#{audience.kind}:#{audience.id}",
+                  lines: Enum.map_join(lines, "\n", &("- " <> &1))
+                })
+            }
+          ]
+      end
+
+    {Enum.filter(sections, &(&1.label in kept.sections)), kept.rows, note ++ guidance}
   end
 
   defp for_audience(_turn, sections, rows), do: {sections, rows, []}
-
-  # Her soul with the lines this audience may not hear left out, each
-  # cited in its place (kumbukumbu#88): never cut from SOUL.md itself.
-  defp without_lines(%{label: "SOUL.md", message: %{content: text} = m} = s, [_ | _] = withheld) do
-    text =
-      Enum.reduce(withheld, text, fn {n, told}, acc ->
-        String.replace(acc, ~r/\[soul\/#{n}\][^\n]*(\n(?!\s*\n)[^\n]*)*/, "[soul/#{n}] (#{told})")
-      end)
-
-    %{s | message: %{m | content: text}}
-  end
-
-  defp without_lines(section, _withheld), do: section
 
   # The transcript's window. Compacted (brain#60's `on`): the messages
   # since the session's compaction, under its summary. Truncated (`off`,

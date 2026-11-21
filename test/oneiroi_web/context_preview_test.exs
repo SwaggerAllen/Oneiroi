@@ -22,6 +22,7 @@ defmodule OneiroiWeb.ContextPreviewTest do
 
     account = Fixtures.account!()
     resident = Fixtures.resident!(account)
+    Fixtures.declare_domains!(resident.id, account.id, ~w(intimate))
     id = resident.id
     actor = Actor.new(:witness, account.id)
     brain = Actor.new(:resident, id, "fake/model")

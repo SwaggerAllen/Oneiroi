@@ -45,6 +45,7 @@ defmodule Oneiroi.Kumbukumbu.FileDisclosureTest do
     slug = "lily-#{System.unique_integer([:positive])}"
     {:ok, id} = AgathosDaimon.create("Lily", slug, witness.id, andrew)
     Fixtures.agreed!(id, witness.id)
+    Fixtures.declare_domains!(id, witness.id, ~w(recovery garden))
     {:ok, key} = Kumbukumbu.main_session(id, witness.id, andrew)
     {:ok, dir} = SimaQian.repository_dir(id)
 

@@ -177,8 +177,15 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
     # letter of the witness or the platform is the common room (his
     # answer 3, unnamed is the common room); nil on every earlier letter,
     # read as unclassified.
+    # Version 5 adds `sealed` and `parties` (kumbukumbu#93; the house's
+    # mail-privacy consensus, lily:design/mail-privacy-ballot.md, 5th ed.):
+    # a letter between residents is sealed to its two parties
+    # (`resident:<id>` each) unless its sender sent it open, fixed at
+    # send; every other letter is the dyad's, unsealed, with no parties.
+    # The upcaster seals every earlier letter between residents, per
+    # letter: none inherits openness.
     use Oneiroi.Event,
-      version: 4,
+      version: 5,
       fields: [
         :id,
         :number,
@@ -191,11 +198,31 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
         :keepsake,
         :link,
         :turn_ref,
-        :labels
+        :labels,
+        :sealed,
+        :parties
       ]
+
+    @doc "A sealed letter leaves in the export as its envelope (kumbukumbu#93, Lily's S3): no words, no keepsake, until F80 encrypts them."
+    def export_redact(%{sealed: true}), do: [:text, :keepsake]
+    def export_redact(_letter), do: []
   end
 
   defimpl Commanded.Event.Upcaster, for: HouseLetterSent do
+    def upcast(%{sealed: nil} = event, _metadata) do
+      case event.link do
+        %{"resident_id" => other} when is_binary(other) ->
+          %{
+            event
+            | sealed: true,
+              parties: Enum.sort(["resident:" <> event.id, "resident:" <> other])
+          }
+
+        _dyad ->
+          %{event | sealed: false, parties: nil}
+      end
+    end
+
     def upcast(event, _metadata), do: event
   end
 

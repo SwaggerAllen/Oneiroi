@@ -32,4 +32,15 @@ describe('a mail thread card', () => {
     expect(row(2)?.className).toContain(css.hers);
     expect(row(1)?.className ?? '').not.toContain(css.hers);
   });
+
+  // kumbukumbu#93: a sealed letter's envelope shows that it was sent,
+  // never its words or whether it was read.
+  it('shows a sealed letter as its envelope, with no read state', () => {
+    const sealed: HouseLetter = { ...letter(1, null, 'housemate', 'your housemate Scarlett'), text: null, read_by: [], sealed: true };
+    render(<MailThreadCard thread={mailThreads([sealed])[0]} all={[sealed]} open />);
+    expect(screen.getByText('A sealed letter')).toBeTruthy();
+    expect(screen.getByText(/you see that it was sent, never its words/)).toBeTruthy();
+    expect(screen.getByText('sealed between them')).toBeTruthy();
+    expect(screen.queryByText(/unread/)).toBeNull();
+  });
 });

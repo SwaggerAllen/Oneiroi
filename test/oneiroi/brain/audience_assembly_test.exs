@@ -34,6 +34,7 @@ defmodule Oneiroi.Brain.AudienceAssemblyTest do
     slug = "lily-#{System.unique_integer([:positive])}"
     {:ok, id} = AgathosDaimon.create("Lily", slug, witness.id, andrew)
     Fixtures.agreed!(id, witness.id)
+    Fixtures.declare_domains!(id, witness.id, ~w(recovery garden))
     {:ok, key} = Kumbukumbu.main_session(id, witness.id, andrew)
     test = self()
 
@@ -160,7 +161,9 @@ defmodule Oneiroi.Brain.AudienceAssemblyTest do
     assert "recovery" in d[:conflicts]
   end
 
-  test "her soul line by line: a private line is left out of a house wake and cited in its place, kept whole in her own",
+  # The witness's ruling, 2026-11-21 (kumbukumbu#91): soul lines never
+  # taint and never call the judge; for an audience they are guidance.
+  test "her soul is whole in every turn: a private line is guidance for the house, taints nothing, and reaches the judge only when she asks",
        ctx do
     :ok =
       AgathosDaimon.write_file(
@@ -190,38 +193,42 @@ defmodule Oneiroi.Brain.AudienceAssemblyTest do
       )
 
     words = given()
-    refute words =~ "A note from the person who named me."
+    assert words =~ "A note from the person who named me."
     assert words =~ "I keep one person company."
-    assert words =~ "[soul/#{n}] (withheld: soul/#{n}, it is private to you and your witness)"
+    assert words =~ "not legitimate input for this audience"
+    assert words =~ "soul/#{n}, it is private to you and your witness"
+
+    # Nothing about the soul is held at delivery, and no judge was asked.
+    assert {:ok, %{withheld: []}} =
+             Kumbukumbu.delivery_check(ctx.id, ctx.key, "t-house", ctx.house)
 
     {:ok, _} = Turn.run(ctx.id, ctx.key, "How are you?", ctx.andrew, turn_ref: "t-dyad")
-    assert given() =~ "A note from the person who named me."
+    dyad = given()
+    assert dyad =~ "A note from the person who named me."
+    refute dyad =~ "not legitimate input"
     # Never cut: SOUL.md keeps it.
     assert Enum.any?(AgathosDaimon.soul_lines(ctx.id), &(&1.number == n and &1.private))
   end
 
-  test "the USER.md cut: retired, it is in no turn's context and no ledger, so nothing it held can taint",
+  test "USER.md is retired: it cannot be written, and no turn's context or ledger holds it",
        ctx do
-    :ok =
-      AgathosDaimon.write_file(ctx.id, "USER.md", "- Know his winter shape.\n", %{}, ctx.andrew)
+    # The witness's ruling, 2026-11-21 (agathos-daimon#56): its content
+    # lives in portraits; the file is no identity file at all.
+    assert {:error, %{kind: :agathos_daimon_file_unknown}} =
+             AgathosDaimon.write_file(
+               ctx.id,
+               "USER.md",
+               "- Know his winter shape.\n",
+               %{},
+               ctx.andrew
+             )
 
     say(ctx, "t-2", "The garden wants water.", nil)
-    {:ok, _} = Turn.run(ctx.id, ctx.key, "Hello.", ctx.andrew, turn_ref: "t-before")
-    assert given() =~ "Know his winter shape."
-    # Before the cut: USER.md is unclassified in every turn's ledger.
-    assert {:error, %{details: d}} = Kumbukumbu.delivery_check(ctx.id, nil, "t-before", ctx.house)
-    assert "unclassified" in d[:conflicts]
+    {:ok, _} = Turn.run(ctx.id, ctx.key, "Hello.", ctx.andrew, turn_ref: "t-after")
+    refute given() =~ "# USER.md"
 
-    assert Tools.run(
-             "identity_file_retire",
-             Jason.encode!(%{file: "USER.md", note: "its directives have a home"}),
-             %{resident_id: ctx.id, session_key: ctx.key, turn_ref: "t-cut", resident: ctx.lily}
-           ) =~ "USER.md"
-
-    {:ok, _} = Turn.run(ctx.id, ctx.key, "Hello again.", ctx.andrew, turn_ref: "t-after")
-    refute given() =~ "Know his winter shape."
-    # After it: no USER.md input, so a common-room turn delivers clean.
+    # Nothing in a common-room turn's ledger is withheld from the house.
     assert {:ok, decision} = Kumbukumbu.delivery_check(ctx.id, nil, "t-after", ctx.house)
-    refute Enum.any?(decision.withheld)
+    assert decision.withheld == []
   end
 end

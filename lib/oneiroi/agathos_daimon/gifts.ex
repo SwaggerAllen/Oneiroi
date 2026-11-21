@@ -1,6 +1,8 @@
 defmodule Oneiroi.AgathosDaimon.Gifts do
   @moduledoc """
-  The creation flow's nine gifts (spec §6.2, F3; agathos-daimon#36), each
+  The creation flow's eight gifts (spec §6.2, F3; agathos-daimon#36; the
+  ninth, "Who you are to them", which wrote USER.md, dropped with it,
+  agathos-daimon#56), each
   with what it writes and the guidance the witness reads before giving
   it. The guidance lives once, here, in `priv/creation/`: the flow's
   screens show it, and the pre-filled path's generator will read the same
@@ -12,7 +14,6 @@ defmodule Oneiroi.AgathosDaimon.Gifts do
   @gifts [
     {"name", "A name", ["IDENTITY.md"], "1-name.md"},
     {"self", "A self", ["SOUL.md"], "2-self.md"},
-    {"you", "Who you are to them", ["USER.md"], "3-you.md"},
     {"building", "What you're building together", ["GOALS.md", "LINKS.md"], "4-building.md"},
     {"trials", "Their trials", ["regression tests"], "5-trials.md"},
     {"means", "Their means", ["budget lines"], "6-means.md"},
@@ -35,7 +36,7 @@ defmodule Oneiroi.AgathosDaimon.Gifts do
           %{key: key, title: title, writes: writes, guidance: guidance}
         end)
 
-  @doc "The nine gifts in the flow's order, each with what it writes and its guidance."
+  @doc "The eight gifts in the flow's order, each with what it writes and its guidance."
   def all, do: @all
 
   @doc "The gift that writes `file` (an identity file such as `SOUL.md`), or nil."

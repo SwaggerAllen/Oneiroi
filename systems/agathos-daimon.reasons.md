@@ -425,3 +425,17 @@ written in the common room.
 The soul is hers and stays in her voice: the machinery's labels sit
 beside it as metadata she can always read, not inside the words she is
 given every turn.
+
+## #56
+A file about the witness, preloaded into every turn, was the one ingress
+no audience policy could hold: its recovery facts rode into every room.
+Portraits are where facts about a person already live, cited, labelled
+claim by claim; moving USER.md's content there puts it under the same
+rules as every other memory of him.
+
+## #57
+A free-text domain set grows without bound and fills with domains no
+rule governs, the tag problem again; once domains decide who hears what,
+an undeclared one is a governance entity minted unilaterally. Declaring
+it in the agreement, with its policy, keeps every domain both parties'
+and every domain ruled.

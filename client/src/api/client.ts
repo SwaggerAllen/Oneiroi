@@ -86,6 +86,20 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 }
 
 /** A book in her library (seshat#98): its place and how far she has read. */
+/** What a backup remote's host says it is (sima-qian#65). */
+export interface RemoteCheck {
+  visibility: 'private' | 'public' | 'unknown';
+  push: 'yes' | 'no' | 'unknown';
+}
+
+/** The words for a remote just set: a public repository is warned of, never refused. */
+export const remoteWords = (check: RemoteCheck | undefined, changed: boolean): string =>
+  check?.visibility === 'public'
+    ? `${changed ? 'Changed' : 'Set'}, but this repository is public: anyone can read her backups. Make it private on its host; backups go on either way.`
+    : changed
+      ? 'Changed.'
+      : 'Set.';
+
 export interface Book {
   slug: string;
   title: string;
@@ -641,8 +655,9 @@ export const api = {
   resident: (residentId: string) => call<ResidentRecord>('GET', `/v1/residents/${residentId}`),
   // The backup repository: a URL and, for a private one, a token stored
   // encrypted and never shown again.
+  // Its host asked (sima-qian#65): a public repository is set and warned of.
   setRemote: (residentId: string, url: string, token: string | null) =>
-    call<void>('PUT', `/v1/residents/${residentId}/remote`, { url, ...(token ? { token } : {}) }),
+    call<RemoteCheck>('PUT', `/v1/residents/${residentId}/remote`, { url, ...(token ? { token } : {}) }),
   // A ChatGPT export's zip, sent whole as the body (sima-qian#47); its
   // report is filed in the library as system/imports/chatgpt-<day>.md.
   importChatgpt: async (residentId: string, zip: Blob): Promise<ChatgptImport> => {
@@ -947,6 +962,9 @@ export const api = {
     call<Lease>('POST', `/v1/residents/${residentId}/library/leases/renew`, draft === undefined ? { path } : { path, draft }),
   releaseLease: (residentId: string, path: string) => call<void>('POST', `/v1/residents/${residentId}/library/leases/release`, { path }),
   // From one path, and so one kind, to another, its bytes unchanged (seshat#39).
+  // The witness proposes a classification; it waits on her (seshat#103).
+  proposeClassification: (residentId: string, path: string, domain: string | null, whose: 'witness' | 'resident', note: string) =>
+    call<{ path: string; domain: string | null }>('POST', `/v1/residents/${residentId}/library/classification-proposals`, { path, domain, whose, note }),
   moveDocument: (residentId: string, from: string, to: string) =>
     call<{ from: string; to: string; kind: string }>('POST', `/v1/residents/${residentId}/library/move`, { from, to }),
   removeDocument: (residentId: string, path: string) =>
@@ -1201,7 +1219,7 @@ export interface DomainWall {
 }
 
 // A version's terms: the switches, and the walls, the one term that is a list.
-export type ContractTerms = Record<string, boolean | DomainWall[]>;
+export type ContractTerms = Record<string, boolean | DomainWall[] | DomainPolicy[]>;
 
 export interface ContractVersion {
   version: number;
@@ -1242,6 +1260,18 @@ export interface Agreement {
   // Who a wall may name, as a domain's person is written, and the walls in force.
   persons?: { witness: string | null; resident: string };
   domain_walls?: DomainWall[];
+  // The domains' policies in force and the domains they declare
+  // (agathos-daimon#53, #57): the only domains any dropdown offers.
+  domain_policies?: DomainPolicy[];
+  domains?: { person: string; domain: string }[];
+}
+
+/** One domain's disclosure policy (agathos-daimon#53): declared in the agreement, decided by the dyad. */
+export interface DomainPolicy {
+  domain: { person: string; domain: string };
+  default: 'allow' | 'deny';
+  allow: { kind: string; id: string }[];
+  deny: { kind: string; id: string }[];
 }
 
 export interface InviteDefaults {

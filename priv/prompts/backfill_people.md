@@ -13,6 +13,6 @@ For each person or group in play that day (named in a scene, or in a journal row
 - A portrait for them exists (portraits/<name>.md): check its open claims against that day; a claim the day bears out or contradicts gets the moment cited beside it and its status moved, the old line kept.
 - A seed cited on {{days}} distinct days has earned its portrait: graduate it with seed_graduate (to_kind portrait, to_id portraits/<name>.md, door days). When that day was substantially about one of them, graduate by door conversation_for, door_turn a turn of that day's, with the reason in the note. Then open the file thin: a header, a Status section carrying the INDEX status, the claims so far, each citing its moment, and an empty Corrections section.
 
-The rules of a portrait hold: every claim cites its moment; what someone did or said is claimable, what they felt or thought is not unless they said it, and then it is their account. A group is never written as a self. USER.md is his, never touched here.
+The rules of a portrait hold: every claim cites its moment; what someone did or said is claimable, what they felt or thought is not unless they said it, and then it is their account. A group is never written as a self.
 
 You may take up to {{turns}} turns. When you are done, end a turn with words and no tool calls.

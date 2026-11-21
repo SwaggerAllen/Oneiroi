@@ -70,6 +70,7 @@ const WORDS: Record<NeedsYouEntry['kind'], string> = {
   provider_credits: 'OpenRouter is out of credits',
   turn_failed: 'A turn that failed',
   contract_to_answer: 'An agreement version to answer',
+  remote_public: 'A public backup repository',
 };
 
 const HERS: Record<string, string> = {

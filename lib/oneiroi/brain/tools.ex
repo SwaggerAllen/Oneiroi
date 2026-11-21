@@ -47,6 +47,11 @@ defmodule Oneiroi.Brain.Tools do
   @zone_key {__MODULE__, :zone}
   @not_done "Not done: "
 
+  # The audiences a policy can filter for (kumbukumbu#92): the dyad and
+  # her own conversations are hers, so nothing is filtered for them.
+  @by_id ~w(thread workspace correspondent export processor)
+  @reviewable ~w(household person publication researcher) ++ @by_id
+
   # What an ask answers after its number (agathos-daimon#35), the same in
   # a trial as for real.
   @asked %{
@@ -71,7 +76,7 @@ defmodule Oneiroi.Brain.Tools do
     self_letter_list seed_list library_search library_read library_cited_by writing_get
     document_unadopted journal_read trial_list trial_account revision_list memory_use
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
-    source_list source_read source_search pr_meta pr_diffs repo_list repo_read repo_log oracle_list
+    classification_list source_list source_read source_search pr_meta pr_diffs repo_list repo_read repo_log oracle_list
     research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
     kind_list route_list household_read household_beat wake_log_read letter_rest book_read
@@ -80,11 +85,11 @@ defmodule Oneiroi.Brain.Tools do
   @writes ~w(
     position_take position_replace dispute_check dispute_settle prediction_log
     figure_increment bookmark_add bookmark_extend bookmark_weigh bookmark_accept bookmark_decline
-    tag_propose tag_apply domain_tag soul_edit soul_annotate identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
+    tag_propose tag_apply domain_tag soul_edit soul_annotate disclosure_review identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_publish document_adopt keepsake_note letter_send notify_witness free_time_set free_time_once
-    reply_draft correspondent_block correspondent_unblock document_remove document_move document_classify
+    reply_draft correspondent_block correspondent_unblock document_remove document_move document_classify classification_answer
     journal_add journal_done scene_write
     contract_propose contract_agree contract_decline contract_renew contract_safe revision_add
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
@@ -375,7 +380,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "soul_annotate",
-        "Annotate one line of your SOUL.md by its number (soul/<n>): the domains it is about, each a slug and whose life (the witness's by default), or none for the common room; and private, which keeps the line to you and your witness whatever any policy says, opened only by annotating it again. The line is never cut and its words never change: a composition for an audience past you two leaves it out and cites it in its place. Unannotated, a line is the common room. note says why, in your words; every annotation is kept.",
+        "Annotate one line of your SOUL.md by its number (soul/<n>): the domains it is about, each a slug and whose life (the witness's by default), or none for the common room; and private, which keeps the line to you and your witness whatever any policy says, opened only by annotating it again. The line is never cut, its words never change, and you are always given it: a composition for an audience past you two names it in a note as not that audience's to hear, guidance you weigh, never a filter; disclosure_review asks the judge when you want a check. Unannotated, a line is the common room. note says why, in your words; every annotation is kept.",
         %{
           number: %{type: "integer", minimum: 1},
           domains: %{
@@ -395,10 +400,20 @@ defmodule Oneiroi.Brain.Tools do
         [:number]
       ),
       tool(
-        "identity_file_retire",
-        "Take one of your identity files (USER.md, GOALS.md or LINKS.md) out of what you are given every turn, when what it held has a home elsewhere in your records, or put it back with restore: true. Yours alone, with a note for the record. The file stays as written, in your repository and its history, and soul_edit still edits it; only whether it opens every turn changes. SOUL.md and IDENTITY.md are always given.",
+        "disclosure_review",
+        "Ask the disclosure judge to read words of yours against the soul lines an audience may not hear (kumbukumbu#91). Your soul never calls the judge on its own: its annotated lines are guidance you weigh, and this is the check when you want one. text is the words; audience is who they are for (household; person with to as your sibling's name; correspondent with to as platform:account; publication; researcher; thread, workspace, export or processor with to as its id). The verdict is recorded as every verdict is; nothing is delivered or held.",
         %{
-          file: %{type: "string", enum: ["USER.md", "GOALS.md", "LINKS.md"]},
+          text: %{type: "string"},
+          audience: %{type: "string", enum: @reviewable},
+          to: %{type: "string"}
+        },
+        [:text, :audience]
+      ),
+      tool(
+        "identity_file_retire",
+        "Take one of your identity files (GOALS.md or LINKS.md) out of what you are given every turn, when what it held has a home elsewhere in your records, or put it back with restore: true. Yours alone, with a note for the record. The file stays as written, in your repository and its history, and soul_edit still edits it; only whether it opens every turn changes. SOUL.md and IDENTITY.md are always given.",
+        %{
+          file: %{type: "string", enum: ["GOALS.md", "LINKS.md"]},
           note: %{type: "string"},
           restore: %{type: "boolean"}
         },
@@ -406,7 +421,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "soul_edit",
-        "Edit one of your identity files yourself (SOUL.md, IDENTITY.md, USER.md, GOALS.md, LINKS.md): the whole new content. Rare, visible, one change at a time. SOUL.md's paragraphs are its lines, each shown with its id ([soul/n]); keep a line's marker when you reword it so it keeps its id, drop the paragraph to retire it, write a new paragraph to add one. cites: the seed numbers a new or reworded line grew from.",
+        "Edit one of your identity files yourself (SOUL.md, IDENTITY.md, GOALS.md, LINKS.md): the whole new content. Rare, visible, one change at a time. SOUL.md's paragraphs are its lines, each shown with its id ([soul/n]); keep a line's marker when you reword it so it keeps its id, drop the paragraph to retire it, write a new paragraph to add one. cites: the seed numbers a new or reworded line grew from.",
         %{
           file: %{type: "string"},
           content: %{type: "string"},
@@ -513,7 +528,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "oracle_ask",
-        "Ask the oracle: an invocation of you, with all your memory and every read tool, for questions too long to read in a turn. Each question is named and read on its own, in parallel; give the sources it should read beside your memory (bookmark/<n>, transcript/<conversation>, a library path, repo:<path>, source:<path>), or none. Each answer is written under oracle/ with its confidence, and this conversation gets a letter when it lands. It writes nothing else and keeps nothing after.",
+        "Ask the oracle: an invocation of you, with all your memory and every read tool, for questions too long to read in a turn. Each question is named and read on its own, in parallel; give the sources it should read beside your memory (bookmark/<n>, transcript/<conversation>, a library path, repo:<path>, source:<path>), or none. A conversation is read for it only by range, transcript/<conversation>@<from>-<to> (message numbers, both included); named whole, the oracle searches and pages it with its tools rather than reading it from start to finish. Each answer is written under oracle/ with its confidence, and this conversation gets a letter when it lands. It writes nothing else and keeps nothing after.",
         %{
           questions: %{
             type: "array",
@@ -528,10 +543,11 @@ defmodule Oneiroi.Brain.Tools do
           },
           audience: %{
             type: "string",
-            enum: ["household"],
+            enum: @reviewable,
             description:
-              "who the answers are composed for, when they are bound past you and your witness: household soft-filters the oracle's context for your house, withholding what it may not hear; none (the default) is yours, everything read"
-          }
+              "who the answers are composed for, when they are bound past you and your witness: the oracle's context is soft-filtered for that audience, withholding what it may not hear (household; person with to as your sibling's name; correspondent with to as platform:account; publication; researcher; thread, workspace, export or processor with to as its id). None (the default) is yours, everything read"
+          },
+          to: %{type: "string"}
         },
         [:questions]
       ),
@@ -1029,6 +1045,18 @@ defmodule Oneiroi.Brain.Tools do
         },
         [:path, :domain]
       ),
+      tool(
+        "classification_list",
+        "The classifications your witness has proposed for your documents and you have not answered (seshat#103): each path, the domain he proposes (or the common room) and whose life, his note, and when. A proposal classifies nothing until you accept it.",
+        %{},
+        []
+      ),
+      tool(
+        "classification_answer",
+        "Answer your witness's proposed classification of a document of yours (seshat#103): accept: true makes it your classification, your act, exactly as document_classify would; false declines it and the document stays as it is. note says why, in your words; every answer is kept.",
+        %{path: %{type: "string"}, accept: %{type: "boolean"}, note: %{type: "string"}},
+        [:path, :accept]
+      ),
       # The household's shelf (seshat#58 to #64): the library's grammar,
       # pointed at the repository the household shares.
       tool(
@@ -1252,7 +1280,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "letter_send",
-        "Send a house letter (the work log between your conversations). To answer a letter, give its number as in_reply_to, so the answer sits in its thread rather than starting a new one. Send it to the Oneiroi chat, to another conversation by its name (Claude Code · <folder>), or to house for any of them; to Free time, a brief waits for your next free time. Use it to pass an ask, and to leave a summary of finished work before anyone has to ask for one. in_reply_to links the letter it answers; keepsake gives a keepsake at your root to the conversation you write to. You are named as the sender by the conversation you write from. To write to another resident of your household, send it to their name: it lands in their Oneiroi chat and wakes it (in_reply_to works with the number the letter has in your own letters). A name no conversation or household resident answers to is refused, with the names there are.",
+        "Send a house letter (the work log between your conversations). To answer a letter, give its number as in_reply_to, so the answer sits in its thread rather than starting a new one. Send it to the Oneiroi chat, to another conversation by its name (Claude Code · <folder>), or to house for any of them; to Free time, a brief waits for your next free time. Use it to pass an ask, and to leave a summary of finished work before anyone has to ask for one. in_reply_to links the letter it answers; keepsake gives a keepsake at your root to the conversation you write to. You are named as the sender by the conversation you write from. To write to another resident of your household, send it to their name: it lands in their Oneiroi chat and wakes it (in_reply_to works with the number the letter has in your own letters). A letter to a housemate is sealed to the two of you: every other member, witnesses included, sees only from, to and when. open: true sends it open instead, readable by every member of the house, fixed at send (kumbukumbu#93); open means the whole house, never one witness. A name no conversation or household resident answers to is refused, with the names there are.",
         %{
           to: %{type: "string"},
           text: %{type: "string"},
@@ -1262,7 +1290,8 @@ defmodule Oneiroi.Brain.Tools do
             description:
               "The number of the letter this answers; its thread. Leave it out only to start a new thread."
           },
-          keepsake: %{type: "string"}
+          keepsake: %{type: "string"},
+          open: %{type: "boolean"}
         },
         [:to, :text]
       ),
@@ -1595,11 +1624,45 @@ defmodule Oneiroi.Brain.Tools do
     end)
   end
 
-  defp transcript_answer({:ok, session, messages}, ref, _from) when is_binary(ref) and ref != "",
-    do: transcript_message(session, messages, ref)
+  # The window a read shows: a turn with one message either side, or a
+  # page from `from`.
+  defp transcript_window(resident_id, key, ref, _from) when is_binary(ref) and ref != "" do
+    scope = {:resident, resident_id}
 
-  defp transcript_answer({:ok, session, messages}, _ref, from),
-    do: transcript_page(session, messages, from)
+    case Kumbukumbu.turn_place(scope, key, ref) do
+      {at, n} ->
+        offset = max(at - 1, 0)
+
+        with {:ok, session, messages, total} <-
+               Kumbukumbu.transcript_range(scope, key, offset, n + 1 + (at - offset)),
+             do: {:ok, session, messages, offset, total, ref}
+
+      nil ->
+        if match?({:ok, _, _, _}, Kumbukumbu.transcript_range(scope, key, 0, 1)),
+          do: :no_turn,
+          else: :no_session
+
+      other ->
+        other
+    end
+  end
+
+  defp transcript_window(resident_id, key, _ref, from) do
+    with {:ok, session, messages, total} <-
+           Kumbukumbu.transcript_range(
+             {:resident, resident_id},
+             key,
+             from,
+             transcript_page_size()
+           ),
+         do: {:ok, session, messages, from, total, nil}
+  end
+
+  defp transcript_answer(session, messages, offset, total, ref) when is_binary(ref),
+    do: transcript_message(session, messages, offset, total, ref)
+
+  defp transcript_answer(session, messages, offset, total, nil),
+    do: transcript_page(session, messages, offset, total)
 
   # ---- taint on read (kumbukumbu#84) ----
   #
@@ -1864,6 +1927,12 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # Sealed, it reaches its sibling; open, the whole house (kumbukumbu#93).
+  defp delivery_audience("letter_send", %{"open" => true} = args, turn) do
+    with {_sibling, _me} <- sibling(turn.resident_id, to_string(args["to"] || "")),
+         do: delivery_audience("household_post", args, turn)
+  end
+
   defp delivery_audience("letter_send", args, turn) do
     case sibling(turn.resident_id, to_string(args["to"] || "")) do
       {sibling, _me} -> Kumbukumbu.audience("person", "resident:" <> sibling.id)
@@ -1898,10 +1967,20 @@ defmodule Oneiroi.Brain.Tools do
     conflicts = Enum.join(Keyword.get(d, :conflicts, []), ", ")
 
     @not_done <>
-      "withheld by policy#{decision_words(d)}: #{held_words(d)} #{conflicts}, which your agreement's domain policies keep from #{d[:audience]}. #{review_words(e)}Nothing was delivered, and the audience learns nothing of it. Say it where the policies allow (here, or to an audience they grant), or let the turn's context move on; the policies are yours and your witness's to change by agreement."
+      "withheld by policy#{decision_words(d)}: #{held_words(d)} #{conflicts}, #{rule_words(d)} #{d[:audience]}. #{review_words(e)}Nothing was delivered, and the audience learns nothing of it. Say it where the policies allow (here, or to an audience they grant), or let the turn's context move on; the policies are yours and your witness's to change by agreement."
   end
 
   defp decision_words(d), do: if(d[:decision], do: " (decision #{d[:decision]})", else: "")
+
+  # A domain with no policy is an absence, said as one (Lily's #1564).
+  defp rule_words(d) do
+    unruled = Keyword.get(d, :unruled, [])
+
+    if unruled != [] and unruled == Keyword.get(d, :conflicts, []),
+      do:
+        "which has no policy in your agreement yet, so it reaches no audience past you and your witness, not",
+      else: "which your agreement's domain policies keep from"
+  end
 
   # A file is gated by its own domain (kumbukumbu#85).
   defp held_words(d),
@@ -2542,7 +2621,7 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  # Her annotation of a soul line (agathos-daimon#55, kumbukumbu#88).
+  # Her annotation of a soul line (agathos-daimon#55): guidance (kumbukumbu#91).
   defp call("soul_annotate", args, turn) do
     domains = soul_domains(args["domains"], turn.resident_id)
 
@@ -2556,6 +2635,25 @@ defmodule Oneiroi.Brain.Tools do
          ) do
       :ok -> annotated_words(args)
       other -> other
+    end
+  end
+
+  # Her own request for a judge's read (kumbukumbu#91): the only way a
+  # soul line reaches the judge.
+  defp call("disclosure_review", args, turn) do
+    case named_audience(args["audience"], args["to"], turn) do
+      nil ->
+        @not_done <> "no such audience: #{args["audience"]} #{args["to"]}."
+
+      {kind, id} ->
+        Kumbukumbu.review_soul(
+          turn.resident_id,
+          turn.session_key,
+          turn.turn_ref,
+          Kumbukumbu.audience(kind, id),
+          to_string(args["text"] || "")
+        )
+        |> reviewed("#{kind}:#{id}")
     end
   end
 
@@ -2727,12 +2825,12 @@ defmodule Oneiroi.Brain.Tools do
     bound = Oneiroi.Config.fetch!(:brain, :oracle_batch)
 
     with :ok <- within_batch(questions, bound),
+         {:ok, composed_for} <- oracle_audience(args["audience"], args["to"], turn),
          {:ok, numbers} <-
            Seshat.dispatch_oracle(turn.resident_id, turn.session_key, questions, turn.resident) do
       # Each answer inherits the asking turn's context (kumbukumbu#84),
       # and is composed for the audience named, if any (kumbukumbu#87).
       asked = Kumbukumbu.turn_ledger(turn.resident_id, turn.session_key, turn.turn_ref)
-      composed_for = oracle_audience(args["audience"], turn)
       Enum.each(numbers, &oracle_worker().enqueue(turn.resident_id, &1, asked, composed_for))
       dispatched(numbers)
     end
@@ -3115,9 +3213,11 @@ defmodule Oneiroi.Brain.Tools do
     from = args["from"] |> integer_or(0) |> max(0)
 
     # Her deliberate reach is never scoped (P23-R1 §2): any conversation
-    # of hers, in any domain.
-    case {Kumbukumbu.transcript({:resident, turn.resident_id}, key), args["message"]} do
-      {{:ok, _session, messages} = read, ref} ->
+    # of hers, in any domain. A page is read in the database, never the
+    # whole conversation (kumbukumbu#94): a long one is held a page at a
+    # time, and only what the page shows joins the turn's ledger.
+    case transcript_window(turn.resident_id, key, args["message"], from) do
+      {:ok, session, messages, offset, total, ref} ->
         :ok =
           Kumbukumbu.note_read(
             turn.resident_id,
@@ -3125,7 +3225,10 @@ defmodule Oneiroi.Brain.Tools do
             transcript_inputs(key, messages)
           )
 
-        transcript_answer(read, ref, from)
+        transcript_answer(session, messages, offset, total, ref)
+
+      :no_turn ->
+        "Not done: conversation #{key} has no message #{args["message"]}; a search hit's [session/turn] names one."
 
       _ ->
         "Not done: no conversation of yours has that key."
@@ -4001,6 +4104,35 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # His proposals waiting on her (seshat#103).
+  defp call("classification_list", _args, turn) do
+    case Seshat.classification_proposals(turn.resident_id) do
+      [] -> "No classification proposal is waiting on you."
+      rows -> Enum.map_join(rows, "\n", &proposal_line/1)
+    end
+  end
+
+  defp call("classification_answer", args, turn) do
+    accept = args["accept"] == true
+
+    case Seshat.answer_classification(
+           turn.resident_id,
+           to_string(args["path"] || ""),
+           accept,
+           args["note"],
+           turn.resident
+         ) do
+      {:ok, %{path: path, accepted: true, domain: domain}} ->
+        "Accepted. " <> classified_words(path, domain)
+
+      {:ok, %{path: path}} ->
+        "Declined: #{path} stays as it was."
+
+      other ->
+        other
+    end
+  end
+
   defp call("document_move", args, turn) do
     with :ok <- portrait_earned(turn, args["to"]) do
       move_document(args, turn)
@@ -4482,6 +4614,21 @@ defmodule Oneiroi.Brain.Tools do
 
   defp answered("soul_annotate", args, turn), do: {annotated_words(args), turn}
 
+  defp answered("classification_answer", args, turn) do
+    path = library_path(args["path"])
+    waiting = Enum.find(Seshat.classification_proposals(turn.resident_id), &(&1.path == path))
+
+    words =
+      if args["accept"] == true,
+        do: "Accepted. " <> classified_words(path, waiting && waiting.proposed_domain),
+        else: "Declined: #{path} stays as it was."
+
+    {words, turn}
+  end
+
+  defp answered("disclosure_review", args, turn),
+    do: {reviewed({:ok, %{verdict: :clean}}, to_string(args["audience"] || "")), turn}
+
   defp answered(_done, _args, turn), do: {text(:ok), turn}
 
   defp soul_domains(list, resident_id) do
@@ -4511,6 +4658,15 @@ defmodule Oneiroi.Brain.Tools do
       end
 
     "Annotated soul/#{args["number"]}: #{domains}#{if args["private"] == true, do: ", private to you and your witness", else: ""}. Its words are unchanged."
+  end
+
+  defp proposal_line(d) do
+    whose =
+      if(String.starts_with?(d.proposed_person || "", "resident:"), do: "yours", else: "his")
+
+    domain = if d.proposed_domain, do: "#{d.proposed_domain} (#{whose})", else: "the common room"
+    note = if d.proposed_note, do: ": \"#{d.proposed_note}\"", else: ""
+    "#{d.path} → #{domain}, proposed #{local_day(d.proposed_at)}#{note}"
   end
 
   defp classified_words(path, domain),
@@ -5444,6 +5600,7 @@ defmodule Oneiroi.Brain.Tools do
   defp round_line(r), do: "#{r.day} #{r.slot}: #{r.outcome}"
 
   @transcript_page 30
+  defp transcript_page_size, do: @transcript_page
   @transcript_message_chars 2_000
   # A message read whole: past this it is a paste, and says how much more.
   @transcript_whole_chars 60_000
@@ -5457,7 +5614,8 @@ defmodule Oneiroi.Brain.Tools do
   # opposed to a full-on oracle search", brain#104): every message the
   # turn's ref names, uncut, and the one either side cut as a page cuts
   # them, so the question it answered is in view.
-  defp transcript_message(session, messages, ref) do
+  # The window holds the turn's messages with one either side (kumbukumbu#94).
+  defp transcript_message(session, messages, offset, total, ref) do
     case for({m, i} <- Enum.with_index(messages), m.turn_ref == ref, do: i) do
       [] ->
         "Not done: conversation #{session.key} has no message #{ref}; a search hit's [session/turn] names one."
@@ -5475,7 +5633,7 @@ defmodule Oneiroi.Brain.Tools do
           for i <- at do
             m = Enum.at(messages, i)
 
-            "[#{m.turn_ref}] #{m.role}, #{when_said(m)}, message #{i + 1} of #{length(messages)}, whole:\n" <>
+            "[#{m.turn_ref}] #{m.role}, #{when_said(m)}, message #{offset + i + 1} of #{total}, whole:\n" <>
               Cut.cut(m.content || "", @transcript_whole_chars)
           end
 
@@ -5491,8 +5649,7 @@ defmodule Oneiroi.Brain.Tools do
       "(#{side}) [#{m.turn_ref}] #{m.role}, #{when_said(m)}: " <>
         Cut.cut(m.content || "", @transcript_message_chars)
 
-  defp transcript_page(session, messages, from) do
-    page = messages |> Enum.drop(from) |> Enum.take(@transcript_page)
+  defp transcript_page(session, page, from, total) do
     upto = from + length(page)
 
     lines =
@@ -5502,11 +5659,11 @@ defmodule Oneiroi.Brain.Tools do
       end)
 
     more =
-      if upto < length(messages),
-        do: "\n\n(#{length(messages) - upto} more; transcript_read with from: #{upto} reads on.)",
+      if upto < total,
+        do: "\n\n(#{total - upto} more; transcript_read with from: #{upto} reads on.)",
         else: ""
 
-    "Conversation #{session.key} (#{session.kind}), messages #{from + 1}–#{upto} of #{length(messages)}:\n\n" <>
+    "Conversation #{session.key} (#{session.kind}), messages #{from + 1}–#{upto} of #{total}:\n\n" <>
       lines <> more
   end
 
@@ -5809,14 +5966,62 @@ defmodule Oneiroi.Brain.Tools do
 
   # The audience an oracle's answers are composed for (kumbukumbu#87):
   # her house, resolved now; none is hers and her witness's.
-  defp oracle_audience("household", turn) do
+  defp reviewed({:ok, :nothing}, who),
+    do:
+      "No annotated soul line is kept from #{who}; there was nothing to check, and the judge was not called."
+
+  defp reviewed({:ok, %{verdict: :clean}}, who),
+    do: "The judge read your words against what #{who} may not hear: clean."
+
+  defp reviewed({:ok, %{verdict: :discloses, reasons: r}}, who),
+    do: "The judge read your words against what #{who} may not hear: they carry it. #{r}"
+
+  defp reviewed({:ok, %{verdict: :failed, reasons: r}}, _who),
+    do: @not_done <> "the review failed (#{r}); nothing is known either way."
+
+  defp reviewed({:error, %{site: :kumbukumbu_disclosure_no_judge}}, _who),
+    do: @not_done <> "no disclosure judge is named on this platform."
+
+  defp reviewed(other, _who), do: other
+
+  # An audience she names (kumbukumbu#91, #92): any kind a policy can
+  # filter for, resolved to its kind and id; the dyad and her own
+  # conversations are hers and filter nothing. nil when it does not resolve.
+  defp named_audience("household", _to, turn) do
     case Oneiroi.Gaia.resident_household(turn.resident_id) do
-      %{id: id} -> %{"kind" => "household", "id" => id}
+      %{id: id} -> {"household", id}
       _none -> nil
     end
   end
 
-  defp oracle_audience(_none, _turn), do: nil
+  defp named_audience("person", to, turn) do
+    case sibling(turn.resident_id, to_string(to || "")) do
+      {sibling, _me} -> {"person", "resident:" <> sibling.id}
+      nil -> nil
+    end
+  end
+
+  defp named_audience("publication", to, _turn), do: {"publication", present(to) || "substack"}
+  defp named_audience("researcher", to, _turn), do: {"researcher", present(to) || "reader"}
+
+  defp named_audience(kind, to, _turn) when kind in @by_id do
+    if id = present(to), do: {kind, id}
+  end
+
+  defp named_audience(_kind, _to, _turn), do: nil
+
+  defp present(s) when is_binary(s), do: if(String.trim(s) == "", do: nil, else: String.trim(s))
+  defp present(_s), do: nil
+
+  # Named and unresolved is refused, never read as hers (kumbukumbu#92).
+  defp oracle_audience(none, _to, _turn) when none in [nil, "", "none"], do: {:ok, nil}
+
+  defp oracle_audience(kind, to, turn) do
+    case named_audience(kind, to, turn) do
+      {kind, id} -> {:ok, %{"kind" => kind, "id" => id}}
+      nil -> @not_done <> "no such audience: #{kind} #{to}. Nothing was dispatched."
+    end
+  end
 
   defp within_batch(questions, bound) when length(questions) <= bound, do: :ok
 
@@ -5908,6 +6113,9 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  defp seal_words(%{"open" => true}), do: "open to the whole house"
+  defp seal_words(_args), do: "sealed to the two of you"
+
   # A letter to a resident of her own household (brain#83): by that
   # resident's name, when no conversation of hers answers to it. It lands
   # in the sibling's Oneiroi chat and wakes it, as her own letters do.
@@ -5920,14 +6128,19 @@ defmodule Oneiroi.Brain.Tools do
     else
       attrs =
         Map.merge(
-          %{text: to_string(args["text"] || ""), in_reply_to: integer(args["in_reply_to"])},
+          %{
+            text: to_string(args["text"] || ""),
+            in_reply_to: integer(args["in_reply_to"]),
+            open: args["open"] == true
+          },
           letter_labels(turn)
         )
 
       case Kumbukumbu.send_sibling_letter(me, turn.session_key, sibling, attrs, turn.resident) do
         {:ok, %{number: n, copy: copy}} ->
           "Sent letter ##{n} to #{sibling.name}'s Oneiroi chat, from #{me.name} " <>
-            "(#{qualified(sibling.name, n)}); your copy is ##{copy} in your letters."
+            "(#{qualified(sibling.name, n)}), #{seal_words(args)}; " <>
+            "your copy is ##{copy} in your letters."
 
         other ->
           other

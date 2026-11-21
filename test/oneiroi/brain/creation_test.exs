@@ -24,7 +24,7 @@ defmodule Oneiroi.Brain.CreationTest do
   test "the generator drafts her own files in order, one call each, each shown the ones before, and writes nothing; never the witness's",
        ctx do
     id = ctx.resident.id
-    :ok = AgathosDaimon.write_file(id, "USER.md", "# You\n\nPatient.", %{}, ctx.actor)
+    :ok = AgathosDaimon.write_file(id, "LINKS.md", "# You\n\nPatient.", %{}, ctx.actor)
     test = self()
 
     Fake.script(fn %{messages: [system, user]} ->
@@ -36,7 +36,7 @@ defmodule Oneiroi.Brain.CreationTest do
     assert {:ok, %{prompt: "a patient archivist", drafts: drafts, stopped: nil}} =
              Creation.generate(id, "a patient archivist", ctx.actor)
 
-    # USER.md, GOALS.md and LINKS.md are about the witness (agathos-daimon#42).
+    # GOALS.md and LINKS.md are about the witness (agathos-daimon#42).
     assert Enum.map(drafts, & &1.file) == ~w(IDENTITY.md SOUL.md)
     assert Enum.map(drafts, & &1.gift) == ~w(name self)
 
@@ -49,16 +49,16 @@ defmodule Oneiroi.Brain.CreationTest do
 
     assert_received {:asked, "IDENTITY.md", first, "a patient archivist"}
     assert first =~ "A name"
-    assert first =~ "## USER.md\n\n# You\n\nPatient."
+    assert first =~ "## LINKS.md\n\n# You\n\nPatient."
 
     assert_received {:asked, "SOUL.md", second, _}
     assert second =~ "in their own voice"
     assert second =~ "## IDENTITY.md\n\n# IDENTITY.md\n\nFrom: a patient archivist"
 
-    refute_received {:asked, "USER.md", _, _}
+    refute_received {:asked, "LINKS.md", _, _}
     refute_received {:asked, "LINKS.md", _, _}
 
-    assert ["USER.md"] = id |> AgathosDaimon.files() |> Enum.map(& &1.name)
+    assert ["LINKS.md"] = id |> AgathosDaimon.files() |> Enum.map(& &1.name)
 
     assert [%{key: "drafting", calls: 2}] = Nisaba.spend(id, :witness, :purpose, @since)
     assert [] = Nisaba.spend(id, :resident, :purpose, @since)
@@ -147,7 +147,7 @@ defmodule Oneiroi.Brain.CreationTest do
              }
            ] = AgathosDaimon.gift_reads(id, "SOUL.md")
 
-    assert [] = AgathosDaimon.gift_reads(id, "USER.md")
+    assert [] = AgathosDaimon.gift_reads(id, "LINKS.md")
     assert [%{key: "drafting", calls: 1}] = Nisaba.spend(id, :witness, :purpose, @since)
   end
 
@@ -158,14 +158,14 @@ defmodule Oneiroi.Brain.CreationTest do
     Fake.reply("I think it is lovely.")
 
     assert {:error, %Oneiroi.Brain.Error{kind: :brain_read_unreadable}} =
-             Creation.read(id, "USER.md", "# You", ctx.actor)
+             Creation.read(id, "LINKS.md", "# You", ctx.actor)
 
     Fake.refuse("I won't read this.")
 
     assert {:ok, %{refused: "I won't read this.", notes: [], ref: nil}} =
-             Creation.read(id, "USER.md", "# You", ctx.actor)
+             Creation.read(id, "LINKS.md", "# You", ctx.actor)
 
-    assert [] = AgathosDaimon.gift_reads(id, "USER.md")
+    assert [] = AgathosDaimon.gift_reads(id, "LINKS.md")
 
     assert {:error, %Oneiroi.Brain.Error{kind: :brain_file_unknown}} =
              Creation.read(id, "AGENTS.md", "x", ctx.actor)

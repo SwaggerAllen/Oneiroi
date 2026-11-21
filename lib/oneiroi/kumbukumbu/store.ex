@@ -100,6 +100,9 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:domain_person, :string)
       field(:domain, :string)
       field(:domain_tagged, :boolean, default: false)
+      # Its turn answers a sealed letter (kumbukumbu#95): its words are the
+      # letter's parties', and a witness reads that it was said, never what.
+      field(:sealed, :boolean, default: false)
     end
 
     @type t :: %__MODULE__{}
@@ -222,6 +225,10 @@ defmodule Oneiroi.Kumbukumbu.Store do
       # The writing turn and its labels (kumbukumbu#84); nil before.
       field(:turn_ref, :string)
       field(:labels, {:array, :map})
+      # Sealed to its parties (kumbukumbu#93): a letter between residents
+      # unless sent open; `parties` its two residents, nil on the dyad's.
+      field(:sealed, :boolean, default: false)
+      field(:parties, {:array, :string})
       field(:by_kind, :string)
       field(:sent_at, :utc_datetime_usec)
       field(:read_by, {:array, :string}, default: [])
@@ -385,6 +392,60 @@ defmodule Oneiroi.Kumbukumbu.Store do
   end
 
   @doc """
+  A conversation's messages from `offset` (0-based, in order), at most
+  `limit` of them (kumbukumbu#94): a page read in the database, so a long
+  conversation is never held whole to show part of it.
+  """
+  @spec messages_range(String.t(), non_neg_integer(), pos_integer()) :: [Message.t()]
+  def messages_range(key, offset, limit),
+    do:
+      Repo.all(
+        from(m in Message,
+          where: m.session_key == ^key,
+          order_by: [asc: m.sequence, asc: m.position],
+          offset: ^offset,
+          limit: ^limit
+        )
+      )
+
+  @doc "The 0-based place of a turn's first message in its conversation, and how many it has; nil when absent."
+  @spec turn_place(String.t(), String.t()) :: {non_neg_integer(), pos_integer()} | nil
+  def turn_place(key, turn_ref) do
+    case Repo.one(
+           from(m in Message,
+             where: m.session_key == ^key and m.turn_ref == ^turn_ref,
+             order_by: [asc: m.sequence, asc: m.position],
+             limit: 1
+           )
+         ) do
+      nil ->
+        nil
+
+      first ->
+        before =
+          Repo.one(
+            from(m in Message,
+              where:
+                m.session_key == ^key and
+                  (m.sequence < ^first.sequence or
+                     (m.sequence == ^first.sequence and m.position < ^first.position)),
+              select: count()
+            )
+          )
+
+        n =
+          Repo.one(
+            from(m in Message,
+              where: m.session_key == ^key and m.turn_ref == ^turn_ref,
+              select: count()
+            )
+          )
+
+        {before, n}
+    end
+  end
+
+  @doc """
   Each target retrieval has touched, with how many times it was
   considered, returned and used, and when it was last returned and last
   used; `kind` narrows to targets of one kind (`bookmark`), `target` to
@@ -475,7 +536,9 @@ defmodule Oneiroi.Kumbukumbu.Store do
             in_reply_to: l.in_reply_to,
             sent_at: l.sent_at,
             read_by: l.read_by,
-            read_at: l.read_at
+            read_at: l.read_at,
+            sealed: l.sealed,
+            parties: l.parties
           }
         )
       )
@@ -817,6 +880,18 @@ defmodule Oneiroi.Kumbukumbu.Store do
     )
   end
 
+  @doc "The same for a witness: no sealed turn matched (kumbukumbu#95)."
+  @spec search_unsealed(String.t(), pos_integer()) :: [Message.t()]
+  def search_unsealed(text, limit) do
+    Repo.all(
+      from(m in Message,
+        where: ilike(m.content, ^search_pattern(text)) and m.role != "tool" and m.sealed == false,
+        order_by: [desc: m.sequence, desc: m.position],
+        limit: ^limit
+      )
+    )
+  end
+
   @doc "The same, within a domain and the common room (`{:domain, current}`, kumbukumbu#72), or across every one (`:any`)."
   @spec search(String.t(), pos_integer(), :any | {:domain, map() | nil}) :: [Message.t()]
   def search(text, limit, within) do
@@ -859,7 +934,8 @@ defmodule Oneiroi.Kumbukumbu.Store do
         on: s.resident_id == m.resident_id and s.key == m.session_key,
         where:
           m.resident_id == ^resident_id and ilike(m.content, ^search_pattern(text)) and
-            m.role != "tool" and (s.private == false or s.shared == true),
+            m.role != "tool" and (s.private == false or s.shared == true) and
+            m.sealed == false,
         order_by: [desc: m.sequence, desc: m.position],
         limit: ^limit,
         select: {m, s}
@@ -914,8 +990,12 @@ defmodule Oneiroi.Kumbukumbu.Store do
         {:within, within}, q ->
           within(q, within)
 
+        # A witness's search: no private session, and no sealed turn
+        # (kumbukumbu#95), matched or ranked.
         {:witness, true}, q ->
-          from([_m, s] in q, where: s.private == false or s.shared == true)
+          from([m, s] in q,
+            where: (s.private == false or s.shared == true) and m.sealed == false
+          )
 
         {:who, kind}, q when is_binary(kind) ->
           from([m, _s] in q, where: m.actor_kind == ^kind)
@@ -995,6 +1075,11 @@ defmodule Oneiroi.Kumbukumbu.Store do
   def injections(turn_ref),
     do:
       Repo.all(from(i in ContextInjection, where: i.turn_ref == ^turn_ref, order_by: i.position))
+
+  @doc "Whether a turn was captured sealed (kumbukumbu#95)."
+  @spec turn_sealed?(String.t()) :: boolean()
+  def turn_sealed?(turn_ref),
+    do: Repo.exists?(from(m in Message, where: m.turn_ref == ^turn_ref and m.sealed == true))
 
   # ---- memory ----
 

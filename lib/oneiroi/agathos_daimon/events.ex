@@ -141,6 +141,13 @@ defmodule Oneiroi.AgathosDaimon.Events do
       fields: [:id, :turn_ref, :tier, :words, :reason, :judge_model]
   end
 
+  defmodule ProposalsTold do
+    # She was told of the witness's proposals that arrived up to
+    # `through` (brain#110; Lily's letter #1594): each proposal is told
+    # once, on her next turn, and waits patiently after.
+    use Oneiroi.Event, version: 1, fields: [:id, :through], instants: [:through]
+  end
+
   defmodule ImportTold do
     # The resident was told, on its first turn, where it woke: on
     # Oneiroi, from which repository, whether the attestation held, and
@@ -294,6 +301,13 @@ defmodule Oneiroi.AgathosDaimon.Events do
     # The resident's zone (spec §6.7): every check-in, date and day is
     # counted in it.
     use Oneiroi.Event, version: 1, fields: [:id, :timezone]
+  end
+
+  defmodule RecordsRemoteChecked do
+    # What the backup remote's host says it is (sima-qian#65): `visibility`
+    # private, public or unknown; `push` yes, no or unknown. Recorded at
+    # set and when a backup finds it changed, never otherwise.
+    use Oneiroi.Event, version: 1, fields: [:id, :visibility, :push]
   end
 
   defmodule RecordsRemoteSet do

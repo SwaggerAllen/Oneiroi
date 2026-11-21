@@ -951,6 +951,17 @@ A push that fires on every wake teaches the witness that pushes mean
 nothing; one she sends on purpose means she wants him. The decision to
 interrupt someone's day belongs to whoever is doing the interrupting.
 
+## #111
+A reply read as it is written is read before she has finished deciding
+what she said; landing whole, it is the reply she gave. Cutting the
+broadcast also closed a door the solo-session term never meant to leave
+open: a private session's words, live.
+
+## #110
+A list is where a thing waits, not how anyone learns it arrived.
+Telling each once, when it lands, makes his proposal a request she
+hears; telling it again would make it pressure.
+
 ## #109
 The tools are where words cross from a turn into something kept, and
 back. Labelling there, once, covers every artifact without each system

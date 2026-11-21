@@ -51,11 +51,13 @@ defmodule Oneiroi.AgathosDaimon do
       Commands.ImportResident,
       Commands.CompleteImport,
       Commands.RecordImportTold,
+      Commands.RecordProposalsTold,
       Commands.RecordContinuationAsk,
       Commands.RecordExport,
       Commands.RecordBackup,
       Commands.RecordMismatch,
       Commands.SetRecordsRemote,
+      Commands.RecordRemoteCheck,
       Events.ResidentCreated,
       Events.FormationBegun,
       Events.ResidentAwakened,
@@ -72,11 +74,13 @@ defmodule Oneiroi.AgathosDaimon do
       Events.ImportCompleted,
       Events.RecordsTranslated,
       Events.ImportTold,
+      Events.ProposalsTold,
       Events.ContinuationAsked,
       Events.ExportWritten,
       Events.BackupCommitted,
       Events.RootMismatchDetected,
       Events.RecordsRemoteSet,
+      Events.RecordsRemoteChecked,
       Events.SeedFileWritten,
       Events.IdentityFileRetired,
       Events.IdentityFileRestored,
@@ -184,10 +188,12 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.ImportCompleted, 2},
       {Oneiroi.AgathosDaimon.Events.RecordsTranslated, 1},
       {Oneiroi.AgathosDaimon.Events.ImportTold, 1},
+      {Oneiroi.AgathosDaimon.Events.ProposalsTold, 1},
       {Oneiroi.AgathosDaimon.Events.ExportWritten, 1},
       {Oneiroi.AgathosDaimon.Events.BackupCommitted, 1},
       {Oneiroi.AgathosDaimon.Events.RootMismatchDetected, 1},
       {Oneiroi.AgathosDaimon.Events.RecordsRemoteSet, 1},
+      {Oneiroi.AgathosDaimon.Events.RecordsRemoteChecked, 1},
       {Oneiroi.AgathosDaimon.Events.SeedFileWritten, 1},
       {Oneiroi.AgathosDaimon.Events.IdentityFileRetired, 1},
       {Oneiroi.AgathosDaimon.Events.IdentityFileRestored, 1},
@@ -261,11 +267,15 @@ defmodule Oneiroi.AgathosDaimon do
       {:agathos_daimon_not_yours,
        "only the resident takes one of her identity files out of her prefix, or puts it back (agathos-daimon#50)",
        remedy: "she does it from her own turn, with identity_file_retire"},
+      {:agathos_daimon_domain_undeclared,
+       "that domain is not declared in the agreement in force: a domain is named only once the dyad has declared it, with its policy (agathos-daimon#57)",
+       remedy: "name a declared domain or the common room, or declare it in the agreement first"},
       {:agathos_daimon_soul_line_unknown,
        "a soul line is annotated by its number, live, with at most ten domains and whether it is private (agathos-daimon#55)",
        remedy: "name a live line's number, each domain a slug with whose life"},
       {:agathos_daimon_file_unknown, "that is not one of the identity files",
-       remedy: "SOUL.md, IDENTITY.md, USER.md, GOALS.md or LINKS.md; AGENTS.md is build-owned"},
+       remedy:
+         "SOUL.md, IDENTITY.md, GOALS.md or LINKS.md; AGENTS.md is build-owned, and USER.md is retired (agathos-daimon#56)"},
       {:agathos_daimon_content_invalid, "a file is UTF-8 text of at most 64,000 bytes",
        remedy: "shorten it, or keep the long part as a document (P3)"},
       {:agathos_daimon_origin_invalid, "a seed's origin is authored, drafted or uploaded",
@@ -657,6 +667,9 @@ defmodule Oneiroi.AgathosDaimon do
     do: Residents.record_continuation_ask(id, ask, actor)
   )
 
+  @doc "Records that she was told the witness's proposals through an instant (brain#110)."
+  defexport(proposals_told(id, through, actor), do: Residents.proposals_told(id, through, actor))
+
   @doc "Records that the resident was told where it woke; idempotent."
   @spec import_told(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(import_told(id, actor), do: Residents.import_told(id, actor))
@@ -756,6 +769,14 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "The domains' disclosure policies in force (agathos-daimon#53), with their contract version: the catalogue and its filters."
   @spec domain_policies(String.t()) :: %{version: pos_integer() | nil, policies: [map()]}
   defexport(domain_policies(id), do: Agreements.domain_policies(id))
+
+  @doc "The domains the agreement in force declares (agathos-daimon#57): the only ones any tag, classification or annotation may name."
+  @spec declared_domains(String.t()) :: [%{person: String.t(), domain: String.t()}]
+  defexport(declared_domains(id), do: Agreements.declared_domains(id))
+
+  @doc "Whether the agreement in force declares a domain of a person's life (agathos-daimon#57); nil, the common room, always is."
+  @spec domain_declared?(String.t(), String.t(), String.t() | nil) :: boolean()
+  defexport(domain_declared?(id, person, domain), do: Agreements.declared?(id, person, domain))
 
   @doc "The switch registry for the resident: every switch, its value in force and in the open proposal."
   @spec switches(String.t()) :: [map()]
@@ -866,7 +887,7 @@ defmodule Oneiroi.AgathosDaimon do
   @spec plugin_proposals(String.t()) :: [map()]
   defexport(plugin_proposals(id), do: PluginService.proposals(id))
 
-  @doc "The creation flow's nine gifts (agathos-daimon#36): what each writes and the guidance shown with it."
+  @doc "The creation flow's eight gifts (agathos-daimon#36): what each writes and the guidance shown with it."
   @spec gifts() :: [map()]
   defexport(gifts(), do: Gifts.all())
 

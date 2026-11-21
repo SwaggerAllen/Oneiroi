@@ -1158,7 +1158,10 @@ defmodule Oneiroi.Sunna.Schedules do
          _ <- Wakes.run(resident_id, "letter", letter_causes(numbers)),
          target = reply_target(resident_id, letters, numbers),
          since = Clock.now(),
-         {:ok, answer} <- wake(resident_id, key, letters_note(letters, numbers, target), :chat) do
+         {:ok, answer} <-
+           wake(resident_id, key, letters_note(letters, numbers, target), :chat,
+             sealed: sealed_parties(letters, numbers)
+           ) do
       _ = answer_letters(resident_id, key, target, {:ok, answer}, since)
       :ok
     else
@@ -1327,6 +1330,17 @@ defmodule Oneiroi.Sunna.Schedules do
         letter.from_name == Kumbukumbu.household_sender() or Kumbukumbu.from_sibling?(letter)
 
   defp letter_causes(numbers), do: for(n <- numbers, do: %{kind: "letter", number: n})
+
+  # The witness's call, 2026-11-21 (kumbukumbu#95): a sealed letter
+  # between residents still wakes her main chat, but the turn that reads
+  # and answers it is captured sealed to the letter's parties, so he sees
+  # that it ran, never its words. The parties of the first sealed letter
+  # it carries; nil when none is sealed.
+  defp sealed_parties(letters, numbers) do
+    Enum.find_value(letters, fn l ->
+      l.number in numbers and Map.get(l, :sealed) == true and Map.get(l, :parties)
+    end)
+  end
 
   # The mail thread a letter wake answers (kumbukumbu#77; the witness,
   # 2026-11-19: "the final message becomes the next mail message's
@@ -1587,9 +1601,10 @@ defmodule Oneiroi.Sunna.Schedules do
     port = Config.fetch!(:sunna, :wake)
 
     called =
-      if opts[:audience] && Code.ensure_loaded?(port) && function_exported?(port, :wake_for, 5),
-        do: port.wake_for(resident_id, key, note, purpose, opts),
-        else: port.wake(resident_id, key, note, purpose)
+      if (opts[:audience] || opts[:sealed]) && Code.ensure_loaded?(port) &&
+           function_exported?(port, :wake_for, 5),
+         do: port.wake_for(resident_id, key, note, purpose, opts),
+         else: port.wake(resident_id, key, note, purpose)
 
     case called do
       {:error, %{site: _}} = failed ->

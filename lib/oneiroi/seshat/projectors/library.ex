@@ -67,6 +67,31 @@ defmodule Oneiroi.Seshat.Projectors.Library do
     )
   end)
 
+  # His proposal (seshat#103): the latest waits on the row.
+  fold(%Events.ClassificationProposed{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :proposed,
+      from(d in Document, where: d.resident_id == ^e.id and d.path == ^e.path),
+      set: [
+        proposed_person: e.person,
+        proposed_domain: e.domain,
+        proposed_note: e.note,
+        proposed_at: e.at
+      ]
+    )
+  end)
+
+  # Her answer settles it; an accept's classification folds on its own.
+  fold(%Events.ClassificationAnswered{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :answered,
+      from(d in Document, where: d.resident_id == ^e.id and d.path == ^e.path),
+      set: [proposed_person: nil, proposed_domain: nil, proposed_note: nil, proposed_at: nil]
+    )
+  end)
+
   # Archived (seshat#45): a row for the archived copy, the old row made
   # the tombstone, the old chunks gone; the index reads neither again.
   fold(%Events.DocumentArchived{} = e, _metadata, fn multi ->

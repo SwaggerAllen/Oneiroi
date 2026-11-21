@@ -31,6 +31,7 @@ defmodule Oneiroi.Kumbukumbu.AudienceDeliveryTest do
       slug = "#{String.downcase(name)}-#{System.unique_integer([:positive])}"
       {:ok, id} = AgathosDaimon.create(name, slug, witness.id, andrew)
       Fixtures.agreed!(id, witness.id)
+      Fixtures.declare_domains!(id, witness.id, ~w(recovery garden))
       %{id: id, actor: Actor.new(:resident, id)}
     end
 

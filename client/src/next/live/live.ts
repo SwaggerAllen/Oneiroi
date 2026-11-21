@@ -13,7 +13,6 @@ const CURSOR_KEY = 'oneiroi.next.cursor';
 export interface SessionEvents {
   joined: () => void;
   started: (turnRef: string) => void;
-  delta: (turnRef: string, text: string) => void;
   status: (turnRef: string, state: string, detail: { name?: string; ahead?: number; into?: string } | null) => void;
   turn: (turnRef: string) => void;
   failed: (turnRef: string, reason: string) => void;
@@ -150,7 +149,8 @@ export class Live {
 
   /**
    * Joins a session's stream (spec §5, brain#45) on the same socket:
-   * turn_started, delta, status, turn, failed. Returns a leave function.
+   * turn_started, status, turn, failed (no deltas: her reply lands whole,
+   * the witness, 2026-11-21). Returns a leave function.
    */
   session(residentId: string, key: string, on: SessionEvents): () => void {
     let channel: Channel | null = null;
@@ -168,7 +168,6 @@ export class Live {
   private join(residentId: string, key: string, on: SessionEvents): Channel {
     const channel = (this.socket as Socket).channel(`session:${residentId}:${key}`);
     channel.on('turn_started', (p: { turn_ref: string }) => on.started(p.turn_ref));
-    channel.on('delta', (p: { turn_ref: string; text: string }) => on.delta(p.turn_ref, p.text));
     channel.on('status', (p: { turn_ref: string; state: string; detail: { name?: string; ahead?: number; into?: string } | null }) =>
       on.status(p.turn_ref, p.state, p.detail),
     );

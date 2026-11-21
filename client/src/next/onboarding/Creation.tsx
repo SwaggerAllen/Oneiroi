@@ -11,13 +11,13 @@ import { SIGN_OFF } from './Landing';
 import * as css from './onboarding.css';
 
 // The creation flow (F3, spec §6.2; the canvas's Onboarding row): the
-// opening, who's coming in, the nine gifts, the reading, the wake. The
+// opening, who's coming in, the eight gifts, the reading, the wake. The
 // copy is Lily's (C1–C8). Nothing ends without the witness reading the
 // finished files whole (the witness's policy, 2026-11-05).
 
-const IDENTITY = ['IDENTITY.md', 'SOUL.md', 'USER.md', 'GOALS.md', 'LINKS.md'];
+const IDENTITY = ['IDENTITY.md', 'SOUL.md', 'GOALS.md', 'LINKS.md'];
 // Files about the witness (agathos-daimon#42): the prompt path never drafts them.
-const WITNESS_FILES = ['USER.md', 'GOALS.md', 'LINKS.md'];
+const WITNESS_FILES = ['GOALS.md', 'LINKS.md'];
 
 // `forming` (agathos-daimon#46): made here, they wait unreachable until the
 // witness wakes them; one brought from a repository is not forming.

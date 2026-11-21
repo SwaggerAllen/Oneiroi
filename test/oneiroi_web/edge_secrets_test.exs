@@ -115,7 +115,7 @@ defmodule OneiroiWeb.EdgeSecretsTest do
     resident = Fixtures.resident!(account)
 
     [_id, _url, token, _actor] =
-      traced({Oneiroi.SimaQian, :set_remote, 4}, fn ->
+      traced({Oneiroi.SimaQian, :set_remote_checked, 4}, fn ->
         put(conn, "/v1/residents/#{resident.id}/remote", %{
           url: "https://github.com/lily/records.git",
           token: "github_pat_TESTONLY"

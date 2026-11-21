@@ -1,10 +1,12 @@
 defmodule OneiroiWeb.SessionChannel do
   @moduledoc """
-  The streamed conversation (spec §5): `session:<resident_id>:<key>`. A
-  witness joins a session of a resident they witness; `send` runs a turn
-  on the brain's session process and the reply arrives as `delta`
-  events, then `turn` with the captured messages, or `stopped` with the
-  honest notice, or `failed`.
+  The conversation's live events (spec §5): `session:<resident_id>:<key>`.
+  A witness joins a session of a resident they witness and may read (a
+  private session of hers is refused, as its transcript is); `send` runs
+  a turn on the brain's session process, and the turn says it started,
+  its step (`status`), then `turn` with the captured messages, or
+  `failed`. Her reply is not streamed (brain#111; the witness,
+  2026-11-21): it lands whole.
   """
   use Phoenix.Channel
 
@@ -16,7 +18,9 @@ defmodule OneiroiWeb.SessionChannel do
     %Principal{account_id: account_id} = socket.assigns.principal
 
     with [resident_id, key] <- String.split(rest, ":", parts: 2),
-         true <- resident_id in Oneiroi.Gaia.witnessed_residents(account_id) do
+         true <- resident_id in Oneiroi.Gaia.witnessed_residents(account_id),
+         {:ok, _session, _messages, _total} <-
+           Oneiroi.Kumbukumbu.transcript_range({:account, account_id}, key, 0, 0) do
       :ok = PubSub.subscribe(:brain, :session)
       {:ok, assign(socket, resident_id: resident_id, session_key: key)}
     else
@@ -29,7 +33,7 @@ defmodule OneiroiWeb.SessionChannel do
     %{resident_id: resident_id, session_key: key, principal: principal} = socket.assigns
     actor = Principal.actor(principal)
     # Taken by the session's queue (brain#45), which runs the turn off
-    # this process, so deltas push while it runs; the outcome arrives on
+    # this process; the outcome arrives on
     # the topic like every other event of the turn.
     ref = params["client_ref"] || Oneiroi.Kumbukumbu.turn_ref()
 
@@ -62,9 +66,6 @@ defmodule OneiroiWeb.SessionChannel do
 
   defp push_event(socket, {:turn_started, turn_ref}),
     do: push(socket, "turn_started", %{turn_ref: turn_ref})
-
-  defp push_event(socket, {:delta, turn_ref, text}),
-    do: push(socket, "delta", %{turn_ref: turn_ref, text: text})
 
   defp push_event(socket, {:turn, turn_ref, turn}),
     do: push(socket, "turn", Map.put(turn, :turn_ref, turn_ref))

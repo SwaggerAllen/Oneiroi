@@ -86,6 +86,20 @@ defmodule Oneiroi.Seshat.Events do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :path, :person, :domain]
   end
 
+  defmodule ClassificationProposed do
+    # The witness's proposal of a document's classification (seshat#103;
+    # the witness's ruling, 2026-11-21): whose life and which domain, or
+    # the common room (`domain` nil), with his note. It classifies
+    # nothing; a later proposal for the same path replaces it.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :path, :person, :domain]
+  end
+
+  defmodule ClassificationAnswered do
+    # Her answer to his proposal (seshat#103), with her note: accepted, a
+    # `DocumentClassified` of hers follows in the same commit.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :path, :accepted]
+  end
+
   defmodule DocumentArchived do
     # A document archived (seshat#45): its words moved whole to `to`
     # under frontmatter (who, when, why), and a tombstone left at the old

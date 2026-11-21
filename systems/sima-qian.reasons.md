@@ -433,6 +433,20 @@ one page and the second never ran until production. The test now holds
 a repository past a page, on the real server, because the server's
 paging is the server's, and only it says where the end is.
 
+## #66
+A retry should cost what failed, not what succeeded. Re-running every
+resident because one failed turned a single bad remote into a standing
+load on Gitea, and made the failure's blast radius the whole household.
+
+## #65
+A remote is where her whole record goes every night. A field that
+takes any text sends it nowhere, silently, for as long as nobody looks;
+a shape check costs nothing and catches it at the moment it is typed.
+Visibility is checked and never enforced: a check at set time proves
+nothing about the next day, and stopping backups would trade a privacy
+risk for a loss of the record. A warning that recurs while the fact
+holds is what can honestly be promised.
+
 ## #64
 A citation names a commit, so a commit that can be rewritten away can
 make a citation lie. Protection on the server holds the rule for every

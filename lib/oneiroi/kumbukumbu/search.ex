@@ -60,9 +60,17 @@ defmodule Oneiroi.Kumbukumbu.Search do
     needle = text |> String.trim() |> String.downcase()
     order = if narrow[:sort] == :oldest, do: :asc, else: :desc
 
+    # A sealed letter the viewer is not a party to is dropped before any
+    # match (kumbukumbu#93): never ranked, never snippeted, never listed,
+    # not even as an envelope. No viewer named reads as no party.
+    viewer = Keyword.get(narrow, :viewer, :nobody)
+
     resident_id
     |> Memories.letters()
-    |> Enum.filter(&(holds?(&1.text, needle) and letter_kept?(&1, narrow)))
+    |> Enum.filter(
+      &(Memories.letter_view(&1, viewer) == :whole and holds?(&1.text, needle) and
+          letter_kept?(&1, narrow))
+    )
     |> Enum.sort_by(& &1.number, order)
     |> Enum.take(limit)
   end

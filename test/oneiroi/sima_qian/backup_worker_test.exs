@@ -1,6 +1,7 @@
 defmodule Oneiroi.SimaQian.BackupWorkerTest do
   @moduledoc "The nightly backup reads every resident's result: a failure is logged with its site and fails the job."
   use Oneiroi.DataCase, async: false
+  use Oban.Testing, repo: Oneiroi.Repo
 
   import ExUnit.CaptureLog
 
@@ -41,14 +42,24 @@ defmodule Oneiroi.SimaQian.BackupWorkerTest do
     {:ok, good: good, bad: bad}
   end
 
-  test "a failed resident is logged with its site, the others land, and the job fails", ctx do
+  # sima-qian#66: the night retries the failed resident alone. Failing the
+  # whole night re-pushed every resident at each of twenty attempts, and
+  # took Gitea past its memory on 2026-11-21.
+  test "a failed resident is logged with its site, the others land, and only it is retried",
+       ctx do
     log =
       capture_log(fn ->
         send(self(), {:result, BackupWorker.run(%{})})
       end)
 
-    assert_received {:result, {:error, error}}
-    assert %{kind: :sima_qian_backup_failed, site: :sima_qian_nightly_backup_failed} = error
+    assert_received {:result, :ok}
+    assert [%{args: %{"resident_id" => id}}] = all_enqueued(worker: BackupWorker)
+    assert id == ctx.bad.id
+
+    # The retry backs up its resident alone, and fails alone, its error kept.
+    capture_log(fn -> send(self(), {:retry, BackupWorker.run(%{"resident_id" => id})}) end)
+    assert_received {:retry, {:error, error}}
+    assert %{kind: :sima_qian_backup_failed, site: :sima_qian_resident_backup_failed} = error
     assert error.details[:residents] == [ctx.bad.id]
     assert error.details[:sites] == [:sima_qian_git_run_failed]
 
@@ -71,6 +82,7 @@ defmodule Oneiroi.SimaQian.BackupWorkerTest do
     :ok = Oneiroi.SimaQian.set_remote(ctx.bad.id, other, nil, Actor.new(:job, "t"))
 
     assert :ok == BackupWorker.run(%{})
+    assert all_enqueued(worker: BackupWorker) == []
   end
 
   test "the attestation reads its results the same way" do

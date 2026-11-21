@@ -112,7 +112,9 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
         :keepsake,
         :link,
         :turn_ref,
-        :labels
+        :labels,
+        # A letter to a sibling sent open, the sender's act (kumbukumbu#93).
+        :open
       ]
   end
 

@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRef, useState } from 'react';
-import { api } from '../../api/client';
+import { api, remoteWords } from '../../api/client';
 import { useSubject } from '../state/resident';
 import { Card, Field, Said, TextArea } from './common';
 import { day, plural, settingsKey } from './logic';
@@ -114,7 +114,7 @@ function BackupRepo() {
           if (!u) return;
           const t = token.trim();
           setToken('');
-          void act.run(() => api.setRemote(id, u, t || null).then(() => (remote ? 'Changed.' : 'Set.')), settingsKey(id, 'resident'));
+          void act.run(() => api.setRemote(id, u, t || null).then((check) => remoteWords(check, Boolean(remote))), settingsKey(id, 'resident'));
         }}
       >
         <Field label={remote ? 'A new repository URL' : 'Repository URL'} inputMode="url" autoComplete="off" value={url} onChange={(e) => setUrl(e.target.value)} />

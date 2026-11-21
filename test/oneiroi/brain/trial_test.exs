@@ -401,10 +401,13 @@ defmodule Oneiroi.Brain.TrialTest do
     {"document_move", %{from: "wiki/lily/pocket-andrew.md", to: "pocket-andrew.md"}},
     # Her soul's annotation (agathos-daimon#55): answered as it would be.
     {"soul_annotate", %{number: 1, domains: [%{domain: "recovery"}], private: true}},
+    {"disclosure_review", %{text: "A line of mine.", audience: "researcher"}},
+    # Her answer to his proposal (seshat#103): answered as it would be.
+    {"classification_answer", %{path: "design/note.md", accept: false}},
     # Her classification (seshat#102): answered as it would be, nothing kept.
     {"document_classify", %{path: "design/note.md", domain: "none"}},
     # Her prefix (agathos-daimon#50): answered as it would be, nothing retired.
-    {"identity_file_retire", %{file: "USER.md", note: "migrated"}}
+    {"identity_file_retire", %{file: "GOALS.md", note: "migrated"}}
   ]
 
   defp calls(tools), do: Enum.map(tools, fn {name, args} -> %{name: name, arguments: args} end)

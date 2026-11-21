@@ -23,13 +23,16 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
     2026-11-19), her answer in the thread under them. A system line (a wake's note) breaks a long link rather
     than widening the conversation.
   - Tool calls collapse to one line.
-  - The turn streams in under its step (thinking, the tool's name,
-  - It streams in its own place, under the message it answers, and
-    stays there when it is captured (2026-11-17; it streamed above the
-    message, then moved below it). A wake, which answers no message,
-    streams at the end.
-    writing) and a timer. The same status events drive the header's
-    presence line.
+  - A turn under way shows its step (thinking, or the tool's name) and
+    a timer, in its own place under the message it answers (2026-11-17);
+    a wake's, which answers no message, at the end. Her words are not
+    streamed into it (brain#111; the witness, 2026-11-21: "I kind of hate
+    the live streamed responses"): the reply lands whole when the turn is
+    captured. The same status events drive the header's presence line.
+  - A turn that answered a sealed letter between residents (kumbukumbu#95)
+    shows in its place with each message reading "[sealed: her answer to
+    a letter between residents; …]": the witness sees that it ran, never
+    its words.
 - **Sending** uses the current client's outbox (brain#45): each message
   is held under its own ref until its turn lands. A message sent while
   she works is queued. "Not sent" and "No reply came" offer Send again
@@ -52,8 +55,10 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
 - **The domain (kumbukumbu#72):** above the box, "In <domain>", a chip
   naming the domain the next message goes in: the conversation's
   current one (the session's `domain`), or the common room. It opens a
-  picker of the domains this conversation has named, the common room,
-  and a new one as a slug ("Use"); what is picked shows "· next
+  picker of the domains the agreement declares (kumbukumbu#90, the
+  agreement's `domains`) and the common room, never free text; with none
+  declared it says so. A refused submit (`kumbukumbu_domain_undeclared`)
+  keeps the message unsent. What is picked shows "· next
   message", rides that message's turn (`domain` on the submit, kept
   when it is sent again) and clears once sent, the server carrying it
   forward. A rule, "— <domain> —", is drawn where the transcript moves

@@ -47,7 +47,7 @@ defmodule OneiroiWeb.ResidentBackupTest do
 
     ctx.conn
     |> put(path <> "/remote", %{url: ctx.bare, token: "github_pat_TESTONLY"})
-    |> response(204)
+    |> response(200)
 
     Clock.Fake.advance(120)
     actor = Oneiroi.Actor.new(:witness, ctx.account.id)

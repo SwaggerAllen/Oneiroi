@@ -259,6 +259,7 @@ defmodule Oneiroi.Brain.ToolsTest do
     }
 
     {:ok, ikey} = Kumbukumbu.open_session(id, "free_time", "brain", [ctx.witness.id], ctx.actor)
+    Fixtures.declare_domains!(id, ctx.witness.id, ~w(intimate))
     :ok = Kumbukumbu.tag_domain(id, ikey, "t-elsewhere", nil, "intimate", ctx.actor)
 
     total = size + 3

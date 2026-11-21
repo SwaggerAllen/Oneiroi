@@ -231,7 +231,7 @@ defmodule Oneiroi.Brain.TurnTest do
     end
   end
 
-  test "a turn is answered, captured as user and assistant, recorded, and streamed", ctx do
+  test "a turn is answered, captured as user and assistant, recorded, and lands whole", ctx do
     assert {:ok, %{turn_ref: ref, messages: [user, reply], drew_on: 7}} =
              Oneiroi.Brain.turn(ctx.resident.id, ctx.key, "hello there", ctx.actor)
 
@@ -258,7 +258,8 @@ defmodule Oneiroi.Brain.TurnTest do
 
     payloads = events(ctx.resident.id, ctx.key)
     assert {:turn_started, ^ref} = hd(payloads)
-    assert Enum.any?(payloads, &match?({:delta, ^ref, _}, &1))
+    # Her reply is not streamed (brain#111): no delta is broadcast.
+    refute Enum.any?(payloads, &match?({:delta, ^ref, _}, &1))
     assert {:turn, ^ref, %{drew_on: 7}} = List.last(payloads)
   end
 

@@ -500,6 +500,7 @@ defmodule Oneiroi.Seshat.Documents do
   """
   def classify(resident_id, path, person, domain, note, %Actor{} = actor) do
     with {:ok, path} <- normalize(resident_id, path),
+         :ok <- declared(resident_id, person, domain),
          {:ok, _events} <-
            dispatch(%Commands.ClassifyDocument{
              actor: actor,
@@ -512,6 +513,63 @@ defmodule Oneiroi.Seshat.Documents do
            }) do
       {:ok, %{path: path, person: domain && person, domain: domain}}
     end
+  end
+
+  @doc """
+  The witness proposes a classification (seshat#103; his ruling,
+  2026-11-21: "I need to be able to propose classification on her
+  files"): `person` and `domain` as `classify/6` takes them, a declared
+  domain or nil for the common room. It classifies nothing until she
+  accepts.
+  """
+  def propose_classification(resident_id, path, person, domain, note, %Actor{} = actor) do
+    with {:ok, path} <- normalize(resident_id, path),
+         :ok <- declared(resident_id, person, domain),
+         {:ok, _events} <-
+           dispatch(%Commands.ProposeClassification{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             note: note(note) || "proposed",
+             path: path,
+             person: domain && person,
+             domain: domain
+           }) do
+      {:ok, %{path: path, person: domain && person, domain: domain}}
+    end
+  end
+
+  @doc "Her answer to his proposal (seshat#103): accepted, `DocumentClassified` is hers."
+  def answer_classification(resident_id, path, accept, note, %Actor{} = actor) do
+    with {:ok, path} <- normalize(resident_id, path),
+         waiting = Enum.find(classification_proposals(resident_id), &(&1.path == path)),
+         {:ok, _events} <-
+           dispatch(%Commands.AnswerClassification{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             note: note(note) || if(accept, do: "accepted", else: "declined"),
+             path: path,
+             accept: accept == true
+           }),
+         do:
+           {:ok,
+            %{path: path, accepted: accept == true, domain: waiting && waiting.proposed_domain}}
+  end
+
+  @doc "The documents with a proposal waiting (seshat#103), oldest first."
+  def classification_proposals(resident_id),
+    do: Scope.resident(resident_id, fn -> Store.classification_proposals() end)
+
+  # Only a declared domain classifies a document (agathos-daimon#57).
+  defp declared(resident_id, person, domain) do
+    if Oneiroi.AgathosDaimon.domain_declared?(resident_id, person, domain),
+      do: :ok,
+      else:
+        {:error,
+         Error.new(:seshat_domain_undeclared, :seshat_classify_document_undeclared,
+           domain: domain
+         )}
   end
 
   @doc """

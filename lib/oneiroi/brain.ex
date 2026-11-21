@@ -463,7 +463,14 @@ defmodule Oneiroi.Brain do
   @doc "A wake whose answer reaches an audience past the dyad (kumbukumbu#81): her context assembled for it."
   @impl Oneiroi.Sunna.Wake
   defexport(wake_for(resident_id, session_key, note, purpose, opts),
-    do: wake_admitted(resident_id, session_key, note, purpose, Keyword.take(opts, [:audience]))
+    do:
+      wake_admitted(
+        resident_id,
+        session_key,
+        note,
+        purpose,
+        Keyword.take(opts, [:audience, :sealed])
+      )
   )
 
   # Every wake the platform makes passes here (agathos-daimon#46): a

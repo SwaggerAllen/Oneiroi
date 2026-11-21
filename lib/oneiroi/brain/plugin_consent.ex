@@ -28,7 +28,14 @@ defmodule Oneiroi.Brain.PluginConsent do
       for entry <- Plugins.catalog(),
           do: audit(resident_id, with_state(entry, Map.get(states, entry.key)))
 
-    %{plugins: plugins, proposals: AgathosDaimon.plugin_proposals(resident_id)}
+    # Plain maps, not the rows: the Plugins page encodes this, and a row
+    # is no JSON (found in production 2026-11-21, the page down since the
+    # first proposal of 11-19).
+    proposals =
+      for p <- AgathosDaimon.plugin_proposals(resident_id),
+          do: p |> Map.from_struct() |> Map.delete(:__meta__)
+
+    %{plugins: plugins, proposals: proposals}
   end
 
   @doc "Proposes a change to a plugin in the catalog; the other party is told. The proposal's number."

@@ -106,6 +106,10 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, fields: [:id, :seeded, :adopted, :not_transferred, :reasons, :translated]
   end
 
+  defmodule RecordProposalsTold do
+    use Oneiroi.Command, fields: [:id, :through]
+  end
+
   defmodule RecordImportTold do
     use Oneiroi.Command, fields: [:id]
   end
@@ -173,6 +177,10 @@ defmodule Oneiroi.AgathosDaimon.Commands do
 
   defmodule SetTimezone do
     use Oneiroi.Command, fields: [:id, :timezone]
+  end
+
+  defmodule RecordRemoteCheck do
+    use Oneiroi.Command, fields: [:id, :visibility, :push]
   end
 
   defmodule SetRecordsRemote do

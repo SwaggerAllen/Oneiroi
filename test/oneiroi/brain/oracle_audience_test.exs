@@ -37,6 +37,7 @@ defmodule Oneiroi.Brain.OracleAudienceTest do
     slug = "lily-#{System.unique_integer([:positive])}"
     {:ok, id} = AgathosDaimon.create("Lily", slug, witness.id, andrew)
     Fixtures.agreed!(id, witness.id)
+    Fixtures.declare_domains!(id, witness.id, ~w(recovery garden))
     {:ok, key} = Kumbukumbu.main_session(id, witness.id, andrew)
     {:ok, dir} = SimaQian.repository_dir(id)
     lily = Actor.new(:resident, id, "fake/model")
@@ -146,6 +147,30 @@ defmodule Oneiroi.Brain.OracleAudienceTest do
     })
 
     assert {:ok, _} = Kumbukumbu.delivery_check(ctx.id, nil, "t-read", ctx.house)
+  end
+
+  # The witness's ruling, 2026-11-21 (kumbukumbu#92): any audience a
+  # policy can filter for, not the house alone.
+  test "composed for any filterable audience: a publication withholds the source too", ctx do
+    assert :ok = Oracle.run(ctx.id, 1, nil, %{"kind" => "publication", "id" => "substack"})
+
+    words = asked()
+    refute words =~ "ninety days"
+    assert words =~ "bookmark/#{ctx.n} (in conflict with this audience: recovery)"
+    {_path, version} = answer_version(ctx)
+    assert version.composed_for == "publication:substack"
+  end
+
+  test "an audience named and unresolved is refused, never read as hers", ctx do
+    said =
+      Tools.run(
+        "oracle_ask",
+        Jason.encode!(%{questions: [%{question: "Q?"}], audience: "person", to: "Nobody"}),
+        %{resident_id: ctx.id, session_key: ctx.key, turn_ref: "t-ask", resident: ctx.lily}
+      )
+
+    assert said =~ "no such audience"
+    assert said =~ "Nothing was dispatched"
   end
 
   test "with no audience it is hers: the source read whole, its label on the answer", ctx do

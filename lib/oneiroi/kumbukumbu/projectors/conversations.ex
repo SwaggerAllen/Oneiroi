@@ -105,7 +105,8 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
             instant_inferred: field(m, :instant_inferred) == true,
             domain_person: domain.key && domain.key.person,
             domain: domain.key && domain.key.domain,
-            domain_tagged: domain.tagged
+            domain_tagged: domain.tagged,
+            sealed: match?([_ | _], Map.get(e, :sealed))
           }
         end,
         on_conflict: :nothing,
