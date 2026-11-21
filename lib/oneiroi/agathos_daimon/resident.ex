@@ -950,7 +950,10 @@ defmodule Oneiroi.AgathosDaimon.Resident do
             id: c.id,
             number: n,
             text: c.text,
-            model: c.actor.model
+            model: c.actor.model,
+            session_key: c.session_key,
+            turn_ref: c.turn_ref,
+            labels: c.labels
           }
         ]
     end

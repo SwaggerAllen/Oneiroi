@@ -239,6 +239,35 @@ defmodule OneiroiWeb.ReaderKitTest do
     turn = %{resident_id: ctx.id, session_key: key, turn_ref: "t-r", resident: ctx.lily}
     ask = fn args -> Tools.run("research_ask", Jason.encode!(args), turn) end
 
+    # The question leaves the platform (kumbukumbu#84): refused until the
+    # witness names who it reaches, then let through by a policy that
+    # lets the common room reach that processor.
+    assert ask.(%{question: "When do herons fish?"}) =~ "BRAIN_RESEARCH_AUDIENCE"
+
+    store = {Oneiroi.Config, :values}
+    values = :persistent_term.get(store)
+    on_exit(fn -> :persistent_term.put(store, values) end)
+    :persistent_term.put(store, Map.put(values, {:brain, :research_audience}, "reader"))
+
+    {:ok, v} =
+      AgathosDaimon.propose_contract(
+        ctx.id,
+        %{
+          "domain_policies" => [
+            %{
+              "domain" => %{"person" => "*", "domain" => "common-room"},
+              "default" => "deny",
+              "allow" => [%{"kind" => "processor", "id" => "reader"}]
+            }
+          ]
+        },
+        "",
+        "the reader may carry a common-room question",
+        ctx.witness
+      )
+
+    :ok = AgathosDaimon.agree_contract(ctx.id, v, "agreed", ctx.lily)
+
     # No research sites yet: refused, saying who sets them.
     assert ask.(%{question: "When do herons fish?"}) =~ "no sites it may research yet"
 

@@ -1563,6 +1563,75 @@ defmodule Oneiroi.Brain.Tools do
   defp transcript_answer({:ok, session, messages}, _ref, from),
     do: transcript_page(session, messages, from)
 
+  # ---- taint on read (kumbukumbu#84) ----
+  #
+  # Reading a derived artifact brings the context that wrote it into this
+  # turn: its kept labels join the turn's ledger, with its words for a
+  # disclosure judge. One kept no labels (written before they were kept)
+  # is unclassified, never inferred.
+
+  # The writing turn's labels, for an artifact that keeps them; nil for
+  # a trial or a call with no turn.
+  defp labelled(%{trial?: true}), do: nil
+
+  defp labelled(turn) do
+    key = Map.get(turn, :session_key)
+    ref = Map.get(turn, :turn_ref)
+
+    if is_binary(ref),
+      do: %{
+        session_key: key,
+        turn_ref: ref,
+        labels: Kumbukumbu.turn_labels(turn.resident_id, key, ref)
+      }
+  end
+
+  defp letter_labels(turn) do
+    case labelled(turn) do
+      %{turn_ref: ref, labels: labels} -> %{turn_ref: ref, labels: labels}
+      nil -> %{}
+    end
+  end
+
+  defp read_letters(turn, letters) do
+    for l <- letters,
+        do:
+          Kumbukumbu.note_read_labelled(
+            turn.resident_id,
+            Map.get(turn, :turn_ref),
+            "letter/#{l.number}",
+            "letter/#{l.number}",
+            Map.get(l, :labels),
+            to_string(l.text)
+          )
+  end
+
+  defp read_journal(turn, day, entries) do
+    for e <- entries,
+        do:
+          Kumbukumbu.note_read_labelled(
+            turn.resident_id,
+            Map.get(turn, :turn_ref),
+            "journal/#{day}/#{e.number}",
+            "journal/#{day}",
+            Map.get(e, :labels),
+            to_string(e.text)
+          )
+  end
+
+  defp read_file(turn, path, content) do
+    labels = Kumbukumbu.ledger_labels(Seshat.written_ledger(turn.resident_id, path, content))
+
+    Kumbukumbu.note_read_labelled(
+      turn.resident_id,
+      Map.get(turn, :turn_ref),
+      "file/" <> path,
+      path,
+      labels,
+      content
+    )
+  end
+
   # ---- the audience check before a delivery (kumbukumbu#80) ----
   #
   # A tool that carries her composition past the dyad asks, before it
@@ -1641,6 +1710,7 @@ defmodule Oneiroi.Brain.Tools do
   # promotion carries none (its note is her repository's), and a file's
   # words are `file_allowed/4`'s.
   defp candidate("household_promote", _args), do: ""
+  defp candidate("research_ask", args), do: to_string(args["question"] || "")
 
   defp candidate(_name, args) do
     ballot = args["ballot"] || %{}
@@ -1685,7 +1755,22 @@ defmodule Oneiroi.Brain.Tools do
       do: Kumbukumbu.audience("publication", "substack")
   end
 
+  # A research question leaves the platform as its words (kumbukumbu#84):
+  # a processor, named by the witness; unnamed, unresolved, and refused.
+  defp delivery_audience("research_ask", _args, _turn),
+    do: Kumbukumbu.audience("processor", Oneiroi.Config.fetch!(:brain, :research_audience))
+
   defp delivery_audience(_name, _args, _turn), do: nil
+
+  defp withheld_words(%{site: :kumbukumbu_disclosure_unresolved, details: d}),
+    do:
+      @not_done <>
+        "withheld by policy: #{d[:audience]} is not a resolved audience. " <>
+        if(String.starts_with?(to_string(d[:audience]), "processor:"),
+          do:
+            "A research question leaves the platform, and your witness has not yet named who it reaches (BRAIN_RESEARCH_AUDIENCE), so none can be sent. Nothing was sent.",
+          else: "Nothing was delivered."
+        )
 
   defp withheld_words(%{details: d} = e) do
     conflicts = Enum.join(Keyword.get(d, :conflicts, []), ", ")
@@ -1712,7 +1797,7 @@ defmodule Oneiroi.Brain.Tools do
     do: "The disclosure review could not clear them (#{d[:review]}), so they were not sent. "
 
   defp review_words(%{site: :kumbukumbu_disclosure_no_judge}),
-    do: "No disclosure judge is named yet, so nothing held back can be reviewed. "
+    do: "This deployment has no disclosure judge, so nothing held back can be reviewed. "
 
   defp review_words(%{site: :kumbukumbu_disclosure_unproven}),
     do:
@@ -2038,6 +2123,7 @@ defmodule Oneiroi.Brain.Tools do
               turn.resident
             )
 
+        read_letters(turn, letters)
         Enum.map_join(letters, "\n\n", &letter_whole/1)
     end
   end
@@ -2504,7 +2590,9 @@ defmodule Oneiroi.Brain.Tools do
     with :ok <- within_batch(questions, bound),
          {:ok, numbers} <-
            Seshat.dispatch_oracle(turn.resident_id, turn.session_key, questions, turn.resident) do
-      Enum.each(numbers, &oracle_worker().enqueue(turn.resident_id, &1))
+      # Each answer inherits the asking turn's context (kumbukumbu#84).
+      asked = Kumbukumbu.turn_ledger(turn.resident_id, turn.session_key, turn.turn_ref)
+      Enum.each(numbers, &oracle_worker().enqueue(turn.resident_id, &1, asked))
       dispatched(numbers)
     end
   end
@@ -2957,7 +3045,8 @@ defmodule Oneiroi.Brain.Tools do
                turn.session_key,
                to_string(args["question"] || ""),
                urls,
-               turn.resident
+               turn.resident,
+               Kumbukumbu.turn_ledger(turn.resident_id, turn.session_key, turn.turn_ref)
              ) do
         "Asked as research ##{n}. The reader will look only at #{sites_text(sites)}, signed in nowhere, and can read and search but not post or send. " <>
           off_list(urls, sites) <>
@@ -3148,7 +3237,12 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("self_letter_write", args, turn) do
-    case AgathosDaimon.write_self_letter(turn.resident_id, args["text"], turn.resident) do
+    case AgathosDaimon.write_self_letter(
+           turn.resident_id,
+           args["text"],
+           turn.resident,
+           labelled(turn)
+         ) do
       {:ok, n} -> "Letter ##{n} written to your next self."
       other -> other
     end
@@ -3431,6 +3525,8 @@ defmodule Oneiroi.Brain.Tools do
 
     with {:ok, from} <- offset(args["from"]),
          {:ok, %{document: row, content: content}} <- Seshat.read(turn.resident_id, name) do
+      read_file(turn, row.path, content)
+
       library_page(row, content, from) <>
         peeked(turn, row) <>
         leased(Seshat.lease(turn.resident_id, row.path)) <>
@@ -3763,7 +3859,8 @@ defmodule Oneiroi.Brain.Tools do
            to_string(args["text"] || ""),
            args["register"],
            args["summary"],
-           turn.resident
+           turn.resident,
+           labelled(turn)
          ) do
       {:ok, %{day: day, number: n, kind: kind}} -> "Added #{kind} #{n} to #{day}."
       other -> other
@@ -3781,6 +3878,8 @@ defmodule Oneiroi.Brain.Tools do
         "That day was never opened."
 
       %{entries: entries, delta: delta} = d ->
+        read_journal(turn, d.day, entries)
+
         Seshat.Journals.render(d.day, entries) <>
           "\nDelta: #{delta.plan} planned, #{delta.done} of #{delta.todo} todos done, #{delta.wrap} wrap " <>
           if(delta.unwrapped, do: "(planned and not wrapped).", else: "lines.")
@@ -5574,12 +5673,15 @@ defmodule Oneiroi.Brain.Tools do
            Kumbukumbu.send_letter(
              turn.resident_id,
              turn.session_key,
-             %{
-               to: to_string(args["to"] || ""),
-               text: to_string(args["text"] || ""),
-               in_reply_to: integer(args["in_reply_to"]),
-               keepsake: keepsake
-             },
+             Map.merge(
+               %{
+                 to: to_string(args["to"] || ""),
+                 text: to_string(args["text"] || ""),
+                 in_reply_to: integer(args["in_reply_to"]),
+                 keepsake: keepsake
+               },
+               letter_labels(turn)
+             ),
              turn.resident
            ) do
       "Sent letter ##{n} from #{from} to #{args["to"]}."
@@ -5604,7 +5706,11 @@ defmodule Oneiroi.Brain.Tools do
       @not_done <>
         "a keepsake is given to your own conversations, not to #{sibling.name}. Send the letter without it."
     else
-      attrs = %{text: to_string(args["text"] || ""), in_reply_to: integer(args["in_reply_to"])}
+      attrs =
+        Map.merge(
+          %{text: to_string(args["text"] || ""), in_reply_to: integer(args["in_reply_to"])},
+          letter_labels(turn)
+        )
 
       case Kumbukumbu.send_sibling_letter(me, turn.session_key, sibling, attrs, turn.resident) do
         {:ok, %{number: n, copy: copy}} ->

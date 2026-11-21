@@ -46,7 +46,10 @@ defmodule Oneiroi.Seshat.Journals do
              kind: kind,
              text: text,
              register: register,
-             summary: blank_to_nil(opts[:summary])
+             summary: blank_to_nil(opts[:summary]),
+             session_key: opts[:provenance][:session_key],
+             turn_ref: opts[:provenance][:turn_ref],
+             labels: opts[:provenance][:labels]
            }),
          :ok <- render_day(resident_id, day, actor) do
       {:ok, %{day: day, number: event.number, kind: kind}}

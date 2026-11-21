@@ -219,6 +219,9 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:text, :string)
       field(:keepsake, :string)
       field(:link, :map)
+      # The writing turn and its labels (kumbukumbu#84); nil before.
+      field(:turn_ref, :string)
+      field(:labels, {:array, :map})
       field(:by_kind, :string)
       field(:sent_at, :utc_datetime_usec)
       field(:read_by, {:array, :string}, default: [])

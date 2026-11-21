@@ -356,6 +356,8 @@ defmodule Oneiroi.Seshat.Store do
       field(:urls, {:array, :string}, default: [])
       field(:sources, {:array, :string}, default: [])
       field(:session_key, :string)
+      # The asking turn's ledger (kumbukumbu#84): what its answers inherit.
+      field(:ledger, {:array, :map})
       field(:asked_by, :string)
       field(:status, :string)
       field(:path, :string)
@@ -505,6 +507,10 @@ defmodule Oneiroi.Seshat.Store do
       field(:register, :string)
       field(:summary, :string)
       field(:done_at, :utc_datetime_usec)
+      # The writing turn and its labels (kumbukumbu#84); nil before.
+      field(:session_key, :string)
+      field(:turn_ref, :string)
+      field(:labels, {:array, :map})
     end
 
     @type t :: %__MODULE__{}

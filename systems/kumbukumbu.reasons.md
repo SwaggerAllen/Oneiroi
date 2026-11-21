@@ -675,3 +675,12 @@ words delivered are the candidate, so the context that wrote them is
 the ledger. Durable fragments only, with unproven refused, keeps the
 review from being vacuous exactly where it matters. The refusal is
 legible rather than widened, and its cost goes to the thread.
+
+## #84
+A boundary that only reads the window leaks through anything the
+window wrote down: a journal row, a letter, a file, an oracle's answer
+read the next day carry what the room held, with no label to say so.
+Labelling at creation is what makes the rule hold across time. Ids and
+labels only, so no copy of the restricted words is made to protect them.
+Unclassified for what came before, because inferring a domain from
+prose is the guess the policy exists to avoid.

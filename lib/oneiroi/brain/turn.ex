@@ -133,13 +133,15 @@ defmodule Oneiroi.Brain.Turn do
   """
   @spec oracle(map(), String.t(), String.t(), String.t()) ::
           {:ok, Result.t(), [map()]} | {:error, term()}
-  def oracle(row, resident_id, model, text) do
+  def oracle(row, resident_id, model, text, turn_ref \\ nil) do
     turn = %{
       resident_id: resident_id,
       # A conversation nobody opened, as a trial's: the common room's
       # memory, no history.
       session_key: 16 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false),
-      turn_ref: nil,
+      # Its own ref when the caller keeps what it read (kumbukumbu#84):
+      # its deliberate reads are noted under it.
+      turn_ref: turn_ref,
       started_at: Clock.now(),
       model: model,
       resident: Actor.new(:resident, resident_id, model),
@@ -260,12 +262,18 @@ defmodule Oneiroi.Brain.Turn do
         guarded?
       )
 
+    # The client's ref when the message came by `submit` (brain#45), so
+    # its retry is known for the same turn.
+    turn_ref = Keyword.get(opts, :turn_ref) || Kumbukumbu.turn_ref()
+
+    # The letters to her next self read in this turn carry the context
+    # that wrote them into its ledger (kumbukumbu#84).
+    read_self_letters(resident_id, turn_ref, notices[:letters])
+
     %{
       resident_id: resident_id,
       session_key: session_key,
-      # The client's ref when the message came by `submit` (brain#45),
-      # so its retry is known for the same turn.
-      turn_ref: Keyword.get(opts, :turn_ref) || Kumbukumbu.turn_ref(),
+      turn_ref: turn_ref,
       started_at: started_at,
       model: model,
       resident: Actor.new(:resident, resident_id, model),
@@ -974,6 +982,22 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   defp letters_notice(_row, _resident_id), do: []
+
+  defp read_self_letters(_resident_id, _turn_ref, none) when none in [nil, []], do: :ok
+
+  defp read_self_letters(resident_id, turn_ref, _told) do
+    for l <- Oneiroi.AgathosDaimon.self_letters(resident_id),
+        is_nil(l.delivered_at),
+        do:
+          Kumbukumbu.note_read_labelled(
+            resident_id,
+            turn_ref,
+            "self-letter/#{l.number}",
+            "self-letter/#{l.number}",
+            Map.get(l, :labels),
+            to_string(l.text)
+          )
+  end
 
   defp letters_text(letters, zone) do
     Enum.map_join(letters, "\n\n", fn l ->

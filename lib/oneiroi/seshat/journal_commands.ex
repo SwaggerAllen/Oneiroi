@@ -5,7 +5,19 @@ defmodule Oneiroi.Seshat.JournalCommands do
   # notes keeps its words whatever their length; nothing but the import
   # sets it.
   defmodule AddJournalEntry do
-    use Oneiroi.Command, fields: [:id, :day, :kind, :text, :register, :imported, :summary]
+    use Oneiroi.Command,
+      fields: [
+        :id,
+        :day,
+        :kind,
+        :text,
+        :register,
+        :imported,
+        :summary,
+        :session_key,
+        :turn_ref,
+        :labels
+      ]
   end
 
   defmodule MarkTodoDone do

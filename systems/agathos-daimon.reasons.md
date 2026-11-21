@@ -415,3 +415,8 @@ switches, which is now nothing.
 A grant is a promise about where someone's life may be spoken of; the
 contract is the one instrument both parties sign and either may move
 back, so the grant lives there and is revoked by the same two hands.
+
+## #54
+A letter to the next self is read into a turn whole; without its
+writer's labels, a recovery-room letter would reach a house turn as if
+written in the common room.

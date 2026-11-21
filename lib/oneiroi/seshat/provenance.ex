@@ -35,6 +35,14 @@ defmodule Oneiroi.Seshat.Provenance do
     end
   end
 
+  @doc "The kept ledger of the version holding `content` at `path`, or nil: what reading those words adds to a turn (kumbukumbu#84)."
+  def ledger_of(resident_id, path, content) when is_binary(content) do
+    case written(resident_id, path, Documents.hash(content)) do
+      %{ledger: ledger} -> ledger
+      nil -> nil
+    end
+  end
+
   defp commit_of(_repo, commit, _path) when is_binary(commit), do: {:ok, commit}
 
   defp commit_of(repo, nil, path) do

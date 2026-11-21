@@ -221,7 +221,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.CustodyTransferDeclined, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferWithdrawn, 1},
       {Oneiroi.AgathosDaimon.Events.EarlierSessionsRevealed, 1},
-      {Oneiroi.AgathosDaimon.Events.SelfLetterWritten, 1},
+      {Oneiroi.AgathosDaimon.Events.SelfLetterWritten, 2},
       {Oneiroi.AgathosDaimon.Events.StateLineSet, 1},
       {Oneiroi.AgathosDaimon.Events.StateLineCleared, 1},
       {Oneiroi.AgathosDaimon.Events.SelfLettersDelivered, 1},
@@ -560,6 +560,11 @@ defmodule Oneiroi.AgathosDaimon do
   @spec write_self_letter(String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, pos_integer()} | {:error, term()}
   defexport(write_self_letter(id, text, actor), do: Residents.write_self_letter(id, text, actor))
+
+  @doc "`write_self_letter/3` with the writing turn and its labels (kumbukumbu#84)."
+  defexport(write_self_letter(id, text, actor, provenance),
+    do: Residents.write_self_letter(id, text, actor, provenance)
+  )
 
   @doc "The letters by number with their delivery; the resident's own read, and the platform's, which leave no receipt."
   @spec self_letters(String.t()) :: [Oneiroi.AgathosDaimon.Store.SelfLetter.t()]

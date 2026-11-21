@@ -299,9 +299,9 @@ defmodule Oneiroi.Kumbukumbu do
          "how long after its last turn a conversation still counts as open (kumbukumbu#42): a runtime that quits says nothing, so open is spoken in lately; a guess at a working session's pauses, never measured"},
       {:disclosure_judge, "KUMBUKUMBU_DISCLOSURE_JUDGE",
        cast: &__MODULE__.cast_judge/1,
-       default: "none",
+       default: "eunomia",
        usage:
-         "which disclosure judge reviews a delivery her turn's ledger held back (kumbukumbu#82, `Oneiroi.Kumbukumbu.DisclosureJudge`): none, every such delivery refused as before, until the witness names the judge; eunomia, the resident's judge model (EUNOMIA_JUDGE_MODEL or hers), billed under judge"},
+         "which disclosure judge reviews a delivery her turn's ledger held back (kumbukumbu#82, `Oneiroi.Kumbukumbu.DisclosureJudge`): eunomia, her configured judge model (hers, else EUNOMIA_JUDGE_MODEL), billed under judge to the witness (the witness's ruling, 2026-11-20: every resident already has one); none refuses every review, for a deployment with no judge"},
       {:disclosure_judge_ms, "KUMBUKUMBU_DISCLOSURE_JUDGE_MS",
        cast: :integer,
        default: "60000",
@@ -356,7 +356,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionApplied, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionDeclined, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 3},
+      {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 4},
       {Oneiroi.Kumbukumbu.Events.Memory.HouseLettersRead, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagApproved, 1},
@@ -544,6 +544,43 @@ defmodule Oneiroi.Kumbukumbu do
   @spec note_read(String.t(), String.t() | nil, [map()]) :: :ok
   defexport(note_read(resident_id, turn_ref, inputs),
     do: TurnReads.note(resident_id, turn_ref, inputs)
+  )
+
+  @doc "The labels a turn's derived artifact keeps (kumbukumbu#84): every distinct label its context held, never words; [] for no turn."
+  @spec turn_labels(String.t(), String.t() | nil, String.t() | nil) :: [term()]
+  defexport(turn_labels(resident_id, session_key, turn_ref),
+    do:
+      if(is_binary(turn_ref),
+        do: resident_id |> Ledger.inputs(session_key, turn_ref) |> Ledger.label_set(),
+        else: []
+      )
+  )
+
+  @doc "A turn read a derived artifact (kumbukumbu#84): its kept labels join the turn's ledger, with its words for a judge; none kept is unclassified."
+  @spec note_read_labelled(
+          String.t(),
+          String.t() | nil,
+          String.t(),
+          String.t(),
+          term(),
+          String.t()
+        ) :: :ok
+  defexport(note_read_labelled(resident_id, turn_ref, id, ref, labels, text),
+    do: TurnReads.note(resident_id, turn_ref, Ledger.read_inputs(id, ref, labels, text))
+  )
+
+  @doc "Ledger inputs as a derived artifact keeps them (kumbukumbu#84): ids, refs, turns and labels."
+  defexport(encode_inputs(inputs), do: Ledger.encode(inputs))
+
+  @doc "A whole conversation's messages as kept ledger inputs, by their domains (kumbukumbu#84), for a source read whole."
+  defexport(transcript_ledger(resident_id, session_key),
+    do: resident_id |> Ledger.message_inputs(session_key, 100_000) |> Ledger.encode()
+  )
+
+  @doc "The union of a kept ledger's labels (kumbukumbu#84), for a file read."
+  @spec ledger_labels([map()] | nil) :: [term()] | nil
+  defexport(ledger_labels(ledger),
+    do: if(is_list(ledger), do: ledger |> Ledger.decode() |> Ledger.label_set(), else: nil)
   )
 
   @doc "A bookmark as a ledger input, labelled by its domain (kumbukumbu#80)."

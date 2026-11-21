@@ -73,6 +73,61 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
         }
       )
 
+  @doc """
+  The labels a derived artifact keeps (kumbukumbu#84): the distinct
+  labels of every input its turn held, each a map, `%{"person",
+  "domain"}` or `%{"kind" => "common_room" | "unclassified"}`, never
+  the words.
+  """
+  def label_set(inputs) do
+    inputs
+    |> Enum.flat_map(fn
+      %{labels: list} when is_list(list) and list != [] -> encode_labels(list)
+      %{labels: :common_room} -> [%{"kind" => "common_room"}]
+      _unclassified -> [%{"kind" => "unclassified"}]
+    end)
+    |> Enum.uniq()
+  end
+
+  @doc """
+  What reading a derived artifact adds to the reading turn's ledger
+  (kumbukumbu#84): one input per label it keeps, each carrying its words
+  for a disclosure judge. Kept no labels (written before they were
+  kept): unclassified, never inferred (Lily's letter #1524, (a)).
+  """
+  def read_inputs(id, ref, labels, text) do
+    labels = if is_list(labels) and labels != [], do: labels, else: [%{"kind" => "unclassified"}]
+
+    for label <- labels,
+        do: %{
+          id: "#{id}##{label_key(label)}",
+          ref: ref,
+          text: text,
+          labels: read_label(label)
+        }
+  end
+
+  defp read_label(label) do
+    case {kind(label), get_any(label, "domain")} do
+      {"common_room", _} -> :common_room
+      {_, domain} when is_binary(domain) -> [pair(label)]
+      _unclassified -> :unclassified
+    end
+  end
+
+  defp kind(%{} = l), do: get_any(l, "kind")
+  defp kind(other), do: to_string(other)
+
+  defp get_any(%{} = l, key), do: Map.get(l, key) || Map.get(l, String.to_existing_atom(key))
+  defp get_any(_other, _key), do: nil
+
+  defp label_key(label) do
+    case kind(label) do
+      nil -> "#{get_any(label, "person")}/#{get_any(label, "domain")}"
+      k -> k
+    end
+  end
+
   @doc "A kept ledger read back: `encode/1`'s inverse, string keys or atom keys alike."
   def decode(rows) when is_list(rows),
     do:

@@ -126,8 +126,15 @@ defmodule Oneiroi.Seshat.Events do
   defmodule ResearchAsked do
     # A question for the reader's research pass (seshat#38): named,
     # with the pages to start from, by whoever the actor is, and the
-    # conversation told when it lands.
-    use Oneiroi.Event, version: 1, fields: [:id, :number, :question, :urls, :session_key]
+    # conversation told when it lands. Version 2 adds `ledger`
+    # (kumbukumbu#84): the asking turn's inputs by id, ref, turn and
+    # labels, never words, which its answers inherit; nil on version 1,
+    # whose answers are unclassified.
+    use Oneiroi.Event, version: 2, fields: [:id, :number, :question, :urls, :session_key, :ledger]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: ResearchAsked do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule ResearchAnswered do

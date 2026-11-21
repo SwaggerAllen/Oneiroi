@@ -17,7 +17,11 @@ defmodule Oneiroi.Kumbukumbu.Disclosure do
   input whose words cannot be found leaves the ledger unproven, and the
   delivery fails closed.
 
-  **Fail closed.** No judge named, a call that fails, times out
+  **The judge** is her configured judge model, Eunomia's (the witness's
+  ruling, 2026-11-20), through the port `KUMBUKUMBU_DISCLOSURE_JUDGE`
+  names; `none` is a deployment with no judge.
+
+  **Fail closed.** No judge, a call that fails, times out
   (`KUMBUKUMBU_DISCLOSURE_JUDGE_MS`) or answers out of form, a verdict
   that it discloses: nothing ships, and she is told in her own context.
 
@@ -46,6 +50,11 @@ defmodule Oneiroi.Kumbukumbu.Disclosure do
     held = MapSet.new(decision.withheld, & &1.id)
 
     cond do
+      # Nobody to decide against: never reviewed (kumbukumbu#84).
+      Enum.any?(decision.withheld, &(&1.reason == :unresolved_audience)) ->
+        {:error,
+         Error.new(:kumbukumbu_withheld_by_policy, :kumbukumbu_disclosure_unresolved, refused)}
+
       not Enum.all?(decision.withheld, &(&1.reason in @reviewable)) ->
         {:error,
          Error.new(:kumbukumbu_withheld_by_policy, :kumbukumbu_disclosure_denied, refused)}

@@ -9,8 +9,10 @@ defmodule Oneiroi.Kumbukumbu.DisclosureJudge do
   A port because the judge is Eunomia's (a model of its own, never the
   resident's chat model), and Eunomia reads this system: a direct call
   would be the cycle. The implementation is named in
-  `KUMBUKUMBU_DISCLOSURE_JUDGE` and read at the call; `none`, the
-  default until the witness names the judge, fails every review closed.
+  `KUMBUKUMBU_DISCLOSURE_JUDGE` and read at the call: `eunomia` by
+  default, her configured judge model (the witness's ruling,
+  2026-11-20); `none`, a deployment with no judge, fails every review
+  closed.
   """
 
   @type request :: %{

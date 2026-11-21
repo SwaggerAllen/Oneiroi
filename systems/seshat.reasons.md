@@ -834,3 +834,8 @@ nothing recorded which turn that was: matching commits to turns by time
 or by reading tool calls would be inference. Kept on the write, by
 hash, the version's provenance is a fact. It is ids and labels only, so
 the event line holds no restricted words.
+
+## #101
+The journal and research answers are what her turns write down most.
+Without the writing turn's labels, they are where a restricted room's
+words go to lose their taint.

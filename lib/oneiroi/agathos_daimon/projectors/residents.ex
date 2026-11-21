@@ -616,6 +616,9 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
         number: e.number,
         text: e.text,
         model: e.model,
+        session_key: Map.get(e, :session_key),
+        turn_ref: Map.get(e, :turn_ref),
+        labels: Map.get(e, :labels),
         written_at: e.at
       },
       on_conflict: :nothing,

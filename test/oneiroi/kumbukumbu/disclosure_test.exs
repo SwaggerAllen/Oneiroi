@@ -119,10 +119,11 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
     for %{data: %Kumbukumbu.Events.DisclosureJudged{} = e} <- events, do: e
   end
 
-  test "no judge named: held back as before, and she is told why", ctx do
+  test "no judge in this deployment: held back as before, and she is told why", ctx do
+    judge(:none)
     said = post(ctx, "A good day.")
     assert said =~ "withheld by policy"
-    assert said =~ "No disclosure judge is named yet"
+    assert said =~ "has no disclosure judge"
     assert threads(ctx) == []
     assert verdicts(ctx) == []
   end

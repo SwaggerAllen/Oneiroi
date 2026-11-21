@@ -341,6 +341,7 @@ defmodule Oneiroi.Seshat.Projectors.Library do
         question: e.question,
         urls: e.urls || [],
         session_key: e.session_key,
+        ledger: Map.get(e, :ledger),
         asked_by: actor_kind(e.actor) || "platform",
         status: "open",
         asked_at: e.at

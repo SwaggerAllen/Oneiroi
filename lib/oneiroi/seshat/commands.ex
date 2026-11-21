@@ -77,7 +77,7 @@ defmodule Oneiroi.Seshat.Commands do
   # with the pages to start from; numbered from the library's research
   # sequence; `session_key` is the conversation told when it lands.
   defmodule AskResearch do
-    use Oneiroi.Command, fields: [:id, :question, :urls, :session_key]
+    use Oneiroi.Command, fields: [:id, :question, :urls, :session_key, :ledger]
   end
 
   defmodule AnswerResearch do

@@ -54,7 +54,10 @@ defmodule Oneiroi.Seshat.Journal do
           kind: c.kind,
           text: String.trim(c.text),
           register: c.register,
-          summary: c.summary && String.trim(c.summary)
+          summary: c.summary && String.trim(c.summary),
+          session_key: c.session_key,
+          turn_ref: c.turn_ref,
+          labels: c.labels
         }
     end
   end

@@ -145,6 +145,10 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:delivered_at, :utc_datetime_usec)
       field(:delivered_to, :string)
       field(:exported_at, :utc_datetime_usec)
+      # The writing turn and its labels (kumbukumbu#84); nil before.
+      field(:session_key, :string)
+      field(:turn_ref, :string)
+      field(:labels, {:array, :map})
     end
 
     @type t :: %__MODULE__{}

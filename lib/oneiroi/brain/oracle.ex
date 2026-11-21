@@ -39,14 +39,16 @@ defmodule Oneiroi.Brain.Oracle do
   @platform Actor.platform()
 
   @doc "Runs question `number`; `:ok` once it is answered or failed, either way said in its records."
-  @spec run(String.t(), pos_integer()) :: :ok
-  def run(resident_id, number) do
+  @spec run(String.t(), pos_integer(), [map()] | nil) :: :ok
+  def run(resident_id, number, asked \\ nil) do
     with {:ok, row} <- AgathosDaimon.fetch(resident_id) |> found(),
          %{status: "open"} = q <- Seshat.oracle(resident_id, number) do
       model = row.chat_model || Config.fetch!(:brain, :chat_model)
       actor = Actor.new(:resident, resident_id, model)
 
-      with {:ok, text, steps} <- answer(row, resident_id, model, actor, q),
+      ref = Kumbukumbu.turn_ref()
+
+      with {:ok, text, steps} <- answer(row, resident_id, model, actor, q, ref),
            {confidence, body} = confidence(text),
            read = read(q.sources, steps, row.slug),
            used = used(text),
@@ -56,7 +58,8 @@ defmodule Oneiroi.Brain.Oracle do
                number,
                document(q, body, confidence, model),
                %{confidence: confidence, read: read, used: used},
-               actor
+               actor,
+               provenance: %{turn_ref: ref, ledger: inherited(resident_id, asked, q, ref)}
              ) do
         measure(resident_id, q, read, used, actor)
         tell(resident_id, q, "answered: #{path}, confidence #{confidence}.")
@@ -68,7 +71,50 @@ defmodule Oneiroi.Brain.Oracle do
     end
   end
 
-  defp answer(row, resident_id, model, actor, q) do
+  # What the answer inherits (kumbukumbu#84): the asking turn's ledger,
+  # what its own run held and read, and every source named, each by its
+  # labels; a source whose labels cannot be read is unclassified.
+  defp inherited(resident_id, asked, q, ref) do
+    own = Kumbukumbu.turn_ledger(resident_id, nil, ref)
+    sources = Enum.flat_map(q.sources, &source_ledger(resident_id, &1))
+    List.wrap(asked) ++ own ++ sources
+  end
+
+  defp source_ledger(resident_id, "bookmark/" <> n = ref) do
+    with {number, ""} <- Integer.parse(n),
+         {:ok, b, _span} <- Kumbukumbu.bookmark(resident_id, number) do
+      Kumbukumbu.encode_inputs([Kumbukumbu.bookmark_input(resident_id, b)])
+    else
+      _ -> unclassified(ref)
+    end
+  end
+
+  defp source_ledger(resident_id, "transcript/" <> key = ref) do
+    case Kumbukumbu.transcript_ledger(resident_id, key |> String.split("/") |> hd()) do
+      [] -> unclassified(ref)
+      ledger -> ledger
+    end
+  end
+
+  # The platform's own source is the common room's: nobody's life.
+  defp source_ledger(_resident_id, "source:" <> path),
+    do: [%{"id" => "source:" <> path, "ref" => "source:" <> path, "labels" => "common_room"}]
+
+  defp source_ledger(resident_id, "repo:" <> path = ref), do: file_ledger(resident_id, path, ref)
+  defp source_ledger(resident_id, ref), do: file_ledger(resident_id, ref, ref)
+
+  defp file_ledger(resident_id, path, ref) do
+    with {:ok, %{document: d, content: content}} <- Seshat.read(resident_id, path),
+         [_ | _] = ledger <- Seshat.written_ledger(resident_id, d.path, content) do
+      ledger
+    else
+      _ -> unclassified(ref)
+    end
+  end
+
+  defp unclassified(ref), do: [%{"id" => ref, "ref" => ref, "labels" => "unclassified"}]
+
+  defp answer(row, resident_id, model, actor, q, ref) do
     materials = materials(row, resident_id, model, actor, q)
 
     text =
@@ -82,7 +128,7 @@ defmodule Oneiroi.Brain.Oracle do
       #{materials}
       """
 
-    case Turn.oracle(row, resident_id, model, text) do
+    case Turn.oracle(row, resident_id, model, text, ref) do
       {:ok, %{content: content}, steps} when is_binary(content) and content != "" ->
         {:ok, content, steps}
 

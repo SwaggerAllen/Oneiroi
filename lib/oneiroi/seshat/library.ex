@@ -463,7 +463,8 @@ defmodule Oneiroi.Seshat.Library do
         number: (researches |> Map.keys() |> Enum.max(fn -> 0 end)) + 1,
         question: question,
         urls: urls,
-        session_key: c.session_key
+        session_key: c.session_key,
+        ledger: c.ledger
       }
     else
       {:error, Error.new(:seshat_research_invalid, :seshat_ask_research_invalid)}

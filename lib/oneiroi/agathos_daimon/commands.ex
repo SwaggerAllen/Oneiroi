@@ -179,7 +179,7 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   # next self across a model swap, delivered once to the incoming
   # instance; a read by anyone but the resident leaves a receipt.
   defmodule WriteSelfLetter do
-    use Oneiroi.Command, fields: [:id, :text]
+    use Oneiroi.Command, fields: [:id, :text, :session_key, :turn_ref, :labels]
   end
 
   # The state store (agathos-daimon#32): the resident's present, a line
