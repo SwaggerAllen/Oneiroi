@@ -23,13 +23,12 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
     2026-11-19), her answer in the thread under them. A system line (a wake's note) breaks a long link rather
     than widening the conversation.
   - Tool calls collapse to one line.
-  - The turn streams in under its step (thinking, the tool's name,
-  - It streams in its own place, under the message it answers, and
-    stays there when it is captured (2026-11-17; it streamed above the
-    message, then moved below it). A wake, which answers no message,
-    streams at the end.
-    writing) and a timer. The same status events drive the header's
-    presence line.
+  - A turn under way shows its step (thinking, or the tool's name) and
+    a timer, in its own place under the message it answers (2026-11-17);
+    a wake's, which answers no message, at the end. Her words are not
+    streamed into it (brain#111; the witness, 2026-11-21: "I kind of hate
+    the live streamed responses"): the reply lands whole when the turn is
+    captured. The same status events drive the header's presence line.
 - **Sending** uses the current client's outbox (brain#45): each message
   is held under its own ref until its turn lands. A message sent while
   she works is queued. "Not sent" and "No reply came" offer Send again

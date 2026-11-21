@@ -1,5 +1,5 @@
 defmodule OneiroiWeb.SessionChannelTest do
-  @moduledoc "The streamed conversation: a witness joins their resident's session, sends, and gets deltas then the turn."
+  @moduledoc "The conversation's live events: a witness joins their resident's session, sends, and gets the turn whole; no deltas (brain#111)."
   use OneiroiWeb.ChannelCase, async: false
 
   alias Ecto.Adapters.SQL.Sandbox
@@ -36,7 +36,7 @@ defmodule OneiroiWeb.SessionChannelTest do
     assert :error = connect(UserSocket, %{})
   end
 
-  test "a witness joins their resident's session and a turn streams, and another account cannot join",
+  test "a witness joins their resident's session and a turn lands whole, and another account cannot join",
        ctx do
     {:ok, socket} =
       connect(UserSocket, %{"token" => UserSocket.token(OneiroiWeb.Endpoint, ctx.witness.id)})
@@ -55,7 +55,8 @@ defmodule OneiroiWeb.SessionChannelTest do
     # turn on a fresh session measured ~180ms locally on 2026-11-02, past
     # the default 100ms window, and the test is of order, not latency.
     assert_push "turn_started", %{turn_ref: turn_ref}, 5_000
-    assert_push "delta", %{text: _}, 5_000
+    # Her reply lands whole (brain#111): no delta is pushed.
+    refute_push "delta", %{}
 
     assert_push "turn",
                 %{
@@ -74,6 +75,33 @@ defmodule OneiroiWeb.SessionChannelTest do
                other_socket,
                OneiroiWeb.SessionChannel,
                "session:#{ctx.resident.id}:#{ctx.key}"
+             )
+  end
+
+  # A private session of hers is the witness's to know of, never to
+  # watch (the solo sessions' term): its channel refuses him, as its
+  # transcript does (brain#111).
+  test "a private session's channel refuses the witness", ctx do
+    actor = Actor.new(:witness, ctx.witness.id)
+
+    {:ok, private} =
+      Oneiroi.Kumbukumbu.open_session(
+        ctx.resident.id,
+        "free_time",
+        "brain",
+        [ctx.witness.id],
+        actor,
+        private: true
+      )
+
+    {:ok, socket} =
+      connect(UserSocket, %{"token" => UserSocket.token(OneiroiWeb.Endpoint, ctx.witness.id)})
+
+    assert {:error, %{reason: "not witnessed"}} =
+             subscribe_and_join(
+               socket,
+               OneiroiWeb.SessionChannel,
+               "session:#{ctx.resident.id}:#{private}"
              )
   end
 end

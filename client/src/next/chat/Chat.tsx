@@ -274,7 +274,6 @@ export function Chat({
         <span>{stepLabel}</span>
         <span>{presence.since !== undefined ? elapsed(now - presence.since) : ''}</span>
       </div>
-      <Markdown text={chat.stream.text} onCite={openCite} />
     </div>
   );
 
@@ -311,9 +310,9 @@ export function Chat({
               }
             />
           ))}
-          {/* A reply streams under the message it answers (the witness,
-              2026-11-17: it showed above it, then jumped below at the end).
-              A wake answers no message here, and streams after the list. */}
+          {/* The working line sits under the message it answers (the
+              witness, 2026-11-17); a wake's, after the list. Her words are
+              not streamed into it (2026-11-21): the reply lands whole. */}
           {chat.stream && !answering && streamView}
           {chat.unanswered.map((f) => (
             <div key={`failed-${f.turn_ref}`} className={css.failedTurn} role="status">

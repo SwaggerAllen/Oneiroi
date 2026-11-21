@@ -597,8 +597,10 @@ defmodule Oneiroi.Brain.Turn do
     Process.put(@said, "")
     Process.delete(@stopped)
 
+    # The provider's stream is read here for the stop and the safe word
+    # alone; nothing of it is broadcast (the witness, 2026-11-21: her
+    # reply lands whole, brain#111).
     sink = fn delta ->
-      broadcast(turn.resident_id, turn.session_key, {:delta, turn.turn_ref, delta})
       said = Process.get(@said, "") <> delta
       Process.put(@said, said)
 

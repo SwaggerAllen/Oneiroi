@@ -1,12 +1,12 @@
 import { Socket } from 'phoenix';
 import type { RegressionCard, RunEnd } from '../../api/types';
 
-// The streamed conversation (spec §5): the session channel delivers
-// deltas and the turn as it lands. The socket takes a five-minute token
+// The conversation's live events (spec §5): the session channel says a
+// turn started, its step, and when it lands; no deltas, her reply lands
+// whole (the witness, 2026-11-21). The socket takes a five-minute token
 // from /v1/me/socket-token (brain#6), never the cookie.
 export interface ChannelEvents {
   onStarted: (turnRef: string) => void;
-  onDelta: (turnRef: string, text: string) => void;
   onTurn: (turnRef: string) => void;
   onFailed: (turnRef: string, reason: string) => void;
   // What a turn is doing (brain#45): queued, thinking, or tool with its name.
@@ -25,7 +25,6 @@ export function joinSession(token: string, residentId: string, key: string, even
   socket.connect();
   const channel = socket.channel(`session:${residentId}:${key}`);
   channel.on('turn_started', (p: { turn_ref: string }) => events.onStarted(p.turn_ref));
-  channel.on('delta', (p: { turn_ref: string; text: string }) => events.onDelta(p.turn_ref, p.text));
   channel.on('turn', (p: { turn_ref: string }) => events.onTurn(p.turn_ref));
   channel.on('failed', (p: { turn_ref: string; reason: string }) => events.onFailed(p.turn_ref, p.reason));
   channel.on('status', (p: { turn_ref: string; state: string; detail: { name?: string; ahead?: number; into?: string } | null }) =>
