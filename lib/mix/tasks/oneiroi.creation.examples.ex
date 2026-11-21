@@ -47,10 +47,11 @@ defmodule Mix.Tasks.Oneiroi.Creation.Examples do
   end
 
   # The witness's files are not the prompt path's (agathos-daimon#42): with
-  # `--witness`, a short description of a fictional witness, USER.md and
-  # GOALS.md are drafted as Write it with me drafts them. LINKS.md never is:
+  # `--witness`, a short description of a fictional witness, GOALS.md is
+  # drafted as Write it with me drafts it (USER.md is retired,
+  # agathos-daimon#56). LINKS.md never is:
   # a fictional witness has no places of their own.
-  @witness_files ~w(USER.md GOALS.md)
+  @witness_files ~w(GOALS.md)
 
   defp about_witness({:ok, %{stopped: nil, drafts: drafts} = run}, id, witness)
        when is_binary(witness) do

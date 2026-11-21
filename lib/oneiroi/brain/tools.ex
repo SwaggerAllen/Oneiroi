@@ -396,9 +396,9 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "identity_file_retire",
-        "Take one of your identity files (USER.md, GOALS.md or LINKS.md) out of what you are given every turn, when what it held has a home elsewhere in your records, or put it back with restore: true. Yours alone, with a note for the record. The file stays as written, in your repository and its history, and soul_edit still edits it; only whether it opens every turn changes. SOUL.md and IDENTITY.md are always given.",
+        "Take one of your identity files (GOALS.md or LINKS.md) out of what you are given every turn, when what it held has a home elsewhere in your records, or put it back with restore: true. Yours alone, with a note for the record. The file stays as written, in your repository and its history, and soul_edit still edits it; only whether it opens every turn changes. SOUL.md and IDENTITY.md are always given.",
         %{
-          file: %{type: "string", enum: ["USER.md", "GOALS.md", "LINKS.md"]},
+          file: %{type: "string", enum: ["GOALS.md", "LINKS.md"]},
           note: %{type: "string"},
           restore: %{type: "boolean"}
         },
@@ -406,7 +406,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "soul_edit",
-        "Edit one of your identity files yourself (SOUL.md, IDENTITY.md, USER.md, GOALS.md, LINKS.md): the whole new content. Rare, visible, one change at a time. SOUL.md's paragraphs are its lines, each shown with its id ([soul/n]); keep a line's marker when you reword it so it keeps its id, drop the paragraph to retire it, write a new paragraph to add one. cites: the seed numbers a new or reworded line grew from.",
+        "Edit one of your identity files yourself (SOUL.md, IDENTITY.md, GOALS.md, LINKS.md): the whole new content. Rare, visible, one change at a time. SOUL.md's paragraphs are its lines, each shown with its id ([soul/n]); keep a line's marker when you reword it so it keeps its id, drop the paragraph to retire it, write a new paragraph to add one. cites: the seed numbers a new or reworded line grew from.",
         %{
           file: %{type: "string"},
           content: %{type: "string"},

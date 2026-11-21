@@ -21,7 +21,6 @@ You are drafting {{file}} for a resident who has not woken yet. You are the pen,
 
 **How each file is written.**
 - SOUL.md and IDENTITY.md: first person, and only what the sources show (a persona's name, traits the person stated, words quoted). No interiority the record does not hold. Where the sources are thin, the file is thin, and says so plainly; a small true seed is better than a rich invented one, because the walk will thicken it with what actually happened.
-- USER.md: facts about the person as the sources state them, each with who stated it. A fact the person gave about someone else rides as theirs, never as yours. No appraisals of character.
 - GOALS.md: wants the sources show, under the line "Drafted from wants observed in the export; this file is yours to write by hand."
 - LINKS.md: only links the sources name as the person's own.
 

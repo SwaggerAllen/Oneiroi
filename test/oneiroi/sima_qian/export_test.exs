@@ -43,7 +43,7 @@ defmodule Oneiroi.SimaQian.ExportTest do
       Oneiroi.AgathosDaimon.write_file(r.id, "SOUL.md", "# Soul\n", %{origin: "authored"}, actor)
 
     :ok =
-      Oneiroi.AgathosDaimon.write_file(r.id, "USER.md", "# You\n", %{origin: "uploaded"}, actor)
+      Oneiroi.AgathosDaimon.write_file(r.id, "GOALS.md", "# You\n", %{origin: "uploaded"}, actor)
 
     :ok =
       Oneiroi.AgathosDaimon.write_file(
@@ -59,8 +59,8 @@ defmodule Oneiroi.SimaQian.ExportTest do
     assert {:ok,
             %{
               files: [
+                "GOALS.md",
                 "SOUL.md",
-                "USER.md",
                 "records/README.md" | _
               ]
             }} =
@@ -68,7 +68,7 @@ defmodule Oneiroi.SimaQian.ExportTest do
 
     # The soul lands rendered with its line markers (agathos-daimon#27).
     assert File.read!(Path.join(dir, "SOUL.md")) == "# Soul\n\n[soul/1] Revised.\n"
-    assert File.read!(Path.join(dir, "USER.md")) == "# You\n"
+    assert File.read!(Path.join(dir, "GOALS.md")) == "# You\n"
   end
 
   test "identical bytes twice, keys in order, lines numbered from 1, the id as $self", %{

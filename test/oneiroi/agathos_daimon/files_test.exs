@@ -51,7 +51,7 @@ defmodule Oneiroi.AgathosDaimon.FilesTest do
              AgathosDaimon.write_file(id, "AGENTS.md", "x", %{}, ctx.witness)
 
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_no_such_file}} =
-             AgathosDaimon.file(id, "USER.md")
+             AgathosDaimon.file(id, "GOALS.md")
 
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_write_instead}} =
              AgathosDaimon.propose_edit(id, "SOUL.md", "x", "n", ctx.witness)
@@ -173,7 +173,7 @@ defmodule Oneiroi.AgathosDaimon.FilesTest do
              AgathosDaimon.write_file(id, "SOUL.md", "# Soul\n\nX.", %{cites: [0]}, ctx.witness)
 
     # The other files are whole, never lines.
-    :ok = AgathosDaimon.write_file(id, "USER.md", "# You\n\nA gardener.", %{}, ctx.witness)
-    assert {:ok, %{content: "# You\n\nA gardener."}} = AgathosDaimon.file(id, "USER.md")
+    :ok = AgathosDaimon.write_file(id, "GOALS.md", "# You\n\nA gardener.", %{}, ctx.witness)
+    assert {:ok, %{content: "# You\n\nA gardener."}} = AgathosDaimon.file(id, "GOALS.md")
   end
 end

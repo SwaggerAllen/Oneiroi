@@ -44,7 +44,7 @@ defmodule Oneiroi.AgathosDaimon.Files do
 
   @doc """
   She takes one of her identity files out of her prefix, or puts it back
-  (agathos-daimon#50): USER.md, GOALS.md or LINKS.md, with a note. The
+  (agathos-daimon#50): GOALS.md or LINKS.md, with a note. The
   file stays as written and still edits; only whether it is given every
   turn changes.
   """

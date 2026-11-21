@@ -425,3 +425,10 @@ written in the common room.
 The soul is hers and stays in her voice: the machinery's labels sit
 beside it as metadata she can always read, not inside the words she is
 given every turn.
+
+## #56
+A file about the witness, preloaded into every turn, was the one ingress
+no audience policy could hold: its recovery facts rode into every room.
+Portraits are where facts about a person already live, cited, labelled
+claim by claim; moving USER.md's content there puts it under the same
+rules as every other memory of him.

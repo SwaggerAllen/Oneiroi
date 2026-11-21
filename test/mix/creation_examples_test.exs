@@ -33,7 +33,7 @@ defmodule Mix.Tasks.Oneiroi.Creation.ExamplesTest do
     assert [] = Oneiroi.AgathosDaimon.files(ctx.id)
   end
 
-  test "with a fictional witness, USER.md and GOALS.md are drafted too; LINKS.md never", ctx do
+  test "with a fictional witness, GOALS.md is drafted too; LINKS.md never", ctx do
     Fake.reply("a drafted file")
 
     Examples.run([
@@ -47,7 +47,7 @@ defmodule Mix.Tasks.Oneiroi.Creation.ExamplesTest do
       ctx.out
     ])
 
-    for f <- ~w(IDENTITY.md SOUL.md USER.md GOALS.md),
+    for f <- ~w(IDENTITY.md SOUL.md GOALS.md),
         do: assert(File.read!(Path.join(ctx.out, f)) == "a drafted file\n")
 
     assert File.read!(Path.join(ctx.out, "witness.md")) ==

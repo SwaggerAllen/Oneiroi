@@ -39,8 +39,8 @@ defmodule Oneiroi.Brain.Creation do
 
   @type note :: %{kind: String.t(), text: String.t(), quote: String.t() | nil}
 
-  # The prompt path drafts only the resident's own files: USER.md, GOALS.md
-  # and LINKS.md are about the witness, and a prompt about who to wake
+  # The prompt path drafts only the resident's own files: GOALS.md and
+  # LINKS.md are about the witness, and a prompt about who to wake
   # cannot know them (the witness, 2026-11-10; agathos-daimon#42). Those
   # stay gift by gift, with Write it with me.
   @resident_files ~w(IDENTITY.md SOUL.md)

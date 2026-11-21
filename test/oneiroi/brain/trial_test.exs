@@ -404,7 +404,7 @@ defmodule Oneiroi.Brain.TrialTest do
     # Her classification (seshat#102): answered as it would be, nothing kept.
     {"document_classify", %{path: "design/note.md", domain: "none"}},
     # Her prefix (agathos-daimon#50): answered as it would be, nothing retired.
-    {"identity_file_retire", %{file: "USER.md", note: "migrated"}}
+    {"identity_file_retire", %{file: "GOALS.md", note: "migrated"}}
   ]
 
   defp calls(tools), do: Enum.map(tools, fn {name, args} -> %{name: name, arguments: args} end)
