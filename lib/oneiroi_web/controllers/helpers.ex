@@ -58,6 +58,14 @@ defmodule OneiroiWeb.Controllers.Helpers do
   def actor(%Plug.Conn{assigns: %{principal: %AdapterPrincipal{resident_id: id}}}),
     do: Actor.new(:resident, id)
 
+  @doc "Who reads, for a sealed letter's rule (kumbukumbu#93): `{:resident, id}` for an adapter speaking as her, else `{:account, id}`."
+  def viewer(conn) do
+    case actor(conn) do
+      %Actor{kind: :resident, id: id} -> {:resident, id}
+      %Actor{id: id} -> {:account, id}
+    end
+  end
+
   @doc "The adapter principal on the request, if the bearer was an adapter's token."
   def adapter(%Plug.Conn{assigns: %{principal: %AdapterPrincipal{} = a}}), do: a
   def adapter(_conn), do: nil

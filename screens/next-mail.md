@@ -37,6 +37,11 @@ the switch to the new client). Built 2026-11-10.
     her own conversation, her witness, a housemate, the house or the
     platform), her own marked "Hers" and in her colour (the colour her replies wear in correspondence; never on others' letters), and the thread's newest says where it
     stands (answered, read, waiting on whom); a keepsake if one rode with it;
+    a letter between her and a housemate is sealed to the two of them
+    (kumbukumbu#93): its card reads "A sealed letter", each sealed letter
+    "Sealed between them: you see that it was sent, never its words", and
+    its state "sealed between them", never read or unread; one sent open
+    reads whole;
   - **Write a letter** to one of her conversations by name, to Free
     time (her next free time reads it first), or to the house;
   - the mail from outside the house (xenia#12), by thread, newest first,

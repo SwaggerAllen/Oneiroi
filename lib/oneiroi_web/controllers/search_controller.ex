@@ -191,7 +191,7 @@ defmodule OneiroiWeb.SearchController do
        %{
          results:
            id
-           |> Kumbukumbu.search_letters(q, @page, [sort: sort] ++ narrow)
+           |> Kumbukumbu.search_letters(q, @page, [sort: sort, viewer: viewer(conn)] ++ narrow)
            |> Enum.map(&letter(&1, q))
        }}
     else

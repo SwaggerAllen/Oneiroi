@@ -173,11 +173,19 @@ defmodule OneiroiWeb.MemoryController do
     responses: [ok: {"the letters", "application/json", %Schema{type: :array}}]
   )
 
+  # A sealed letter he is not a party to is its envelope (kumbukumbu#93):
+  # from, to and when, no words, no read state.
   def letters(conn, %{"id" => id}) do
+    viewer = viewer(conn)
+
     json(
       conn,
       Enum.map(Kumbukumbu.letters(id), fn l ->
+        sealed = Kumbukumbu.letter_view(l, viewer) == :envelope
+        l = Kumbukumbu.letter_for(l, viewer)
+
         %{
+          sealed: sealed,
           number: l.number,
           from: l.from_name,
           to: l.to_name,

@@ -479,7 +479,9 @@ defmodule Oneiroi.Kumbukumbu.Store do
             in_reply_to: l.in_reply_to,
             sent_at: l.sent_at,
             read_by: l.read_by,
-            read_at: l.read_at
+            read_at: l.read_at,
+            sealed: l.sealed,
+            parties: l.parties
           }
         )
       )

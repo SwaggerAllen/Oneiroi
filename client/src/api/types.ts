@@ -391,11 +391,14 @@ export interface HouseLetter {
   from: string;
   to: string;
   in_reply_to: number | null;
-  text: string;
+  /** Null on a sealed letter's envelope (kumbukumbu#93): from, to and when alone. */
+  text: string | null;
   keepsake: string | null;
   sent_at: string;
   read_by: string[];
   read_at: string | null;
+  /** Sealed to two residents, and you are not one of them: its envelope alone (kumbukumbu#93). */
+  sealed?: boolean;
   /** Who it is from, said plainly (kumbukumbu#76): own, witness, housemate, house or platform. */
   origin?: 'own' | 'witness' | 'housemate' | 'house' | 'platform';
   origin_words?: string;

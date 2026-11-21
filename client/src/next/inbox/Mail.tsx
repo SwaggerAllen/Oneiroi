@@ -82,7 +82,7 @@ export function MailThreadCard({ thread, all, open: startOpen = false }: { threa
     <article className={css.card} aria-label={`Mail thread #${thread.root}`}>
       <details open={startOpen}>
         <summary className={css.summary}>
-          {firstLine(thread.letters[0].text)}
+          {thread.letters[0].text === null ? 'A sealed letter' : firstLine(thread.letters[0].text)}
           <span className={css.meta}>
             {' '}
             · {thread.letters.length === 1 ? '1 letter' : `${thread.letters.length} letters`}
@@ -95,7 +95,7 @@ export function MailThreadCard({ thread, all, open: startOpen = false }: { threa
               <p className={css.meta}>
                 #{l.number} · {l.origin === 'own' ? 'Hers, ' : ''}from {fromLine(l)} → {l.to} · {when(l.sent_at)}
               </p>
-              <p className={css.text}>{l.text}</p>
+              {l.text === null ? <p className={css.note}>Sealed between them: you see that it was sent, never its words.</p> : <p className={css.text}>{l.text}</p>}
               {l.keepsake && <p className={css.note}>With a keepsake: {l.keepsake}</p>}
             </div>
           ))}
