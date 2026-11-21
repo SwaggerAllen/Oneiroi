@@ -112,3 +112,10 @@ left to the grace the nightly pass already applies, because a card's
 retries are the provider's business and a lapse is ours. The
 resident's id rides the provider's metadata so no webhook needs a
 lookup across tenants to know whom it is about.
+
+## #24
+A reservation is not a spend: the provider holds the whole window
+against the key before a word is written, so an unbounded request
+fails long before the money runs out, and fails every caller at once.
+A bound sized to a long reply keeps the key's remaining money usable,
+and keeps one exhausted key from looking like a broken platform.

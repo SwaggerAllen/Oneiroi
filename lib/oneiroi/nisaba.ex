@@ -144,6 +144,12 @@ defmodule Oneiroi.Nisaba do
        tag: :bound,
        usage:
          "the term axis's three buckets in days, floor first: two months, which the spec leaves open between one and three; a placeholder"},
+      {:max_tokens, "NISABA_MAX_TOKENS",
+       cast: :integer,
+       default: "16384",
+       tag: :bound,
+       usage:
+         "the most a model call may write when its caller names no bound (nisaba#24): unset, OpenRouter reserves the model's whole window (128k) against the key's limit and refuses with 402 once the key can afford less, though a reply is a few thousand tokens; a guess with room for a long answer, not measured"},
       {:renewal_grace_days, "NISABA_RENEWAL_GRACE_DAYS",
        cast: :integer,
        default: "7",
