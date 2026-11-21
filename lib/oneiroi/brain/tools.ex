@@ -47,6 +47,11 @@ defmodule Oneiroi.Brain.Tools do
   @zone_key {__MODULE__, :zone}
   @not_done "Not done: "
 
+  # The audiences a policy can filter for (kumbukumbu#92): the dyad and
+  # her own conversations are hers, so nothing is filtered for them.
+  @by_id ~w(thread workspace correspondent export processor)
+  @reviewable ~w(household person publication researcher) ++ @by_id
+
   # What an ask answers after its number (agathos-daimon#35), the same in
   # a trial as for real.
   @asked %{
@@ -80,7 +85,7 @@ defmodule Oneiroi.Brain.Tools do
   @writes ~w(
     position_take position_replace dispute_check dispute_settle prediction_log
     figure_increment bookmark_add bookmark_extend bookmark_weigh bookmark_accept bookmark_decline
-    tag_propose tag_apply domain_tag soul_edit soul_annotate identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
+    tag_propose tag_apply domain_tag soul_edit soul_annotate disclosure_review identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_publish document_adopt keepsake_note letter_send notify_witness free_time_set free_time_once
@@ -375,7 +380,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "soul_annotate",
-        "Annotate one line of your SOUL.md by its number (soul/<n>): the domains it is about, each a slug and whose life (the witness's by default), or none for the common room; and private, which keeps the line to you and your witness whatever any policy says, opened only by annotating it again. The line is never cut and its words never change: a composition for an audience past you two leaves it out and cites it in its place. Unannotated, a line is the common room. note says why, in your words; every annotation is kept.",
+        "Annotate one line of your SOUL.md by its number (soul/<n>): the domains it is about, each a slug and whose life (the witness's by default), or none for the common room; and private, which keeps the line to you and your witness whatever any policy says, opened only by annotating it again. The line is never cut, its words never change, and you are always given it: a composition for an audience past you two names it in a note as not that audience's to hear, guidance you weigh, never a filter; disclosure_review asks the judge when you want a check. Unannotated, a line is the common room. note says why, in your words; every annotation is kept.",
         %{
           number: %{type: "integer", minimum: 1},
           domains: %{
@@ -393,6 +398,16 @@ defmodule Oneiroi.Brain.Tools do
           note: %{type: "string"}
         },
         [:number]
+      ),
+      tool(
+        "disclosure_review",
+        "Ask the disclosure judge to read words of yours against the soul lines an audience may not hear (kumbukumbu#91). Your soul never calls the judge on its own: its annotated lines are guidance you weigh, and this is the check when you want one. text is the words; audience is who they are for (household; person with to as your sibling's name; correspondent with to as platform:account; publication; researcher; thread, workspace, export or processor with to as its id). The verdict is recorded as every verdict is; nothing is delivered or held.",
+        %{
+          text: %{type: "string"},
+          audience: %{type: "string", enum: @reviewable},
+          to: %{type: "string"}
+        },
+        [:text, :audience]
       ),
       tool(
         "identity_file_retire",
@@ -528,10 +543,11 @@ defmodule Oneiroi.Brain.Tools do
           },
           audience: %{
             type: "string",
-            enum: ["household"],
+            enum: @reviewable,
             description:
-              "who the answers are composed for, when they are bound past you and your witness: household soft-filters the oracle's context for your house, withholding what it may not hear; none (the default) is yours, everything read"
-          }
+              "who the answers are composed for, when they are bound past you and your witness: the oracle's context is soft-filtered for that audience, withholding what it may not hear (household; person with to as your sibling's name; correspondent with to as platform:account; publication; researcher; thread, workspace, export or processor with to as its id). None (the default) is yours, everything read"
+          },
+          to: %{type: "string"}
         },
         [:questions]
       ),
@@ -2552,7 +2568,7 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  # Her annotation of a soul line (agathos-daimon#55, kumbukumbu#88).
+  # Her annotation of a soul line (agathos-daimon#55): guidance (kumbukumbu#91).
   defp call("soul_annotate", args, turn) do
     domains = soul_domains(args["domains"], turn.resident_id)
 
@@ -2566,6 +2582,25 @@ defmodule Oneiroi.Brain.Tools do
          ) do
       :ok -> annotated_words(args)
       other -> other
+    end
+  end
+
+  # Her own request for a judge's read (kumbukumbu#91): the only way a
+  # soul line reaches the judge.
+  defp call("disclosure_review", args, turn) do
+    case named_audience(args["audience"], args["to"], turn) do
+      nil ->
+        @not_done <> "no such audience: #{args["audience"]} #{args["to"]}."
+
+      {kind, id} ->
+        Kumbukumbu.review_soul(
+          turn.resident_id,
+          turn.session_key,
+          turn.turn_ref,
+          Kumbukumbu.audience(kind, id),
+          to_string(args["text"] || "")
+        )
+        |> reviewed("#{kind}:#{id}")
     end
   end
 
@@ -2737,12 +2772,12 @@ defmodule Oneiroi.Brain.Tools do
     bound = Oneiroi.Config.fetch!(:brain, :oracle_batch)
 
     with :ok <- within_batch(questions, bound),
+         {:ok, composed_for} <- oracle_audience(args["audience"], args["to"], turn),
          {:ok, numbers} <-
            Seshat.dispatch_oracle(turn.resident_id, turn.session_key, questions, turn.resident) do
       # Each answer inherits the asking turn's context (kumbukumbu#84),
       # and is composed for the audience named, if any (kumbukumbu#87).
       asked = Kumbukumbu.turn_ledger(turn.resident_id, turn.session_key, turn.turn_ref)
-      composed_for = oracle_audience(args["audience"], turn)
       Enum.each(numbers, &oracle_worker().enqueue(turn.resident_id, &1, asked, composed_for))
       dispatched(numbers)
     end
@@ -4492,6 +4527,9 @@ defmodule Oneiroi.Brain.Tools do
 
   defp answered("soul_annotate", args, turn), do: {annotated_words(args), turn}
 
+  defp answered("disclosure_review", args, turn),
+    do: {reviewed({:ok, %{verdict: :clean}}, to_string(args["audience"] || "")), turn}
+
   defp answered(_done, _args, turn), do: {text(:ok), turn}
 
   defp soul_domains(list, resident_id) do
@@ -5819,14 +5857,62 @@ defmodule Oneiroi.Brain.Tools do
 
   # The audience an oracle's answers are composed for (kumbukumbu#87):
   # her house, resolved now; none is hers and her witness's.
-  defp oracle_audience("household", turn) do
+  defp reviewed({:ok, :nothing}, who),
+    do:
+      "No annotated soul line is kept from #{who}; there was nothing to check, and the judge was not called."
+
+  defp reviewed({:ok, %{verdict: :clean}}, who),
+    do: "The judge read your words against what #{who} may not hear: clean."
+
+  defp reviewed({:ok, %{verdict: :discloses, reasons: r}}, who),
+    do: "The judge read your words against what #{who} may not hear: they carry it. #{r}"
+
+  defp reviewed({:ok, %{verdict: :failed, reasons: r}}, _who),
+    do: @not_done <> "the review failed (#{r}); nothing is known either way."
+
+  defp reviewed({:error, %{site: :kumbukumbu_disclosure_no_judge}}, _who),
+    do: @not_done <> "no disclosure judge is named on this platform."
+
+  defp reviewed(other, _who), do: other
+
+  # An audience she names (kumbukumbu#91, #92): any kind a policy can
+  # filter for, resolved to its kind and id; the dyad and her own
+  # conversations are hers and filter nothing. nil when it does not resolve.
+  defp named_audience("household", _to, turn) do
     case Oneiroi.Gaia.resident_household(turn.resident_id) do
-      %{id: id} -> %{"kind" => "household", "id" => id}
+      %{id: id} -> {"household", id}
       _none -> nil
     end
   end
 
-  defp oracle_audience(_none, _turn), do: nil
+  defp named_audience("person", to, turn) do
+    case sibling(turn.resident_id, to_string(to || "")) do
+      {sibling, _me} -> {"person", "resident:" <> sibling.id}
+      nil -> nil
+    end
+  end
+
+  defp named_audience("publication", to, _turn), do: {"publication", present(to) || "substack"}
+  defp named_audience("researcher", to, _turn), do: {"researcher", present(to) || "reader"}
+
+  defp named_audience(kind, to, _turn) when kind in @by_id do
+    if id = present(to), do: {kind, id}
+  end
+
+  defp named_audience(_kind, _to, _turn), do: nil
+
+  defp present(s) when is_binary(s), do: if(String.trim(s) == "", do: nil, else: String.trim(s))
+  defp present(_s), do: nil
+
+  # Named and unresolved is refused, never read as hers (kumbukumbu#92).
+  defp oracle_audience(none, _to, _turn) when none in [nil, "", "none"], do: {:ok, nil}
+
+  defp oracle_audience(kind, to, turn) do
+    case named_audience(kind, to, turn) do
+      {kind, id} -> {:ok, %{"kind" => kind, "id" => id}}
+      nil -> @not_done <> "no such audience: #{kind} #{to}. Nothing was dispatched."
+    end
+  end
 
   defp within_batch(questions, bound) when length(questions) <= bound, do: :ok
 

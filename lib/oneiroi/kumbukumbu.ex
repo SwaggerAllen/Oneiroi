@@ -612,6 +612,11 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "Kept labels as a kept ledger, one entry each (kumbukumbu#89)."
   defexport(labels_ledger(labels), do: Ledger.labels_ledger(labels))
 
+  @doc "Her own request for a judge's read of her words against the soul lines an audience may not hear (kumbukumbu#91); the soul never calls the judge otherwise."
+  defexport(review_soul(resident_id, session_key, turn_ref, audience, text),
+    do: Ledger.review_soul(resident_id, session_key, turn_ref, audience, text)
+  )
+
   @doc "The union of a kept ledger's labels (kumbukumbu#84), for a file read."
   @spec ledger_labels([map()] | nil) :: [term()] | nil
   defexport(ledger_labels(ledger),

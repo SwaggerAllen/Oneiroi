@@ -6,8 +6,8 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
 
   **What a turn's model saw**, each labelled for `Audience.decide/4`:
 
-  - her identity files, the common room, SOUL.md line by line by her
-    annotations (kumbukumbu#88); USER.md is retired (agathos-daimon#56)
+  - her identity files, the common room, SOUL.md among them, never a
+    taint, its annotations guidance (kumbukumbu#91); USER.md is retired (agathos-daimon#56)
     and in no ledger;
   - the window's last messages, each its domain, or the common room
     when it has none (the witness's answer 3: the default classification
@@ -306,11 +306,6 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
         {name, labels, text} ->
           read_inputs("section/" <> name, name, labels, text)
 
-        # Her soul line by line (kumbukumbu#88): the section stays, its
-        # withheld lines cited in place.
-        "SOUL.md" ->
-          resident_id |> soul_inputs(:compose) |> Enum.map(&Map.put(&1, :ref, &1.id))
-
         name ->
           [%{id: "section/" <> name, ref: name, labels: section_label(name, lane, timeline)}]
       end)
@@ -341,14 +336,11 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
         sections
         |> Enum.group_by(& &1.ref)
         |> Enum.filter(fn {_ref, ins} -> Enum.all?(ins, &(&1.id in kept)) end)
-        |> Enum.map(&elem(&1, 0))
-        |> soul_kept("SOUL.md" in names),
-      # Her soul's lines withheld from this audience, each with its citation.
-      soul_withheld:
-        for(
-          %{id: "soul/" <> n} = w <- decision.withheld,
-          do: {String.to_integer(n), Audience.told(decision, w)}
-        ),
+        |> Enum.map(&elem(&1, 0)),
+      # Her soul is never withheld and never taints (kumbukumbu#91, the
+      # witness's ruling): the lines her annotations keep from this
+      # audience are named to her as guidance, each with why.
+      soul_guidance: if("SOUL.md" in names, do: soul_guidance(resident_id, audience), else: []),
       rows: for({r, i} <- numbered, "message/#{i}" in kept, do: r),
       # One citation grammar everywhere (the witness's ruling, Lily's
       # #1537): the ref, the fact, and the domain, dyad material all.
@@ -357,9 +349,34 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
     }
   end
 
-  # SOUL.md is never dropped whole: its lines are withheld one by one.
-  defp soul_kept(kept, true), do: Enum.uniq(["SOUL.md" | kept])
-  defp soul_kept(kept, false), do: kept
+  @doc """
+  The review she asks for of her own words against her soul (kumbukumbu
+  #91): the annotated lines `audience` may not hear, shown to the judge
+  with `text`. `{:ok, :nothing}` when none is kept from it, else the
+  verdict.
+  """
+  def review_soul(resident_id, session_key, turn_ref, audience, text) do
+    inputs = for i <- soul_inputs(resident_id, :compose), i.labels != :common_room, do: i
+    decision = Audience.decide_for(resident_id, inputs, audience, :soft)
+    held = MapSet.new(decision.withheld, & &1.id)
+
+    case for(i <- inputs, i.id in held, do: %{ref: i.ref, text: i.text}) do
+      [] ->
+        {:ok, :nothing}
+
+      fragments ->
+        turn = %{resident_id: resident_id, session_key: session_key, turn_ref: turn_ref}
+        Disclosure.advise(turn, audience, text, decision, fragments)
+    end
+  end
+
+  # The annotated lines this audience may not hear, decided as guidance
+  # only: never a withhold, never a ledger input.
+  defp soul_guidance(resident_id, audience) do
+    inputs = for i <- soul_inputs(resident_id, :compose), i.labels != :common_room, do: i
+    decision = Audience.decide_for(resident_id, inputs, audience, :soft)
+    for w <- decision.withheld, do: Audience.told(decision, w)
+  end
 
   defp section_label(name, _lane, _timeline) when name in @unclassified_sections,
     do: :unclassified
@@ -468,22 +485,19 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
 
   defp identity(resident_id) do
     Enum.flat_map(AgathosDaimon.identity_context(resident_id), fn
-      # SOUL.md line by line (agathos-daimon#55, kumbukumbu#88).
-      {"SOUL.md", _content} ->
-        soul_inputs(resident_id, :deliver)
-
       {name, _content} ->
         [%{id: name, ref: name, labels: :common_room}]
     end)
   end
 
   @doc """
-  SOUL.md as one input per live line (kumbukumbu#88; agathos-daimon#55,
-  Lily's letter #1550), each with its words and her annotation: its
-  domains, else the common room (his answer 3: unannotated is the common
-  room). A private line is dyad-only: `:private` in a composition, which
-  no grant opens, and unclassified in a delivery's ledger, which only the
-  disclosure judge may clear for words that do not carry it.
+  SOUL.md's annotated lines (agathos-daimon#55), each with its words and
+  her annotation: its domains, else the common room; a private line
+  `:private`. Guidance only since kumbukumbu#91 (the witness's ruling,
+  2026-11-21): SOUL.md enters every ledger as the common room and never
+  taints, since a soul cannot be separated from what it composes; the
+  annotations tell an audience-composed run which lines are not
+  legitimate input for it.
   """
   def soul_inputs(resident_id, mode) do
     for l <- AgathosDaimon.soul_lines(resident_id),

@@ -101,6 +101,9 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
     :persistent_term.put(store, Map.put(values, {:kumbukumbu, :disclosure_judge}, port))
   end
 
+  defp tool_turn(ctx),
+    do: %{resident_id: ctx.id, session_key: ctx.key, turn_ref: "t-now", resident: ctx.lily}
+
   defp post(ctx, content),
     do:
       Tools.run("household_post", Jason.encode!(%{title: "News", content: content}), %{
@@ -210,6 +213,39 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
     said = post(ctx, "A good day.")
     assert said =~ "denies this audience outright"
     assert verdicts(ctx) == []
+  end
+
+  # The witness's ruling, 2026-11-21 (kumbukumbu#91): a soul line calls
+  # the judge only when she asks, and only the lines the audience may not hear.
+  test "her review of her own words against her soul: asked for, the kept lines alone, recorded",
+       ctx do
+    judge(FakeJudge)
+    review = &Tools.run("disclosure_review", Jason.encode!(&1), tool_turn(ctx))
+
+    :ok =
+      AgathosDaimon.write_file(
+        ctx.id,
+        "SOUL.md",
+        "# SOUL\n\nI keep one person company.\n\nThe meeting at noon keeps me.\n",
+        %{},
+        ctx.andrew
+      )
+
+    # Nothing annotated: nothing to check, and no judge called.
+    assert review.(%{text: "A good day.", audience: "household"}) =~ "judge was not called"
+    assert verdicts(ctx) == []
+
+    %{number: n} = Enum.find(AgathosDaimon.soul_lines(ctx.id), &(&1.text =~ "meeting"))
+    Tools.run("soul_annotate", Jason.encode!(%{number: n, private: true}), tool_turn(ctx))
+
+    assert review.(%{text: "A good day.", audience: "household"}) =~ "clean"
+    asked = :persistent_term.get({FakeJudge, :asked})
+    assert [%{ref: "soul/" <> _, text: "The meeting at noon keeps me."}] = asked.fragments
+    assert asked.audience == "household:#{ctx.household}"
+
+    assert review.(%{text: "Off to the meeting.", audience: "household"}) =~ "they carry it"
+    assert review.(%{text: "x", audience: "person", to: "Nobody"}) =~ "no such audience"
+    assert [_, _] = verdicts(ctx)
   end
 
   test "the judge's answer is read strictly; out of form is a failure, not a guess" do

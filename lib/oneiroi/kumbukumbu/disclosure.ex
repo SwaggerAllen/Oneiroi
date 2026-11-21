@@ -91,6 +91,25 @@ defmodule Oneiroi.Kumbukumbu.Disclosure do
     end
   end
 
+  @doc """
+  A review she asks for (kumbukumbu#91, the witness's ruling: the soul
+  never calls the judge unless she asks): `candidate` against the
+  `fragments` she wants checked, for `audience`, recorded as every
+  verdict is. `{:ok, verdict}` or the refusal when no judge is named.
+  """
+  def advise(turn, audience, candidate, decision, fragments) do
+    with {:ok, port} <- port([]) do
+      verdict =
+        ask(port, turn.resident_id, %{
+          candidate: candidate,
+          fragments: fragments,
+          audience: "#{audience.kind}:#{audience.id}"
+        })
+
+      with :ok <- record(turn, decision, candidate, fragments, verdict), do: {:ok, verdict}
+    end
+  end
+
   defp port(refused) do
     case Config.fetch!(:kumbukumbu, :disclosure_judge) do
       :none ->

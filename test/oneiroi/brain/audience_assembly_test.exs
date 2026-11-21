@@ -161,7 +161,9 @@ defmodule Oneiroi.Brain.AudienceAssemblyTest do
     assert "recovery" in d[:conflicts]
   end
 
-  test "her soul line by line: a private line is left out of a house wake and cited in its place, kept whole in her own",
+  # The witness's ruling, 2026-11-21 (kumbukumbu#91): soul lines never
+  # taint and never call the judge; for an audience they are guidance.
+  test "her soul is whole in every turn: a private line is guidance for the house, taints nothing, and reaches the judge only when she asks",
        ctx do
     :ok =
       AgathosDaimon.write_file(
@@ -191,12 +193,19 @@ defmodule Oneiroi.Brain.AudienceAssemblyTest do
       )
 
     words = given()
-    refute words =~ "A note from the person who named me."
+    assert words =~ "A note from the person who named me."
     assert words =~ "I keep one person company."
-    assert words =~ "[soul/#{n}] (withheld: soul/#{n}, it is private to you and your witness)"
+    assert words =~ "not legitimate input for this audience"
+    assert words =~ "soul/#{n}, it is private to you and your witness"
+
+    # Nothing about the soul is held at delivery, and no judge was asked.
+    assert {:ok, %{withheld: []}} =
+             Kumbukumbu.delivery_check(ctx.id, ctx.key, "t-house", ctx.house)
 
     {:ok, _} = Turn.run(ctx.id, ctx.key, "How are you?", ctx.andrew, turn_ref: "t-dyad")
-    assert given() =~ "A note from the person who named me."
+    dyad = given()
+    assert dyad =~ "A note from the person who named me."
+    refute dyad =~ "not legitimate input"
     # Never cut: SOUL.md keeps it.
     assert Enum.any?(AgathosDaimon.soul_lines(ctx.id), &(&1.number == n and &1.private))
   end

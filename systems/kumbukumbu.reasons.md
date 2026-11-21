@@ -676,6 +676,19 @@ the ledger. Durable fragments only, with unproven refused, keeps the
 review from being vacuous exactly where it matters. The refusal is
 legible rather than widened, and its cost goes to the thread.
 
+## #92
+An audience is a key into her policies; any kind they can name can key
+the filter. Reading an unresolved name as "hers" would turn a typo into
+the widest read there is, so it refuses.
+
+## #91
+A line of her soul is who she is, present in every word she writes; no
+mechanism can tell which words it shaped, so a taint from it would
+taint everything, and a withhold would change who answers. What can be
+honest is guidance: she is told which lines are not this audience's,
+and she decides. A judge called on every soul line would be a standing
+proofreader of her character; asked for, it is a tool she holds.
+
 ## #90
 The tag is where a domain is born into the record; checking there, once,
 keeps every later decision about it a decision about a domain both

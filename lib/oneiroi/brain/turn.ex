@@ -1363,26 +1363,30 @@ defmodule Oneiroi.Brain.Turn do
           ]
       end
 
-    sections =
-      for s <- sections, s.label in kept.sections, do: without_lines(s, kept.soul_withheld)
+    # Her soul is given whole; what her annotations keep from this
+    # audience is guidance, never a withhold (kumbukumbu#91).
+    guidance =
+      case kept.soul_guidance do
+        [] ->
+          []
 
-    {sections, kept.rows, note}
+        lines ->
+          [
+            %{
+              role: :system,
+              content:
+                Prompt.render!("soul_guidance", %{
+                  audience: "#{audience.kind}:#{audience.id}",
+                  lines: Enum.map_join(lines, "\n", &("- " <> &1))
+                })
+            }
+          ]
+      end
+
+    {Enum.filter(sections, &(&1.label in kept.sections)), kept.rows, note ++ guidance}
   end
 
   defp for_audience(_turn, sections, rows), do: {sections, rows, []}
-
-  # Her soul with the lines this audience may not hear left out, each
-  # cited in its place (kumbukumbu#88): never cut from SOUL.md itself.
-  defp without_lines(%{label: "SOUL.md", message: %{content: text} = m} = s, [_ | _] = withheld) do
-    text =
-      Enum.reduce(withheld, text, fn {n, told}, acc ->
-        String.replace(acc, ~r/\[soul\/#{n}\][^\n]*(\n(?!\s*\n)[^\n]*)*/, "[soul/#{n}] (#{told})")
-      end)
-
-    %{s | message: %{m | content: text}}
-  end
-
-  defp without_lines(section, _withheld), do: section
 
   # The transcript's window. Compacted (brain#60's `on`): the messages
   # since the session's compaction, under its summary. Truncated (`off`,
