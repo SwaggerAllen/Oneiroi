@@ -528,7 +528,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "oracle_ask",
-        "Ask the oracle: an invocation of you, with all your memory and every read tool, for questions too long to read in a turn. Each question is named and read on its own, in parallel; give the sources it should read beside your memory (bookmark/<n>, transcript/<conversation>, a library path, repo:<path>, source:<path>), or none. Each answer is written under oracle/ with its confidence, and this conversation gets a letter when it lands. It writes nothing else and keeps nothing after.",
+        "Ask the oracle: an invocation of you, with all your memory and every read tool, for questions too long to read in a turn. Each question is named and read on its own, in parallel; give the sources it should read beside your memory (bookmark/<n>, transcript/<conversation>, a library path, repo:<path>, source:<path>), or none. A conversation is read for it only by range, transcript/<conversation>@<from>-<to> (message numbers, both included); named whole, the oracle searches and pages it with its tools rather than reading it from start to finish. Each answer is written under oracle/ with its confidence, and this conversation gets a letter when it lands. It writes nothing else and keeps nothing after.",
         %{
           questions: %{
             type: "array",
@@ -1624,11 +1624,45 @@ defmodule Oneiroi.Brain.Tools do
     end)
   end
 
-  defp transcript_answer({:ok, session, messages}, ref, _from) when is_binary(ref) and ref != "",
-    do: transcript_message(session, messages, ref)
+  # The window a read shows: a turn with one message either side, or a
+  # page from `from`.
+  defp transcript_window(resident_id, key, ref, _from) when is_binary(ref) and ref != "" do
+    scope = {:resident, resident_id}
 
-  defp transcript_answer({:ok, session, messages}, _ref, from),
-    do: transcript_page(session, messages, from)
+    case Kumbukumbu.turn_place(scope, key, ref) do
+      {at, n} ->
+        offset = max(at - 1, 0)
+
+        with {:ok, session, messages, total} <-
+               Kumbukumbu.transcript_range(scope, key, offset, n + 1 + (at - offset)),
+             do: {:ok, session, messages, offset, total, ref}
+
+      nil ->
+        if match?({:ok, _, _, _}, Kumbukumbu.transcript_range(scope, key, 0, 1)),
+          do: :no_turn,
+          else: :no_session
+
+      other ->
+        other
+    end
+  end
+
+  defp transcript_window(resident_id, key, _ref, from) do
+    with {:ok, session, messages, total} <-
+           Kumbukumbu.transcript_range(
+             {:resident, resident_id},
+             key,
+             from,
+             transcript_page_size()
+           ),
+         do: {:ok, session, messages, from, total, nil}
+  end
+
+  defp transcript_answer(session, messages, offset, total, ref) when is_binary(ref),
+    do: transcript_message(session, messages, offset, total, ref)
+
+  defp transcript_answer(session, messages, offset, total, nil),
+    do: transcript_page(session, messages, offset, total)
 
   # ---- taint on read (kumbukumbu#84) ----
   #
@@ -3179,9 +3213,11 @@ defmodule Oneiroi.Brain.Tools do
     from = args["from"] |> integer_or(0) |> max(0)
 
     # Her deliberate reach is never scoped (P23-R1 §2): any conversation
-    # of hers, in any domain.
-    case {Kumbukumbu.transcript({:resident, turn.resident_id}, key), args["message"]} do
-      {{:ok, _session, messages} = read, ref} ->
+    # of hers, in any domain. A page is read in the database, never the
+    # whole conversation (kumbukumbu#94): a long one is held a page at a
+    # time, and only what the page shows joins the turn's ledger.
+    case transcript_window(turn.resident_id, key, args["message"], from) do
+      {:ok, session, messages, offset, total, ref} ->
         :ok =
           Kumbukumbu.note_read(
             turn.resident_id,
@@ -3189,7 +3225,10 @@ defmodule Oneiroi.Brain.Tools do
             transcript_inputs(key, messages)
           )
 
-        transcript_answer(read, ref, from)
+        transcript_answer(session, messages, offset, total, ref)
+
+      :no_turn ->
+        "Not done: conversation #{key} has no message #{args["message"]}; a search hit's [session/turn] names one."
 
       _ ->
         "Not done: no conversation of yours has that key."
@@ -5561,6 +5600,7 @@ defmodule Oneiroi.Brain.Tools do
   defp round_line(r), do: "#{r.day} #{r.slot}: #{r.outcome}"
 
   @transcript_page 30
+  defp transcript_page_size, do: @transcript_page
   @transcript_message_chars 2_000
   # A message read whole: past this it is a paste, and says how much more.
   @transcript_whole_chars 60_000
@@ -5574,7 +5614,8 @@ defmodule Oneiroi.Brain.Tools do
   # opposed to a full-on oracle search", brain#104): every message the
   # turn's ref names, uncut, and the one either side cut as a page cuts
   # them, so the question it answered is in view.
-  defp transcript_message(session, messages, ref) do
+  # The window holds the turn's messages with one either side (kumbukumbu#94).
+  defp transcript_message(session, messages, offset, total, ref) do
     case for({m, i} <- Enum.with_index(messages), m.turn_ref == ref, do: i) do
       [] ->
         "Not done: conversation #{session.key} has no message #{ref}; a search hit's [session/turn] names one."
@@ -5592,7 +5633,7 @@ defmodule Oneiroi.Brain.Tools do
           for i <- at do
             m = Enum.at(messages, i)
 
-            "[#{m.turn_ref}] #{m.role}, #{when_said(m)}, message #{i + 1} of #{length(messages)}, whole:\n" <>
+            "[#{m.turn_ref}] #{m.role}, #{when_said(m)}, message #{offset + i + 1} of #{total}, whole:\n" <>
               Cut.cut(m.content || "", @transcript_whole_chars)
           end
 
@@ -5608,8 +5649,7 @@ defmodule Oneiroi.Brain.Tools do
       "(#{side}) [#{m.turn_ref}] #{m.role}, #{when_said(m)}: " <>
         Cut.cut(m.content || "", @transcript_message_chars)
 
-  defp transcript_page(session, messages, from) do
-    page = messages |> Enum.drop(from) |> Enum.take(@transcript_page)
+  defp transcript_page(session, page, from, total) do
     upto = from + length(page)
 
     lines =
@@ -5619,11 +5659,11 @@ defmodule Oneiroi.Brain.Tools do
       end)
 
     more =
-      if upto < length(messages),
-        do: "\n\n(#{length(messages) - upto} more; transcript_read with from: #{upto} reads on.)",
+      if upto < total,
+        do: "\n\n(#{total - upto} more; transcript_read with from: #{upto} reads on.)",
         else: ""
 
-    "Conversation #{session.key} (#{session.kind}), messages #{from + 1}–#{upto} of #{length(messages)}:\n\n" <>
+    "Conversation #{session.key} (#{session.kind}), messages #{from + 1}–#{upto} of #{total}:\n\n" <>
       lines <> more
   end
 

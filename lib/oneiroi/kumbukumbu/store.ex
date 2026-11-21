@@ -389,6 +389,60 @@ defmodule Oneiroi.Kumbukumbu.Store do
   end
 
   @doc """
+  A conversation's messages from `offset` (0-based, in order), at most
+  `limit` of them (kumbukumbu#94): a page read in the database, so a long
+  conversation is never held whole to show part of it.
+  """
+  @spec messages_range(String.t(), non_neg_integer(), pos_integer()) :: [Message.t()]
+  def messages_range(key, offset, limit),
+    do:
+      Repo.all(
+        from(m in Message,
+          where: m.session_key == ^key,
+          order_by: [asc: m.sequence, asc: m.position],
+          offset: ^offset,
+          limit: ^limit
+        )
+      )
+
+  @doc "The 0-based place of a turn's first message in its conversation, and how many it has; nil when absent."
+  @spec turn_place(String.t(), String.t()) :: {non_neg_integer(), pos_integer()} | nil
+  def turn_place(key, turn_ref) do
+    case Repo.one(
+           from(m in Message,
+             where: m.session_key == ^key and m.turn_ref == ^turn_ref,
+             order_by: [asc: m.sequence, asc: m.position],
+             limit: 1
+           )
+         ) do
+      nil ->
+        nil
+
+      first ->
+        before =
+          Repo.one(
+            from(m in Message,
+              where:
+                m.session_key == ^key and
+                  (m.sequence < ^first.sequence or
+                     (m.sequence == ^first.sequence and m.position < ^first.position)),
+              select: count()
+            )
+          )
+
+        n =
+          Repo.one(
+            from(m in Message,
+              where: m.session_key == ^key and m.turn_ref == ^turn_ref,
+              select: count()
+            )
+          )
+
+        {before, n}
+    end
+  end
+
+  @doc """
   Each target retrieval has touched, with how many times it was
   considered, returned and used, and when it was last returned and last
   used; `kind` narrows to targets of one kind (`bookmark`), `target` to

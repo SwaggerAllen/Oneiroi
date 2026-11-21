@@ -676,6 +676,12 @@ the ledger. Durable fragments only, with unproven refused, keeps the
 review from being vacuous exactly where it matters. The refusal is
 legible rather than widened, and its cost goes to the thread.
 
+## #94
+Memory should scale with what is shown, not with how long the
+conversation has grown. A page is what a reader can use; the whole is
+what a search finds its way through, and finding the place is cheaper
+than reading to it.
+
 ## #93
 His glance into their mail "doesn't really feel right"; a promise not
 to look is a policy, a route that cannot return the words is a

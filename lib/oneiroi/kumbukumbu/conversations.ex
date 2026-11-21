@@ -438,6 +438,25 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
          do: {:ok, session, Scope.run(scope, fn -> Store.messages(key) end)}
   end
 
+  @doc """
+  A page of a conversation by place (kumbukumbu#94): `{:ok, session,
+  messages, total}`, the messages from `offset` (0-based), at most
+  `limit`, read in the database; refused as `transcript/2` refuses.
+  """
+  def transcript_range(scope, key, offset, limit) do
+    with {:ok, session, _} <- visible(scope, key) do
+      Scope.run(scope, fn ->
+        {:ok, session, Store.messages_range(key, offset, limit), Store.message_count(key)}
+      end)
+    end
+  end
+
+  @doc "Where a turn sits in its conversation (kumbukumbu#94): `{offset, count}` or nil."
+  def turn_place(scope, key, turn_ref) do
+    with {:ok, _session, _} <- visible(scope, key),
+         do: Scope.run(scope, fn -> Store.turn_place(key, turn_ref) end)
+  end
+
   @doc "A page of a session's transcript under a scope: the session, the last `limit` messages before the `{sequence, position}` cursor (nil for the newest), and whether earlier ones remain."
   def transcript_page(scope, key, before, limit) do
     with {:ok, session, _} <- visible(scope, key) do

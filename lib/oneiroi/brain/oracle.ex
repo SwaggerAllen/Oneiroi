@@ -150,7 +150,7 @@ defmodule Oneiroi.Brain.Oracle do
       """
       You are being asked, as an invocation of yourself (the oracle), one question. Answer it from the materials below and from your memory, which your read tools reach whole (bookmarks, transcripts, the library, your repository and the platform's source). You write nothing but this answer and keep nothing after it.
 
-      You have up to #{Config.fetch!(:brain, :oracle_tool_rounds)} rounds of tool calls for this reading; each round's results say how many are left, and when none are you are asked for your answer from what you have read. Say plainly what you found, quoting your sources where it matters. If you could not determine it, say so and say what you would need; that is an answer. End with three lines: "Not asked: " and what this question did not ask that a reader might take your answer as covering (asked what was decided, you were not asked what you now think of it); "Used: " and the sources your answer drew on, by their refs (bookmark/12, a library path, transcript/<conversation>, repo:<path>), or "none"; then "Confidence: " and one of high, medium, low or none, with a few words why.
+      Try your search tools before reading anything from start to finish: find where the answer lives, then read that part. You have up to #{Config.fetch!(:brain, :oracle_tool_rounds)} rounds of tool calls for this reading; each round's results say how many are left, and when none are you are asked for your answer from what you have read. Say plainly what you found, quoting your sources where it matters. If you could not determine it, say so and say what you would need; that is an answer. End with three lines: "Not asked: " and what this question did not ask that a reader might take your answer as covering (asked what was decided, you were not asked what you now think of it); "Used: " and the sources your answer drew on, by their refs (bookmark/12, a library path, transcript/<conversation>, repo:<path>), or "none"; then "Confidence: " and one of high, medium, low or none, with a few words why.
 
       The question: #{q.question}
 
@@ -239,8 +239,37 @@ defmodule Oneiroi.Brain.Oracle do
     Enum.join(["## Source: #{ref}" | noted ++ tail], "\n\n")
   end
 
+  # Parts of about `size` characters, cut at line ends, a line longer than
+  # a part cut by size. Never a list of every grapheme: that list of a
+  # 4 MB transcript was hundreds of megabytes (kumbukumbu#94, the OOM of
+  # 2026-11-21 06:30Z).
   defp chunks(text, size) do
-    text |> String.graphemes() |> Enum.chunk_every(size) |> Enum.map(&Enum.join/1)
+    text
+    |> String.split("\n")
+    |> Enum.flat_map(&pieces(&1, size))
+    |> Enum.chunk_while(
+      {[], 0},
+      fn line, {acc, n} ->
+        len = String.length(line) + 1
+
+        if n > 0 and n + len > size,
+          do: {:cont, acc |> Enum.reverse() |> Enum.join("\n"), {[line], len}},
+          else: {:cont, {[line | acc], n + len}}
+      end,
+      fn
+        {[], _} -> {:cont, {[], 0}}
+        {acc, _} -> {:cont, acc |> Enum.reverse() |> Enum.join("\n"), {[], 0}}
+      end
+    )
+  end
+
+  defp pieces(line, size) do
+    if String.length(line) <= size do
+      [line]
+    else
+      {head, rest} = String.split_at(line, size)
+      [head | pieces(rest, size)]
+    end
   end
 
   # A source by its ref: a bookmark with its span, a conversation whole,
@@ -255,20 +284,93 @@ defmodule Oneiroi.Brain.Oracle do
     end
   end
 
-  defp source(resident_id, "transcript/" <> key = ref) do
-    case Kumbukumbu.transcript({:resident, resident_id}, key |> String.split("/") |> hd()) do
-      {:ok, _session, messages} -> Enum.map_join(messages, "\n", &line/1)
-      _ -> unread(ref)
+  # A conversation (kumbukumbu#94; the witness, 2026-11-21: "the oracle
+  # should probably try to answer the question with other tools before
+  # trying to read a transcript from start to finish"). With a range,
+  # `transcript/<key>@<from>-<to>` (message numbers, both included), those
+  # messages are read a page at a time from the database, up to the
+  # bound of what one question reads. Without one, it is not read up
+  # front: the oracle is told its size and to search and page it with its
+  # tools, reading it whole only when nothing narrower answers.
+  defp source(resident_id, "transcript/" <> rest = ref) do
+    scope = {:resident, resident_id}
+
+    case transcript_ref(rest) do
+      {key, first, last} -> ranged(scope, ref, key, first, last)
+      key -> pointed(scope, ref, key)
     end
   end
 
   defp source(_resident_id, "source:" <> path), do: whole(:source, path)
+
   defp source(resident_id, "repo:" <> path), do: whole({:repo, resident_id}, path)
 
   defp source(resident_id, ref) do
     case Seshat.read(resident_id, ref) do
       {:ok, %{content: content}} -> content
       _ -> unread(ref)
+    end
+  end
+
+  defp transcript_ref(rest) do
+    case Regex.run(~r{\A([^/@]+)@(\d+)-(\d+)\z}, rest) do
+      [_, key, a, b] -> {key, String.to_integer(a), String.to_integer(b)}
+      _ -> rest |> String.split(["/", "@"]) |> hd()
+    end
+  end
+
+  @page 200
+
+  defp ranged(scope, ref, key, first, last) when first >= 1 and last >= first do
+    cap = Config.fetch!(:brain, :oracle_chunk_chars) * Config.fetch!(:brain, :oracle_max_chunks)
+
+    case page(scope, key, first - 1, last, cap, [], 0) do
+      {:ok, lines, total, stopped} ->
+        upto =
+          if stopped,
+            do: " (stopped at message #{stopped}: past the bound one question reads)",
+            else: ""
+
+        "Messages #{first}–#{min(last, total)} of #{total}#{upto}:\n\n" <> Enum.join(lines, "\n")
+
+      :error ->
+        unread(ref)
+    end
+  end
+
+  defp ranged(_scope, ref, _key, _first, _last), do: unread(ref)
+
+  defp page(scope, key, offset, last, cap, acc, chars) do
+    case Kumbukumbu.transcript_range(scope, key, offset, min(@page, last - offset)) do
+      {:ok, _session, messages, total} ->
+        lines = Enum.map(messages, &line/1)
+        chars = chars + Enum.sum(Enum.map(lines, &String.length/1))
+        acc = [lines | acc]
+        next = offset + length(messages)
+
+        cond do
+          messages == [] or next >= min(last, total) ->
+            {:ok, List.flatten(Enum.reverse(acc)), total, nil}
+
+          chars >= cap ->
+            {:ok, List.flatten(Enum.reverse(acc)), total, next}
+
+          true ->
+            page(scope, key, next, last, cap, acc, chars)
+        end
+
+      _ ->
+        :error
+    end
+  end
+
+  defp pointed(scope, ref, key) do
+    case Kumbukumbu.transcript_range(scope, key, 0, 1) do
+      {:ok, session, _messages, total} ->
+        "Not read up front: #{ref} is #{total} messages (#{session.kind}). Answer from it with your tools first: transcript_search finds where the question lives in it, and transcript_read reads it a page at a time (from: a message number) or one turn whole. Read it from start to finish only if nothing narrower answers. A range named as #{ref}@<from>-<to> is read for you."
+
+      _ ->
+        unread(ref)
     end
   end
 
@@ -286,7 +388,7 @@ defmodule Oneiroi.Brain.Oracle do
 
   defp unread(ref),
     do:
-      "(#{ref} could not be read: the oracle reads bookmark/<n>, transcript/<conversation>, a library path, repo:<path> and source:<path>)"
+      "(#{ref} could not be read: the oracle reads bookmark/<n>, transcript/<conversation>, transcript/<conversation>@<from>-<to>, a library path, repo:<path> and source:<path>)"
 
   # What it read (brain#49): the sources named, and every memory its
   # read tools touched, in the citation form retrieval counts them in.

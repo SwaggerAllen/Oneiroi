@@ -817,6 +817,16 @@ defmodule Oneiroi.Kumbukumbu do
           | {:error, term()}
   defexport(transcript(scope, key), do: Conversations.transcript(scope, key))
 
+  @doc "A page of a session by place (kumbukumbu#94): `{:ok, session, messages, total}`, from a 0-based offset, at most `limit`, read in the database."
+  defexport(transcript_range(scope, key, offset, limit),
+    do: Conversations.transcript_range(scope, key, offset, limit)
+  )
+
+  @doc "Where a turn sits in its session (kumbukumbu#94): `{offset, count}`, or nil."
+  defexport(turn_place(scope, key, turn_ref),
+    do: Conversations.turn_place(scope, key, turn_ref)
+  )
+
   @doc "A page of a session's transcript: the last `limit` messages before a `{sequence, position}` cursor (nil for the newest), and whether earlier ones remain."
   @spec transcript_page(
           Oneiroi.Scope.t(),
