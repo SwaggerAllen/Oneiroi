@@ -263,7 +263,7 @@ defmodule Oneiroi.AgathosDaimon.IdentityTest do
             }} = Resident.execute(r3, write("SOUL.md", "E.", cites: "4"))
 
     # Any other file has no lines.
-    assert [%Events.SeedFileWritten{file: "USER.md"}] =
-             Resident.execute(r3, write("USER.md", "# You\n\nA gardener."))
+    assert [%Events.SeedFileWritten{file: "GOALS.md"}] =
+             Resident.execute(r3, write("GOALS.md", "# You\n\nA gardener."))
   end
 end

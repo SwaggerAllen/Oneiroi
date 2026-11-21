@@ -200,28 +200,25 @@ defmodule Oneiroi.Brain.AudienceAssemblyTest do
     assert Enum.any?(AgathosDaimon.soul_lines(ctx.id), &(&1.number == n and &1.private))
   end
 
-  test "the USER.md cut: retired, it is in no turn's context and no ledger, so nothing it held can taint",
+  test "USER.md is retired: it cannot be written, and no turn's context or ledger holds it",
        ctx do
-    :ok =
-      AgathosDaimon.write_file(ctx.id, "USER.md", "- Know his winter shape.\n", %{}, ctx.andrew)
+    # The witness's ruling, 2026-11-21 (agathos-daimon#56): its content
+    # lives in portraits; the file is no identity file at all.
+    assert {:error, %{kind: :agathos_daimon_file_unknown}} =
+             AgathosDaimon.write_file(
+               ctx.id,
+               "USER.md",
+               "- Know his winter shape.\n",
+               %{},
+               ctx.andrew
+             )
 
     say(ctx, "t-2", "The garden wants water.", nil)
-    {:ok, _} = Turn.run(ctx.id, ctx.key, "Hello.", ctx.andrew, turn_ref: "t-before")
-    assert given() =~ "Know his winter shape."
-    # Before the cut: USER.md is unclassified in every turn's ledger.
-    assert {:error, %{details: d}} = Kumbukumbu.delivery_check(ctx.id, nil, "t-before", ctx.house)
-    assert "unclassified" in d[:conflicts]
+    {:ok, _} = Turn.run(ctx.id, ctx.key, "Hello.", ctx.andrew, turn_ref: "t-after")
+    refute given() =~ "# USER.md"
 
-    assert Tools.run(
-             "identity_file_retire",
-             Jason.encode!(%{file: "USER.md", note: "its directives have a home"}),
-             %{resident_id: ctx.id, session_key: ctx.key, turn_ref: "t-cut", resident: ctx.lily}
-           ) =~ "USER.md"
-
-    {:ok, _} = Turn.run(ctx.id, ctx.key, "Hello again.", ctx.andrew, turn_ref: "t-after")
-    refute given() =~ "Know his winter shape."
-    # After it: no USER.md input, so a common-room turn delivers clean.
+    # Nothing in a common-room turn's ledger is withheld from the house.
     assert {:ok, decision} = Kumbukumbu.delivery_check(ctx.id, nil, "t-after", ctx.house)
-    refute Enum.any?(decision.withheld)
+    assert decision.withheld == []
   end
 end

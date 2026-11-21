@@ -40,7 +40,7 @@ defmodule Oneiroi.SimaQian.Backup do
     # are one self, given and proposed together (spec §6.2).
     # `honcho/` stays in it, as last written, since Honcho's retirement
     # (sima-qian#65): a resident's tree is kept, never swept.
-    {"soul", ["SOUL.md", "IDENTITY.md", "USER.md", "GOALS.md", "LINKS.md", "honcho/"]},
+    {"soul", ["SOUL.md", "IDENTITY.md", "GOALS.md", "LINKS.md", "honcho/"]},
     # The state store (agathos-daimon#32): the resident's present, which
     # can change every turn. A class of its own, so a changed line never
     # makes a soul commit.

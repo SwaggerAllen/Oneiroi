@@ -265,7 +265,8 @@ defmodule Oneiroi.AgathosDaimon do
        "a soul line is annotated by its number, live, with at most ten domains and whether it is private (agathos-daimon#55)",
        remedy: "name a live line's number, each domain a slug with whose life"},
       {:agathos_daimon_file_unknown, "that is not one of the identity files",
-       remedy: "SOUL.md, IDENTITY.md, USER.md, GOALS.md or LINKS.md; AGENTS.md is build-owned"},
+       remedy:
+         "SOUL.md, IDENTITY.md, GOALS.md or LINKS.md; AGENTS.md is build-owned, and USER.md is retired (agathos-daimon#56)"},
       {:agathos_daimon_content_invalid, "a file is UTF-8 text of at most 64,000 bytes",
        remedy: "shorten it, or keep the long part as a document (P3)"},
       {:agathos_daimon_origin_invalid, "a seed's origin is authored, drafted or uploaded",
@@ -866,7 +867,7 @@ defmodule Oneiroi.AgathosDaimon do
   @spec plugin_proposals(String.t()) :: [map()]
   defexport(plugin_proposals(id), do: PluginService.proposals(id))
 
-  @doc "The creation flow's nine gifts (agathos-daimon#36): what each writes and the guidance shown with it."
+  @doc "The creation flow's eight gifts (agathos-daimon#36): what each writes and the guidance shown with it."
   @spec gifts() :: [map()]
   defexport(gifts(), do: Gifts.all())
 

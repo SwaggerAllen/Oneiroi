@@ -39,7 +39,7 @@ defmodule Oneiroi.SimaQian.DryRunTest do
     s = ctx.source
     git!(s, ["init", "-q", "-b", "main"])
     write!(s, "SOUL.md", "# Lily\n\n#{@private}\n\nAnd another line.")
-    write!(s, "USER.md", "# David\n")
+    write!(s, "GOALS.md", "# David\n")
     write!(s, "DREAMS.md", @private)
     write!(s, "writing/essay.md", "# The essay\n\n#{@private}")
     write!(s, "research/2026-10-22-1/notes.md", "# Notes\n\nTwelve bytes.")
@@ -68,7 +68,7 @@ defmodule Oneiroi.SimaQian.DryRunTest do
 
     on_exit(fn -> File.rm_rf!(Backup.dir(report.import.id)) end)
 
-    assert %{seeded: ["SOUL.md", "USER.md"], adopted: 2, events: 0} = report.import
+    assert %{seeded: ["SOUL.md", "GOALS.md"], adopted: 2, events: 0} = report.import
     assert report.soul_lines == 2
 
     assert "records/README.md" in report.import.not_transferred and

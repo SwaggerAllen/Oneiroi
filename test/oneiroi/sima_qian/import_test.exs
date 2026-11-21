@@ -49,7 +49,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
     File.mkdir_p!(work)
     git!(work, ["init", "-q", "-b", "main"])
     File.write!(Path.join(work, "SOUL.md"), "# Lily\n\nI am Lily.")
-    File.write!(Path.join(work, "USER.md"), "# David\n")
+    File.write!(Path.join(work, "GOALS.md"), "# David\n")
     File.write!(Path.join(work, "README.md"), "Lily's repository.")
     File.mkdir_p!(Path.join(work, "writing"))
     File.write!(Path.join(work, "writing/essay.md"), "# The essay\n\nOn bread, at length.")
@@ -109,7 +109,7 @@ defmodule Oneiroi.SimaQian.ImportTest do
               id: id,
               attestation: :none,
               events: 0,
-              seeded: ["SOUL.md", "USER.md"],
+              seeded: ["SOUL.md", "GOALS.md"],
               proposed: [],
               # The writing alone: the wiki's pages are held and offered,
               # decided in one by one, never swept (seshat#31).
@@ -180,8 +180,8 @@ defmodule Oneiroi.SimaQian.ImportTest do
     assert custody == "account:" <> ctx.witness.id
 
     assert [
-             %{name: "SOUL.md", origin: "uploaded", content: "# Lily\n\n[soul/1] I am Lily."},
-             %{name: "USER.md"}
+             %{name: "GOALS.md"},
+             %{name: "SOUL.md", origin: "uploaded", content: "# Lily\n\n[soul/1] I am Lily."}
            ] = AgathosDaimon.files(id)
 
     assert [%{path: "writing/essay.md", kind: "writing", chunks: 1}] = Seshat.documents(id)

@@ -4,7 +4,8 @@
 import type { Switch } from '../../api/client';
 import type { PluginEntry, PluginProposal, Tag } from '../../api/types';
 
-export const IDENTITY = ['SOUL.md', 'IDENTITY.md', 'USER.md', 'GOALS.md', 'LINKS.md'] as const;
+// USER.md is retired (agathos-daimon#56): what it held lives in portraits.
+export const IDENTITY = ['SOUL.md', 'IDENTITY.md', 'GOALS.md', 'LINKS.md'] as const;
 
 export const PAGES = [
   'agreement',

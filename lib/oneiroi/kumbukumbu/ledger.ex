@@ -6,9 +6,9 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
 
   **What a turn's model saw**, each labelled for `Audience.decide/4`:
 
-  - her identity files: `USER.md` unclassified (the witness's file, cut
-    by the migration; until then it withholds everything past the dyad),
-    the rest the common room;
+  - her identity files, the common room, SOUL.md line by line by her
+    annotations (kumbukumbu#88); USER.md is retired (agathos-daimon#56)
+    and in no ledger;
   - the window's last messages, each its domain, or the common room
     when it has none (the witness's answer 3: the default classification
     is the common room);
@@ -280,10 +280,10 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
 
   # Sections that carry the session's current domain: what was recalled
   # into this room. Those of unsure provenance are unclassified; the rest
-  # (her prompt, her own files but USER.md, her state, her plans) are the
+  # (her prompt, her own files, her state, her plans) are the
   # common room.
   @lane_sections ~w(pins index madeleine character where domain)
-  @unclassified_sections ~w(USER.md summary self-conversation)
+  @unclassified_sections ~w(summary self-conversation)
 
   @doc """
   Assembles a turn for an audience past the dyad (kumbukumbu#81, the soft
@@ -471,13 +471,7 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
         soul_inputs(resident_id, :deliver)
 
       {name, _content} ->
-        [
-          %{
-            id: name,
-            ref: name,
-            labels: if(name == "USER.md", do: :unclassified, else: :common_room)
-          }
-        ]
+        [%{id: name, ref: name, labels: :common_room}]
     end)
   end
 

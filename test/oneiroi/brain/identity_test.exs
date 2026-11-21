@@ -25,7 +25,7 @@ defmodule Oneiroi.Brain.IdentityTest do
        ctx do
     id = ctx.resident.id
     :ok = AgathosDaimon.write_file(id, "SOUL.md", "# Soul\n\nCurious.", %{}, ctx.actor)
-    :ok = AgathosDaimon.write_file(id, "USER.md", "# You\n\nPatient.", %{}, ctx.actor)
+    :ok = AgathosDaimon.write_file(id, "LINKS.md", "# You\n\nPatient.", %{}, ctx.actor)
     test = self()
 
     Fake.script(
@@ -43,7 +43,7 @@ defmodule Oneiroi.Brain.IdentityTest do
     assert [
              prompt,
              "# SOUL.md\n\n# Soul\n\n[soul/1] Curious.",
-             "# USER.md\n\n# You\n\nPatient.",
+             "# LINKS.md\n\n# You\n\nPatient.",
              "# AGENTS.md" <> _ | _
            ] = systems
 
@@ -52,7 +52,7 @@ defmodule Oneiroi.Brain.IdentityTest do
     assert [
              "prompt",
              "SOUL.md",
-             "USER.md",
+             "LINKS.md",
              "AGENTS.md",
              "state",
              "budget",

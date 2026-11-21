@@ -8,7 +8,7 @@ defmodule OneiroiWeb.CreationController do
 
   operation(:gifts,
     summary:
-      "The nine gifts in order, each with what it writes and the guidance the witness reads first",
+      "The eight gifts in order, each with what it writes and the guidance the witness reads first",
     responses: [ok: {"gifts", "application/json", %Schema{type: :array}}]
   )
 

@@ -1,5 +1,5 @@
 defmodule OneiroiWeb.CreationTest do
-  @moduledoc "agathos-daimon#36, #39 to #41: the nine gifts, the generator, Get a read and the example sets, over the API."
+  @moduledoc "agathos-daimon#36, #39 to #41: the eight gifts, the generator, Get a read and the example sets, over the API."
   use OneiroiWeb.ConnCase, async: false
 
   alias Ecto.Adapters.SQL.Sandbox
@@ -23,11 +23,11 @@ defmodule OneiroiWeb.CreationTest do
   defp conn_for(ctx),
     do: build_conn() |> put_req_header("authorization", "Bearer " <> ctx.token)
 
-  test "the nine gifts, in the spec's order, each with guidance", ctx do
+  test "the eight gifts, in the spec's order, each with guidance", ctx do
     gifts = ctx |> conn_for() |> get("/v1/creation/gifts") |> json_response(200)
 
     assert Enum.map(gifts, & &1["key"]) ==
-             ~w(name self you building trials means days vows reach)
+             ~w(name self building trials means days vows reach)
 
     assert %{"writes" => ["SOUL.md"], "guidance" => guidance} = Enum.at(gifts, 1)
     assert guidance =~ "in their own voice"
@@ -78,8 +78,8 @@ defmodule OneiroiWeb.CreationTest do
 
     assert %{
              "ref" => ref,
-             "gift" => "you",
-             "file" => "USER.md",
+             "gift" => "building",
+             "file" => "GOALS.md",
              "draft_sha" => sha,
              "notes" => [%{"kind" => "thin", "text" => "Says little.", "quote" => "Patient."}],
              "model" => "fake/judge",
@@ -87,7 +87,7 @@ defmodule OneiroiWeb.CreationTest do
            } =
              ctx
              |> conn_for()
-             |> post("/v1/residents/#{id}/files/USER.md/read", %{content: "# You\n\nPatient."})
+             |> post("/v1/residents/#{id}/files/GOALS.md/read", %{content: "# You\n\nPatient."})
              |> json_response(200)
 
     assert [
@@ -100,12 +100,12 @@ defmodule OneiroiWeb.CreationTest do
            ] =
              ctx
              |> conn_for()
-             |> get("/v1/residents/#{id}/files/USER.md/reads")
+             |> get("/v1/residents/#{id}/files/GOALS.md/reads")
              |> json_response(200)
 
     assert ctx
            |> conn_for()
-           |> post("/v1/residents/#{id}/files/USER.md/read", %{})
+           |> post("/v1/residents/#{id}/files/GOALS.md/read", %{})
            |> json_response(422)
   end
 
@@ -130,11 +130,11 @@ defmodule OneiroiWeb.CreationTest do
     dir = Path.join(root, set)
 
     # The committed set: her files from the prompt, a fictional witness's
-    # USER.md and GOALS.md, never LINKS.md (agathos-daimon#41, #42).
+    # GOALS.md, never LINKS.md (agathos-daimon#41, #42; USER.md retired, #56).
     assert [%{"set" => "fictional", "files" => files}] =
              ctx |> conn_for() |> get("/v1/creation/examples") |> json_response(200)
 
-    assert Enum.map(files, & &1["file"]) == ~w(IDENTITY.md SOUL.md USER.md GOALS.md)
+    assert Enum.map(files, & &1["file"]) == ~w(IDENTITY.md SOUL.md GOALS.md)
 
     File.mkdir_p!(dir)
     on_exit(fn -> File.rm_rf!(dir) end)

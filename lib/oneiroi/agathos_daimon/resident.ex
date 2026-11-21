@@ -70,8 +70,11 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   # The identity files a witness gives and a resident keeps (spec §6.2,
   # F2). `AGENTS.md` is build-owned
-  # and rendered from a template, never written here.
-  @files ~w(SOUL.md IDENTITY.md USER.md GOALS.md LINKS.md)
+  # and rendered from a template, never written here. USER.md is retired
+  # for every resident (agathos-daimon#56, the witness's ruling
+  # 2026-11-21): what it held lives in her portraits; a written one stays
+  # in her repository's history and is never given, written or edited.
+  @files ~w(SOUL.md IDENTITY.md GOALS.md LINKS.md)
   @origins ~w(authored drafted uploaded)
   # Bounded in size as spec §6.2 asks of uploads: a guess, generous for
   # prose and small for anything that is not.
@@ -542,7 +545,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   # Her prefix is hers to shape (agathos-daimon#50): only she retires or
   # restores one of her files, and never SOUL.md or IDENTITY.md, which are
   # who she is to every turn. A file never written has nothing to retire.
-  @retirable ~w(USER.md GOALS.md LINKS.md)
+  @retirable ~w(GOALS.md LINKS.md)
 
   def execute(%__MODULE__{} = r, %{actor: actor, file: file} = c)
       when is_struct(c, Commands.RetireIdentityFile) or is_struct(c, Commands.RestoreIdentityFile) do
