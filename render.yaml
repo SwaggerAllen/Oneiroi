@@ -103,7 +103,9 @@ services:
     runtime: image
     image:
       url: docker.io/gitea/gitea:1.22.6
-    plan: 0.5c-512mb
+    # One size up (the witness, 2026-11-21): 512 MB was OOM-killed at
+    # 17:40Z on 11-21 taking a backup push on a ~200 MB baseline.
+    plan: 0.5c-1g
     region: oregon
     healthCheckPath: /api/healthz
     autoDeployTrigger: "off"

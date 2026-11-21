@@ -433,6 +433,11 @@ one page and the second never ran until production. The test now holds
 a repository past a page, on the real server, because the server's
 paging is the server's, and only it says where the end is.
 
+## #66
+A retry should cost what failed, not what succeeded. Re-running every
+resident because one failed turned a single bad remote into a standing
+load on Gitea, and made the failure's blast radius the whole household.
+
 ## #65
 A remote is where her whole record goes every night. A field that
 takes any text sends it nowhere, silently, for as long as nobody looks;

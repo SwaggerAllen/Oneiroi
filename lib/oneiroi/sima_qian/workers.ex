@@ -3,6 +3,7 @@ defmodule Oneiroi.SimaQian.BackupWorker do
   use Oneiroi.Worker, queue: :sima_qian_nightly
 
   alias Oneiroi.Actor
+  alias Oneiroi.Apsu.Jobs
   alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.Error
 
@@ -17,20 +18,40 @@ defmodule Oneiroi.SimaQian.BackupWorker do
   # and the next try was a night away. A failure is now logged with its
   # kind, site and cause, and the job fails, so Oban keeps the error and
   # retries.
-  def run(_args) do
-    actor = Actor.new(:job, "sima_qian_backup")
+  #
+  # A retry is the failed resident's alone (sima-qian#66; the witness,
+  # 2026-11-21). Failing the whole night retried every resident: one
+  # resident whose remote Gitea refused (Scarlett's, an email address)
+  # re-pushed every other resident's records to Gitea at each of twenty
+  # attempts, and attempt 17 took Gitea past its memory at 17:40Z. The
+  # night now queues one job per failed resident and is done; that job
+  # backs up its resident alone and fails alone, so Oban retries it alone
+  # and keeps its error.
+  # A retry a few minutes on, not at once: whatever refused may need a moment.
+  @retry_in 300
 
-    Backup.residents_with_remote()
-    |> Enum.flat_map(&failed("backup", &1.id, Backup.run(&1.id, actor)))
-    |> case do
+  def run(%{"resident_id" => id}) do
+    case failed("backup", id, Backup.run(id, actor())) do
       [] ->
         :ok
 
       failures ->
         {:error,
-         Error.new(:sima_qian_backup_failed, :sima_qian_nightly_backup_failed, summary(failures))}
+         Error.new(:sima_qian_backup_failed, :sima_qian_resident_backup_failed, summary(failures))}
     end
   end
+
+  def run(_nightly) do
+    actor = actor()
+
+    for r <- Backup.residents_with_remote(),
+        {id, _site} <- failed("backup", r.id, Backup.run(r.id, actor)),
+        do: {:ok, _} = Jobs.enqueue(__MODULE__, %{"resident_id" => id}, schedule_in: @retry_in)
+
+    :ok
+  end
+
+  defp actor, do: Actor.new(:job, "sima_qian_backup")
 
   @doc false
   # One resident's result: nothing when it landed; logged with the error's
