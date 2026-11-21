@@ -137,8 +137,7 @@ defmodule Oneiroi.Nisaba.ProviderTest do
       assert body.messages == [%{role: "user", content: "three words here"}]
       assert body.usage == %{include: true}
       assert body.stream == false
-      # Bounded when the caller names nothing (nisaba#24): never the model's whole window.
-      assert body.max_tokens == Oneiroi.Config.fetch!(:nisaba, :max_tokens)
+      refute Map.has_key?(body, :max_tokens)
 
       body = OpenRouter.body(%{@request | max_tokens: 10, temperature: 0.2}, true)
       assert body.max_tokens == 10 and body.temperature == 0.2 and body.stream == true

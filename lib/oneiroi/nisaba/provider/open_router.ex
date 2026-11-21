@@ -210,8 +210,7 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
       usage: %{include: true},
       stream: stream?
     }
-    # A bound always (nisaba#24): the caller's, else the platform's.
-    |> Map.put(:max_tokens, request.max_tokens || Config.fetch!(:nisaba, :max_tokens))
+    |> put_unless_nil(:max_tokens, request.max_tokens)
     |> put_unless_nil(:temperature, request.temperature)
     |> put_unless_empty(:tools, request.tools)
     |> then(
