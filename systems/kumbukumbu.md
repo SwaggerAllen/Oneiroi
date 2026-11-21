@@ -207,6 +207,12 @@ Carried from spec §6.3; the reason for each is there.
     - the nightly judgement's and the oracle's derived text;
     - the wakes before this (S4).
 
+- **#96 The meaning search narrows, scores and reads on; nothing of a message is dark to it.** (The witness, 2026-11-21, after a paraphrase missed his own 11-10 message: build (a), (b), (c) and (d) of Lily's letters #1630 and #1632, his revisions included.)
+  - **Narrowing (a).** The meaning leg of `transcript_search` takes the phrase leg's narrowing: `from` and `to` days, `whose` (mine or theirs, on both legs), `page`, `sort` and `across_domains` (`Store.nearest_passages/4`).
+  - **Read on (b).** Every hit, by phrase or meaning, names where its turn opens, so `transcript_read` with that `from` reads on. In the client, a jump to a moment, such as a bookmark's "Open the moment", reads on past its window: reaching its end, or "Read on", loads the next page until the window meets the newest.
+  - **No cap (c).** Every part of a message is embedded, however long. The twenty-part cap dropped a long message's end, and its only real job, bounding one run, is now `KUMBUKUMBU_PASSAGE_PARTS` (400): messages are taken while their parts fit, the first always. Messages embedded under the cap keep their first twenty parts until re-embedded.
+  - **Scores and a floor (d).** The meaning leg answers ten a page, never fewer while any are embedded, each with its score (1 − cosine distance), so a low rank reads as low, never as absent. It fetches past the page so de-duplication cannot leave it short.
+
   Each label is decided `:hard` against the audience. A conflict refuses with the domain named in her own context, the source `path@commit`, whether it was her classification or its birth, and the decision id (`kumbukumbu_ledger_file_withheld`). There are no fragments, no candidate and no judge. Her own words beside the copy (a publish's note, a post's title) keep the turn path and its review (#82); a promotion carries none of its own.
   - **What is written with labels.** Each artifact keeps its writing turn and `turn_labels/3`, the distinct labels its ledger held, each a map, never its words: a file's version (its ledger, seshat#100), a journal row, a letter between her conversations or to a sibling (the sender's labels travel on the arriving copy), and a letter to her next self (agathos-daimon#54).
   - **The witness's and the platform's letters.** A letter of the witness or of the platform is the common room, as an unnamed message is (his answer 3).

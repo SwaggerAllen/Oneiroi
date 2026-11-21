@@ -157,6 +157,12 @@ export function Chat({
     void chat.loadOlder();
   }, [atTop, opened, chat]);
 
+  // Reaching the bottom of a jump's window reads on (kumbukumbu#96).
+  useEffect(() => {
+    if (!atBottom || !opened || !chat.windowed?.moreAfter || chat.loadingNewer) return;
+    void chat.loadNewer();
+  }, [atBottom, opened, chat]);
+
   // The reader's place for the navigator's ring: the first message at the top.
   useEffect(() => {
     const el = scroller.current;
@@ -314,6 +320,15 @@ export function Chat({
               witness, 2026-11-17); a wake's, after the list. Her words are
               not streamed into it (2026-11-21): the reply lands whole. */}
           {chat.stream && !answering && streamView}
+          {chat.windowed?.moreAfter && (
+            <div className={css.older}>
+              {chat.loadingNewer ? 'Reading on…' : (
+                <button type="button" className={css.linkButton} onClick={() => void chat.loadNewer()}>
+                  Read on
+                </button>
+              )}
+            </div>
+          )}
           {chat.unanswered.map((f) => (
             <div key={`failed-${f.turn_ref}`} className={css.failedTurn} role="status">
               <span>

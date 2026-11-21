@@ -267,6 +267,12 @@ defmodule Oneiroi.Kumbukumbu do
        tag: :bound,
        usage:
          "how many messages one passage run embeds for a resident (kumbukumbu#49), oldest first; a backlog takes several runs, ten minutes apart, rather than one long one"},
+      {:passage_parts, "KUMBUKUMBU_PASSAGE_PARTS",
+       cast: :integer,
+       default: "400",
+       tag: :bound,
+       usage:
+         "how many passages one run embeds for a resident (kumbukumbu#96): messages are taken while their parts fit, the first always, so a long message is embedded whole in a run of its own; bounds one run's work and memory where the old twenty-part cap dropped a long message's end; a guess"},
       {:embedding_width, "KUMBUKUMBU_EMBEDDING_WIDTH",
        cast: :integer,
        default: "1536",

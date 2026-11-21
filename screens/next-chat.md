@@ -29,6 +29,11 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
     streamed into it (brain#111; the witness, 2026-11-21: "I kind of hate
     the live streamed responses"): the reply lands whole when the turn is
     captured. The same status events drive the header's presence line.
+  - A jump to a moment (a bookmark's "Open the moment", a search hit)
+    reads a window around it; reaching the window's end, or "Read on",
+    loads the next page after it, until the window meets the newest and
+    the chat is live again (kumbukumbu#96; the witness, 2026-11-21: "I can
+    go to a bookmark but I can't read the record after the bookmark").
   - A turn that answered a sealed letter between residents (kumbukumbu#95)
     shows in its place with each message reading "[sealed: her answer to
     a letter between residents; …]": the witness sees that it ran, never

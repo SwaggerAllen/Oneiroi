@@ -366,7 +366,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "transcript_search",
-        "Search your transcripts, past the index: for the exact phrase (20 a page, newest first, each hit its date and the words around it) and by meaning (the passages nearest what you describe, when you cannot recall the wording). `by` narrows to phrase or meaning; both by default. The phrase search pages and narrows (kumbukumbu#67): `page` from 1; `sort` newest or oldest; `from` and `to` as YYYY-MM-DD days in your zone, both included. The meaning search takes none of them. It searches this conversation's domain and the common room; across_domains: true searches every domain, when you mean to cross (nothing walls your own search). Tool calls are not searched. Cite a hit as <slug>:transcript/<session>/<turn>.",
+        "Search your transcripts, past the index: for the exact phrase (20 a page, newest first, each hit its date and the words around it) and by meaning (the passages nearest what you describe, when you cannot recall the wording). `by` narrows to phrase or meaning; both by default. Both legs page and narrow alike (kumbukumbu#67, #96): `page` from 1; `sort` newest or oldest (the meaning leg is nearest first unless you ask); `from` and `to` as YYYY-MM-DD days in your zone, both included; `whose`: mine or theirs. The meaning leg answers ten a page, never fewer while any are embedded, each with its score (how near, 1.00 the same words): a low score is a near miss, not an absence. Every hit names where its turn opens, so transcript_read with that from reads on from it. Every part of a long message is embedded, however long. It searches this conversation's domain and the common room; across_domains: true searches every domain, when you mean to cross (nothing walls your own search). Tool calls are not searched. Cite a hit as <slug>:transcript/<session>/<turn>.",
         %{
           q: %{type: "string"},
           across_domains: %{type: "boolean"},
@@ -374,7 +374,8 @@ defmodule Oneiroi.Brain.Tools do
           page: %{type: "integer"},
           sort: %{type: "string", enum: ["newest", "oldest"]},
           from: %{type: "string"},
-          to: %{type: "string"}
+          to: %{type: "string"},
+          whose: %{type: "string", enum: ["mine", "theirs"]}
         },
         [:q]
       ),
@@ -2613,8 +2614,12 @@ defmodule Oneiroi.Brain.Tools do
             else: phrase_page(turn, q, opts, page)
 
         across? = Keyword.get(opts, :across_domains, false)
-        text = phrase_text(phrase, q, page, more)
-        transcript_search_text(Map.put(turn, :across_domains?, across?), q, by, phrase, text)
+        text = phrase_text(turn, phrase, q, page, more)
+
+        turn
+        |> Map.put(:across_domains?, across?)
+        |> Map.put(:meaning, meaning_opts(args, opts, page))
+        |> transcript_search_text(q, by, phrase, text)
 
       {:refused, why} ->
         @not_done <> why
@@ -5354,6 +5359,9 @@ defmodule Oneiroi.Brain.Tools do
       "meaning" ->
         meaning_text(turn, q, [])
 
+      "both" when turn.meaning.page > 1 ->
+        "By phrase:\n" <> phrase_text <> "\n\nBy meaning:\n" <> meaning_text(turn, q, [])
+
       "both" ->
         "By phrase:\n" <> phrase_text <> "\n\nBy meaning:\n" <> meaning_text(turn, q, phrase)
     end
@@ -5381,6 +5389,7 @@ defmodule Oneiroi.Brain.Tools do
          {:ok, sort} <- phrase_sort(args["sort"]),
          {:ok, from} <- local_bound(args["from"], 0),
          {:ok, to} <- local_bound(args["to"], 1),
+         {:ok, role} <- whose_words(args["whose"]),
          do:
            {:ok,
             [
@@ -5388,7 +5397,24 @@ defmodule Oneiroi.Brain.Tools do
               from: from,
               to: to,
               across_domains: args["across_domains"] in [true, "true"]
-            ], page}
+            ] ++ if(role, do: [role: role], else: []), page}
+  end
+
+  # Whose words (kumbukumbu#96): hers, the other party's, or both.
+  defp whose_words(nil), do: {:ok, nil}
+  defp whose_words("mine"), do: {:ok, "assistant"}
+  defp whose_words("theirs"), do: {:ok, "user"}
+  defp whose_words(_other), do: {:refused, "whose is mine or theirs."}
+
+  # The meaning leg narrows and pages as the phrase leg does
+  # (kumbukumbu#96): the same days, whose words and domains; its own
+  # page of ten, nearest first unless a sort is asked for.
+  defp meaning_opts(args, opts, page) do
+    %{
+      narrow: Keyword.take(opts, [:from, :to, :role]),
+      page: page,
+      sort: args["sort"] && Keyword.get(opts, :sort)
+    }
   end
 
   defp phrase_page_number(nil), do: {:ok, 1}
@@ -5427,28 +5453,40 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  defp phrase_text([], _q, 1, _more), do: "No message holds that phrase."
-  defp phrase_text([], _q, page, _more), do: "Page #{page} is past the last match."
+  defp phrase_text(_turn, [], _q, 1, _more), do: "No message holds that phrase."
+  defp phrase_text(_turn, [], _q, page, _more), do: "Page #{page} is past the last match."
 
-  defp phrase_text(rows, q, page, more) do
+  defp phrase_text(turn, rows, q, page, more) do
     lines =
       Enum.map_join(
         rows,
         "\n",
-        &"[#{&1.session_key}/#{&1.turn_ref}] #{&1.role}, #{local_day(&1.sent_at)}: #{Cut.around(&1.content || "", q, 160)}"
+        &("[#{&1.session_key}/#{&1.turn_ref}] #{&1.role}, #{local_day(&1.sent_at)}#{opens_at(turn, &1.session_key, &1.turn_ref)}: " <>
+            Cut.around(&1.content || "", q, 160))
       )
 
     tail = if more, do: "\n(More: page #{page + 1}.)", else: ""
     "Page #{page}:\n" <> lines <> tail
   end
 
-  defp near_text([]), do: "Nothing embedded comes near that yet."
+  defp near_text([], _turn, 1, _more), do: "Nothing embedded comes near that yet."
+  defp near_text([], _turn, page, _more), do: "Page #{page} by meaning is past the last."
 
-  defp near_text(near) do
-    Enum.map_join(near, "\n", fn p ->
-      "[#{p.session_key}/#{p.turn_ref}] #{p.role}, #{local_day(p.sent_at)}: #{opening(p.text, 280)}"
-    end)
+  defp near_text(near, turn, page, more) do
+    lines =
+      Enum.map_join(near, "\n", fn p ->
+        "[#{p.session_key}/#{p.turn_ref}] #{p.role}, #{local_day(p.sent_at)}, score #{score(p.distance)}#{opens_at(turn, p.session_key, p.turn_ref)}: #{opening(p.text, 280)}"
+      end)
+
+    tail = if more, do: "\n(More by meaning: page #{page + 1}.)", else: ""
+    "Page #{page}, nearest first unless sorted:\n" <> lines <> tail
   end
+
+  # How near, from the cosine distance: 1 the same direction, 0 unrelated.
+  defp score(distance) when is_number(distance),
+    do: :erlang.float_to_binary(1.0 - distance, decimals: 2)
+
+  defp score(_), do: "?"
 
   defp digest_line(d) do
     from = local_stamp(d.since)
@@ -5703,23 +5741,51 @@ defmodule Oneiroi.Brain.Tools do
     if String.length(flat) > limit, do: String.slice(flat, 0, limit) <> "…", else: flat
   end
 
-  # The transcripts by meaning (kumbukumbu#49): the nearest passages not
-  # already a phrase hit, each opening on its own words.
+  # The transcripts by meaning (kumbukumbu#49, #96): the nearest
+  # messages not already a phrase hit, ten a page and never fewer while
+  # any are embedded, each with its score (how near, 1 the same words) so
+  # a low rank reads as low, never as absent; and where its turn opens,
+  # so transcript_read reads on from it.
+  @meaning_page 10
+
   defp meaning_text(turn, q, phrase) do
     seen = MapSet.new(phrase, & &1.turn_ref)
+    m = Map.get(turn, :meaning, %{narrow: [], page: 1, sort: nil})
+    want = m.page * @meaning_page
 
-    case Kumbukumbu.search_meaning(turn.resident_id, turn.session_key, q, 12, turn.resident,
-           across_domains: Map.get(turn, :across_domains?, false)
+    case Kumbukumbu.search_meaning(
+           turn.resident_id,
+           turn.session_key,
+           q,
+           min(want * 3, 300),
+           turn.resident,
+           [across_domains: Map.get(turn, :across_domains?, false)] ++ m.narrow
          ) do
       {:ok, rows} ->
-        rows
-        |> Enum.reject(&MapSet.member?(seen, &1.turn_ref))
-        |> Enum.uniq_by(&{&1.session_key, &1.turn_ref, &1.role})
-        |> Enum.take(8)
-        |> near_text()
+        near =
+          rows
+          |> Enum.reject(&MapSet.member?(seen, &1.turn_ref))
+          |> Enum.uniq_by(&{&1.session_key, &1.turn_ref, &1.role})
+
+        near
+        |> Enum.slice((m.page - 1) * @meaning_page, @meaning_page)
+        |> meaning_sorted(m.sort)
+        |> near_text(turn, m.page, length(near) > want)
 
       {:error, _reason} ->
         "Not searched by meaning: the embedding did not answer."
+    end
+  end
+
+  defp meaning_sorted(rows, :oldest), do: Enum.sort_by(rows, & &1.sent_at, DateTime)
+  defp meaning_sorted(rows, :newest), do: Enum.sort_by(rows, & &1.sent_at, {:desc, DateTime})
+  defp meaning_sorted(rows, _nearest), do: rows
+
+  # Where a hit's turn opens in its conversation, for transcript_read.
+  defp opens_at(turn, session_key, turn_ref) do
+    case Kumbukumbu.turn_place({:resident, turn.resident_id}, session_key, turn_ref) do
+      {at, _n} -> "; transcript_read from: #{at} reads on from its turn"
+      _ -> ""
     end
   end
 

@@ -218,6 +218,31 @@ export function useChat(residentId: string, live: Live) {
     }
   }, [residentId, key, loadingOlder, more, messages]);
 
+  // Reading on past a jump's window (kumbukumbu#96): the next page after
+  // its last message; when none remain, the window meets the newest and
+  // the chat is live again.
+  const [loadingNewer, setLoadingNewer] = useState(false);
+  const loadNewer = useCallback(async () => {
+    if (!key || !windowed?.moreAfter || loadingNewer) return;
+    const last = [...messages].reverse().find((m) => m.cursor)?.cursor;
+    if (!last) return;
+    setLoadingNewer(true);
+    try {
+      const page = await api.transcriptAfter(residentId, key, last, PAGE);
+      setMessages((loaded) => {
+        const known = new Set(loaded.map((m) => m.cursor));
+        return [...loaded, ...page.messages.filter((m) => !known.has(m.cursor))];
+      });
+      if (page.more) setWindowed((w) => (w ? { ...w, moreAfter: true } : w));
+      else {
+        pagedBack.current = false;
+        setWindowed(null);
+      }
+    } finally {
+      setLoadingNewer(false);
+    }
+  }, [residentId, key, windowed, loadingNewer, messages]);
+
   const jumpTo = useCallback(
     async (anchor: string) => {
       if (!key) return;
@@ -249,6 +274,8 @@ export function useChat(residentId: string, live: Live) {
     more,
     loadingOlder,
     loadOlder,
+    loadingNewer,
+    loadNewer,
     stream,
     pending,
     working,

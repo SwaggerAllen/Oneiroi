@@ -857,6 +857,13 @@ export const api = {
       'GET',
       `/v1/residents/${residentId}/density?from=${from}&to=${to}${session ? `&session=${encodeURIComponent(session)}` : ''}`,
     ),
+  // Reading on past a jump (kumbukumbu#96; the witness, 2026-11-21: "I can
+  // go to a bookmark but I can't read the record after the bookmark").
+  transcriptAfter: (residentId: string, key: string, after: string, limit = 40) =>
+    call<Transcript & { more: boolean }>(
+      'GET',
+      `/v1/residents/${residentId}/sessions/${key}?after=${encodeURIComponent(after)}&limit=${limit}`,
+    ),
   transcriptAround: (residentId: string, key: string, around: string, limit = 40) =>
     call<Transcript & { anchor: string; more_before: boolean; more_after: boolean }>(
       'GET',

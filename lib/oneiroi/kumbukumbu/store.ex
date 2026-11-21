@@ -1000,6 +1000,10 @@ defmodule Oneiroi.Kumbukumbu.Store do
         {:who, kind}, q when is_binary(kind) ->
           from([m, _s] in q, where: m.actor_kind == ^kind)
 
+        # Whose words (kumbukumbu#96): hers, or the other party's.
+        {:role, role}, q when role in ["user", "assistant"] ->
+          from([m, _s] in q, where: m.role == ^role)
+
         # Sent to (kumbukumbu#70): what she says goes to the witness only
         # in the conversations he takes part in; what anyone else says
         # goes to her.
@@ -1253,26 +1257,44 @@ defmodule Oneiroi.Kumbukumbu.Store do
   end
 
   @doc "The passages nearest a vector within a domain and the common room, or across every one (`within/2`), nearest first."
-  def nearest_passages(vector, within, limit) do
-    Repo.all(
-      from(p in Passage,
-        join: m in Message,
-        on:
-          m.resident_id == p.resident_id and m.session_key == p.session_key and
-            m.sent_at == p.sent_at and m.hash == p.hash,
-        where: ^passage_within(within),
-        order_by: cosine_distance(p.embedding, ^vector),
-        limit: ^limit,
-        select: %{
-          session_key: p.session_key,
-          turn_ref: p.turn_ref,
-          sent_at: p.sent_at,
-          role: p.role,
-          text: p.text,
-          distance: cosine_distance(p.embedding, ^vector)
-        }
-      )
+  def nearest_passages(vector, within, limit, opts \\ []) do
+    from(p in Passage,
+      join: m in Message,
+      on:
+        m.resident_id == p.resident_id and m.session_key == p.session_key and
+          m.sent_at == p.sent_at and m.hash == p.hash,
+      where: ^passage_within(within),
+      order_by: cosine_distance(p.embedding, ^vector),
+      limit: ^limit,
+      select: %{
+        session_key: p.session_key,
+        turn_ref: p.turn_ref,
+        sent_at: p.sent_at,
+        role: p.role,
+        text: p.text,
+        distance: cosine_distance(p.embedding, ^vector)
+      }
     )
+    |> passage_narrowed(opts)
+    |> Repo.all()
+  end
+
+  # The meaning leg narrows as the phrase leg does (kumbukumbu#96): a day
+  # range in her zone, whose words (`role`).
+  defp passage_narrowed(query, opts) do
+    Enum.reduce(opts, query, fn
+      {:from, %DateTime{} = at}, q ->
+        from([p, _m] in q, where: p.sent_at >= ^at)
+
+      {:to, %DateTime{} = at}, q ->
+        from([p, _m] in q, where: p.sent_at < ^at)
+
+      {:role, role}, q when role in ["user", "assistant"] ->
+        from([p, _m] in q, where: p.role == ^role)
+
+      _other, q ->
+        q
+    end)
   end
 
   defp passage_within(:any), do: dynamic(true)
