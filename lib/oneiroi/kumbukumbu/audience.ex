@@ -203,13 +203,13 @@ defmodule Oneiroi.Kumbukumbu.Audience do
     for_labels ++ others
   end
 
+  defp researcher(policies, _input, _snapshot), do: policies
+
   defp researcher_policy(nil, label, default),
     do: %{domain: label, default: default, allow: [], deny: []}
 
   defp researcher_policy(p, _label, default),
     do: if(names_researcher?(p), do: p, else: %{p | default: default})
-
-  defp researcher(policies, _input, _snapshot), do: policies
 
   defp names_researcher?(p),
     do: Enum.any?(p.allow ++ p.deny, &(&1.kind == "researcher"))
