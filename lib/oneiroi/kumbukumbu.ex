@@ -593,10 +593,10 @@ defmodule Oneiroi.Kumbukumbu do
     do: Ledger.label_set([%{labels: Ledger.timeline_labels(resident_id)}])
   )
 
-  @doc "Whether everything a kept ledger holds may reach `audience` (kumbukumbu#87): a source for a composition bound there."
-  @spec ledger_allowed?(String.t(), [map()], map()) :: boolean()
-  defexport(ledger_allowed?(resident_id, ledger, audience),
-    do: Audience.decide_for(resident_id, Ledger.decode(ledger), audience, :hard).withheld == []
+  @doc "What of a kept ledger may not reach `audience` (kumbukumbu#87): the domains in conflict, [] when it all may; a source for a composition bound there."
+  @spec ledger_withheld(String.t(), [map()], map()) :: [String.t()]
+  defexport(ledger_withheld(resident_id, ledger, audience),
+    do: Ledger.withheld_domains(resident_id, ledger, audience)
   )
 
   @doc "The union of a kept ledger's labels (kumbukumbu#84), for a file read."

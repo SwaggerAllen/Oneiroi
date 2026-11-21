@@ -194,6 +194,12 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
   defp file_labels(%{ledger: ledger}) when is_list(ledger), do: ledger |> decode() |> label_set()
   defp file_labels(_none), do: [%{"kind" => "unclassified"}]
 
+  @doc "The domains of a kept ledger in conflict with `audience` (kumbukumbu#87); [] when it all may reach it."
+  def withheld_domains(resident_id, ledger, audience) do
+    decision = Audience.decide_for(resident_id, decode(ledger), audience, :hard)
+    conflicts(decision.withheld)
+  end
+
   @doc "The timeline lane's labels (kumbukumbu#81): every domain its anchors hold, or the common room."
   def timeline_labels(resident_id) do
     resident_id
@@ -301,10 +307,9 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
         |> Enum.filter(fn {_ref, ins} -> Enum.all?(ins, &(&1.id in kept)) end)
         |> Enum.map(&elem(&1, 0)),
       rows: for({r, i} <- numbered, "message/#{i}" in kept, do: r),
-      # The ref and the fact of withholding, never the domain (Lily's
-      # letter #1534): a run composed for an audience may say what it
-      # does not hold, and its name would be the disclosure.
-      withheld: decision.withheld |> Enum.map(&"withheld: #{&1.ref || &1.id}") |> Enum.uniq(),
+      # One citation grammar everywhere (the witness's ruling, Lily's
+      # #1537): the ref, the fact, and the domain, dyad material all.
+      withheld: decision.withheld |> Enum.map(&Audience.told(decision, &1)) |> Enum.uniq(),
       decision: decision.id
     }
   end

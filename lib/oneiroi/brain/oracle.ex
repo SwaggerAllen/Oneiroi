@@ -83,18 +83,21 @@ defmodule Oneiroi.Brain.Oracle do
   defp audience(_none), do: nil
 
   # Composed for an audience, a named source it may not hear is withheld
-  # from the oracle's materials, cited by its ref alone (Lily's #1534);
-  # what was withheld is not read, so it is not inherited.
+  # from the oracle's materials, cited with its ref and its domains (one
+  # grammar everywhere, Lily's #1537); what was withheld is not read, so
+  # it is not inherited.
   defp filtered(_resident_id, q, nil), do: Map.put(q, :withheld, [])
 
   defp filtered(resident_id, q, audience) do
-    {kept, withheld} =
-      Enum.split_with(
-        q.sources,
-        &Kumbukumbu.ledger_allowed?(resident_id, source_ledger(resident_id, &1), audience)
-      )
+    cited =
+      for ref <- q.sources,
+          do:
+            {ref,
+             Kumbukumbu.ledger_withheld(resident_id, source_ledger(resident_id, ref), audience)}
 
-    q |> Map.put(:sources, kept) |> Map.put(:withheld, withheld)
+    q
+    |> Map.put(:sources, for({ref, []} <- cited, do: ref))
+    |> Map.put(:withheld, for({ref, [_ | _] = domains} <- cited, do: {ref, domains}))
   end
 
   # What the answer inherits (kumbukumbu#84): the asking turn's ledger,
@@ -170,10 +173,12 @@ defmodule Oneiroi.Brain.Oracle do
     end
   end
 
-  defp withheld_sources(%{withheld: [_ | _] = refs}),
+  defp withheld_sources(%{withheld: [_ | _] = withheld}),
     do:
-      "\n\nWithheld from this composition by your agreement's domain policies, by reference alone: " <>
-        Enum.join(refs, ", ") <> ". You may say material was withheld; never what it concerns."
+      "\n\nWithheld from this composition by your agreement's domain policies, and not read: " <>
+        Enum.map_join(withheld, "; ", fn {ref, domains} ->
+          "#{ref} (in conflict with this audience: #{Enum.join(domains, ", ")})"
+        end) <> "."
 
   defp withheld_sources(_q), do: ""
 

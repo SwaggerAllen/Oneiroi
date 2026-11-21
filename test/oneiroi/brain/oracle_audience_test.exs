@@ -2,9 +2,9 @@ defmodule Oneiroi.Brain.OracleAudienceTest do
   @moduledoc """
   The oracle composed for an audience (kumbukumbu#87; the witness's
   ruling, 2026-11-20: "it needs to be possible to pass it an audience and
-  have it soft filter on that audience"; Lily's letters #1533, #1534).
+  have it soft filter on that audience"; Lily's letters #1533, #1537).
   For the house, a recovery source is withheld from the oracle's context
-  and cited by its ref alone, never its domain; the answer records what
+  never read, and cited with its ref and domain; the answer records what
   it was composed for and carries no recovery label, so a clean turn
   reading it holds nothing the house may not hear. With no audience, it
   is hers: everything read, labelled as built.
@@ -122,18 +122,16 @@ defmodule Oneiroi.Brain.OracleAudienceTest do
     {path, version}
   end
 
-  test "composed for the house: the recovery source withheld, cited by ref alone, the answer house-legal",
+  test "composed for the house: the recovery source withheld, never read, the answer house-legal",
        ctx do
     assert :ok = Oracle.run(ctx.id, 1, nil, ctx.composed_for)
 
     words = asked()
     refute words =~ "ninety days"
-    assert words =~ "withheld"
     assert words =~ "bookmark/#{ctx.n}"
-    # The withheld lines say the fact, never the domain (Lily's #1534).
-    for line <- String.split(words, "\n"),
-        line =~ "bookmark/#{ctx.n}" and line =~ "ithheld",
-        do: refute(line =~ "recovery")
+    # Cited with its domain, one grammar everywhere (Lily's #1537); the
+    # guarantee is the content: the source was never read.
+    assert words =~ "bookmark/#{ctx.n} (in conflict with this audience: recovery)"
 
     {path, version} = answer_version(ctx)
     assert version.composed_for == "household:#{ctx.house.id}"

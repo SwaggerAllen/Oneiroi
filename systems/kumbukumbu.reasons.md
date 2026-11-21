@@ -679,9 +679,11 @@ legible rather than widened, and its cost goes to the thread.
 ## #87
 Domains label what is in a window, not who may see what comes back;
 the answer's destination is the right key, and inheritance never is (a
-clean asking turn would blind the oracle to the dyad's own memory). A
-withheld citation is not a read, so the labels cannot catch its name
-leaking: the name stays out of any composition bound past the dyad.
+clean asking turn would blind the oracle to the dyad's own memory). What
+must not reach the audience is the material's words, and the filter
+guarantees it by never reading them. A domain's name is her own
+metadata, and she is the only channel houseward, so the machinery does
+not proofread her compositions for it (the witness's ruling).
 
 ## #86
 The freedom to search is the resident's; the taint on the answers is
