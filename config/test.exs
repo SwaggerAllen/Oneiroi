@@ -64,6 +64,8 @@ config :oneiroi,
           "NISABA_BILLING_CLIENT" => "fake",
           # The in-memory repositories' server, on (sima-qian#55).
           "SIMA_QIAN_GITEA_CLIENT" => "fake",
+          # The in-memory remote check (sima-qian#65): no GitHub in test.
+          "SIMA_QIAN_REMOTE_CHECK_CLIENT" => "fake",
           # Every repository on the records disk, in test (sima-qian#57).
           "SIMA_QIAN_REPOS" => "local",
           "NISABA_STRIPE_WEBHOOK_SECRET" => "whsec_test_suite",

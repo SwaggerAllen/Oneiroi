@@ -33,6 +33,7 @@ defmodule Oneiroi.SimaQian.Backup do
   alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.Household
   alias Oneiroi.SimaQian.Merkle
+  alias Oneiroi.SimaQian.Remote
   alias Oneiroi.SimaQian.Repos
 
   @classes [
@@ -76,7 +77,10 @@ defmodule Oneiroi.SimaQian.Backup do
     {"household", ["household/"]}
   ]
 
+  # Only a remote's shape is kept (sima-qian#65): an email address in
+  # the field is refused here, whoever sets it.
   def set_remote(resident_id, url, token, %Actor{} = actor) when is_binary(url) do
+    url = String.trim(url)
     ciphertext = (Secret.reveal(token) || "") |> Vault.encrypt() |> Base.encode64()
 
     command = %Commands.SetRecordsRemote{
@@ -87,7 +91,69 @@ defmodule Oneiroi.SimaQian.Backup do
       token_ciphertext: ciphertext
     }
 
+    with :ok <- Remote.shape(url),
+         {:ok, _} <- Router.dispatch_sited(command),
+         do: :ok
+  end
+
+  @doc """
+  The witness's set (sima-qian#65): the shape, then its host asked; a
+  token its host says cannot push is refused before anything is kept;
+  a public repository is kept, its answer recorded and returned for the
+  warning. `{:ok, %{visibility, push}}` or the refusal.
+  """
+  def set_remote_checked(resident_id, url, token, %Actor{} = actor) when is_binary(url) do
+    url = String.trim(url)
+
+    with :ok <- Remote.shape(url),
+         %{push: push} = check when push != "no" <- Remote.check(url, token),
+         :ok <- set_remote(resident_id, url, token, actor),
+         :ok <- if(Remote.local?(url), do: :ok, else: record_check(resident_id, check, actor)) do
+      {:ok, check}
+    else
+      %{push: "no"} ->
+        {:error, Error.new(:sima_qian_remote_unpushable, :sima_qian_backup_remote_unpushable)}
+
+      other ->
+        other
+    end
+  end
+
+  @doc "Asks the remote's host again and records what changed (sima-qian#65); never stops a backup."
+  def recheck_remote(resident_id, %Actor{} = actor) do
+    case Scope.resident(resident_id, fn -> Store.get(resident_id) end) do
+      # A local path is the platform's own: no host to ask, nothing to record.
+      %{remote_url: url} = row when is_binary(url) ->
+        unless Remote.local?(url) do
+          check = Remote.check(url, plain_token(row.remote_token))
+          _ = record_check(resident_id, check, actor)
+          check
+        end
+
+      _none ->
+        nil
+    end
+  end
+
+  defp record_check(resident_id, check, actor) do
+    command = %Commands.RecordRemoteCheck{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      visibility: check.visibility,
+      push: check.push
+    }
+
     with {:ok, _} <- Router.dispatch_sited(command), do: :ok
+  end
+
+  defp plain_token(nil), do: nil
+
+  defp plain_token(token) do
+    case Vault.decrypt(token) do
+      {:ok, p} when p != "" -> p
+      _none -> nil
+    end
   end
 
   # The staging directory is this run's own under the temp dir.
@@ -96,6 +162,10 @@ defmodule Oneiroi.SimaQian.Backup do
     row = Scope.resident(resident_id, fn -> Store.get(resident_id) end)
     repo = {:resident, resident_id}
     staging = staging_dir(resident_id)
+
+    # Its host asked again (sima-qian#65): a repository made public since
+    # is warned of; the backup runs whatever the answer.
+    _ = recheck_remote(resident_id, actor)
 
     try do
       with :ok <- fresh_if_foreign(resident_id, dir(resident_id), row),

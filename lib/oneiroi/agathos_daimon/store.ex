@@ -29,6 +29,10 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:import_translated, :map)
       field(:remote_url, :string)
       field(:remote_token, :binary)
+      # What its host last said (sima-qian#65): private/public/unknown, yes/no/unknown.
+      field(:remote_visibility, :string)
+      field(:remote_push, :string)
+      field(:remote_checked_at, :utc_datetime_usec)
       field(:exported_through, :integer, default: 0)
       field(:last_backup_sequence, :integer)
       field(:last_backup_root, :string)

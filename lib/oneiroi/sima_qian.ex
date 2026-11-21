@@ -119,6 +119,11 @@ defmodule Oneiroi.SimaQian do
        default: "http",
        usage:
          "which repositories' port implementation answers: http (Gitea's API) in every real build, fake in test"},
+      {:remote_check_client, "SIMA_QIAN_REMOTE_CHECK_CLIENT",
+       cast: &__MODULE__.cast_remote_check_client/1,
+       default: "github",
+       usage:
+         "which port asks a backup remote's host whether it is private and the token may push (sima-qian#65): github (GitHub's API) in every real build, fake in test"},
       {:gitea_url, "SIMA_QIAN_GITEA_URL",
        required: false,
        usage:
@@ -200,9 +205,25 @@ defmodule Oneiroi.SimaQian do
     {:error, "is #{inspect(other)}, expected \"http\" or \"fake\""}
   end
 
+  @doc false
+  def cast_remote_check_client("github"),
+    do: {:ok, :"Elixir.Oneiroi.SimaQian.RemoteCheck.GitHub"}
+
+  def cast_remote_check_client("fake"), do: {:ok, :"Elixir.Oneiroi.SimaQian.RemoteCheck.Fake"}
+
+  def cast_remote_check_client(other) do
+    # oneiroi:allow error_site: Oneiroi.Config's cast contract, a report line at boot
+    {:error, "is #{inspect(other)}, expected \"github\" or \"fake\""}
+  end
+
   @impl Oneiroi.Component
   def externals do
     [
+      {:remote_check,
+       adapter: Oneiroi.SimaQian.RemoteCheck.GitHub,
+       fake: Oneiroi.SimaQian.RemoteCheck.Fake,
+       kill_switch: :sima_qian_remote_check_off,
+       classification: :operational},
       {:gitea,
        adapter: Oneiroi.SimaQian.Gitea.HTTP,
        fake: Oneiroi.SimaQian.Gitea.Fake,
@@ -212,7 +233,7 @@ defmodule Oneiroi.SimaQian do
   end
 
   @impl Oneiroi.Component
-  def feature_flags, do: [:sima_qian_gitea_off]
+  def feature_flags, do: [:sima_qian_gitea_off, :sima_qian_remote_check_off]
 
   @impl Oneiroi.Component
   def processes, do: [{:sima_qian_blobs, :local}]
@@ -290,6 +311,18 @@ defmodule Oneiroi.SimaQian do
        "the household is routed to a Gitea instance this build does not know (sima-qian#60)",
        remedy:
          "set the household's gitea_instance to one the build is configured for, or configure that instance"},
+      {:sima_qian_remote_invalid,
+       "that is not a repository's address: a backup remote is an https, ssh or git URL with a host and a path, or user@host:path (sima-qian#65)",
+       remedy: "paste the repository's clone URL, e.g. https://github.com/<owner>/<repo>.git"},
+      {:sima_qian_remote_absent,
+       "the remote's host has no such repository, or the token cannot see it (sima-qian#65)",
+       remedy: "check the URL, and that the token can read the repository"},
+      {:sima_qian_remote_check_failed,
+       "the remote's host could not be asked what the repository is (sima-qian#65); it is read as unknown",
+       remedy: "nothing is needed: the remote is kept, and the next backup asks again"},
+      {:sima_qian_remote_unpushable,
+       "the token cannot push to that repository: its host says so, or cannot see it (sima-qian#65)",
+       remedy: "give a token with write access to the repository, or check the URL"},
       {:sima_qian_gitea_off, "the repositories' server is not set up on this platform",
        remedy: "an operator sets SIMA_QIAN_GITEA_URL and SIMA_QIAN_GITEA_TOKEN"},
       {:sima_qian_repos_absent, "no file at that path in the repository",
@@ -328,6 +361,11 @@ defmodule Oneiroi.SimaQian do
           :ok | {:error, term()}
   defexport(set_remote(resident_id, url, token, actor),
     do: Backup.set_remote(resident_id, url, token, actor)
+  )
+
+  @doc "The witness's set of a backup remote (sima-qian#65): its shape, its host asked, unpushable refused, public kept and answered for the warning."
+  defexport(set_remote_checked(resident_id, url, token, actor),
+    do: Backup.set_remote_checked(resident_id, url, token, actor)
   )
 
   @doc "Exports, commits by class with the attestation trailers, and pushes; the nightly job's unit."

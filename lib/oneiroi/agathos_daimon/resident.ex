@@ -31,6 +31,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     exported_through: 0,
     # The witness's proposals told her through this instant (brain#110).
     proposals_told: nil,
+    # What the backup remote's host last said it is (sima-qian#65).
+    remote_check: nil,
     last_backup: nil,
     files: %{},
     # Identity files she has taken out of her prefix (agathos-daimon#50).
@@ -953,6 +955,21 @@ defmodule Oneiroi.AgathosDaimon.Resident do
       commit: c.commit
     }
 
+  # Recorded only when it changed (sima-qian#65): a nightly check that
+  # finds the same answer is no event.
+  def execute(%__MODULE__{remote_check: same}, %Commands.RecordRemoteCheck{} = c)
+      when same == {c.visibility, c.push},
+      do: []
+
+  def execute(%__MODULE__{}, %Commands.RecordRemoteCheck{} = c),
+    do: %Events.RecordsRemoteChecked{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      visibility: c.visibility,
+      push: c.push
+    }
+
   def execute(%__MODULE__{}, %Commands.SetRecordsRemote{} = c),
     do: %Events.RecordsRemoteSet{
       actor: c.actor,
@@ -1302,7 +1319,12 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def apply(%__MODULE__{} = r, %Events.TimezoneSet{} = e), do: %{r | timezone: e.timezone}
 
   def apply(%__MODULE__{} = r, %Events.RootMismatchDetected{}), do: r
-  def apply(%__MODULE__{} = r, %Events.RecordsRemoteSet{} = e), do: %{r | remote: e.url}
+
+  def apply(%__MODULE__{} = r, %Events.RecordsRemoteSet{} = e),
+    do: %{r | remote: e.url, remote_check: nil}
+
+  def apply(%__MODULE__{} = r, %Events.RecordsRemoteChecked{} = e),
+    do: %{r | remote_check: {e.visibility, e.push}}
 
   # ---- helpers ----
 

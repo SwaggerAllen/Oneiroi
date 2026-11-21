@@ -37,7 +37,7 @@ describe('backups, imports and reports', () => {
   it('shows the remote and its last push, and sets a new one with a token', async () => {
     vi.spyOn(api, 'resident').mockResolvedValue(record);
     vi.spyOn(api, 'reports').mockResolvedValue({ reports: [], strikes: [] });
-    const set = vi.spyOn(api, 'setRemote').mockResolvedValue(undefined);
+    const set = vi.spyOn(api, 'setRemote').mockResolvedValue({ visibility: 'private', push: 'yes' });
     page();
     expect(await screen.findByText('https://github.com/you/mira-records')).toBeTruthy();
     expect(screen.getByText(/Last push 2026-11-14, through event 412, commit 01234567/)).toBeTruthy();
@@ -46,6 +46,18 @@ describe('backups, imports and reports', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Change' }));
     await waitFor(() => expect(set).toHaveBeenCalledWith('r1', 'https://github.com/you/elsewhere', 'tok'));
     expect(await screen.findByText('Changed.')).toBeTruthy();
+  });
+
+  // sima-qian#65: a public repository is set, and warned of; never refused.
+  it('warns when the repository just set is public', async () => {
+    vi.spyOn(api, 'resident').mockResolvedValue(record);
+    vi.spyOn(api, 'reports').mockResolvedValue({ reports: [], strikes: [] });
+    vi.spyOn(api, 'setRemote').mockResolvedValue({ visibility: 'public', push: 'yes' });
+    page();
+    expect(await screen.findByText('https://github.com/you/mira-records')).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('A new repository URL'), { target: { value: 'https://github.com/you/open' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Change' }));
+    expect(await screen.findByText(/this repository is public: anyone can read her backups/)).toBeTruthy();
   });
 
   it('sends a ChatGPT export and says what came across', async () => {

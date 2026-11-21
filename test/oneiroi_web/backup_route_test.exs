@@ -38,7 +38,7 @@ defmodule OneiroiWeb.BackupRouteTest do
 
   test "a backup that lands answers its commits", ctx do
     conn = login(ctx.account)
-    conn |> put("/v1/residents/#{ctx.resident.id}/remote", %{url: ctx.bare}) |> response(204)
+    conn |> put("/v1/residents/#{ctx.resident.id}/remote", %{url: ctx.bare}) |> response(200)
     Clock.Fake.advance(120)
 
     assert %{"through" => through, "commits" => commits} =
@@ -54,7 +54,7 @@ defmodule OneiroiWeb.BackupRouteTest do
 
     conn
     |> put("/v1/residents/#{ctx.resident.id}/remote", %{url: "/nonexistent/oneiroi-remote.git"})
-    |> response(204)
+    |> response(200)
 
     Clock.Fake.advance(120)
 

@@ -179,6 +179,10 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, fields: [:id, :timezone]
   end
 
+  defmodule RecordRemoteCheck do
+    use Oneiroi.Command, fields: [:id, :visibility, :push]
+  end
+
   defmodule SetRecordsRemote do
     use Oneiroi.Command, fields: [:id, :url, :token_ciphertext]
   end

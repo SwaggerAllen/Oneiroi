@@ -553,7 +553,8 @@ export interface NeedsYouEntry {
     | 'notifications'
     | 'provider_credits'
     | 'turn_failed'
-    | 'contract_to_answer';
+    | 'contract_to_answer'
+    | 'remote_public';
   ref: number | string;
   since: string;
   screen: 'inbox' | 'schedule' | 'agreement' | 'work' | 'kinds' | 'theme' | 'settings';

@@ -41,7 +41,8 @@ defmodule Oneiroi.Brain.NeedsYou do
     Oneiroi.Brain.NeedsYou.Notifications,
     Oneiroi.Brain.NeedsYou.Failures,
     # A version of the agreement she proposed (2026-11-16).
-    Oneiroi.Brain.NeedsYou.Contracts
+    Oneiroi.Brain.NeedsYou.Contracts,
+    Oneiroi.Brain.NeedsYou.Remote
   ]
 
   # Past this an entry is marked as having waited long. A mark only.

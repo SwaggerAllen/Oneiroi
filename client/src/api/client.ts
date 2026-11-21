@@ -86,6 +86,20 @@ async function call<T>(method: string, path: string, body?: unknown): Promise<T>
 }
 
 /** A book in her library (seshat#98): its place and how far she has read. */
+/** What a backup remote's host says it is (sima-qian#65). */
+export interface RemoteCheck {
+  visibility: 'private' | 'public' | 'unknown';
+  push: 'yes' | 'no' | 'unknown';
+}
+
+/** The words for a remote just set: a public repository is warned of, never refused. */
+export const remoteWords = (check: RemoteCheck | undefined, changed: boolean): string =>
+  check?.visibility === 'public'
+    ? `${changed ? 'Changed' : 'Set'}, but this repository is public: anyone can read her backups. Make it private on its host; backups go on either way.`
+    : changed
+      ? 'Changed.'
+      : 'Set.';
+
 export interface Book {
   slug: string;
   title: string;
@@ -641,8 +655,9 @@ export const api = {
   resident: (residentId: string) => call<ResidentRecord>('GET', `/v1/residents/${residentId}`),
   // The backup repository: a URL and, for a private one, a token stored
   // encrypted and never shown again.
+  // Its host asked (sima-qian#65): a public repository is set and warned of.
   setRemote: (residentId: string, url: string, token: string | null) =>
-    call<void>('PUT', `/v1/residents/${residentId}/remote`, { url, ...(token ? { token } : {}) }),
+    call<RemoteCheck>('PUT', `/v1/residents/${residentId}/remote`, { url, ...(token ? { token } : {}) }),
   // A ChatGPT export's zip, sent whole as the body (sima-qian#47); its
   // report is filed in the library as system/imports/chatgpt-<day>.md.
   importChatgpt: async (residentId: string, zip: Blob): Promise<ChatgptImport> => {

@@ -333,19 +333,23 @@ defmodule OneiroiWeb.ResidentController do
          required: [:url],
          properties: %{url: %Schema{type: :string}, token: %Schema{type: :string}}
        }},
-    responses: [no_content: "set"]
+    responses: [
+      ok:
+        {"set, with what its host says (sima-qian#65): visibility private, public or unknown; push yes or unknown",
+         "application/json", %Schema{type: :object}}
+    ]
   )
 
   def remote(conn, %{"id" => id, "url" => url} = params) do
     with true <- witnesses?(conn, id),
-         :ok <-
-           Oneiroi.SimaQian.set_remote(
+         {:ok, check} <-
+           Oneiroi.SimaQian.set_remote_checked(
              id,
              url,
              params["token"] && Secret.wrap(params["token"]),
              actor(conn)
            ) do
-      send_resp(conn, 204, "")
+      json(conn, check)
     else
       false ->
         error(

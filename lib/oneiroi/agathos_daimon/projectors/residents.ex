@@ -313,7 +313,22 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   fold(%Events.RecordsRemoteSet{} = e, metadata, fn multi ->
     if imported?(metadata),
       do: multi,
-      else: set(multi, e.id, remote_url: e.url, remote_token: Base.decode64!(e.token_ciphertext))
+      else:
+        set(multi, e.id,
+          remote_url: e.url,
+          remote_token: Base.decode64!(e.token_ciphertext),
+          remote_visibility: nil,
+          remote_push: nil,
+          remote_checked_at: nil
+        )
+  end)
+
+  fold(%Events.RecordsRemoteChecked{} = e, _metadata, fn multi ->
+    set(multi, e.id,
+      remote_visibility: e.visibility,
+      remote_push: e.push,
+      remote_checked_at: e.at
+    )
   end)
 
   fold(%Events.IdMinted{}, _metadata, fn multi -> multi end)

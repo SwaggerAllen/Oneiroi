@@ -303,6 +303,13 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :timezone]
   end
 
+  defmodule RecordsRemoteChecked do
+    # What the backup remote's host says it is (sima-qian#65): `visibility`
+    # private, public or unknown; `push` yes, no or unknown. Recorded at
+    # set and when a backup finds it changed, never otherwise.
+    use Oneiroi.Event, version: 1, fields: [:id, :visibility, :push]
+  end
+
   defmodule RecordsRemoteSet do
     use Oneiroi.Event,
       version: 1,

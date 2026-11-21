@@ -178,7 +178,11 @@ clipboard, or "Couldn't copy; select it" when the browser refuses
   - the backup repository (sima-qian): where the records are pushed
     each night, the last push that landed (its day, event and commit),
     or that none has; a URL and, for a private repository, a token
-    (stored encrypted, never shown again), "Set" or "Change";
+    (stored encrypted, never shown again), "Set" or "Change"; an address
+    that is not a repository's is refused, and so is a token its host
+    says cannot push; a public repository is set with a warning that
+    anyone can read the backups, and waits in the bell as "A public
+    backup repository" while its host says so (sima-qian#65);
   - your repositories on Gitea (sima-qian#55): where to sign in, as
     which user, and each repository you can read, linked; a password
     for Gitea (twelve characters or more), set here and never shown
