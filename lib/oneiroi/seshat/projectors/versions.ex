@@ -20,7 +20,12 @@ defmodule Oneiroi.Seshat.Projectors.Versions do
 
   # Its provenance (seshat#100), on the written version's row alone.
   defp provenance(%Events.DocumentWritten{} = e),
-    do: %{session_key: e.session_key, turn_ref: e.turn_ref, ledger: e.ledger}
+    do: %{
+      session_key: e.session_key,
+      turn_ref: e.turn_ref,
+      ledger: e.ledger,
+      composed_for: Map.get(e, :composed_for)
+    }
 
   defp provenance(_other), do: %{}
 

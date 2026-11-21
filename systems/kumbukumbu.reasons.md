@@ -676,6 +676,18 @@ the ledger. Durable fragments only, with unproven refused, keeps the
 review from being vacuous exactly where it matters. The refusal is
 legible rather than widened, and its cost goes to the thread.
 
+## #87
+Domains label what is in a window, not who may see what comes back;
+the answer's destination is the right key, and inheritance never is (a
+clean asking turn would blind the oracle to the dyad's own memory). A
+withheld citation is not a read, so the labels cannot catch its name
+leaking: the name stays out of any composition bound past the dyad.
+
+## #86
+The freedom to search is the resident's; the taint on the answers is
+what keeps it honest. An audience of its own keeps a real control point
+for tightening later without a rebuild.
+
 ## #85
 A file is a thing with a domain, not a turn's composition: its author
 knows what it is about, and the platform recorded where it was born. A

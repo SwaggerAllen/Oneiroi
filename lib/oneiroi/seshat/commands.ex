@@ -5,7 +5,18 @@ defmodule Oneiroi.Seshat.Commands do
     # `note` (seshat#54): what the writer said of this version, or nil;
     # the provenance (seshat#100): the writing turn and its ledger, or nil.
     use Oneiroi.Command,
-      fields: [:id, :path, :kind, :hash, :bytes, :note, :session_key, :turn_ref, :ledger]
+      fields: [
+        :id,
+        :path,
+        :kind,
+        :hash,
+        :bytes,
+        :note,
+        :session_key,
+        :turn_ref,
+        :ledger,
+        :composed_for
+      ]
   end
 
   defmodule ClassifyDocument do

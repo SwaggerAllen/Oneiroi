@@ -122,19 +122,58 @@ defmodule Oneiroi.Kumbukumbu.TaintTest do
     assert "unclassified" in d[:conflicts]
   end
 
-  test "a research question keeps the asking turn's ledger for its answers", ctx do
+  defp researcher_default(value) do
     store = {Oneiroi.Config, :values}
     values = :persistent_term.get(store)
     on_exit(fn -> :persistent_term.put(store, values) end)
-    :persistent_term.put(store, Map.put(values, {:brain, :research_audience}, "reader"))
+    :persistent_term.put(store, Map.put(values, {:kumbukumbu, :researcher_default}, value))
+  end
 
-    {:ok, n} =
-      Seshat.ask_research(ctx.id, ctx.key, "When do herons fish?", [], ctx.lily, [
-        %{"id" => "m", "ref" => "m", "turn_ref" => "t-1", "labels" => [ctx.recovery]}
-      ])
+  defp ask(ctx, ref),
+    do: run(ctx, "research_ask", %{question: "When do the meetings run over the holidays?"}, ref)
 
-    assert Seshat.research(ctx.id, n).ledger == [
-             %{"id" => "m", "ref" => "m", "turn_ref" => "t-1", "labels" => [ctx.recovery]}
-           ]
+  test "the researcher is an audience: by default a recovery turn asks freely, and its answers keep the asking ledger",
+       ctx do
+    Oneiroi.Xenia.set_reader_sites(ctx.id, [], ["https://example.org"], ctx.andrew)
+
+    assert ask(ctx, "t-ask") =~ "Asked as research #1"
+    ledger = Seshat.research(ctx.id, 1).ledger
+    assert Enum.any?(ledger, &(&1["labels"] == [ctx.recovery]))
+  end
+
+  test "the researcher's default flipped to deny: a recovery turn's question is refused, the domain named",
+       ctx do
+    Oneiroi.Xenia.set_reader_sites(ctx.id, [], ["https://example.org"], ctx.andrew)
+    researcher_default("deny")
+
+    said = ask(ctx, "t-ask")
+    assert said =~ "withheld by policy"
+    assert said =~ "researcher:reader"
+    assert said =~ "recovery"
+    assert Seshat.research(ctx.id, 1) == nil
+  end
+
+  test "a domain's own policy decides first: recovery denied to the researcher", ctx do
+    Oneiroi.Xenia.set_reader_sites(ctx.id, [], ["https://example.org"], ctx.andrew)
+
+    {:ok, v} =
+      AgathosDaimon.propose_contract(
+        ctx.id,
+        %{
+          "domain_policies" => [
+            %{
+              "domain" => ctx.recovery,
+              "default" => "deny",
+              "deny" => [%{"kind" => "researcher", "id" => "*"}]
+            }
+          ]
+        },
+        "",
+        "not even the researcher",
+        ctx.andrew
+      )
+
+    :ok = AgathosDaimon.agree_contract(ctx.id, v, "agreed", ctx.lily)
+    assert ask(ctx, "t-ask") =~ "withheld by policy"
   end
 end

@@ -1,4 +1,4 @@
-This turn's answer goes to {{audience}}, past you and your witness. What that audience may not hear has been left out of your context for it, by your agreement's domain policies (decision {{decision}}); this line is for you alone, and the audience is told nothing of it:
+This turn's answer goes to {{audience}}, past you and your witness. What that audience may not hear has been left out of your context for it, by your agreement's domain policies (decision {{decision}}). Each is named by its reference alone: what it is about is not said here, because an answer composed for that audience could carry the name, and the name would be the disclosure. You may say that some material was withheld; never what it concerns:
 
 {{lines}}
 

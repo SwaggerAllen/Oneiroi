@@ -11,6 +11,8 @@ defmodule Oneiroi.Repo.Migrations.SeshatVersionProvenance do
       add(:session_key, :text)
       add(:turn_ref, :text)
       add(:ledger, {:array, :map})
+      # The audience a composition was made for (kumbukumbu#87), or null.
+      add(:composed_for, :text)
     end
   end
 end

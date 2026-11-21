@@ -133,7 +133,7 @@ defmodule Oneiroi.Brain.Turn do
   """
   @spec oracle(map(), String.t(), String.t(), String.t()) ::
           {:ok, Result.t(), [map()]} | {:error, term()}
-  def oracle(row, resident_id, model, text, turn_ref \\ nil) do
+  def oracle(row, resident_id, model, text, turn_ref \\ nil, audience \\ nil) do
     turn = %{
       resident_id: resident_id,
       # A conversation nobody opened, as a trial's: the common room's
@@ -142,6 +142,9 @@ defmodule Oneiroi.Brain.Turn do
       # Its own ref when the caller keeps what it read (kumbukumbu#84):
       # its deliberate reads are noted under it.
       turn_ref: turn_ref,
+      # Composed for an audience past the dyad (kumbukumbu#87): its
+      # context soft-filtered for it, as a house wake's is.
+      audience: audience,
       started_at: Clock.now(),
       model: model,
       resident: Actor.new(:resident, resident_id, model),

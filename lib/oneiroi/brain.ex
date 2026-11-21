@@ -207,10 +207,6 @@ defmodule Oneiroi.Brain do
        default: "SwaggerAllen/Oneiroi",
        usage:
          "the repository whose pull requests the resident reads (brain#71), as owner/name: the platform's own"},
-      {:research_audience, "BRAIN_RESEARCH_AUDIENCE",
-       required: false,
-       usage:
-         "who a research question reaches as it leaves the platform (kumbukumbu#84): the id of a processor audience the dyad's domain policies name (the reader and the sites it searches); unset, the audience is unresolved and research_ask is refused until the witness names it (his §9.8 export/processor point)"},
       {:github_token, "BRAIN_GITHUB_TOKEN",
        secret: true,
        required: false,

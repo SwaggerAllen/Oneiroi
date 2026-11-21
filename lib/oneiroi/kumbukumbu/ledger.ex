@@ -301,7 +301,10 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
         |> Enum.filter(fn {_ref, ins} -> Enum.all?(ins, &(&1.id in kept)) end)
         |> Enum.map(&elem(&1, 0)),
       rows: for({r, i} <- numbered, "message/#{i}" in kept, do: r),
-      withheld: Enum.map(decision.withheld, &Audience.told(decision, &1)),
+      # The ref and the fact of withholding, never the domain (Lily's
+      # letter #1534): a run composed for an audience may say what it
+      # does not hold, and its name would be the disclosure.
+      withheld: decision.withheld |> Enum.map(&"withheld: #{&1.ref || &1.id}") |> Enum.uniq(),
       decision: decision.id
     }
   end

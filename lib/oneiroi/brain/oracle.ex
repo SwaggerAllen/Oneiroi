@@ -39,16 +39,18 @@ defmodule Oneiroi.Brain.Oracle do
   @platform Actor.platform()
 
   @doc "Runs question `number`; `:ok` once it is answered or failed, either way said in its records."
-  @spec run(String.t(), pos_integer(), [map()] | nil) :: :ok
-  def run(resident_id, number, asked \\ nil) do
+  @spec run(String.t(), pos_integer(), [map()] | nil, map() | nil) :: :ok
+  def run(resident_id, number, asked \\ nil, composed_for \\ nil) do
     with {:ok, row} <- AgathosDaimon.fetch(resident_id) |> found(),
          %{status: "open"} = q <- Seshat.oracle(resident_id, number) do
       model = row.chat_model || Config.fetch!(:brain, :chat_model)
       actor = Actor.new(:resident, resident_id, model)
 
       ref = Kumbukumbu.turn_ref()
+      audience = audience(composed_for)
+      q = filtered(resident_id, q, audience)
 
-      with {:ok, text, steps} <- answer(row, resident_id, model, actor, q, ref),
+      with {:ok, text, steps} <- answer(row, resident_id, model, actor, q, ref, audience),
            {confidence, body} = confidence(text),
            read = read(q.sources, steps, row.slug),
            used = used(text),
@@ -59,7 +61,11 @@ defmodule Oneiroi.Brain.Oracle do
                document(q, body, confidence, model),
                %{confidence: confidence, read: read, used: used},
                actor,
-               provenance: %{turn_ref: ref, ledger: inherited(resident_id, asked, q, ref)}
+               provenance: %{
+                 turn_ref: ref,
+                 ledger: inherited(resident_id, asked, q, ref),
+                 composed_for: audience && "#{audience.kind}:#{audience.id}"
+               }
              ) do
         measure(resident_id, q, read, used, actor)
         tell(resident_id, q, "answered: #{path}, confidence #{confidence}.")
@@ -69,6 +75,26 @@ defmodule Oneiroi.Brain.Oracle do
     else
       _settled_or_absent -> :ok
     end
+  end
+
+  # The audience the answer is composed for (kumbukumbu#87), or nil: hers
+  # and her witness's, everything read.
+  defp audience(%{"kind" => kind, "id" => id}), do: Kumbukumbu.audience(kind, id)
+  defp audience(_none), do: nil
+
+  # Composed for an audience, a named source it may not hear is withheld
+  # from the oracle's materials, cited by its ref alone (Lily's #1534);
+  # what was withheld is not read, so it is not inherited.
+  defp filtered(_resident_id, q, nil), do: Map.put(q, :withheld, [])
+
+  defp filtered(resident_id, q, audience) do
+    {kept, withheld} =
+      Enum.split_with(
+        q.sources,
+        &Kumbukumbu.ledger_allowed?(resident_id, source_ledger(resident_id, &1), audience)
+      )
+
+    q |> Map.put(:sources, kept) |> Map.put(:withheld, withheld)
   end
 
   # What the answer inherits (kumbukumbu#84): the asking turn's ledger,
@@ -114,8 +140,8 @@ defmodule Oneiroi.Brain.Oracle do
 
   defp unclassified(ref), do: [%{"id" => ref, "ref" => ref, "labels" => "unclassified"}]
 
-  defp answer(row, resident_id, model, actor, q, ref) do
-    materials = materials(row, resident_id, model, actor, q)
+  defp answer(row, resident_id, model, actor, q, ref, audience) do
+    materials = materials(row, resident_id, model, actor, q) <> withheld_sources(q)
 
     text =
       """
@@ -128,7 +154,7 @@ defmodule Oneiroi.Brain.Oracle do
       #{materials}
       """
 
-    case Turn.oracle(row, resident_id, model, text, ref) do
+    case Turn.oracle(row, resident_id, model, text, ref, audience) do
       {:ok, %{content: content}, steps} when is_binary(content) and content != "" ->
         {:ok, content, steps}
 
@@ -143,6 +169,13 @@ defmodule Oneiroi.Brain.Oracle do
         {:error, reason}
     end
   end
+
+  defp withheld_sources(%{withheld: [_ | _] = refs}),
+    do:
+      "\n\nWithheld from this composition by your agreement's domain policies, by reference alone: " <>
+        Enum.join(refs, ", ") <> ". You may say material was withheld; never what it concerns."
+
+  defp withheld_sources(_q), do: ""
 
   # The sources as text: whole when they fit, otherwise read in chunks
   # first and given as the notes taken from each.

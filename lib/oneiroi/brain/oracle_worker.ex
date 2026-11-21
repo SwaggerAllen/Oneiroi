@@ -12,7 +12,7 @@ defmodule Oneiroi.Brain.OracleWorker do
   alias Oneiroi.Brain.Oracle
 
   def run(%{"resident_id" => resident_id, "number" => number} = args) do
-    Oracle.run(resident_id, number, args["ledger"])
+    Oracle.run(resident_id, number, args["ledger"], args["audience"])
   end
 
   @doc "Enqueues question `number` of `resident_id`."
@@ -21,12 +21,18 @@ defmodule Oneiroi.Brain.OracleWorker do
   @doc """
   Enqueues question `number` with the asking turn's ledger (kumbukumbu
   #84): ids, refs, turns and labels, never words, which its answer
-  inherits.
+  inherits; and the audience it is composed for, `%{"kind", "id"}` or
+  nil (kumbukumbu#87).
   """
-  def enqueue(resident_id, number, ledger) do
+  def enqueue(resident_id, number, ledger, audience \\ nil) do
     Jobs.enqueue(
       __MODULE__,
-      %{"resident_id" => resident_id, "number" => number, "ledger" => ledger},
+      %{
+        "resident_id" => resident_id,
+        "number" => number,
+        "ledger" => ledger,
+        "audience" => audience
+      },
       unique: [period: :infinity, keys: [:resident_id, :number]]
     )
   end

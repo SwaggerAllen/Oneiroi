@@ -61,7 +61,8 @@ defmodule Oneiroi.Seshat.Documents do
              # The writing turn (seshat#100): its words inherit its taint.
              session_key: provenance(opts)[:session_key],
              turn_ref: provenance(opts)[:turn_ref],
-             ledger: provenance(opts)[:ledger]
+             ledger: provenance(opts)[:ledger],
+             composed_for: provenance(opts)[:composed_for]
            }) do
       # The record first, as the aggregate may refuse; then the file,
       # through the repositories' port (sima-qian#57).

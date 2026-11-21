@@ -504,6 +504,12 @@ defmodule Oneiroi.Brain.Tools do
               },
               required: ["question"]
             }
+          },
+          audience: %{
+            type: "string",
+            enum: ["household"],
+            description:
+              "who the answers are composed for, when they are bound past you and your witness: household soft-filters the oracle's context for your house, withholding what it may not hear; none (the default) is yours, everything read"
           }
         },
         [:questions]
@@ -1767,21 +1773,16 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   # A research question leaves the platform as its words (kumbukumbu#84):
-  # a processor, named by the witness; unnamed, unresolved, and refused.
+  # to the researcher, an audience of its own (kumbukumbu#86).
   defp delivery_audience("research_ask", _args, _turn),
-    do: Kumbukumbu.audience("processor", Oneiroi.Config.fetch!(:brain, :research_audience))
+    do: Kumbukumbu.audience("researcher", "reader")
 
   defp delivery_audience(_name, _args, _turn), do: nil
 
   defp withheld_words(%{site: :kumbukumbu_disclosure_unresolved, details: d}),
     do:
       @not_done <>
-        "withheld by policy: #{d[:audience]} is not a resolved audience. " <>
-        if(String.starts_with?(to_string(d[:audience]), "processor:"),
-          do:
-            "A research question leaves the platform, and your witness has not yet named who it reaches (BRAIN_RESEARCH_AUDIENCE), so none can be sent. Nothing was sent.",
-          else: "Nothing was delivered."
-        )
+        "withheld by policy: #{d[:audience]} is not a resolved audience. Nothing was delivered."
 
   defp withheld_words(%{details: d} = e) do
     conflicts = Enum.join(Keyword.get(d, :conflicts, []), ", ")
@@ -2601,9 +2602,11 @@ defmodule Oneiroi.Brain.Tools do
     with :ok <- within_batch(questions, bound),
          {:ok, numbers} <-
            Seshat.dispatch_oracle(turn.resident_id, turn.session_key, questions, turn.resident) do
-      # Each answer inherits the asking turn's context (kumbukumbu#84).
+      # Each answer inherits the asking turn's context (kumbukumbu#84),
+      # and is composed for the audience named, if any (kumbukumbu#87).
       asked = Kumbukumbu.turn_ledger(turn.resident_id, turn.session_key, turn.turn_ref)
-      Enum.each(numbers, &oracle_worker().enqueue(turn.resident_id, &1, asked))
+      composed_for = oracle_audience(args["audience"], turn)
+      Enum.each(numbers, &oracle_worker().enqueue(turn.resident_id, &1, asked, composed_for))
       dispatched(numbers)
     end
   end
@@ -5645,6 +5648,17 @@ defmodule Oneiroi.Brain.Tools do
   # worker reaches the turn, which reaches these tools, and a reference
   # here would close that cycle (the compile-connected rule's reason).
   defp oracle_worker, do: Module.concat([Oneiroi, Brain, OracleWorker])
+
+  # The audience an oracle's answers are composed for (kumbukumbu#87):
+  # her house, resolved now; none is hers and her witness's.
+  defp oracle_audience("household", turn) do
+    case Oneiroi.Gaia.resident_household(turn.resident_id) do
+      %{id: id} -> %{"kind" => "household", "id" => id}
+      _none -> nil
+    end
+  end
+
+  defp oracle_audience(_none, _turn), do: nil
 
   defp within_batch(questions, bound) when length(questions) <= bound, do: :ok
 

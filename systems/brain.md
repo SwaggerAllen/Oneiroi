@@ -197,7 +197,8 @@ letters, an import and a lapse); the socket and the session channel.
   - **The oracle.** `oracle_ask` carries the asking turn's ledger into each question's job. `Oracle.run/3` gives the oracle's turn a ref of its own, so its reads are noted, and writes the answer with the union: the asking ledger, its own run, and each source's labels.
   - **Sections that carry their own labels.** Today's journal and the timeline are decided by what they show: the journal by its rows' labels, the timeline by its bookmarks' domains and today's rows' (a row that kept none is unclassified). An assembled turn decides them by those labels, and every turn notes them in its ledger.
   - **Classification.** `document_classify` is her classification of her own document (seshat#102); its trial answer is the real one, nothing kept.
-  - **Research.** `research_ask` keeps the asking turn's ledger on the question. It is checked as a delivery to the processor `BRAIN_RESEARCH_AUDIENCE` names (required: false; unset, every question is refused, saying who names it) with the question as the candidate.
+  - **Research.** `research_ask` keeps the asking turn's ledger on the question. It is checked as a delivery to the researcher (kumbukumbu#86), with the question as the candidate.
+  - **The oracle's audience.** `oracle_ask` takes `audience` (household, or none): the house is resolved at the ask and carried in each question's job, and `Oracle.run/4` composes the answer for it (kumbukumbu#87).
 
 ## #8 Initial vs target
 

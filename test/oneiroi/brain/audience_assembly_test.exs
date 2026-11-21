@@ -102,9 +102,13 @@ defmodule Oneiroi.Brain.AudienceAssemblyTest do
     words = given()
     refute words =~ "ninety days"
     assert words =~ "The garden wants water."
-    # Told to her alone, by domain: the house hears nothing of it.
+    # Told by reference, never by domain (Lily's #1534): a run composed
+    # for the house could carry the name, and the name is the disclosure.
     assert words =~ "has been left out of your context"
-    assert words =~ "recovery"
+    assert words =~ "withheld: transcript/"
+
+    for line <- String.split(words, "\n"), line =~ "withheld: ",
+        do: refute(line =~ "recovery")
 
     # Assembled for the house, so delivered to it.
     assert {:ok, _} = Kumbukumbu.delivery_check(ctx.id, ctx.key, "t-house", ctx.house)

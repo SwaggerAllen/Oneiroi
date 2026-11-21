@@ -237,6 +237,7 @@ defmodule Oneiroi.Seshat.Store do
       field(:session_key, :string)
       field(:turn_ref, :string)
       field(:ledger, {:array, :map})
+      field(:composed_for, :string)
     end
 
     @type t :: %__MODULE__{}

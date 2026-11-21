@@ -37,6 +37,14 @@ defmodule Oneiroi.Kumbukumbu.Audience do
   to the audience: a withheld input is the generic `withheld_by_policy`
   and the decision id, nothing more (§5.4).
 
+  **The researcher** (the witness's ruling, 2026-11-20: "let's make the
+  researcher an audience"; kumbukumbu#86): the reader's research pass,
+  where a research question's words go. A domain with a policy is
+  decided by it; one without is decided by
+  `KUMBUKUMBU_RESEARCHER_DEFAULT`, `allow` (Lily's lean, his to flip:
+  she should have broad freedom to search, and the answers carry the
+  asking turn's labels either way) or `deny`.
+
   Pure but for `decide_for/4`, which reads the policies in force.
   """
 
@@ -83,7 +91,17 @@ defmodule Oneiroi.Kumbukumbu.Audience do
   @doc "The decision for a resident, against the policies in force in her dyad agreement."
   def decide_for(resident_id, inputs, audience, mode) do
     %{version: version, policies: policies} = AgathosDaimon.domain_policies(resident_id)
-    decide(inputs, audience, %{version: version, policies: policies}, mode)
+
+    decide(
+      inputs,
+      audience,
+      %{
+        version: version,
+        policies: policies,
+        researcher: Oneiroi.Config.fetch!(:kumbukumbu, :researcher_default)
+      },
+      mode
+    )
   end
 
   @doc """
@@ -98,7 +116,7 @@ defmodule Oneiroi.Kumbukumbu.Audience do
 
     {allowed, withheld} =
       Enum.reduce(inputs, {[], []}, fn input, {ok, out} ->
-        case verdict(input, audience, resolved?, snapshot.policies) do
+        case verdict(input, audience, resolved?, snapshot) do
           :allow -> {[input.id | ok], out}
           {:withhold, reason, conflicts} -> {ok, [withheld(input, reason, conflicts) | out]}
         end
@@ -156,7 +174,12 @@ defmodule Oneiroi.Kumbukumbu.Audience do
 
   # ---- the verdict for one input ----
 
-  defp verdict(input, audience, resolved?, policies) do
+  defp verdict(input, audience, resolved?, snapshot) do
+    policies = snapshot.policies
+    # The researcher's default for a domain with no policy (kumbukumbu#86).
+    policies =
+      if audience.kind == "researcher", do: researcher(policies, input, snapshot), else: policies
+
     cond do
       private?(audience) -> :allow
       not resolved? -> {:withhold, :unresolved_audience, []}
@@ -166,6 +189,21 @@ defmodule Oneiroi.Kumbukumbu.Audience do
       true -> label_verdicts(input.labels, audience, policies)
     end
   end
+
+  # A domain with no policy of its own, before the researcher, takes the
+  # researcher's default as if it were its policy.
+  defp researcher(policies, %{labels: labels}, snapshot) when is_list(labels) do
+    default = Map.get(snapshot, :researcher, "allow")
+
+    missing =
+      for l <- labels,
+          policy(l, policies) == nil,
+          do: %{domain: l, default: default, allow: [], deny: []}
+
+    policies ++ missing
+  end
+
+  defp researcher(policies, _input, _snapshot), do: policies
 
   # Every label must permit; the conflicts are the labels that do not.
   defp label_verdicts(labels, audience, policies) do

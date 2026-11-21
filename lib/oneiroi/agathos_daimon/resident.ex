@@ -1530,7 +1530,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   defp side_ok?(_side), do: false
 
   @policies 100
-  @audience_kinds ~w(dyad conversation person household thread workspace correspondent publication export processor)
+  @audience_kinds ~w(dyad conversation person household thread workspace correspondent publication export processor researcher)
 
   defp policies_ok?(policies) when is_list(policies) and length(policies) <= @policies,
     do: Enum.all?(policies, &policy_ok?/1)

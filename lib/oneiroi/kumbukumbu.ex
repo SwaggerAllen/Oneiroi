@@ -302,6 +302,11 @@ defmodule Oneiroi.Kumbukumbu do
        default: "eunomia",
        usage:
          "which disclosure judge reviews a delivery her turn's ledger held back (kumbukumbu#82, `Oneiroi.Kumbukumbu.DisclosureJudge`): eunomia, her configured judge model (hers, else EUNOMIA_JUDGE_MODEL), billed under judge to the witness (the witness's ruling, 2026-11-20: every resident already has one); none refuses every review, for a deployment with no judge"},
+      {:researcher_default, "KUMBUKUMBU_RESEARCHER_DEFAULT",
+       cast: &__MODULE__.cast_allow/1,
+       default: "allow",
+       usage:
+         "whether a domain with no policy of its own may reach the researcher, the reader's research pass a question goes to (kumbukumbu#86, the witness's ruling 2026-11-20): allow (Lily's lean: broad freedom to search, the answers labelled with the asking turn either way) or deny; a domain's own policy always decides first"},
       {:disclosure_judge_ms, "KUMBUKUMBU_DISCLOSURE_JUDGE_MS",
        cast: :integer,
        default: "60000",
@@ -313,6 +318,12 @@ defmodule Oneiroi.Kumbukumbu do
 
   @impl Oneiroi.Component
   def telemetry_events, do: [[:oneiroi, :kumbukumbu, :turn_attributed]]
+
+  @doc false
+  def cast_allow(v) when v in ["allow", "deny"], do: {:ok, v}
+
+  # oneiroi:allow error_site: a config cast's contract is {:error, report_line}, printed at boot (Oneiroi.Config)
+  def cast_allow(other), do: {:error, "is #{inspect(other)}, expected \"allow\" or \"deny\""}
 
   @doc false
   def cast_judge("none"), do: {:ok, :none}
@@ -580,6 +591,12 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "The timeline's bookmarks' labels as kept labels (kumbukumbu#84): every domain they hold, or the common room."
   defexport(timeline_label_set(resident_id),
     do: Ledger.label_set([%{labels: Ledger.timeline_labels(resident_id)}])
+  )
+
+  @doc "Whether everything a kept ledger holds may reach `audience` (kumbukumbu#87): a source for a composition bound there."
+  @spec ledger_allowed?(String.t(), [map()], map()) :: boolean()
+  defexport(ledger_allowed?(resident_id, ledger, audience),
+    do: Audience.decide_for(resident_id, Ledger.decode(ledger), audience, :hard).withheld == []
   )
 
   @doc "The union of a kept ledger's labels (kumbukumbu#84), for a file read."

@@ -62,7 +62,8 @@ defmodule Oneiroi.Seshat.Library do
           note: c.note,
           session_key: c.session_key,
           turn_ref: c.turn_ref,
-          ledger: c.ledger
+          ledger: c.ledger,
+          composed_for: c.composed_for
         }
     end
   end
