@@ -80,7 +80,7 @@ defmodule Oneiroi.Brain.Tools do
   @writes ~w(
     position_take position_replace dispute_check dispute_settle prediction_log
     figure_increment bookmark_add bookmark_extend bookmark_weigh bookmark_accept bookmark_decline
-    tag_propose tag_apply domain_tag soul_edit identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
+    tag_propose tag_apply domain_tag soul_edit soul_annotate identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_publish document_adopt keepsake_note letter_send notify_witness free_time_set free_time_once
@@ -372,6 +372,27 @@ defmodule Oneiroi.Brain.Tools do
           to: %{type: "string"}
         },
         [:q]
+      ),
+      tool(
+        "soul_annotate",
+        "Annotate one line of your SOUL.md by its number (soul/<n>): the domains it is about, each a slug and whose life (the witness's by default), or none for the common room; and private, which keeps the line to you and your witness whatever any policy says, opened only by annotating it again. The line is never cut and its words never change: a composition for an audience past you two leaves it out and cites it in its place. Unannotated, a line is the common room. note says why, in your words; every annotation is kept.",
+        %{
+          number: %{type: "integer", minimum: 1},
+          domains: %{
+            type: "array",
+            items: %{
+              type: "object",
+              properties: %{
+                domain: %{type: "string"},
+                whose: %{type: "string", enum: ["witness", "mine"]}
+              },
+              required: ["domain"]
+            }
+          },
+          private: %{type: "boolean"},
+          note: %{type: "string"}
+        },
+        [:number]
       ),
       tool(
         "identity_file_retire",
@@ -1636,6 +1657,39 @@ defmodule Oneiroi.Brain.Tools do
           )
   end
 
+  # A file read brings in the labels of the turn that wrote it, and
+  # answers its words. A portrait is read claim by claim (kumbukumbu#89):
+  # each fragment labelled by what it cites, and in a run composed for an
+  # audience, the claims it may not hear withheld and cited in place.
+  defp read_file(turn, "portraits/" <> _ = path, content) do
+    birth = Kumbukumbu.ledger_labels(Seshat.written_ledger(turn.resident_id, path, content)) || []
+
+    content
+    |> String.split(~r/\n[ \t]*\n/)
+    |> Enum.with_index(1)
+    |> Enum.map_join("\n\n", fn {fragment, i} ->
+      labels = fragment_labels(turn.resident_id, fragment, birth)
+      ref = "#{path}##{i}"
+
+      case portrait_withheld(turn, labels) do
+        [] ->
+          Kumbukumbu.note_read_labelled(
+            turn.resident_id,
+            Map.get(turn, :turn_ref),
+            "file/" <> ref,
+            ref,
+            labels,
+            fragment
+          )
+
+          fragment
+
+        domains ->
+          "(withheld: #{ref}, in conflict with this audience: #{Enum.join(domains, ", ")})"
+      end
+    end)
+  end
+
   defp read_file(turn, path, content) do
     labels = Kumbukumbu.ledger_labels(Seshat.written_ledger(turn.resident_id, path, content))
 
@@ -1647,7 +1701,63 @@ defmodule Oneiroi.Brain.Tools do
       labels,
       content
     )
+
+    content
   end
+
+  # A heading is the common room's; a claim, the labels of every turn
+  # and journal row it cites, and the file's own birth labels when any
+  # citation in it does not resolve, or it cites none: never less.
+  defp fragment_labels(resident_id, fragment, birth) do
+    if String.starts_with?(String.trim_leading(fragment), "#"),
+      do: [%{"kind" => "common_room"}],
+      else: claim_labels(resident_id, fragment, birth)
+  end
+
+  @turn_ref ~r/(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{16}(?![A-Za-z0-9_-])/
+  @journal_row ~r/journal (\d{4}-\d{2}-\d{2})\/(\d+)/
+
+  defp claim_labels(resident_id, fragment, birth) do
+    turns =
+      for [ref] <- Regex.scan(@turn_ref, fragment),
+          do: Kumbukumbu.turn_label_set(resident_id, ref)
+
+    rows =
+      for [_, day, n] <- Regex.scan(@journal_row, fragment),
+          do: row_labels(resident_id, {day, String.to_integer(n)})
+
+    resolved = turns ++ rows
+    Enum.uniq(List.flatten(resolved) ++ fallback(resolved, birth))
+  end
+
+  # Nothing cited resolves, or a citation does not: the file's birth.
+  defp fallback(resolved, birth) do
+    cond do
+      resolved != [] and Enum.all?(resolved, &(&1 != [])) -> []
+      birth == [] -> [%{"kind" => "unclassified"}]
+      true -> birth
+    end
+  end
+
+  defp row_labels(resident_id, {day, n}) do
+    case Seshat.journal_day(resident_id, day) do
+      %{entries: entries} ->
+        case Enum.find(entries, &(&1.number == n)) do
+          %{} = e -> Map.get(e, :labels) || [%{"kind" => "unclassified"}]
+          nil -> []
+        end
+
+      nil ->
+        []
+    end
+  end
+
+  defp portrait_withheld(%{audience: %{kind: kind} = audience} = turn, labels)
+       when kind not in ["dyad", "conversation"],
+       do:
+         Kumbukumbu.ledger_withheld(turn.resident_id, Kumbukumbu.labels_ledger(labels), audience)
+
+  defp portrait_withheld(_turn, _labels), do: []
 
   # ---- the audience check before a delivery (kumbukumbu#80) ----
   #
@@ -2429,6 +2539,23 @@ defmodule Oneiroi.Brain.Tools do
 
       {:refused, why} ->
         @not_done <> why
+    end
+  end
+
+  # Her annotation of a soul line (agathos-daimon#55, kumbukumbu#88).
+  defp call("soul_annotate", args, turn) do
+    domains = soul_domains(args["domains"], turn.resident_id)
+
+    case AgathosDaimon.annotate_soul_line(
+           turn.resident_id,
+           integer(args["number"]),
+           domains,
+           args["private"] == true,
+           args["note"],
+           turn.resident
+         ) do
+      :ok -> annotated_words(args)
+      other -> other
     end
   end
 
@@ -3539,7 +3666,7 @@ defmodule Oneiroi.Brain.Tools do
 
     with {:ok, from} <- offset(args["from"]),
          {:ok, %{document: row, content: content}} <- Seshat.read(turn.resident_id, name) do
-      read_file(turn, row.path, content)
+      content = read_file(turn, row.path, content)
 
       library_page(row, content, from) <>
         peeked(turn, row) <>
@@ -4353,7 +4480,38 @@ defmodule Oneiroi.Brain.Tools do
   defp answered("document_classify", args, turn),
     do: {classified_words(library_path(args["path"]), tagged_domain(args["domain"])), turn}
 
+  defp answered("soul_annotate", args, turn), do: {annotated_words(args), turn}
+
   defp answered(_done, _args, turn), do: {text(:ok), turn}
+
+  defp soul_domains(list, resident_id) do
+    for d <- List.wrap(list),
+        is_map(d),
+        domain = tagged_domain(d["domain"]),
+        is_binary(domain),
+        do: %{
+          "person" =>
+            if(d["whose"] == "mine",
+              do: "resident:" <> resident_id,
+              else: witness_person(resident_id)
+            ),
+          "domain" => domain
+        }
+  end
+
+  defp annotated_words(args) do
+    domains =
+      case for d <- List.wrap(args["domains"]),
+               is_map(d),
+               n = tagged_domain(d["domain"]),
+               n != nil,
+               do: n do
+        [] -> "the common room"
+        named -> Enum.join(named, ", ")
+      end
+
+    "Annotated soul/#{args["number"]}: #{domains}#{if args["private"] == true, do: ", private to you and your witness", else: ""}. Its words are unchanged."
+  end
 
   defp classified_words(path, domain),
     do:

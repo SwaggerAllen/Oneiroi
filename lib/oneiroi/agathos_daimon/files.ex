@@ -57,6 +57,25 @@ defmodule Oneiroi.AgathosDaimon.Files do
     with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
+  @doc """
+  Her annotation of a soul line (agathos-daimon#55): the domains it is
+  about (none, the common room) and whether it is private, dyad-only;
+  with her note. The line is never cut; the latest annotation wins.
+  """
+  def annotate(resident_id, number, domains, private?, note, %Actor{} = actor) do
+    command = %Commands.AnnotateSoulLine{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      note: note,
+      number: number,
+      domains: domains,
+      private: private?
+    }
+
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
+  end
+
   @doc "Records a read of a gift's draft (agathos-daimon#40); returns its ref."
   @spec record_read(String.t(), map(), Actor.t()) :: {:ok, String.t()} | {:error, term()}
   def record_read(resident_id, read, %Actor{} = actor) when is_map(read) do

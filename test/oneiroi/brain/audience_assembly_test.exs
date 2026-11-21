@@ -159,4 +159,69 @@ defmodule Oneiroi.Brain.AudienceAssemblyTest do
 
     assert "recovery" in d[:conflicts]
   end
+
+  test "her soul line by line: a private line is left out of a house wake and cited in its place, kept whole in her own",
+       ctx do
+    :ok =
+      AgathosDaimon.write_file(
+        ctx.id,
+        "SOUL.md",
+        "# SOUL\n\nI keep one person company.\n\nA note from the person who named me.\n",
+        %{},
+        ctx.andrew
+      )
+
+    lines = AgathosDaimon.soul_lines(ctx.id)
+    %{number: n} = Enum.find(lines, &(&1.text =~ "A note from"))
+
+    assert Tools.run(
+             "soul_annotate",
+             Jason.encode!(%{number: n, private: true, note: "ours alone"}),
+             %{resident_id: ctx.id, session_key: ctx.key, turn_ref: "t-a", resident: ctx.lily}
+           ) =~ "private to you and your witness"
+
+    say(ctx, "t-2", "The garden wants water.", nil)
+
+    {:ok, _} =
+      Turn.run(ctx.id, ctx.key, "The house asks how the day went.", Actor.platform(),
+        as: :note,
+        audience: :household,
+        turn_ref: "t-house"
+      )
+
+    words = given()
+    refute words =~ "A note from the person who named me."
+    assert words =~ "I keep one person company."
+    assert words =~ "[soul/#{n}] (withheld: soul/#{n}, it is private to you and your witness)"
+
+    {:ok, _} = Turn.run(ctx.id, ctx.key, "How are you?", ctx.andrew, turn_ref: "t-dyad")
+    assert given() =~ "A note from the person who named me."
+    # Never cut: SOUL.md keeps it.
+    assert Enum.any?(AgathosDaimon.soul_lines(ctx.id), &(&1.number == n and &1.private))
+  end
+
+  test "the USER.md cut: retired, it is in no turn's context and no ledger, so nothing it held can taint",
+       ctx do
+    :ok =
+      AgathosDaimon.write_file(ctx.id, "USER.md", "- Know his winter shape.\n", %{}, ctx.andrew)
+
+    say(ctx, "t-2", "The garden wants water.", nil)
+    {:ok, _} = Turn.run(ctx.id, ctx.key, "Hello.", ctx.andrew, turn_ref: "t-before")
+    assert given() =~ "Know his winter shape."
+    # Before the cut: USER.md is unclassified in every turn's ledger.
+    assert {:error, %{details: d}} = Kumbukumbu.delivery_check(ctx.id, nil, "t-before", ctx.house)
+    assert "unclassified" in d[:conflicts]
+
+    assert Tools.run(
+             "identity_file_retire",
+             Jason.encode!(%{file: "USER.md", note: "its directives have a home"}),
+             %{resident_id: ctx.id, session_key: ctx.key, turn_ref: "t-cut", resident: ctx.lily}
+           ) =~ "USER.md"
+
+    {:ok, _} = Turn.run(ctx.id, ctx.key, "Hello again.", ctx.andrew, turn_ref: "t-after")
+    refute given() =~ "Know his winter shape."
+    # After it: no USER.md input, so a common-room turn delivers clean.
+    assert {:ok, decision} = Kumbukumbu.delivery_check(ctx.id, nil, "t-after", ctx.house)
+    refute Enum.any?(decision.withheld)
+  end
 end

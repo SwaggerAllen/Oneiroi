@@ -399,6 +399,8 @@ defmodule Oneiroi.Brain.TrialTest do
     {"bookmark_accept", %{ref: "nope", line: "x", summary: "y"}},
     {"document_adopt", %{path: "writing/stray.md"}},
     {"document_move", %{from: "wiki/lily/pocket-andrew.md", to: "pocket-andrew.md"}},
+    # Her soul's annotation (agathos-daimon#55): answered as it would be.
+    {"soul_annotate", %{number: 1, domains: [%{domain: "recovery"}], private: true}},
     # Her classification (seshat#102): answered as it would be, nothing kept.
     {"document_classify", %{path: "design/note.md", domain: "none"}},
     # Her prefix (agathos-daimon#50): answered as it would be, nothing retired.

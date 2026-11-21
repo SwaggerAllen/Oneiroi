@@ -60,7 +60,7 @@ defmodule Oneiroi.Kumbukumbu.Audience do
   @type input :: %{
           required(:id) => String.t(),
           optional(:ref) => String.t(),
-          required(:labels) => [label()] | :common_room | :unclassified
+          required(:labels) => [label()] | :common_room | :unclassified | :private
         }
   @type audience :: %{
           required(:kind) => String.t(),
@@ -183,6 +183,8 @@ defmodule Oneiroi.Kumbukumbu.Audience do
     cond do
       private?(audience) -> :allow
       not resolved? -> {:withhold, :unresolved_audience, []}
+      # A private soul line (agathos-daimon#55): dyad-only, no grant path.
+      input.labels == :private -> {:withhold, :private, []}
       input.labels == :unclassified -> {:withhold, :unclassified, []}
       input.labels == :common_room -> label_verdicts([@common_room], audience, policies)
       input.labels == [] -> {:withhold, :unclassified, []}
@@ -294,6 +296,7 @@ defmodule Oneiroi.Kumbukumbu.Audience do
   defp reason_words(:not_allowed), do: "no policy allows this audience"
   defp reason_words(:unclassified), do: "its provenance is unclassified"
   defp reason_words(:unresolved_audience), do: "the audience is not resolved"
+  defp reason_words(:private), do: "it is private to you and your witness"
 
   defp conflict_words([]), do: ""
 

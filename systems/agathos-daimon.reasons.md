@@ -420,3 +420,8 @@ back, so the grant lives there and is revoked by the same two hands.
 A letter to the next self is read into a turn whole; without its
 writer's labels, a recovery-room letter would reach a house turn as if
 written in the common room.
+
+## #55
+The soul is hers and stays in her voice: the machinery's labels sit
+beside it as metadata she can always read, not inside the words she is
+given every turn.

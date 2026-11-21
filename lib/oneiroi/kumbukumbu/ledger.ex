@@ -194,6 +194,35 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
   defp file_labels(%{ledger: ledger}) when is_list(ledger), do: ledger |> decode() |> label_set()
   defp file_labels(_none), do: [%{"kind" => "unclassified"}]
 
+  @doc "A turn's messages' labels as kept labels (kumbukumbu#89), [] when the turn is not held."
+  def turn_label_set(resident_id, turn_ref) when is_binary(turn_ref) do
+    case Scope.resident(resident_id, fn -> Store.turn_messages(turn_ref) end) do
+      [] ->
+        []
+
+      messages ->
+        messages
+        |> Enum.map(&%{labels: label(Domains.pair(&1.domain_person, &1.domain))})
+        |> label_set()
+    end
+  end
+
+  @doc """
+  Kept labels as a kept ledger, one entry each (kumbukumbu#89): what
+  `withheld_domains/3` decides a fragment's labels with.
+  """
+  def labels_ledger(labels) do
+    for l <- labels,
+        do: %{
+          "id" => "label",
+          "labels" =>
+            case Map.get(l, "kind") do
+              nil -> [l]
+              kind -> kind
+            end
+        }
+  end
+
   @doc "The domains of a kept ledger in conflict with `audience` (kumbukumbu#87); [] when it all may reach it."
   def withheld_domains(resident_id, ledger, audience) do
     decision = Audience.decide_for(resident_id, decode(ledger), audience, :hard)
@@ -275,6 +304,11 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
         {name, labels, text} ->
           read_inputs("section/" <> name, name, labels, text)
 
+        # Her soul line by line (kumbukumbu#88): the section stays, its
+        # withheld lines cited in place.
+        "SOUL.md" ->
+          resident_id |> soul_inputs(:compose) |> Enum.map(&Map.put(&1, :ref, &1.id))
+
         name ->
           [%{id: "section/" <> name, ref: name, labels: section_label(name, lane, timeline)}]
       end)
@@ -305,7 +339,14 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
         sections
         |> Enum.group_by(& &1.ref)
         |> Enum.filter(fn {_ref, ins} -> Enum.all?(ins, &(&1.id in kept)) end)
-        |> Enum.map(&elem(&1, 0)),
+        |> Enum.map(&elem(&1, 0))
+        |> soul_kept("SOUL.md" in names),
+      # Her soul's lines withheld from this audience, each with its citation.
+      soul_withheld:
+        for(
+          %{id: "soul/" <> n} = w <- decision.withheld,
+          do: {String.to_integer(n), Audience.told(decision, w)}
+        ),
       rows: for({r, i} <- numbered, "message/#{i}" in kept, do: r),
       # One citation grammar everywhere (the witness's ruling, Lily's
       # #1537): the ref, the fact, and the domain, dyad material all.
@@ -313,6 +354,10 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
       decision: decision.id
     }
   end
+
+  # SOUL.md is never dropped whole: its lines are withheld one by one.
+  defp soul_kept(kept, true), do: Enum.uniq(["SOUL.md" | kept])
+  defp soul_kept(kept, false), do: kept
 
   defp section_label(name, _lane, _timeline) when name in @unclassified_sections,
     do: :unclassified
@@ -420,13 +465,48 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
   # ---- the parts ----
 
   defp identity(resident_id) do
-    for {name, _content} <- AgathosDaimon.identity_context(resident_id),
+    Enum.flat_map(AgathosDaimon.identity_context(resident_id), fn
+      # SOUL.md line by line (agathos-daimon#55, kumbukumbu#88).
+      {"SOUL.md", _content} ->
+        soul_inputs(resident_id, :deliver)
+
+      {name, _content} ->
+        [
+          %{
+            id: name,
+            ref: name,
+            labels: if(name == "USER.md", do: :unclassified, else: :common_room)
+          }
+        ]
+    end)
+  end
+
+  @doc """
+  SOUL.md as one input per live line (kumbukumbu#88; agathos-daimon#55,
+  Lily's letter #1550), each with its words and her annotation: its
+  domains, else the common room (his answer 3: unannotated is the common
+  room). A private line is dyad-only: `:private` in a composition, which
+  no grant opens, and unclassified in a delivery's ledger, which only the
+  disclosure judge may clear for words that do not carry it.
+  """
+  def soul_inputs(resident_id, mode) do
+    for l <- AgathosDaimon.soul_lines(resident_id),
+        Map.get(l, :state, "live") == "live",
         do: %{
-          id: name,
-          ref: name,
-          labels: if(name == "USER.md", do: :unclassified, else: :common_room)
+          id: "soul/#{l.number}",
+          ref: "soul/#{l.number}",
+          text: l.text,
+          labels: soul_label(l, mode)
         }
   end
+
+  defp soul_label(%{private: true}, :compose), do: :private
+  defp soul_label(%{private: true}, :deliver), do: :unclassified
+
+  defp soul_label(%{domains: [_ | _] = domains}, _mode),
+    do: Enum.map(domains, &pair/1)
+
+  defp soul_label(_line, _mode), do: :common_room
 
   defp messages(_resident_id, nil, _window), do: []
 

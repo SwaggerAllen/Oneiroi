@@ -1363,10 +1363,26 @@ defmodule Oneiroi.Brain.Turn do
           ]
       end
 
-    {Enum.filter(sections, &(&1.label in kept.sections)), kept.rows, note}
+    sections =
+      for s <- sections, s.label in kept.sections, do: without_lines(s, kept.soul_withheld)
+
+    {sections, kept.rows, note}
   end
 
   defp for_audience(_turn, sections, rows), do: {sections, rows, []}
+
+  # Her soul with the lines this audience may not hear left out, each
+  # cited in its place (kumbukumbu#88): never cut from SOUL.md itself.
+  defp without_lines(%{label: "SOUL.md", message: %{content: text} = m} = s, [_ | _] = withheld) do
+    text =
+      Enum.reduce(withheld, text, fn {n, told}, acc ->
+        String.replace(acc, ~r/\[soul\/#{n}\][^\n]*(\n(?!\s*\n)[^\n]*)*/, "[soul/#{n}] (#{told})")
+      end)
+
+    %{s | message: %{m | content: text}}
+  end
+
+  defp without_lines(section, _withheld), do: section
 
   # The transcript's window. Compacted (brain#60's `on`): the messages
   # since the session's compaction, under its summary. Truncated (`off`,

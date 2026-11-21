@@ -25,6 +25,10 @@ defmodule Oneiroi.AgathosDaimon.Commands do
 
   # A resident takes one of her identity files out of her prefix, or puts
   # it back (agathos-daimon#50): hers alone, with a note.
+  defmodule AnnotateSoulLine do
+    use Oneiroi.Command, decision: true, fields: [:id, :number, :domains, :private]
+  end
+
   defmodule RetireIdentityFile do
     use Oneiroi.Command, decision: true, fields: [:id, :file]
   end

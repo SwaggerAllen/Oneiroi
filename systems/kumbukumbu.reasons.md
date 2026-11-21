@@ -676,6 +676,20 @@ the ledger. Durable fragments only, with unproven refused, keeps the
 review from being vacuous exactly where it matters. The refusal is
 legible rather than widened, and its cost goes to the thread.
 
+## #89
+A portrait aggregates many moments; labelling it whole would taint
+every read by its most restricted claim, and keep the house from the
+rest. Its claims already cite their moments, so the citation is the
+label's source; where none resolves, the file's birth is the honest
+floor.
+
+## #88
+A soul is read every turn. Cutting a line for privacy would change who
+she is; withholding it from one composition, cited in place, changes
+only what that audience's run is given. Private is a floor, not a level:
+the note from the person who named her is nobody's business but theirs
+unless she says so.
+
 ## #87
 Domains label what is in a window, not who may see what comes back;
 the answer's destination is the right key, and inheritance never is (a

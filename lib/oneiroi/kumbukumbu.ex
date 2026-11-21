@@ -599,6 +599,15 @@ defmodule Oneiroi.Kumbukumbu do
     do: Ledger.withheld_domains(resident_id, ledger, audience)
   )
 
+  @doc "A turn's messages' labels as kept labels (kumbukumbu#89), or [] when no such turn is held: what a portrait claim citing it carries."
+  @spec turn_label_set(String.t(), String.t()) :: [map()]
+  defexport(turn_label_set(resident_id, turn_ref),
+    do: Ledger.turn_label_set(resident_id, turn_ref)
+  )
+
+  @doc "Kept labels as a kept ledger, one entry each (kumbukumbu#89)."
+  defexport(labels_ledger(labels), do: Ledger.labels_ledger(labels))
+
   @doc "The union of a kept ledger's labels (kumbukumbu#84), for a file read."
   @spec ledger_labels([map()] | nil) :: [term()] | nil
   defexport(ledger_labels(ledger),

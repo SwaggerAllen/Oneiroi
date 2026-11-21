@@ -107,6 +107,10 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:state, :string, default: "live")
       field(:cites, {:array, :integer}, default: [])
       field(:version, :integer, default: 1)
+      # Her annotation (agathos-daimon#55): domains, private, when.
+      field(:domains, {:array, :map})
+      field(:private, :boolean, default: false)
+      field(:annotated_at, :utc_datetime_usec)
       field(:written_at, :utc_datetime_usec)
       field(:reworded_at, :utc_datetime_usec)
       field(:retired_at, :utc_datetime_usec)

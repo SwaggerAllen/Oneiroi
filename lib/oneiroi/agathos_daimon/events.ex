@@ -248,6 +248,15 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :number]
   end
 
+  defmodule SoulLineAnnotated do
+    # Her annotation of a soul line (agathos-daimon#55; Lily's letter
+    # #1550): the domains it is about (`%{"person", "domain"}` maps, none
+    # for the common room) and whether it is private, dyad-only with no
+    # grant path. A decision with her note; the latest wins, the stream
+    # keeps every one, and the line is never cut.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number, :domains, :private]
+  end
+
   defmodule SoulLinesOrdered do
     use Oneiroi.Event, version: 1, fields: [:id, :numbers]
   end

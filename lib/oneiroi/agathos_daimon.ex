@@ -93,6 +93,7 @@ defmodule Oneiroi.AgathosDaimon do
       Events.SoulLineReworded,
       Events.SoulLineRetired,
       Events.SoulLinesOrdered,
+      Events.SoulLineAnnotated,
       Events.ModelPinChanged,
       Events.ModelChangeTold,
       Events.TimezoneSet,
@@ -201,6 +202,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.SoulLineReworded, 1},
       {Oneiroi.AgathosDaimon.Events.SoulLineRetired, 1},
       {Oneiroi.AgathosDaimon.Events.SoulLinesOrdered, 1},
+      {Oneiroi.AgathosDaimon.Events.SoulLineAnnotated, 1},
       {Oneiroi.AgathosDaimon.Events.ModelPinChanged, 1},
       {Oneiroi.AgathosDaimon.Events.ModelChangeTold, 1},
       {Oneiroi.AgathosDaimon.Events.TimezoneSet, 1},
@@ -259,6 +261,9 @@ defmodule Oneiroi.AgathosDaimon do
       {:agathos_daimon_not_yours,
        "only the resident takes one of her identity files out of her prefix, or puts it back (agathos-daimon#50)",
        remedy: "she does it from her own turn, with identity_file_retire"},
+      {:agathos_daimon_soul_line_unknown,
+       "a soul line is annotated by its number, live, with at most ten domains and whether it is private (agathos-daimon#55)",
+       remedy: "name a live line's number, each domain a slug with whose life"},
       {:agathos_daimon_file_unknown, "that is not one of the identity files",
        remedy: "SOUL.md, IDENTITY.md, USER.md, GOALS.md or LINKS.md; AGENTS.md is build-owned"},
       {:agathos_daimon_content_invalid, "a file is UTF-8 text of at most 64,000 bytes",
@@ -521,6 +526,20 @@ defmodule Oneiroi.AgathosDaimon do
 
   @doc "The soul file's live lines in order, each with its number, its words and the seeds it cites (spec §6.17)."
   defexport(soul_lines(id), do: Files.soul_lines(id))
+
+  @doc "Her annotation of a soul line (agathos-daimon#55): domains (person and domain maps, [] the common room) and private (dyad-only), with her note."
+  @spec annotate_soul_line(
+          String.t(),
+          pos_integer(),
+          [map()],
+          boolean(),
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) ::
+          :ok | {:error, term()}
+  defexport(annotate_soul_line(id, number, domains, private?, note, actor),
+    do: Files.annotate(id, number, domains, private?, note, actor)
+  )
 
   @doc "She takes one of her identity files out of her prefix, or puts it back (agathos-daimon#50), with a note."
   @spec retire_identity_file(String.t(), String.t(), boolean(), String.t(), Oneiroi.Actor.t()) ::

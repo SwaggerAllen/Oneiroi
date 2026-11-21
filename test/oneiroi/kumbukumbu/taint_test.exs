@@ -176,4 +176,41 @@ defmodule Oneiroi.Kumbukumbu.TaintTest do
     :ok = AgathosDaimon.agree_contract(ctx.id, v, "agreed", ctx.lily)
     assert ask(ctx, "t-ask") =~ "withheld by policy"
   end
+
+  test "a portrait is read claim by claim: each by what it cites, and a house-bound run withholds the recovery claim",
+       ctx do
+    # Two turns with refs of the real shape, one in recovery, one in the common room.
+    say(ctx, "abcdefghijklmnop", "The meeting at noon.", "recovery")
+    say(ctx, "ABCDEFGHIJKLMNOP", "The garden at noon.", nil)
+
+    {:ok, "portraits"} = Seshat.define_kind(ctx.id, %{"kind" => "portraits"}, nil, ctx.andrew)
+
+    {:ok, _} =
+      Seshat.write(
+        ctx.id,
+        "portraits/ray.md",
+        "# Ray\n\n- **At the meeting.** He spoke first. (turn abcdefghijklmnop.)\n\n- **In the garden.** He brought seeds. (turn ABCDEFGHIJKLMNOP.)\n",
+        ctx.lily
+      )
+
+    # Her own read: the recovery claim's label joins the turn.
+    assert run(ctx, "library_read", %{path: "portraits/ray.md"}, "t-read") =~ "He spoke first."
+    assert {:error, %{details: d}} = reading_turn(ctx, "t-read")
+    assert d[:conflicts] == ["recovery"]
+
+    # A run composed for the house: that claim withheld and cited in place.
+    said =
+      Tools.run("library_read", Jason.encode!(%{path: "portraits/ray.md"}), %{
+        resident_id: ctx.id,
+        session_key: ctx.key,
+        turn_ref: "t-house",
+        resident: ctx.lily,
+        audience: ctx.house
+      })
+
+    refute said =~ "He spoke first."
+    assert said =~ "He brought seeds."
+    assert said =~ "(withheld: portraits/ray.md#2, in conflict with this audience: recovery)"
+    assert {:ok, _} = reading_turn(ctx, "t-house")
+  end
 end
