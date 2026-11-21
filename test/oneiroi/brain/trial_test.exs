@@ -399,6 +399,8 @@ defmodule Oneiroi.Brain.TrialTest do
     {"bookmark_accept", %{ref: "nope", line: "x", summary: "y"}},
     {"document_adopt", %{path: "writing/stray.md"}},
     {"document_move", %{from: "wiki/lily/pocket-andrew.md", to: "pocket-andrew.md"}},
+    # Her classification (seshat#102): answered as it would be, nothing kept.
+    {"document_classify", %{path: "design/note.md", domain: "none"}},
     # Her prefix (agathos-daimon#50): answered as it would be, nothing retired.
     {"identity_file_retire", %{file: "USER.md", note: "migrated"}}
   ]
@@ -446,6 +448,9 @@ defmodule Oneiroi.Brain.TrialTest do
 
     assert {_, "Moved wiki/lily/pocket-andrew.md to pocket-andrew.md (root)."} =
              List.keyfind(answered, "document_move", 0)
+
+    assert {_, "Classified design/note.md as the common room" <> _} =
+             List.keyfind(answered, "document_classify", 0)
 
     assert {"journal_add", "Added note 1 to #{day}."} == List.keyfind(answered, "journal_add", 0)
 

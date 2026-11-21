@@ -492,6 +492,28 @@ defmodule Oneiroi.Seshat.Documents do
     do: Scope.resident(resident_id, fn -> Store.discussions(path) end)
 
   @doc """
+  Its author classifies a document (seshat#102, kumbukumbu#85): whose
+  life and which domain, or the common room (`domain` nil), with her
+  note. What a delivery of its words is gated by from then on, until
+  she classifies it again.
+  """
+  def classify(resident_id, path, person, domain, note, %Actor{} = actor) do
+    with {:ok, path} <- normalize(resident_id, path),
+         {:ok, _events} <-
+           dispatch(%Commands.ClassifyDocument{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             note: note(note) || "classified",
+             path: path,
+             person: domain && person,
+             domain: domain
+           }) do
+      {:ok, %{path: path, person: domain && person, domain: domain}}
+    end
+  end
+
+  @doc """
   Moves a document from one path to another (seshat#39): from one kind to
   another when the folders differ, its bytes unchanged. The mover may
   write both kinds (`write/4`'s rule, so a system's own kinds and the
@@ -502,7 +524,6 @@ defmodule Oneiroi.Seshat.Documents do
   in the repository, the index re-keyed without an embedding, and a
   citation of the old path follows to the new one.
   """
-
   def move(resident_id, from, to, %Actor{} = actor, opts \\ []) do
     core = Keyword.get(opts, :core, false)
 

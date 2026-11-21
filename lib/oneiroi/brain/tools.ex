@@ -84,7 +84,7 @@ defmodule Oneiroi.Brain.Tools do
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_publish document_adopt keepsake_note letter_send notify_witness free_time_set free_time_once
-    reply_draft correspondent_block correspondent_unblock document_remove document_move
+    reply_draft correspondent_block correspondent_unblock document_remove document_move document_classify
     journal_add journal_done scene_write
     contract_propose contract_agree contract_decline contract_renew contract_safe revision_add
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
@@ -991,6 +991,17 @@ defmodule Oneiroi.Brain.Tools do
         %{from: %{type: "string"}, to: %{type: "string"}},
         [:from, :to]
       ),
+      tool(
+        "document_classify",
+        "Say which domain a document of yours is in: a part of someone's life, as a slug (recovery, business, family), or none for the common room; whose: the witness's life or yours (mine), the witness's by default. A promotion, a publish or a copy of the file to the house is decided by its domain alone (kumbukumbu#85): yours when you have classified it, else the union of what the turn that wrote it held, else unclassified, which no audience past you and your witness takes. Classify an older file as you touch it, and correct one born in a restricted room whose words are not. note says why, in your words; every classification is kept.",
+        %{
+          path: %{type: "string"},
+          domain: %{type: "string"},
+          whose: %{type: "string", enum: ["witness", "mine"]},
+          note: %{type: "string"}
+        },
+        [:path, :domain]
+      ),
       # The household's shelf (seshat#58 to #64): the library's grammar,
       # pointed at the repository the household shares.
       tool(
@@ -1781,13 +1792,9 @@ defmodule Oneiroi.Brain.Tools do
 
   defp decision_words(d), do: if(d[:decision], do: " (decision #{d[:decision]})", else: "")
 
-  # A file's words carry the context that wrote them (kumbukumbu#83).
+  # A file is gated by its own domain (kumbukumbu#85).
   defp held_words(d),
-    do:
-      if(d[:source],
-        do: "#{d[:source]} was written in a turn whose context held",
-        else: "this turn's context holds"
-      )
+    do: if(d[:source], do: "#{d[:source]} is in", else: "this turn's context holds")
 
   # What the disclosure review said (kumbukumbu#82), to her alone.
   defp review_words(%{site: :kumbukumbu_disclosure_discloses, details: d}),
@@ -1806,9 +1813,13 @@ defmodule Oneiroi.Brain.Tools do
   defp review_words(%{site: :kumbukumbu_disclosure_denied}),
     do: "A policy denies this audience outright, which no review can lift. "
 
-  defp review_words(%{site: :kumbukumbu_ledger_file_unproven, details: d}),
+  defp review_words(%{site: :kumbukumbu_ledger_file_withheld, details: d}),
     do:
-      "#{d[:source]} was written before its writing turn was recorded, or by no turn of yours, so what its words came from cannot be shown; it is unproven. Write it again in a turn whose context may reach this audience, then send that. "
+      if(d[:classified],
+        do: "That is the domain you classified it in. ",
+        else:
+          "That is its domain by birth (what the turn that wrote it held), or unclassified for a file written before that was kept. If its words are in another domain, say so with document_classify. "
+      )
 
   defp review_words(_unreviewed), do: ""
 
@@ -3838,6 +3849,28 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # Her classification of her own document (seshat#102, kumbukumbu#85).
+  defp call("document_classify", args, turn) do
+    domain = tagged_domain(args["domain"])
+
+    person =
+      if args["whose"] == "mine",
+        do: "resident:" <> turn.resident_id,
+        else: witness_person(turn.resident_id)
+
+    case Seshat.classify(
+           turn.resident_id,
+           to_string(args["path"] || ""),
+           person,
+           domain,
+           args["note"],
+           turn.resident
+         ) do
+      {:ok, %{path: path}} -> classified_words(path, domain)
+      other -> other
+    end
+  end
+
   defp call("document_move", args, turn) do
     with :ok <- portrait_earned(turn, args["to"]) do
       move_document(args, turn)
@@ -4314,7 +4347,14 @@ defmodule Oneiroi.Brain.Tools do
     {"Moved #{from} to #{to} (#{kind}).", turn}
   end
 
+  defp answered("document_classify", args, turn),
+    do: {classified_words(library_path(args["path"]), tagged_domain(args["domain"])), turn}
+
   defp answered(_done, _args, turn), do: {text(:ok), turn}
+
+  defp classified_words(path, domain),
+    do:
+      "Classified #{path} as #{domain || "the common room"}: a delivery of its words is decided by that domain from now on."
 
   defp mint(turn, kind, current) do
     minted = Map.get(turn, :minted, %{})

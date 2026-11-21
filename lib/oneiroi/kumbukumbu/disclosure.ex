@@ -144,8 +144,7 @@ defmodule Oneiroi.Kumbukumbu.Disclosure do
         verdict: Atom.to_string(verdict.verdict),
         reasons: verdict.reasons,
         candidate_sha: :sha256 |> :crypto.hash(candidate) |> Base.encode16(case: :lower),
-        # A file's words name their path and commit first (kumbukumbu#83).
-        fragment_refs: List.wrap(Map.get(turn, :source)) ++ Enum.map(fragments, & &1.ref),
+        fragment_refs: Enum.map(fragments, & &1.ref),
         model: verdict.model
       },
       Actor.new(:judge, "disclosure", verdict.model)

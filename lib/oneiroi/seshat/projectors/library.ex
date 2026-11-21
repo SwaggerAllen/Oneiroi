@@ -57,6 +57,16 @@ defmodule Oneiroi.Seshat.Projectors.Library do
     )
   end)
 
+  # Its classification (seshat#102): the latest wins.
+  fold(%Events.DocumentClassified{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :classified,
+      from(d in Document, where: d.resident_id == ^e.id and d.path == ^e.path),
+      set: [class_person: e.person, class_domain: e.domain, classified_at: e.at]
+    )
+  end)
+
   # Archived (seshat#45): a row for the archived copy, the old row made
   # the tombstone, the old chunks gone; the index reads neither again.
   fold(%Events.DocumentArchived{} = e, _metadata, fn multi ->

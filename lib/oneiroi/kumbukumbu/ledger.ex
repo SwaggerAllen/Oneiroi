@@ -157,51 +157,42 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
   defp pair(l), do: %{person: get(l, "person"), domain: get(l, "domain")}
 
   @doc """
-  Whether a file's words at a commit may be delivered to `audience`
-  (kumbukumbu#83): decided against the ledger of the turn that wrote
-  them, never the delivering turn's, and reviewed with those words when
-  held back. `file` is `%{words, source, ledger, turn_ref}`, the ledger
-  as kept (nil when the version predates provenance: unproven, refused).
-  `turn` is the delivering turn, where a verdict is recorded.
+  Whether a file's words may be delivered to `audience` (kumbukumbu#85;
+  the witness's ruling 2, Lily's letters #1528 and #1530): by the
+  document's domain alone, a mechanical check, no judge. Its domain is
+  its author's classification when she made one (`file.classified`,
+  seshat#102), else its birth, the union of every label its writing
+  turn held (the conversation's domain among them, `file.ledger`), else
+  unclassified, which refuses. `turn` is the delivering turn; the
+  refusal names the domains in conflict, the source and the decision.
   """
-  def check_file(_resident_id, _turn, audience, %{ledger: nil} = file) do
-    {:error,
-     Error.new(:kumbukumbu_withheld_by_policy, :kumbukumbu_ledger_file_unproven,
-       audience: "#{audience.kind}:#{audience.id}",
-       source: file.source,
-       conflicts: ["unproven"]
-     )}
-  end
-
-  def check_file(resident_id, turn, audience, file) do
-    inputs = decode(file.ledger)
+  def check_file(resident_id, _turn, audience, file) do
+    labels = file_labels(file)
+    inputs = read_inputs("file/" <> file.source, file.source, labels, nil)
     decision = Audience.decide_for(resident_id, inputs, audience, :hard)
-
-    refused = [
-      decision: decision.id,
-      audience: "#{audience.kind}:#{audience.id}",
-      conflicts: conflicts(decision.withheld),
-      source: file.source
-    ]
 
     if decision.withheld == [] do
       {:ok, decision}
     else
-      # The words behind what was held back, from the writing turn's
-      # durable parts: an input only that turn's memory held is unproven.
-      shown = fn held -> fragments(resident_id, file.turn_ref, held) end
-
-      Disclosure.review(
-        Map.put(turn, :source, file.source),
-        audience,
-        file.words,
-        decision,
-        inputs,
-        refused,
-        shown
-      )
+      {:error,
+       Error.new(:kumbukumbu_withheld_by_policy, :kumbukumbu_ledger_file_withheld,
+         decision: decision.id,
+         audience: "#{audience.kind}:#{audience.id}",
+         conflicts: conflicts(decision.withheld),
+         source: file.source,
+         classified: file[:classified] != nil
+       )}
     end
   end
+
+  # Explicit classification > birth union > unclassified.
+  defp file_labels(%{classified: %{domain: nil}}), do: [%{"kind" => "common_room"}]
+
+  defp file_labels(%{classified: %{person: person, domain: domain}}),
+    do: [%{"person" => person, "domain" => domain}]
+
+  defp file_labels(%{ledger: ledger}) when is_list(ledger), do: ledger |> decode() |> label_set()
+  defp file_labels(_none), do: [%{"kind" => "unclassified"}]
 
   @doc "The timeline lane's labels (kumbukumbu#81): every domain its anchors hold, or the common room."
   def timeline_labels(resident_id) do
@@ -273,8 +264,14 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
     timeline = timeline_labels(resident_id)
 
     sections =
-      for name <- Enum.uniq(names),
-          do: %{id: "section/" <> name, ref: name, labels: section_label(name, lane, timeline)}
+      Enum.flat_map(Enum.uniq(names), fn
+        # A section with labels of its own (kumbukumbu#84), one input each.
+        {name, labels, text} ->
+          read_inputs("section/" <> name, name, labels, text)
+
+        name ->
+          [%{id: "section/" <> name, ref: name, labels: section_label(name, lane, timeline)}]
+      end)
 
     numbered = Enum.with_index(rows)
 
@@ -297,7 +294,12 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
     )
 
     %{
-      sections: for(s <- sections, s.id in kept, do: s.ref),
+      # A section is kept when every input it was decided by is.
+      sections:
+        sections
+        |> Enum.group_by(& &1.ref)
+        |> Enum.filter(fn {_ref, ins} -> Enum.all?(ins, &(&1.id in kept)) end)
+        |> Enum.map(&elem(&1, 0)),
       rows: for({r, i} <- numbered, "message/#{i}" in kept, do: r),
       withheld: Enum.map(decision.withheld, &Audience.told(decision, &1)),
       decision: decision.id

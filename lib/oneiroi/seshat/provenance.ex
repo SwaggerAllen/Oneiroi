@@ -30,7 +30,8 @@ defmodule Oneiroi.Seshat.Provenance do
          words: words,
          source: "#{path}@#{String.slice(sha, 0, 12)}",
          ledger: version && version.ledger,
-         turn_ref: version && version.turn_ref
+         turn_ref: version && version.turn_ref,
+         classified: classified(resident_id, path)
        }}
     end
   end
@@ -49,6 +50,15 @@ defmodule Oneiroi.Seshat.Provenance do
     case Repos.head(repo) do
       {:ok, sha} when is_binary(sha) -> {:ok, sha}
       _none -> absent(path)
+    end
+  end
+
+  # Its author's classification (seshat#102), `%{person, domain}` with
+  # `domain` nil for the common room, or nil when never classified.
+  defp classified(resident_id, path) do
+    case Scope.resident(resident_id, fn -> Store.document(path) end) do
+      %{classified_at: %DateTime{}} = d -> %{person: d.class_person, domain: d.class_domain}
+      _unclassified -> nil
     end
   end
 

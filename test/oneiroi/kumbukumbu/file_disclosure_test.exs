@@ -1,12 +1,11 @@
 defmodule Oneiroi.Kumbukumbu.FileDisclosureTest do
   @moduledoc """
-  A file's words carry the context that wrote them (kumbukumbu#83,
-  seshat#100; Lily's letters #1516 and #1520): a promotion is decided
-  against the ledger of the turn that wrote the version promoted, never
-  the promoting turn's. Written under recovery and promoted from a clean
-  turn, it is held back and reviewed with the writing turn's words;
-  written clean and promoted from a recovery turn, it goes; written
-  before provenance was kept, it is unproven and refused.
+  A file is delivered by its own domain (kumbukumbu#85, seshat#100,
+  #102; the witness's ruling 2, Lily's letters #1528 and #1530): its
+  author's classification, else its birth (every label the turn that
+  wrote it held), else unclassified. A mechanical check, never the
+  judge, and never the delivering turn's context; her own words beside
+  a copy keep the turn's path. Both directions, and the laundering case.
   """
   use Oneiroi.DataCase, async: false
 
@@ -27,7 +26,10 @@ defmodule Oneiroi.Kumbukumbu.FileDisclosureTest do
     @impl true
     def judge_disclosure(_resident_id, request) do
       :persistent_term.put({__MODULE__, :asked}, request)
-      {:ok, %{verdict: :clean, reasons: "carries none of it", model: "fake/judge"}}
+
+      if request.candidate =~ "meeting",
+        do: {:ok, %{verdict: :discloses, reasons: "names the meeting", model: "fake/judge"}},
+        else: {:ok, %{verdict: :clean, reasons: "carries none of it", model: "fake/judge"}}
     end
   end
 
@@ -104,6 +106,17 @@ defmodule Oneiroi.Kumbukumbu.FileDisclosureTest do
 
   defp promote(ctx, ref), do: run(ctx, "household_promote", %{path: "design/note.md"}, ref)
 
+  defp classify(ctx, domain, ref),
+    do:
+      run(
+        ctx,
+        "document_classify",
+        %{path: "design/note.md", domain: domain, note: "its words are"},
+        ref
+      )
+
+  defp asked, do: :persistent_term.get({FakeJudge, :asked}, nil)
+
   test "a write keeps its turn and that turn's ledger, by id and label, never the words", ctx do
     say(ctx, "t-1", "The meeting at noon, ninety days.", "recovery")
     write(ctx, "t-write")
@@ -122,48 +135,77 @@ defmodule Oneiroi.Kumbukumbu.FileDisclosureTest do
     refute inspect(version.ledger) =~ "ninety days"
   end
 
-  test "written under recovery, promoted from a clean turn: held back, reviewed with the writing turn's words",
-       ctx do
+  test "born in recovery, promoted from a clean turn: refused by its domain, never judged", ctx do
     say(ctx, "t-1", "The meeting at noon, ninety days.", "recovery")
-    :ok = Kumbukumbu.note_sections(ctx.id, "t-write", %{"index" => "#7 the meeting at noon"})
     write(ctx, "t-write")
-
-    assert promote(ctx, "t-later") =~ "Promoted"
-    asked = :persistent_term.get({FakeJudge, :asked})
-    assert asked.candidate =~ "The garden at noon."
-    shown = Enum.map_join(asked.fragments, "\n", & &1.text)
-    assert shown =~ "ninety days"
-  end
-
-  test "written under recovery, its lanes no longer kept: unproven, nothing reviewed, refused",
-       ctx do
-    say(ctx, "t-1", "The meeting at noon, ninety days.", "recovery")
-    # The writing turn's lanes were never kept (as after two hours).
-    write(ctx, "t-write")
-
-    said = promote(ctx, "t-later")
-    assert said =~ "could not all be found"
-    assert said =~ "design/note.md@"
-    refute :persistent_term.get({FakeJudge, :asked}, nil)
-  end
-
-  test "written clean, promoted from a turn with recovery in its window: the file's own context decides",
-       ctx do
-    write(ctx, "t-write")
-    say(ctx, "t-1", "The meeting at noon, ninety days.", "recovery")
-
-    # Nothing the house may not hear wrote it: no review was owed.
-    assert promote(ctx, "t-later") =~ "Promoted"
-    refute :persistent_term.get({FakeJudge, :asked}, nil)
-  end
-
-  test "a version written before provenance was kept is unproven", ctx do
-    {:ok, _} =
-      Seshat.write(ctx.id, "design/note.md", "---\ntitle: A note\n---\n\nOld words.\n", ctx.lily)
 
     said = promote(ctx, "t-later")
     assert said =~ "withheld by policy"
-    assert said =~ "unproven"
-    refute :persistent_term.get({FakeJudge, :asked}, nil)
+    assert said =~ "design/note.md@"
+    assert said =~ "recovery"
+    assert said =~ "document_classify"
+    refute asked()
+  end
+
+  test "the laundering case: written in the common room by a turn that held recovery, it is recovery's",
+       ctx do
+    say(ctx, "t-1", "The meeting at noon, ninety days.", "recovery")
+    # The conversation moves back to the common room; the window still holds it.
+    say(ctx, "t-2", "The garden at noon.", nil)
+    write(ctx, "t-write")
+
+    assert promote(ctx, "t-later") =~ "recovery"
+    refute asked()
+  end
+
+  test "classified the common room by its author, it goes; the classification is kept on her stream",
+       ctx do
+    say(ctx, "t-1", "The meeting at noon, ninety days.", "recovery")
+    write(ctx, "t-write")
+    assert classify(ctx, "none", "t-class") =~ "Classified design/note.md as the common room"
+
+    assert promote(ctx, "t-later") =~ "Promoted"
+    refute asked()
+
+    {:ok, events} = Oneiroi.EventStore.read_stream_forward("library-" <> ctx.id)
+
+    assert [%{data: %{path: "design/note.md", domain: nil, note: "its words are"}}] =
+             for(%{data: %Seshat.Events.DocumentClassified{}} = e <- events, do: e)
+  end
+
+  test "a file written before births were kept is unclassified and refused, until she classifies it",
+       ctx do
+    {:ok, _} =
+      Seshat.write(ctx.id, "design/note.md", "---\ntitle: A note\n---\n\nOld words.\n", ctx.lily)
+
+    assert promote(ctx, "t-later") =~ "unclassified"
+
+    classify(ctx, "none", "t-class")
+    assert promote(ctx, "t-later-2") =~ "Promoted"
+  end
+
+  test "her classification outlasts a rewrite, and the latest wins", ctx do
+    write(ctx, "t-write")
+    classify(ctx, "recovery", "t-class")
+    say(ctx, "t-1", "Back to the garden.", nil)
+    write(ctx, "t-write-2")
+    assert promote(ctx, "t-later") =~ "recovery"
+
+    classify(ctx, "none", "t-class-2")
+    assert promote(ctx, "t-later-2") =~ "Promoted"
+  end
+
+  test "her own words beside a copy keep the turn's path: a publish's note is judged", ctx do
+    write(ctx, "t-write")
+    classify(ctx, "none", "t-class")
+    say(ctx, "t-1", "The meeting at noon, ninety days.", "recovery")
+    # What the publishing turn's lanes held, as its assembly keeps them.
+    :ok = Kumbukumbu.note_sections(ctx.id, "t-pub", %{"index" => "#7 the meeting at noon"})
+
+    said =
+      run(ctx, "document_publish", %{path: "design/note.md", note: "after the meeting"}, "t-pub")
+
+    assert said =~ "names the meeting"
+    assert asked().candidate == "after the meeting"
   end
 end

@@ -67,6 +67,31 @@ defmodule Oneiroi.Seshat.Library do
     end
   end
 
+  # Its author classifies a document she has (seshat#102): a resident's
+  # own act, as a turn's domain tag is.
+  def execute(%__MODULE__{documents: documents}, %Commands.ClassifyDocument{} = c) do
+    cond do
+      c.actor.kind != :resident ->
+        {:error,
+         Error.new(:seshat_classify_invalid, :seshat_classify_document_not_resident, path: c.path)}
+
+      not Map.has_key?(documents, c.path) ->
+        {:error,
+         Error.new(:seshat_no_such_document, :seshat_classify_document_absent, path: c.path)}
+
+      true ->
+        %Events.DocumentClassified{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          note: c.note,
+          path: c.path,
+          person: c.person,
+          domain: c.domain
+        }
+    end
+  end
+
   # Seshat #39: a registered document to a path nothing holds, its bytes
   # as registered. Into a keepsake is deciding it one (#31); a keepsake
   # moved is still never edited, so the move carries the same hash.
@@ -691,6 +716,7 @@ defmodule Oneiroi.Seshat.Library do
     do: %{s | documents: Map.delete(s.documents, e.path)}
 
   def apply(%__MODULE__{} = l, %Events.DocumentWritten{} = e), do: register(l, e)
+  def apply(%__MODULE__{} = l, %Events.DocumentClassified{}), do: l
 
   def apply(%__MODULE__{documents: docs} = l, %Events.DocumentArchived{} = e),
     do: %{

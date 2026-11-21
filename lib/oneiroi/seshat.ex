@@ -64,6 +64,7 @@ defmodule Oneiroi.Seshat do
       HouseholdBeatWorker,
       HouseholdTurnWorker,
       Commands.WriteDocument,
+      Commands.ClassifyDocument,
       Commands.AdoptDocument,
       Commands.PublishPiece,
       Commands.PublishDocument,
@@ -79,6 +80,7 @@ defmodule Oneiroi.Seshat do
       Commands.AnswerDigest,
       Commands.FailDigest,
       Events.DocumentWritten,
+      Events.DocumentClassified,
       Events.DocumentAdopted,
       Events.PiecePublished,
       Events.DocumentPublished,
@@ -287,6 +289,7 @@ defmodule Oneiroi.Seshat do
   def events do
     [
       {Oneiroi.Seshat.Events.DocumentWritten, 3},
+      {Oneiroi.Seshat.Events.DocumentClassified, 1},
       {Oneiroi.Seshat.Events.DocumentAdopted, 2},
       {Oneiroi.Seshat.Events.PiecePublished, 1},
       {Oneiroi.Seshat.Events.DocumentPublished, 1},
@@ -482,6 +485,9 @@ defmodule Oneiroi.Seshat do
       {:seshat_lease_invalid,
        "an edit lease is the witness's editor's: acquired, renewed and released by a witness",
        remedy: "the resident's document_write waits on a lease rather than taking one"},
+      {:seshat_classify_invalid,
+       "a document's domain is classified by the resident whose document it is (seshat#102)",
+       remedy: "classify it from her own turn"},
       {:seshat_no_such_document, "no registered document has that path",
        remedy: "write it, or adopt the file if it was made outside the flow"},
       {:seshat_no_such_file, "no file at that path in the repository",
@@ -1200,6 +1206,20 @@ defmodule Oneiroi.Seshat do
   @spec move(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, %{from: String.t(), to: String.t(), kind: String.t()}} | {:error, term()}
   defexport(move(resident_id, from, to, actor), do: Documents.move(resident_id, from, to, actor))
+
+  @doc "Its author classifies a document (seshat#102): `person` and `domain`, or the common room (`domain` nil), with her note."
+  @spec classify(
+          String.t(),
+          String.t(),
+          String.t() | nil,
+          String.t() | nil,
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) ::
+          {:ok, map()} | {:error, term()}
+  defexport(classify(resident_id, path, person, domain, note, actor),
+    do: Documents.classify(resident_id, path, person, domain, note, actor)
+  )
 
   @doc "Adopts a file made outside the flow, registering it; the index runs."
   @spec adopt(String.t(), String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}

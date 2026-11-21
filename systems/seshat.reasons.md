@@ -839,3 +839,10 @@ the event line holds no restricted words.
 The journal and research answers are what her turns write down most.
 Without the writing turn's labels, they are where a restricted room's
 words go to lose their taint.
+
+## #102
+Without a classification, a file born before births were kept could
+never reach the house, and a clean file born in a restricted room
+could not either. Her act, recorded with her note, is what makes "a
+document has its domain" true, and keeps the gate exactly as honest as
+the classification.

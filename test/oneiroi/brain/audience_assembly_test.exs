@@ -12,6 +12,7 @@ defmodule Oneiroi.Brain.AudienceAssemblyTest do
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Turn
   alias Oneiroi.Fixtures
   alias Oneiroi.Gaia
@@ -121,5 +122,39 @@ defmodule Oneiroi.Brain.AudienceAssemblyTest do
     # The same turn, its answer carried to the house, is refused there.
     assert {:error, %{kind: :kumbukumbu_withheld_by_policy}} =
              Kumbukumbu.delivery_check(ctx.id, ctx.key, "t-dyad", ctx.house)
+  end
+
+  test "today's journal is decided by its rows: a recovery row keeps the section from the house",
+       ctx do
+    say(ctx, "t-1", "The meeting at noon, ninety days.", "recovery")
+
+    assert Tools.run(
+             "journal_add",
+             Jason.encode!(%{kind: "note", text: "Counted the days again."}),
+             %{resident_id: ctx.id, session_key: ctx.key, turn_ref: "t-j", resident: ctx.lily}
+           ) =~ "Added"
+
+    say(ctx, "t-2", "The garden wants water.", nil)
+
+    {:ok, _} =
+      Turn.run(ctx.id, ctx.key, "The house asks how the day went.", Actor.platform(),
+        as: :note,
+        audience: :household,
+        turn_ref: "t-house"
+      )
+
+    words = given()
+    refute words =~ "Counted the days again."
+    assert words =~ "has been left out of your context"
+    assert {:ok, _} = Kumbukumbu.delivery_check(ctx.id, ctx.key, "t-house", ctx.house)
+
+    # Her own conversation shows it, and the turn holds it.
+    {:ok, _} = Turn.run(ctx.id, ctx.key, "How was today?", ctx.andrew, turn_ref: "t-dyad")
+    assert given() =~ "Counted the days again."
+
+    assert {:error, %{details: d}} =
+             Kumbukumbu.delivery_check(ctx.id, nil, "t-dyad", ctx.house)
+
+    assert "recovery" in d[:conflicts]
   end
 end

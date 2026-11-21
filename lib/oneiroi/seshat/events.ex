@@ -65,6 +65,14 @@ defmodule Oneiroi.Seshat.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :path, :url]
   end
 
+  defmodule DocumentClassified do
+    # Its author's classification of a document (seshat#102, kumbukumbu
+    # #85): whose life (`person`) and which domain, or the common room
+    # (`domain` nil); a decision with her note. The latest wins; the
+    # stream keeps every one.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :path, :person, :domain]
+  end
+
   defmodule DocumentArchived do
     # A document archived (seshat#45): its words moved whole to `to`
     # under frontmatter (who, when, why), and a tombstone left at the old

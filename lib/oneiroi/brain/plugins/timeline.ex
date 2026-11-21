@@ -9,6 +9,7 @@ defmodule Oneiroi.Brain.Plugins.Timeline do
 
   alias Oneiroi.AgathosDaimon.Local
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.Plugins.Journal
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu
 
@@ -64,12 +65,21 @@ defmodule Oneiroi.Brain.Plugins.Timeline do
         "\n\n## Your life so far\n" <>
         moment_lines(lifetime, zone, now, "no pin and nothing weighed 3 before this month")
 
-    section(
-      "timeline",
+    # Decided by what it shows (kumbukumbu#84): its bookmarks' domains and
+    # today's rows' labels.
+    labels =
+      Enum.uniq(
+        Kumbukumbu.timeline_label_set(turn.resident_id) ++
+          Journal.row_labels(entries)
+      )
+
+    "timeline"
+    |> section(
       text,
       "the timeline (brain#67): #{length(entries)} journal rows today, #{length(month)} moments of the last 30 days, #{length(lifetime)} of her life so far, each aged on this read",
       %{refs: Enum.map(month ++ lifetime, & &1.number)}
     )
+    |> Enum.map(&Map.put(&1, :labels, labels))
   end
 
   defp today_lines([], _zone, _max), do: "- nothing written yet today"

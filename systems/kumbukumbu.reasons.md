@@ -676,6 +676,14 @@ the ledger. Durable fragments only, with unproven refused, keeps the
 review from being vacuous exactly where it matters. The refusal is
 legible rather than widened, and its cost goes to the thread.
 
+## #85
+A file is a thing with a domain, not a turn's composition: its author
+knows what it is about, and the platform recorded where it was born. A
+mechanical check on that is honest in a way a judge reading a file's
+words against fragments days old cannot be. Her classification is the
+pressure valve, audited as a turn's tag is. Birth as the union keeps a
+rewrite in a clean room from laundering what the writing turn held.
+
 ## #84
 A boundary that only reads the window leaks through anything the
 window wrote down: a journal row, a letter, a file, an oracle's answer

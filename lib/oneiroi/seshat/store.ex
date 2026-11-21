@@ -25,6 +25,10 @@ defmodule Oneiroi.Seshat.Store do
       field(:status, :string)
       field(:hash, :string)
       field(:bytes, :integer)
+      # Its author's classification (seshat#102); nil until classified.
+      field(:class_person, :string)
+      field(:class_domain, :string)
+      field(:classified_at, :utc_datetime_usec)
       field(:versions, :integer, default: 0)
       field(:embedded_with, :string)
       field(:chunks, :integer, default: 0)

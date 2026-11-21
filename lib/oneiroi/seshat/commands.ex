@@ -8,6 +8,10 @@ defmodule Oneiroi.Seshat.Commands do
       fields: [:id, :path, :kind, :hash, :bytes, :note, :session_key, :turn_ref, :ledger]
   end
 
+  defmodule ClassifyDocument do
+    use Oneiroi.Command, decision: true, fields: [:id, :path, :person, :domain]
+  end
+
   defmodule MoveDocument do
     # Seshat #39: a document taken from one path, and so one kind, to
     # another, its bytes unchanged (`hash` is what they hash to).

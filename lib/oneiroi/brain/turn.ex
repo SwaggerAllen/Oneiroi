@@ -1233,6 +1233,7 @@ defmodule Oneiroi.Brain.Turn do
 
     {rows, earlier, reason} = window(turn, count)
     {sections, rows, withheld} = for_audience(turn, sections, rows)
+    note_labelled(turn, sections)
     history = earlier ++ History.messages(rows, zone)
 
     transcript = %{
@@ -1278,6 +1279,32 @@ defmodule Oneiroi.Brain.Turn do
     %{sections: sections, injections: injections, messages: messages}
   end
 
+  # A section that carries its own labels (kumbukumbu#84: today's
+  # journal, by its rows) is decided by them, its words with them.
+  defp assembled_name(%{labels: labels, label: label, message: %{content: text}})
+       when is_list(labels),
+       do: {label, labels, text}
+
+  defp assembled_name(section), do: section.label
+
+  # Such a section, once in her context, is in the turn's ledger by its
+  # labels (kumbukumbu#84). A trial keeps nothing.
+  defp note_labelled(%{trial?: true}, _sections), do: :ok
+
+  defp note_labelled(turn, sections) do
+    for %{labels: labels, label: label, message: %{content: text}} <- sections,
+        is_list(labels),
+        do:
+          Kumbukumbu.note_read_labelled(
+            turn.resident_id,
+            Map.get(turn, :turn_ref),
+            "section/" <> label,
+            label,
+            labels,
+            text
+          )
+  end
+
   # The words of the sections that may hold restricted material, kept for
   # the turn's disclosure review (kumbukumbu#82): a delivery its ledger
   # holds back is judged against what the turn was actually given. A
@@ -1310,7 +1337,7 @@ defmodule Oneiroi.Brain.Turn do
         turn.session_key,
         turn.turn_ref,
         audience,
-        Enum.map(sections, & &1.label),
+        Enum.map(sections, &assembled_name/1),
         rows
       )
 

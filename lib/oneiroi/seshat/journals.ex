@@ -210,7 +210,9 @@ defmodule Oneiroi.Seshat.Journals do
           kind: e.kind,
           at: e.at,
           first: first_line(Map.get(e, :summary) || e.text),
-          done: not is_nil(e.done_at)
+          done: not is_nil(e.done_at),
+          # Its writing turn's labels (kumbukumbu#84), for whoever shows it.
+          labels: Map.get(e, :labels)
         }
       end
 

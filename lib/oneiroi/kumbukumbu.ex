@@ -577,6 +577,11 @@ defmodule Oneiroi.Kumbukumbu do
     do: resident_id |> Ledger.message_inputs(session_key, 100_000) |> Ledger.encode()
   )
 
+  @doc "The timeline's bookmarks' labels as kept labels (kumbukumbu#84): every domain they hold, or the common room."
+  defexport(timeline_label_set(resident_id),
+    do: Ledger.label_set([%{labels: Ledger.timeline_labels(resident_id)}])
+  )
+
   @doc "The union of a kept ledger's labels (kumbukumbu#84), for a file read."
   @spec ledger_labels([map()] | nil) :: [term()] | nil
   defexport(ledger_labels(ledger),
