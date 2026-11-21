@@ -461,7 +461,9 @@ defmodule Oneiroi.Kumbukumbu.Memory do
           keepsake: c.keepsake,
           link: c.link,
           turn_ref: c.turn_ref,
-          labels: letter_labels(c)
+          labels: letter_labels(c),
+          sealed: sealed?(c),
+          parties: parties(c)
         }
     end
   end
@@ -768,6 +770,16 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   # A letter no turn of hers wrote (the witness's, the platform's) is the
   # common room, as an unnamed message is (his answer 3); hers carries
   # her turn's labels, and one without them is unclassified when read.
+  # Between residents, sealed unless sent open; the dyad's otherwise
+  # (kumbukumbu#93).
+  defp sealed?(%{link: %{"resident_id" => _}, open: open}), do: open != true
+  defp sealed?(_c), do: false
+
+  defp parties(%{link: %{"resident_id" => other}, id: id}),
+    do: Enum.sort(["resident:" <> id, "resident:" <> other])
+
+  defp parties(_c), do: nil
+
   defp letter_labels(%{labels: labels}) when is_list(labels), do: labels
   defp letter_labels(%{actor: actor}), do: platform_labels(actor)
 

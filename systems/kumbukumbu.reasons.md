@@ -676,6 +676,13 @@ the ledger. Durable fragments only, with unproven refused, keeps the
 review from being vacuous exactly where it matters. The refusal is
 legible rather than widened, and its cost goes to the thread.
 
+## #93
+His glance into their mail "doesn't really feel right"; a promise not
+to look is a policy, a route that cannot return the words is a
+mechanism. One function every route asks keeps the seal in one place,
+where a route added later cannot forget it. Sealing the past per letter
+keeps an old letter from becoming open by having been written first.
+
 ## #92
 An audience is a key into her policies; any kind they can name can key
 the filter. Reading an unresolved name as "hers" would turn a typo into

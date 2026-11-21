@@ -222,6 +222,10 @@ defmodule Oneiroi.Kumbukumbu.Store do
       # The writing turn and its labels (kumbukumbu#84); nil before.
       field(:turn_ref, :string)
       field(:labels, {:array, :map})
+      # Sealed to its parties (kumbukumbu#93): a letter between residents
+      # unless sent open; `parties` its two residents, nil on the dyad's.
+      field(:sealed, :boolean, default: false)
+      field(:parties, {:array, :string})
       field(:by_kind, :string)
       field(:sent_at, :utc_datetime_usec)
       field(:read_by, {:array, :string}, default: [])

@@ -1280,7 +1280,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "letter_send",
-        "Send a house letter (the work log between your conversations). To answer a letter, give its number as in_reply_to, so the answer sits in its thread rather than starting a new one. Send it to the Oneiroi chat, to another conversation by its name (Claude Code · <folder>), or to house for any of them; to Free time, a brief waits for your next free time. Use it to pass an ask, and to leave a summary of finished work before anyone has to ask for one. in_reply_to links the letter it answers; keepsake gives a keepsake at your root to the conversation you write to. You are named as the sender by the conversation you write from. To write to another resident of your household, send it to their name: it lands in their Oneiroi chat and wakes it (in_reply_to works with the number the letter has in your own letters). A name no conversation or household resident answers to is refused, with the names there are.",
+        "Send a house letter (the work log between your conversations). To answer a letter, give its number as in_reply_to, so the answer sits in its thread rather than starting a new one. Send it to the Oneiroi chat, to another conversation by its name (Claude Code · <folder>), or to house for any of them; to Free time, a brief waits for your next free time. Use it to pass an ask, and to leave a summary of finished work before anyone has to ask for one. in_reply_to links the letter it answers; keepsake gives a keepsake at your root to the conversation you write to. You are named as the sender by the conversation you write from. To write to another resident of your household, send it to their name: it lands in their Oneiroi chat and wakes it (in_reply_to works with the number the letter has in your own letters). A letter to a housemate is sealed to the two of you: every other member, witnesses included, sees only from, to and when. open: true sends it open instead, readable by every member of the house, fixed at send (kumbukumbu#93); open means the whole house, never one witness. A name no conversation or household resident answers to is refused, with the names there are.",
         %{
           to: %{type: "string"},
           text: %{type: "string"},
@@ -1290,7 +1290,8 @@ defmodule Oneiroi.Brain.Tools do
             description:
               "The number of the letter this answers; its thread. Leave it out only to start a new thread."
           },
-          keepsake: %{type: "string"}
+          keepsake: %{type: "string"},
+          open: %{type: "boolean"}
         },
         [:to, :text]
       ),
@@ -1890,6 +1891,12 @@ defmodule Oneiroi.Brain.Tools do
       %{id: id} -> Kumbukumbu.audience("household", id)
       _none -> nil
     end
+  end
+
+  # Sealed, it reaches its sibling; open, the whole house (kumbukumbu#93).
+  defp delivery_audience("letter_send", %{"open" => true} = args, turn) do
+    with {_sibling, _me} <- sibling(turn.resident_id, to_string(args["to"] || "")),
+         do: delivery_audience("household_post", args, turn)
   end
 
   defp delivery_audience("letter_send", args, turn) do
@@ -6078,14 +6085,19 @@ defmodule Oneiroi.Brain.Tools do
     else
       attrs =
         Map.merge(
-          %{text: to_string(args["text"] || ""), in_reply_to: integer(args["in_reply_to"])},
+          %{
+            text: to_string(args["text"] || ""),
+            in_reply_to: integer(args["in_reply_to"]),
+            open: args["open"] == true
+          },
           letter_labels(turn)
         )
 
       case Kumbukumbu.send_sibling_letter(me, turn.session_key, sibling, attrs, turn.resident) do
         {:ok, %{number: n, copy: copy}} ->
           "Sent letter ##{n} to #{sibling.name}'s Oneiroi chat, from #{me.name} " <>
-            "(#{qualified(sibling.name, n)}); your copy is ##{copy} in your letters."
+            "(#{qualified(sibling.name, n)}), #{if args["open"] == true, do: "open to the whole house", else: "sealed to the two of you"}; " <>
+            "your copy is ##{copy} in your letters."
 
         other ->
           other

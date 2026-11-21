@@ -367,7 +367,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionApplied, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionDeclined, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 4},
+      {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 5},
       {Oneiroi.Kumbukumbu.Events.Memory.HouseLettersRead, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagApproved, 1},
@@ -1406,6 +1406,12 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "Every house letter, oldest first, with the conversations that read each."
   @spec letters(String.t()) :: [Oneiroi.Kumbukumbu.Store.HouseLetter.t()]
   defexport(letters(resident_id), do: Memories.letters(resident_id))
+
+  @doc "What a viewer may see of a letter (kumbukumbu#93): `:whole` or `:envelope`; the one rule every read route asks."
+  defexport(letter_view(letter, viewer), do: Memories.letter_view(letter, viewer))
+
+  @doc "The letter as a viewer may have it (kumbukumbu#93): whole, or its envelope (from, to, when) with no words or read state."
+  defexport(letter_for(letter, viewer), do: Memories.letter_for(letter, viewer))
 
   @doc """
   The house letters holding `text`, case aside (kumbukumbu#70): newest
