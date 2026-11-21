@@ -61,7 +61,9 @@ defmodule Oneiroi.Seshat.PublishingTest do
 
   test "she publishes her draft; her housemate reads it, and not the draft after", ctx do
     path = "writing/essay.md"
-    {:ok, _} = Seshat.write(ctx.lily.id, path, "First draft.\n", ctx.lily.actor)
+    # Written in her turn, so its words carry that turn's ledger
+    # (kumbukumbu#83): a file no turn wrote is unproven to the house.
+    assert run("document_write", %{path: path, content: "First draft.\n"}, ctx.lily) =~ path
     cite = "#{ctx.lily.slug}:#{path}"
 
     # Unpublished, it is not the house's to read.

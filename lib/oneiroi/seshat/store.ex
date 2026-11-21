@@ -229,6 +229,10 @@ defmodule Oneiroi.Seshat.Store do
       field(:actor_id, :string)
       field(:note, :string)
       field(:at, :utc_datetime_usec)
+      # The writing turn and its ledger (seshat#100), on a written version.
+      field(:session_key, :string)
+      field(:turn_ref, :string)
+      field(:ledger, {:array, :map})
     end
 
     @type t :: %__MODULE__{}

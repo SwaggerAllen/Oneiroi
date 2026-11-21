@@ -11,8 +11,14 @@ defmodule Oneiroi.Seshat.Events do
     # Version 2 adds `note` (seshat#54): what the writer said of this
     # version, a restore's "restored from" among them, shown in the
     # document's versions; nil on every version 1 write, which the
-    # identity upcaster leaves as the struct's default.
-    use Oneiroi.Event, version: 2, fields: [:id, :path, :kind, :hash, :bytes, :note]
+    # identity upcaster leaves as the struct's default. Version 3 adds
+    # the writing turn's provenance (seshat#100, kumbukumbu#83):
+    # `session_key`, `turn_ref` and `ledger`, the turn's inputs by id,
+    # ref, turn and labels, never their words; nil on every earlier
+    # write and on a write no turn made, which leaves its words unproven.
+    use Oneiroi.Event,
+      version: 3,
+      fields: [:id, :path, :kind, :hash, :bytes, :note, :session_key, :turn_ref, :ledger]
   end
 
   defimpl Commanded.Event.Upcaster, for: Oneiroi.Seshat.Events.DocumentWritten do

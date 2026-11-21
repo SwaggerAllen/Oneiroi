@@ -2,8 +2,10 @@ defmodule Oneiroi.Seshat.Commands do
   @moduledoc "The library aggregate's commands; `id` is the resident's id."
 
   defmodule WriteDocument do
-    # `note` (seshat#54): what the writer said of this version, or nil.
-    use Oneiroi.Command, fields: [:id, :path, :kind, :hash, :bytes, :note]
+    # `note` (seshat#54): what the writer said of this version, or nil;
+    # the provenance (seshat#100): the writing turn and its ledger, or nil.
+    use Oneiroi.Command,
+      fields: [:id, :path, :kind, :hash, :bytes, :note, :session_key, :turn_ref, :ledger]
   end
 
   defmodule MoveDocument do

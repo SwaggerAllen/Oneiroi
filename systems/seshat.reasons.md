@@ -827,3 +827,10 @@ one rule: the house holds what she gave it, as she gave it, and only she
 gives it again. A snapshot at a published commit, read-only, is that
 rule made mechanical; the audience and terms ride in the copy so every
 derived read carries them.
+
+## #100
+A file's words inherit the taint of the turn that wrote them, and
+nothing recorded which turn that was: matching commits to turns by time
+or by reading tool calls would be inference. Kept on the write, by
+hash, the version's provenance is a fact. It is ids and labels only, so
+the event line holds no restricted words.

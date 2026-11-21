@@ -178,6 +178,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Pastes
   alias Oneiroi.Seshat.PieceReviews
   alias Oneiroi.Seshat.PluginFiles
+  alias Oneiroi.Seshat.Provenance
   alias Oneiroi.Seshat.Published
   alias Oneiroi.Seshat.Researches
   alias Oneiroi.Seshat.Scenes
@@ -285,7 +286,7 @@ defmodule Oneiroi.Seshat do
   @impl Oneiroi.Component
   def events do
     [
-      {Oneiroi.Seshat.Events.DocumentWritten, 2},
+      {Oneiroi.Seshat.Events.DocumentWritten, 3},
       {Oneiroi.Seshat.Events.DocumentAdopted, 2},
       {Oneiroi.Seshat.Events.PiecePublished, 1},
       {Oneiroi.Seshat.Events.DocumentPublished, 1},
@@ -931,11 +932,18 @@ defmodule Oneiroi.Seshat do
     do: Leases.write(resident_id, path, content, actor)
   )
 
-  @doc "`write/4` with `note:`, what the writer says of this version (seshat#54)."
+  @doc "`write/4` with `note:`, what the writer says of this version (seshat#54), and `provenance:`, the writing turn and its ledger (seshat#100)."
   @spec write(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), keyword()) ::
           {:ok, map()} | {:error, term()}
   defexport(write(resident_id, path, content, actor, opts),
-    do: Leases.write(resident_id, path, content, actor, Keyword.take(opts, [:note]))
+    do: Leases.write(resident_id, path, content, actor, Keyword.take(opts, [:note, :provenance]))
+  )
+
+  @doc "A file's words at a commit (nil: the head) and the turn that wrote them (seshat#100): what a delivery of the file is decided against."
+  @spec file_provenance(String.t(), String.t(), String.t() | nil) ::
+          {:ok, map()} | {:error, term()}
+  defexport(file_provenance(resident_id, path, commit),
+    do: Provenance.of(resident_id, path, commit)
   )
 
   @doc "The witness pastes a conversation of his with another person into her human-correspondence/ (seshat#65): a new document, or appended to one there under a dated heading (seshat#66); written as him with a note, and indexed."

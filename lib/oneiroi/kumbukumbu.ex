@@ -514,6 +514,18 @@ defmodule Oneiroi.Kumbukumbu do
     do: Ledger.check(resident_id, session_key, turn_ref, audience, candidate)
   )
 
+  @doc "A turn's input ledger as a derived artifact keeps it (kumbukumbu#83): ids, refs, turns and labels, never words."
+  @spec turn_ledger(String.t(), String.t() | nil, String.t() | nil) :: [map()]
+  defexport(turn_ledger(resident_id, session_key, turn_ref),
+    do: resident_id |> Ledger.inputs(session_key, turn_ref) |> Ledger.encode()
+  )
+
+  @doc "Whether a file's words at a commit may reach an audience (kumbukumbu#83): against the writing turn's ledger, reviewed when held back."
+  @spec delivery_check_file(String.t(), map(), map(), map()) :: {:ok, map()} | {:error, term()}
+  defexport(delivery_check_file(resident_id, turn, audience, file),
+    do: Ledger.check_file(resident_id, turn, audience, file)
+  )
+
   @doc "The words of a turn's sections that may hold restricted material (kumbukumbu#82), kept for the disclosure judge."
   defexport(note_sections(resident_id, turn_ref, texts),
     do: TurnReads.sections(resident_id, turn_ref, texts)

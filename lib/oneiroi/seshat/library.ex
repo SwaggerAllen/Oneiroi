@@ -59,7 +59,10 @@ defmodule Oneiroi.Seshat.Library do
           kind: c.kind,
           hash: c.hash,
           bytes: c.bytes,
-          note: c.note
+          note: c.note,
+          session_key: c.session_key,
+          turn_ref: c.turn_ref,
+          ledger: c.ledger
         }
     end
   end

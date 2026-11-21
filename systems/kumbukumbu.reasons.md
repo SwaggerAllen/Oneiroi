@@ -666,3 +666,12 @@ unproven ledger fails closed for the same reason. The judge refuses and
 never grants, so an explicit deny stays a deny. The verdict is recorded
 dyad-local by hash and refs, so it can be reviewed without becoming the
 leak it guards against.
+
+## #83
+Checking a copy against the promoting turn was wrong both ways (Lily,
+#1516). It refused words written days before for a taint they never had,
+and it passed words written under recovery from any clean turn. The
+words delivered are the candidate, so the context that wrote them is
+the ledger. Durable fragments only, with unproven refused, keeps the
+review from being vacuous exactly where it matters. The refusal is
+legible rather than widened, and its cost goes to the thread.

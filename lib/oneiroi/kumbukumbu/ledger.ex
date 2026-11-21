@@ -56,6 +56,98 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
   def message_inputs(resident_id, session_key, window \\ @window),
     do: messages(resident_id, session_key, window)
 
+  @doc """
+  A turn's ledger as a derived artifact keeps it (kumbukumbu#83): each
+  input's id, ref, turn and labels as plain data, never its words, for
+  an event line and a projection row.
+  """
+  def encode(inputs),
+    do:
+      for(
+        i <- inputs,
+        do: %{
+          "id" => i.id,
+          "ref" => Map.get(i, :ref),
+          "turn_ref" => Map.get(i, :turn_ref),
+          "labels" => encode_labels(i.labels)
+        }
+      )
+
+  @doc "A kept ledger read back: `encode/1`'s inverse, string keys or atom keys alike."
+  def decode(rows) when is_list(rows),
+    do:
+      for(
+        r <- rows,
+        do: %{
+          id: get(r, "id"),
+          ref: get(r, "ref"),
+          turn_ref: get(r, "turn_ref"),
+          labels: decode_labels(get(r, "labels"))
+        }
+      )
+
+  defp get(row, key), do: Map.get(row, key) || Map.get(row, String.to_existing_atom(key))
+
+  defp encode_labels(labels) when is_list(labels),
+    do: for(l <- labels, do: %{"person" => l.person, "domain" => l.domain})
+
+  defp encode_labels(labels) when labels in [:common_room, :unclassified],
+    do: Atom.to_string(labels)
+
+  # Anything not readable as a label is unclassified: never inferred.
+  defp decode_labels("common_room"), do: :common_room
+  defp decode_labels(labels) when is_list(labels) and labels != [], do: Enum.map(labels, &pair/1)
+  defp decode_labels(_unreadable), do: :unclassified
+
+  defp pair(l), do: %{person: get(l, "person"), domain: get(l, "domain")}
+
+  @doc """
+  Whether a file's words at a commit may be delivered to `audience`
+  (kumbukumbu#83): decided against the ledger of the turn that wrote
+  them, never the delivering turn's, and reviewed with those words when
+  held back. `file` is `%{words, source, ledger, turn_ref}`, the ledger
+  as kept (nil when the version predates provenance: unproven, refused).
+  `turn` is the delivering turn, where a verdict is recorded.
+  """
+  def check_file(_resident_id, _turn, audience, %{ledger: nil} = file) do
+    {:error,
+     Error.new(:kumbukumbu_withheld_by_policy, :kumbukumbu_ledger_file_unproven,
+       audience: "#{audience.kind}:#{audience.id}",
+       source: file.source,
+       conflicts: ["unproven"]
+     )}
+  end
+
+  def check_file(resident_id, turn, audience, file) do
+    inputs = decode(file.ledger)
+    decision = Audience.decide_for(resident_id, inputs, audience, :hard)
+
+    refused = [
+      decision: decision.id,
+      audience: "#{audience.kind}:#{audience.id}",
+      conflicts: conflicts(decision.withheld),
+      source: file.source
+    ]
+
+    if decision.withheld == [] do
+      {:ok, decision}
+    else
+      # The words behind what was held back, from the writing turn's
+      # durable parts: an input only that turn's memory held is unproven.
+      shown = fn held -> fragments(resident_id, file.turn_ref, held) end
+
+      Disclosure.review(
+        Map.put(turn, :source, file.source),
+        audience,
+        file.words,
+        decision,
+        inputs,
+        refused,
+        shown
+      )
+    end
+  end
+
   @doc "The timeline lane's labels (kumbukumbu#81): every domain its anchors hold, or the common room."
   def timeline_labels(resident_id) do
     resident_id

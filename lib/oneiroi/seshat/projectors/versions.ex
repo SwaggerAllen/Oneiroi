@@ -18,6 +18,12 @@ defmodule Oneiroi.Seshat.Projectors.Versions do
     version(multi, :written, e, metadata, e.path, e.hash, e.bytes, e.note)
   end)
 
+  # Its provenance (seshat#100), on the written version's row alone.
+  defp provenance(%Events.DocumentWritten{} = e),
+    do: %{session_key: e.session_key, turn_ref: e.turn_ref, ledger: e.ledger}
+
+  defp provenance(_other), do: %{}
+
   fold(%Events.DocumentAdopted{} = e, metadata, fn multi ->
     version(multi, :adopted, e, metadata, e.path, e.hash, e.bytes, nil)
   end)
@@ -55,7 +61,8 @@ defmodule Oneiroi.Seshat.Projectors.Versions do
         actor_id: actor(e.actor, :id),
         note: note,
         at: e.at
-      },
+      }
+      |> struct(if(act == :written, do: provenance(e), else: %{})),
       on_conflict: :nothing,
       conflict_target: [:resident_id, :path, :event_number]
     )

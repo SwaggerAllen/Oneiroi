@@ -57,7 +57,11 @@ defmodule Oneiroi.Seshat.Documents do
              kind: kind.kind,
              hash: hash(content),
              bytes: byte_size(content),
-             note: note(Keyword.get(opts, :note))
+             note: note(Keyword.get(opts, :note)),
+             # The writing turn (seshat#100): its words inherit its taint.
+             session_key: provenance(opts)[:session_key],
+             turn_ref: provenance(opts)[:turn_ref],
+             ledger: provenance(opts)[:ledger]
            }) do
       # The record first, as the aggregate may refuse; then the file,
       # through the repositories' port (sima-qian#57).
@@ -656,6 +660,8 @@ defmodule Oneiroi.Seshat.Documents do
   end
 
   defp name_folder(_kind, _path, _current, _actor, _kept), do: :ok
+
+  defp provenance(opts), do: Keyword.get(opts, :provenance) || %{}
 
   @doc "The SHA-256 of a file's bytes, hex, lower case: what decides a re-embed."
   @spec hash(binary()) :: String.t()

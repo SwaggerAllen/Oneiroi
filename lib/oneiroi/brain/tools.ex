@@ -1575,28 +1575,72 @@ defmodule Oneiroi.Brain.Tools do
 
   defp withheld(name, args, turn) do
     with %{} = audience <- delivery_audience(name, args, turn),
-         {:error, %{kind: :kumbukumbu_withheld_by_policy} = e} <-
-           Kumbukumbu.delivery_check(
-             turn.resident_id,
-             Map.get(turn, :session_key),
-             Map.get(turn, :turn_ref),
-             audience,
-             candidate(name, args)
-           ) do
-      withheld_words(e)
+         :ok <- file_allowed(name, args, turn, audience),
+         :ok <- words_allowed(name, args, turn, audience) do
+      nil
     else
+      {:error, %{kind: :kumbukumbu_withheld_by_policy} = e} -> withheld_words(e)
       _delivered -> nil
     end
   end
 
-  # The words a delivery carries, for the disclosure judge when the
-  # ledger holds it back (kumbukumbu#82): exactly what would leave. A
-  # copy of her file (`from`, a promotion, a publish) carries words not
-  # in its arguments, and is refused unreviewed, as before.
-  @copies ~w(household_promote document_publish)
-  defp candidate(name, _args) when name in @copies, do: nil
+  # A copy of her file (a promotion, a publish, a write `from` it) carries
+  # the file's words at a commit: decided against the turn that wrote
+  # them, never this one (kumbukumbu#83). A file the tool cannot find is
+  # the tool's own refusal to give.
+  defp file_allowed(name, args, turn, audience) do
+    with {path, commit} <- source_file(name, args),
+         {:ok, file} <- Seshat.file_provenance(turn.resident_id, path, commit),
+         {:ok, _decision} <-
+           Kumbukumbu.delivery_check_file(turn.resident_id, delivering(turn), audience, file) do
+      :ok
+    else
+      {:error, %{kind: :kumbukumbu_withheld_by_policy}} = withheld -> withheld
+      _no_file -> :ok
+    end
+  end
 
-  defp candidate(_name, %{"from" => from}) when is_binary(from) and from != "", do: nil
+  defp source_file(name, args) when name in ~w(household_promote document_publish),
+    do: {to_string(args["path"] || ""), blank(args["commit"])}
+
+  defp source_file(_name, %{"from" => from}) when is_binary(from) and from != "",
+    do: {from, nil}
+
+  defp source_file(_name, _args), do: nil
+
+  defp delivering(turn),
+    do: %{
+      resident_id: turn.resident_id,
+      session_key: Map.get(turn, :session_key),
+      turn_ref: Map.get(turn, :turn_ref)
+    }
+
+  # Her words composed in this turn, against this turn's ledger. A copy
+  # with none of her own words beside the file asks nothing more.
+  defp words_allowed(name, args, turn, audience) do
+    words = candidate(name, args)
+
+    if source_file(name, args) != nil and words == "" do
+      :ok
+    else
+      case Kumbukumbu.delivery_check(
+             turn.resident_id,
+             Map.get(turn, :session_key),
+             Map.get(turn, :turn_ref),
+             audience,
+             words
+           ) do
+        {:ok, _decision} -> :ok
+        refused -> refused
+      end
+    end
+  end
+
+  # Her own words a delivery carries, for the disclosure judge when the
+  # ledger holds it back (kumbukumbu#82): exactly what would leave. A
+  # promotion carries none (its note is her repository's), and a file's
+  # words are `file_allowed/4`'s.
+  defp candidate("household_promote", _args), do: ""
 
   defp candidate(_name, args) do
     ballot = args["ballot"] || %{}
@@ -1608,7 +1652,7 @@ defmodule Oneiroi.Brain.Tools do
           v != nil,
           do: to_string(v)
 
-    [args["title"], args["content"], args["text"], ballot["note"] | bundle]
+    [args["title"], args["content"], args["text"], args["note"], ballot["note"] | bundle]
     |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
     |> Enum.join("\n\n")
   end
@@ -1647,8 +1691,18 @@ defmodule Oneiroi.Brain.Tools do
     conflicts = Enum.join(Keyword.get(d, :conflicts, []), ", ")
 
     @not_done <>
-      "withheld by policy (decision #{d[:decision]}): this turn's context holds #{conflicts}, which your agreement's domain policies keep from #{d[:audience]}. #{review_words(e)}Nothing was delivered, and the audience learns nothing of it. Say it where the policies allow (here, or to an audience they grant), or let the turn's context move on; the policies are yours and your witness's to change by agreement."
+      "withheld by policy#{decision_words(d)}: #{held_words(d)} #{conflicts}, which your agreement's domain policies keep from #{d[:audience]}. #{review_words(e)}Nothing was delivered, and the audience learns nothing of it. Say it where the policies allow (here, or to an audience they grant), or let the turn's context move on; the policies are yours and your witness's to change by agreement."
   end
+
+  defp decision_words(d), do: if(d[:decision], do: " (decision #{d[:decision]})", else: "")
+
+  # A file's words carry the context that wrote them (kumbukumbu#83).
+  defp held_words(d),
+    do:
+      if(d[:source],
+        do: "#{d[:source]} was written in a turn whose context held",
+        else: "this turn's context holds"
+      )
 
   # What the disclosure review said (kumbukumbu#82), to her alone.
   defp review_words(%{site: :kumbukumbu_disclosure_discloses, details: d}),
@@ -1666,6 +1720,10 @@ defmodule Oneiroi.Brain.Tools do
 
   defp review_words(%{site: :kumbukumbu_disclosure_denied}),
     do: "A policy denies this audience outright, which no review can lift. "
+
+  defp review_words(%{site: :kumbukumbu_ledger_file_unproven, details: d}),
+    do:
+      "#{d[:source]} was written before its writing turn was recorded, or by no turn of yours, so what its words came from cannot be shown; it is unproven. Write it again in a turn whose context may reach this audience, then send that. "
 
   defp review_words(_unreviewed), do: ""
 
@@ -5611,9 +5669,27 @@ defmodule Oneiroi.Brain.Tools do
     |> Seshat.write(
       to_string(args["path"] || ""),
       to_string(args["content"] || ""),
-      turn.resident
+      turn.resident,
+      provenance: provenance(turn)
     )
     |> written(turn)
+  end
+
+  # The writing turn and its ledger (seshat#100, kumbukumbu#83): the
+  # words inherit the taint of the context that wrote them. A trial
+  # writes nothing.
+  defp provenance(%{trial?: true}), do: nil
+
+  defp provenance(turn) do
+    key = Map.get(turn, :session_key)
+    ref = Map.get(turn, :turn_ref)
+
+    if is_binary(ref),
+      do: %{
+        session_key: key,
+        turn_ref: ref,
+        ledger: Kumbukumbu.turn_ledger(turn.resident_id, key, ref)
+      }
   end
 
   defp move_document(args, turn) do
