@@ -26,7 +26,7 @@ defmodule Oneiroi.Kumbukumbu.Commands do
 
   defmodule CaptureTurn do
     use Oneiroi.Command,
-      fields: [:id, :resident_id, :session_key, :turn_ref, :started_at, :messages]
+      fields: [:id, :resident_id, :session_key, :turn_ref, :started_at, :messages, :sealed]
   end
 
   defmodule RecordDisclosureVerdict do

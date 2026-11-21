@@ -100,6 +100,9 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:domain_person, :string)
       field(:domain, :string)
       field(:domain_tagged, :boolean, default: false)
+      # Its turn answers a sealed letter (kumbukumbu#95): its words are the
+      # letter's parties', and a witness reads that it was said, never what.
+      field(:sealed, :boolean, default: false)
     end
 
     @type t :: %__MODULE__{}
@@ -877,6 +880,18 @@ defmodule Oneiroi.Kumbukumbu.Store do
     )
   end
 
+  @doc "The same for a witness: no sealed turn matched (kumbukumbu#95)."
+  @spec search_unsealed(String.t(), pos_integer()) :: [Message.t()]
+  def search_unsealed(text, limit) do
+    Repo.all(
+      from(m in Message,
+        where: ilike(m.content, ^search_pattern(text)) and m.role != "tool" and m.sealed == false,
+        order_by: [desc: m.sequence, desc: m.position],
+        limit: ^limit
+      )
+    )
+  end
+
   @doc "The same, within a domain and the common room (`{:domain, current}`, kumbukumbu#72), or across every one (`:any`)."
   @spec search(String.t(), pos_integer(), :any | {:domain, map() | nil}) :: [Message.t()]
   def search(text, limit, within) do
@@ -919,7 +934,8 @@ defmodule Oneiroi.Kumbukumbu.Store do
         on: s.resident_id == m.resident_id and s.key == m.session_key,
         where:
           m.resident_id == ^resident_id and ilike(m.content, ^search_pattern(text)) and
-            m.role != "tool" and (s.private == false or s.shared == true),
+            m.role != "tool" and (s.private == false or s.shared == true) and
+            m.sealed == false,
         order_by: [desc: m.sequence, desc: m.position],
         limit: ^limit,
         select: {m, s}
@@ -974,8 +990,12 @@ defmodule Oneiroi.Kumbukumbu.Store do
         {:within, within}, q ->
           within(q, within)
 
+        # A witness's search: no private session, and no sealed turn
+        # (kumbukumbu#95), matched or ranked.
         {:witness, true}, q ->
-          from([_m, s] in q, where: s.private == false or s.shared == true)
+          from([m, s] in q,
+            where: (s.private == false or s.shared == true) and m.sealed == false
+          )
 
         {:who, kind}, q when is_binary(kind) ->
           from([m, _s] in q, where: m.actor_kind == ^kind)
@@ -1055,6 +1075,11 @@ defmodule Oneiroi.Kumbukumbu.Store do
   def injections(turn_ref),
     do:
       Repo.all(from(i in ContextInjection, where: i.turn_ref == ^turn_ref, order_by: i.position))
+
+  @doc "Whether a turn was captured sealed (kumbukumbu#95)."
+  @spec turn_sealed?(String.t()) :: boolean()
+  def turn_sealed?(turn_ref),
+    do: Repo.exists?(from(m in Message, where: m.turn_ref == ^turn_ref and m.sealed == true))
 
   # ---- memory ----
 

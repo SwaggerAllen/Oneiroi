@@ -344,7 +344,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.SessionOpened, 3},
       {Oneiroi.Kumbukumbu.Events.SessionMadePrivate, 1},
       {Oneiroi.Kumbukumbu.Events.TurnStarted, 1},
-      {Oneiroi.Kumbukumbu.Events.TurnCaptured, 1},
+      {Oneiroi.Kumbukumbu.Events.TurnCaptured, 2},
       {Oneiroi.Kumbukumbu.Events.ContextAssembled, 1},
       {Oneiroi.Kumbukumbu.Events.DisclosureJudged, 1},
       {Oneiroi.Kumbukumbu.Events.RetrievalRecorded, 2},
@@ -687,6 +687,14 @@ defmodule Oneiroi.Kumbukumbu do
           :ok | {:error, term()}
   defexport(capture(resident_id, key, turn_ref, started_at, messages, actor),
     do: Conversations.capture(resident_id, key, turn_ref, started_at, messages, actor)
+  )
+
+  @doc "What a witness reads in place of a sealed turn's words (kumbukumbu#95)."
+  defexport(sealed_words(), do: Conversations.sealed_words())
+
+  @doc "A turn captured sealed to a letter's parties (kumbukumbu#95): `sealed:` the parties, its words theirs."
+  defexport(capture(resident_id, key, turn_ref, started_at, messages, actor, opts),
+    do: Conversations.capture(resident_id, key, turn_ref, started_at, messages, actor, opts)
   )
 
   @doc """

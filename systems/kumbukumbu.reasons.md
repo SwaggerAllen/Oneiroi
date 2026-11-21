@@ -676,6 +676,12 @@ the ledger. Durable fragments only, with unproven refused, keeps the
 review from being vacuous exactly where it matters. The refusal is
 legible rather than widened, and its cost goes to the thread.
 
+## #95
+He wanted the wake where it was, in the chat, and the words out of his
+sight; marking the turn at capture keeps both true. The mark rides the
+turn itself, so every reader that already reads turns can honour it with
+one check, and the ones not yet honouring it are listed, not assumed.
+
 ## #94
 Memory should scale with what is shown, not with how long the
 conversation has grown. A page is what a reader can use; the whole is

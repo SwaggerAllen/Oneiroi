@@ -65,10 +65,18 @@ defmodule Oneiroi.Kumbukumbu.Events do
     # Idempotent on (session, timestamp, hash): the aggregate drops a
     # turn whose key it already holds, so a turn sent twice is stored
     # once (spec §8). `messages` is the turn's messages in order.
+    # Version 2 adds `sealed` (kumbukumbu#95): the parties of the sealed
+    # letter a turn answers (`resident:<id>` each), so its words are theirs
+    # and its witness reads that it happened, never what it said; nil on
+    # every other turn and on version 1.
     use Oneiroi.Event,
-      version: 1,
-      fields: [:id, :resident_id, :session_key, :turn_ref, :started_at, :messages],
+      version: 2,
+      fields: [:id, :resident_id, :session_key, :turn_ref, :started_at, :messages, :sealed],
       instants: [:started_at]
+
+    @doc "A sealed turn leaves in the export without its words (kumbukumbu#95), as a sealed letter does (#93)."
+    def export_redact(%{sealed: [_ | _]}), do: [:messages]
+    def export_redact(_turn), do: []
   end
 
   defmodule MessageDomainTagged do

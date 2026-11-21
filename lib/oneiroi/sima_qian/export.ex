@@ -93,7 +93,7 @@ defmodule Oneiroi.SimaQian.Export do
        "fields an event declares `redact:`, the records remote's encrypted token among them: secrets stay in the vault, written as null"},
     "sealed letters" =>
       {:fields,
-       "a sealed letter's words and keepsake (kumbukumbu#93, Lily's S3): her export reaches a remote her witness reads, who is no party to a letter between residents, so it travels as its envelope until F80 encrypts it"},
+       "a sealed letter's words and keepsake (kumbukumbu#93, Lily's S3), and the words of a turn that answered one (kumbukumbu#95): her export reaches a remote her witness reads, who is no party to a letter between residents, so each travels without its words until F80 encrypts them"},
     "leases" =>
       {:table,
        "the witness's edit leases (seshat#55): who has an editor open on which file, minutes long; what one decides lands in the repository as the writes it let through and the draft it kept, and a lease replayed would lock a rebuilt resident's file for an editor nobody has open"}

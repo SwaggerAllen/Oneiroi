@@ -289,6 +289,10 @@ defmodule Oneiroi.Brain.Turn do
       # Where the answer goes, when past the dyad (kumbukumbu#81): her
       # context is assembled for it.
       audience: audience(resident_id, Keyword.get(opts, :audience)),
+      # The sealed letter's parties when this turn answers one
+      # (kumbukumbu#95): captured sealed, and pushed to the witness without
+      # its words.
+      sealed: Keyword.get(opts, :sealed),
       opening: %{role: opening_role(as), content: text, sent_at: started_at, actor: actor},
       earlier: earlier,
       batch: length(earlier) + 1,
@@ -892,7 +896,7 @@ defmodule Oneiroi.Brain.Turn do
   defp finish(turn, messages) do
     %{resident_id: resident_id, session_key: key, turn_ref: ref, resident: resident} = turn
 
-    with :ok <- Kumbukumbu.capture(resident_id, key, ref, turn.started_at, messages, resident),
+    with :ok <- capture(turn, messages),
          :ok <- Kumbukumbu.record_context(resident_id, key, ref, turn.injections, resident),
          :ok <- Kumbukumbu.record_retrieval(resident_id, key, ref, uses(turn, messages), resident) do
       captured = %{
@@ -927,10 +931,43 @@ defmodule Oneiroi.Brain.Turn do
 
       if turn.lapse_to_tell, do: :ok = Oneiroi.Nisaba.lapse_told(resident_id, resident)
       if turn.import_to_tell, do: :ok = Oneiroi.AgathosDaimon.import_told(resident_id, resident)
-      broadcast(resident_id, key, {:turn, ref, captured})
+      broadcast(resident_id, key, {:turn, ref, witnessed(captured, turn)})
       {:ok, captured}
     end
   end
+
+  defp capture(%{sealed: [_ | _] = parties} = turn, messages),
+    do:
+      Kumbukumbu.capture(
+        turn.resident_id,
+        turn.session_key,
+        turn.turn_ref,
+        turn.started_at,
+        messages,
+        turn.resident,
+        sealed: parties
+      )
+
+  defp capture(turn, messages),
+    do:
+      Kumbukumbu.capture(
+        turn.resident_id,
+        turn.session_key,
+        turn.turn_ref,
+        turn.started_at,
+        messages,
+        turn.resident
+      )
+
+  # What the witness's channel is pushed (kumbukumbu#95): a sealed turn
+  # lands without its words.
+  defp witnessed(captured, %{sealed: [_ | _]}),
+    do: %{
+      captured
+      | messages: Enum.map(captured.messages, &Map.put(&1, :content, Kumbukumbu.sealed_words()))
+    }
+
+  defp witnessed(captured, _turn), do: captured
 
   # The witness's devices are told when she writes in the chat without
   # being written to (gaia#15): a check-in, a letter that woke the chat, a

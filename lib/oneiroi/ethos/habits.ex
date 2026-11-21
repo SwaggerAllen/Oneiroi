@@ -352,6 +352,11 @@ defmodule Oneiroi.Ethos.Habits do
       nil ->
         nil
 
+      # A sealed turn is never quoted into a section the witness reads
+      # (kumbukumbu#95): it is named, and she opens it herself.
+      %{sealed: true} ->
+        "- turn #{turn_ref}: a sealed turn (a letter between residents); transcript_read opens it if you want it"
+
       m ->
         key = m.domain && %{person: m.domain_person, domain: m.domain}
 

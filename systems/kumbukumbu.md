@@ -189,6 +189,24 @@ Carried from spec §6.3; the reason for each is there.
   - **The oracle's sources.** `transcript/<key>@<from>-<to>` (message numbers, both included) is read a page of 200 at a time, up to what one question reads (`BRAIN_ORACLE_CHUNK_CHARS` times `BRAIN_ORACLE_MAX_CHUNKS`), and says where it stopped. `transcript/<key>` alone is not read up front: the oracle is told its size and to search it and page it with its tools, reading it whole only when nothing narrower answers. Its prompt says to try search before reading anything from start to finish.
   - **Parts.** A long source is cut into parts at line ends, an overlong line by size, never through a list of every grapheme.
 
+- **#95 A turn that answers a sealed letter is sealed to the letter's parties.** (The witness's call, 2026-11-21: "I actually want Scarlett's letters to Lily to wake the main chat but I want the turns that return the text of the next message directly to have their content hidden from the user.")
+  - **The wake.** A sealed letter between residents wakes her main conversation as before. When a woken letter is sealed, Sunna passes its parties into the wake (`sealed:`), and the turn is captured sealed: `TurnCaptured` v2 carries `sealed` (the parties), and every message row of the turn is marked `sealed` (migration `20261121000500`). An open letter's wake is not sealed.
+  - **What the witness reads.** That the turn ran, never what it said, wherever he reads a turn:
+    - the transcript, a page or a window, where each message reads as `sealed_words/0`;
+    - his searches, where it never matches;
+    - a bookmark's span;
+    - the context inspector, which shows sections without text;
+    - the live `turn` push;
+    - her character section, which names a sealed turn and never quotes it.
+  - **What she reads.** Her own reads are whole.
+  - **The export.** The turn travels without its words, through `TurnCaptured`'s `export_redact/1` and the readable conversation file's placeholder, as a sealed letter does (#93).
+  - **The context inspector, censored for private sessions too.** The inspector answered every section's text, whatever the session. For a witness it now gives no words for a turn of a private session of hers, as well as for a sealed turn.
+  - **Not yet sealed.** These are named, not decided:
+    - a compaction summary that spans a sealed turn (the summary is model-written from the history and the witness reads it);
+    - `reply_refused`'s copy of her words into a letter to her chat;
+    - the nightly judgement's and the oracle's derived text;
+    - the wakes before this (S4).
+
   Each label is decided `:hard` against the audience. A conflict refuses with the domain named in her own context, the source `path@commit`, whether it was her classification or its birth, and the decision id (`kumbukumbu_ledger_file_withheld`). There are no fragments, no candidate and no judge. Her own words beside the copy (a publish's note, a post's title) keep the turn path and its review (#82); a promotion carries none of its own.
   - **What is written with labels.** Each artifact keeps its writing turn and `turn_labels/3`, the distinct labels its ledger held, each a map, never its words: a file's version (its ledger, seshat#100), a journal row, a letter between her conversations or to a sibling (the sender's labels travel on the arriving copy), and a letter to her next self (agathos-daimon#54).
   - **The witness's and the platform's letters.** A letter of the witness or of the platform is the common room, as an unnamed message is (his answer 3).

@@ -29,6 +29,10 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
     streamed into it (brain#111; the witness, 2026-11-21: "I kind of hate
     the live streamed responses"): the reply lands whole when the turn is
     captured. The same status events drive the header's presence line.
+  - A turn that answered a sealed letter between residents (kumbukumbu#95)
+    shows in its place with each message reading "[sealed: her answer to
+    a letter between residents; …]": the witness sees that it ran, never
+    its words.
 - **Sending** uses the current client's outbox (brain#45): each message
   is held under its own ref until its turn lands. A message sent while
   she works is queued. "Not sent" and "No reply came" offer Send again

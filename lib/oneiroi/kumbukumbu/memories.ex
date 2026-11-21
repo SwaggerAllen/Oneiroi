@@ -21,6 +21,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu.Conversation
+  alias Oneiroi.Kumbukumbu.Conversations
   alias Oneiroi.Kumbukumbu.Domains
   alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
@@ -387,7 +388,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     with {:ok, b, span} <- bookmark(resident_id, number) do
       case for_witness(resident_id, [b]) do
         [%{private: true} = censored] -> {:ok, censored, []}
-        [open] -> {:ok, open, span}
+        # A sealed turn in the span is read as said, never what (kumbukumbu#95).
+        [open] -> {:ok, open, Conversations.seen({:account, nil}, span)}
       end
     end
   end

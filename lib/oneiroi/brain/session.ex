@@ -86,7 +86,7 @@ defmodule Oneiroi.Brain.Session do
         ref: nil,
         text: note,
         actor: Actor.platform(),
-        opts: [as: :note, purpose: purpose] ++ Keyword.take(opts, [:audience])
+        opts: [as: :note, purpose: purpose] ++ Keyword.take(opts, [:audience, :sealed])
       }
 
       # A wake that outlasts the wait is still her turn, running on in its
