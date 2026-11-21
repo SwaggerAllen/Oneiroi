@@ -24,6 +24,7 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
 
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Kumbukumbu.Audience
+  alias Oneiroi.Kumbukumbu.Disclosure
   alias Oneiroi.Kumbukumbu.Domains
   alias Oneiroi.Kumbukumbu.Error
   alias Oneiroi.Kumbukumbu.Store
@@ -76,21 +77,31 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
   the domains in conflict and the decision id, and is all the audience
   ever learns: nothing is delivered.
   """
-  def check(resident_id, session_key, turn_ref, audience) do
+  def check(resident_id, session_key, turn_ref, audience, candidate \\ nil) do
     inputs = inputs(resident_id, session_key, turn_ref)
     decision = Audience.decide_for(resident_id, inputs, audience, :hard)
 
-    case decision.withheld do
-      [] ->
+    refused = [
+      decision: decision.id,
+      audience: "#{audience.kind}:#{audience.id}",
+      conflicts: conflicts(decision.withheld)
+    ]
+
+    cond do
+      decision.withheld == [] ->
         {:ok, decision}
 
-      withheld ->
+      # Review owed (kumbukumbu#82): the judge says whether the words
+      # themselves disclose what was held back.
+      is_binary(candidate) and String.trim(candidate) != "" ->
+        turn = %{resident_id: resident_id, session_key: session_key, turn_ref: turn_ref}
+        # The words behind what was held back, found here and handed in.
+        shown = fn held -> fragments(resident_id, turn_ref, held) end
+        Disclosure.review(turn, audience, candidate, decision, inputs, refused, shown)
+
+      true ->
         {:error,
-         Error.new(:kumbukumbu_withheld_by_policy, :kumbukumbu_ledger_delivery_withheld,
-           decision: decision.id,
-           audience: "#{audience.kind}:#{audience.id}",
-           conflicts: conflicts(withheld)
-         )}
+         Error.new(:kumbukumbu_withheld_by_policy, :kumbukumbu_ledger_delivery_withheld, refused)}
     end
   end
 
@@ -125,6 +136,7 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
           do: %{
             id: "message/#{i}",
             ref: "transcript/#{session_key}/#{Map.get(r, :sequence)}",
+            turn_ref: Map.get(r, :turn_ref),
             labels: label(Domains.pair(Map.get(r, :domain_person), Map.get(r, :domain)))
           }
 
@@ -152,6 +164,96 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
   defp section_label("timeline", _lane, timeline), do: timeline
   defp section_label(_name, _lane, _timeline), do: :common_room
 
+  # The sections whose words a judge may need: every one not the common
+  # room's.
+  @doc false
+  def restricted_sections,
+    do: @lane_sections ++ @unclassified_sections ++ ["timeline"]
+
+  @doc """
+  The words behind each held-back input (kumbukumbu#82), for the
+  disclosure judge: sufficient, never trimmed below what a candidate
+  could disclose, so a message brings its whole turn and a bookmark its
+  line, summary and anchor turn. `{:ok, [%{ref, text}]}`, or `:unproven`
+  when any input's words cannot be found: what cannot be shown cannot be
+  judged, and the delivery fails closed.
+  """
+  def fragments(resident_id, turn_ref, inputs) do
+    sections = TurnReads.sections_of(resident_id, turn_ref)
+
+    found =
+      inputs
+      |> Enum.map(&fragment(resident_id, sections, &1))
+      |> Enum.uniq_by(&(&1 && &1.ref))
+
+    if Enum.any?(found, &is_nil/1), do: :unproven, else: {:ok, found}
+  end
+
+  defp fragment(_resident_id, _sections, %{text: text, ref: ref}) when is_binary(text),
+    do: %{ref: ref, text: text}
+
+  defp fragment(resident_id, _sections, %{id: "message/" <> _, turn_ref: ref})
+       when is_binary(ref),
+       do: turn_fragment(resident_id, ref)
+
+  defp fragment(resident_id, _sections, %{id: "bookmark/" <> n}) do
+    with {number, ""} <- Integer.parse(n),
+         %{} = b <- Scope.resident(resident_id, fn -> Store.bookmark(number) end) do
+      turn = turn_fragment(resident_id, b.anchor_ref)
+
+      %{
+        ref: "bookmark/#{number}",
+        text:
+          "#{b.line}\n#{b.summary}" <>
+            if(turn, do: "\n\nIts anchor turn:\n" <> turn.text, else: "")
+      }
+    else
+      _absent -> nil
+    end
+  end
+
+  defp fragment(_resident_id, sections, %{id: "lanes"}) do
+    case for(name <- @lane_sections, text = sections[name], is_binary(text), do: text) do
+      [] -> nil
+      texts -> %{ref: "the turn's memory lanes", text: Enum.join(texts, "\n\n")}
+    end
+  end
+
+  defp fragment(resident_id, sections, %{id: "section/" <> name}),
+    do: section_fragment(resident_id, sections, name)
+
+  defp fragment(resident_id, sections, %{id: name}) when is_binary(name),
+    do: section_fragment(resident_id, sections, name)
+
+  defp section_fragment(resident_id, sections, name) do
+    case sections[name] || identity_text(resident_id, name) do
+      text when is_binary(text) -> %{ref: name, text: text}
+      nil -> nil
+    end
+  end
+
+  defp identity_text(resident_id, name) do
+    Enum.find_value(AgathosDaimon.identity_context(resident_id), fn
+      {^name, content} -> content
+      _other -> nil
+    end)
+  end
+
+  defp turn_fragment(_resident_id, nil), do: nil
+
+  defp turn_fragment(resident_id, turn_ref) do
+    case Scope.resident(resident_id, fn -> Store.turn_messages(turn_ref) end) do
+      [] ->
+        nil
+
+      messages ->
+        %{
+          ref: "turn/#{turn_ref}",
+          text: Enum.map_join(messages, "\n", &"#{&1.role}: #{&1.content}")
+        }
+    end
+  end
+
   @doc "The labels of inputs a tool read: a bookmark opened, a transcript turn read."
   def bookmark_input(resident_id, %{number: n} = bookmark) do
     [%{domain_key: key}] = Domains.attach(resident_id, [bookmark])
@@ -178,6 +280,7 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
         do: %{
           id: "message/#{session_key}/#{r.sequence}/#{r.position}",
           ref: "transcript/#{session_key}",
+          turn_ref: r.turn_ref,
           labels: label(Domains.pair(r.person, r.domain))
         }
   end
@@ -201,6 +304,8 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
 
   defp label(nil), do: :common_room
   defp label(%{person: _, domain: _} = pair), do: [pair]
+
+  defp conflicts([]), do: []
 
   defp conflicts(withheld) do
     withheld

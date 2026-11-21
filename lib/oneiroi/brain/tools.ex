@@ -1542,15 +1542,19 @@ defmodule Oneiroi.Brain.Tools do
 
   # The domains of a conversation read deliberately, each once, as ledger
   # inputs (kumbukumbu#80): none named is the common room.
+  # One input per domain read, with the words read in it: what the
+  # disclosure judge is shown if it holds a delivery back (kumbukumbu#82).
   defp transcript_inputs(key, messages) do
-    for m <- messages,
-        pair = m.domain && %{person: m.domain_person, domain: m.domain},
-        uniq: true,
-        do: %{
-          id: "transcript/#{key}/#{inspect(pair)}",
-          ref: "transcript/#{key}",
-          labels: if(pair, do: [pair], else: :common_room)
-        }
+    messages
+    |> Enum.group_by(&(&1.domain && %{person: &1.domain_person, domain: &1.domain}))
+    |> Enum.map(fn {pair, read} ->
+      %{
+        id: "transcript/#{key}/#{inspect(pair)}",
+        ref: "transcript/#{key}",
+        labels: if(pair, do: [pair], else: :common_room),
+        text: Enum.map_join(read, "\n", &"#{&1.role}: #{&1.content}")
+      }
+    end)
   end
 
   defp transcript_answer({:ok, session, messages}, ref, _from) when is_binary(ref) and ref != "",
@@ -1576,12 +1580,37 @@ defmodule Oneiroi.Brain.Tools do
              turn.resident_id,
              Map.get(turn, :session_key),
              Map.get(turn, :turn_ref),
-             audience
+             audience,
+             candidate(name, args)
            ) do
       withheld_words(e)
     else
       _delivered -> nil
     end
+  end
+
+  # The words a delivery carries, for the disclosure judge when the
+  # ledger holds it back (kumbukumbu#82): exactly what would leave. A
+  # copy of her file (`from`, a promotion, a publish) carries words not
+  # in its arguments, and is refused unreviewed, as before.
+  @copies ~w(household_promote document_publish)
+  defp candidate(name, _args) when name in @copies, do: nil
+
+  defp candidate(_name, %{"from" => from}) when is_binary(from) and from != "", do: nil
+
+  defp candidate(_name, args) do
+    ballot = args["ballot"] || %{}
+
+    bundle =
+      for item <- List.wrap(ballot["bundle"]),
+          is_map(item),
+          v <- [item["rule"], item["setting"], item["value"]],
+          v != nil,
+          do: to_string(v)
+
+    [args["title"], args["content"], args["text"], ballot["note"] | bundle]
+    |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
+    |> Enum.join("\n\n")
   end
 
   # Who each delivering tool reaches. Her own conversations, the house
@@ -1614,12 +1643,31 @@ defmodule Oneiroi.Brain.Tools do
 
   defp delivery_audience(_name, _args, _turn), do: nil
 
-  defp withheld_words(%{details: d}) do
+  defp withheld_words(%{details: d} = e) do
     conflicts = Enum.join(Keyword.get(d, :conflicts, []), ", ")
 
     @not_done <>
-      "withheld by policy (decision #{d[:decision]}): this turn's context holds #{conflicts}, which your agreement's domain policies keep from #{d[:audience]}. Nothing was delivered, and the audience learns nothing of it. Say it where the policies allow (here, or to an audience they grant), or let the turn's context move on; the policies are yours and your witness's to change by agreement."
+      "withheld by policy (decision #{d[:decision]}): this turn's context holds #{conflicts}, which your agreement's domain policies keep from #{d[:audience]}. #{review_words(e)}Nothing was delivered, and the audience learns nothing of it. Say it where the policies allow (here, or to an audience they grant), or let the turn's context move on; the policies are yours and your witness's to change by agreement."
   end
+
+  # What the disclosure review said (kumbukumbu#82), to her alone.
+  defp review_words(%{site: :kumbukumbu_disclosure_discloses, details: d}),
+    do: "The disclosure judge read these words against it and found they carry it: #{d[:review]} "
+
+  defp review_words(%{site: :kumbukumbu_disclosure_failed, details: d}),
+    do: "The disclosure review could not clear them (#{d[:review]}), so they were not sent. "
+
+  defp review_words(%{site: :kumbukumbu_disclosure_no_judge}),
+    do: "No disclosure judge is named yet, so nothing held back can be reviewed. "
+
+  defp review_words(%{site: :kumbukumbu_disclosure_unproven}),
+    do:
+      "What was held back could not all be found to show a judge, so the words were not reviewed. "
+
+  defp review_words(%{site: :kumbukumbu_disclosure_denied}),
+    do: "A policy denies this audience outright, which no review can lift. "
+
+  defp review_words(_unreviewed), do: ""
 
   # A tool whose contract switch is off is refused in words, whatever the
   # path that called it: the brain's loop or an adapter through MCP.

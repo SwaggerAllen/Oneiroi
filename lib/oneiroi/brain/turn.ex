@@ -1202,6 +1202,7 @@ defmodule Oneiroi.Brain.Turn do
     count = Config.fetch!(:brain, :transcript_messages)
     {rest, index} = turn_sections(row, turn, text)
     sections = prefix_sections(row, turn) ++ rest
+    keep_sections(turn, sections)
 
     # The inline stamps (brain#58) only under BRAIN_HISTORY_STAMPS (#59).
     zone = History.zone(turn.resident_id)
@@ -1251,6 +1252,25 @@ defmodule Oneiroi.Brain.Turn do
         history ++ notices ++ withheld ++ batched ++ [opening]
 
     %{sections: sections, injections: injections, messages: messages}
+  end
+
+  # The words of the sections that may hold restricted material, kept for
+  # the turn's disclosure review (kumbukumbu#82): a delivery its ledger
+  # holds back is judged against what the turn was actually given. A
+  # trial delivers nothing and keeps nothing.
+  defp keep_sections(%{trial?: true}, _sections), do: :ok
+
+  defp keep_sections(turn, sections) do
+    names = Kumbukumbu.restricted_sections()
+
+    texts =
+      for %{label: label, message: %{content: text}} <- sections,
+          label in names,
+          is_binary(text),
+          into: %{},
+          do: {label, text}
+
+    Kumbukumbu.note_sections(turn.resident_id, Map.get(turn, :turn_ref), texts)
   end
 
   # A turn whose answer goes past the dyad (kumbukumbu#81, the soft path):

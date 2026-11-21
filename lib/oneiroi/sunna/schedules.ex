@@ -1424,7 +1424,9 @@ defmodule Oneiroi.Sunna.Schedules do
              resident_id,
              key,
              nil,
-             Kumbukumbu.audience("person", "resident:" <> sibling.id)
+             Kumbukumbu.audience("person", "resident:" <> sibling.id),
+             # Held back, her words are reviewed (kumbukumbu#82).
+             text
            ) do
       Kumbukumbu.send_sibling_letter(
         me,

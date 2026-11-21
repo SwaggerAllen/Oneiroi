@@ -52,6 +52,37 @@ defmodule Oneiroi.Kumbukumbu.TurnReads do
 
   def assembled(_resident_id, _turn_ref, _inputs), do: :ok
 
+  @doc """
+  The words of a turn's sections that may hold restricted material,
+  `%{name => text}` (kumbukumbu#82): what the disclosure judge is shown
+  when one of them held back a delivery. Kept as long as the reads.
+  """
+  def sections(resident_id, turn_ref, texts) when is_binary(turn_ref) and is_map(texts) do
+    now = Clock.now()
+
+    safely(fn ->
+      sweep(now)
+      :ets.delete(@table, {resident_id, turn_ref, :sections})
+      :ets.insert(@table, {{resident_id, turn_ref, :sections}, texts, now})
+    end)
+
+    :ok
+  end
+
+  def sections(_resident_id, _turn_ref, _texts), do: :ok
+
+  @doc "A turn's section words, `%{}` when none were kept."
+  def sections_of(resident_id, turn_ref) when is_binary(turn_ref) do
+    safely(fn ->
+      case :ets.lookup(@table, {resident_id, turn_ref, :sections}) do
+        [{_, texts, _}] -> texts
+        [] -> %{}
+      end
+    end) || %{}
+  end
+
+  def sections_of(_resident_id, _turn_ref), do: %{}
+
   @doc "What a resident's turn was assembled from, or nil when nothing was recorded."
   def assembled_of(resident_id, turn_ref) when is_binary(turn_ref) do
     safely(fn ->

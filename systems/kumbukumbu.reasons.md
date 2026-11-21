@@ -653,3 +653,16 @@ line keeps her from mistaking a gap for forgetting, and names the domain
 only to her (§5.4). Recording the assembled set as the ledger keeps the
 two checks one rule: what reaches the house is decided once, on what she
 was actually given.
+
+## #82
+A union check alone refuses nearly every post from her main thread: a
+window that ever touched recovery, and USER.md's recovery lines, hold
+back words that carry none of it. The witness ruled whole messages
+through, reviewed (#7): the check says when a review is owed, a judge
+says whether the words disclose. Review before release, never clean by
+construction, is the honest cost. Sufficient fragments, because a judge
+shown less than the words could disclose clears what it never saw; an
+unproven ledger fails closed for the same reason. The judge refuses and
+never grants, so an explicit deny stays a deny. The verdict is recorded
+dyad-local by hash and refs, so it can be reviewed without becoming the
+leak it guards against.

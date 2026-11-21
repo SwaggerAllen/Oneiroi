@@ -67,7 +67,7 @@ defmodule Oneiroi.Seshat.HouseholdTurnWorker do
   # quota, Scarlett's report #21) is never silence: the turn stays live to
   # its window and she is told, her words with it.
   defp post_answer(household_id, turn, text, ref) do
-    with {:ok, _decision} <- answer_allowed(household_id, turn, ref),
+    with {:ok, _decision} <- answer_allowed(household_id, turn, ref, text),
          {:ok, _} <-
            Household.reply(Oneiroi.Actor.new(:resident, turn.resident_id), turn.thread, %{
              "content" => text
@@ -82,7 +82,7 @@ defmodule Oneiroi.Seshat.HouseholdTurnWorker do
   # (kumbukumbu#80), and the turn was assembled for the house
   # (kumbukumbu#81), so it is asked what she was given; a refusal comes
   # back to her with her words.
-  defp answer_allowed(household_id, turn, ref) do
+  defp answer_allowed(household_id, turn, ref, text) do
     with {:ok, %{account_id: account}} when is_binary(account) <-
            Oneiroi.AgathosDaimon.fetch(turn.resident_id),
          {:ok, key} <-
@@ -91,7 +91,9 @@ defmodule Oneiroi.Seshat.HouseholdTurnWorker do
         turn.resident_id,
         key,
         ref,
-        Oneiroi.Kumbukumbu.audience("household", household_id)
+        Oneiroi.Kumbukumbu.audience("household", household_id),
+        # Held back, her words are reviewed (kumbukumbu#82).
+        text
       )
     else
       _no_chat -> {:ok, :no_chat}

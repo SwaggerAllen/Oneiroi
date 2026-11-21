@@ -259,6 +259,25 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
+  @doc "Records the disclosure judge's verdict on a held-back delivery (kumbukumbu#82): a decision on the turn's stream, never the restricted words."
+  def record_disclosure(resident_id, key, turn_ref, attrs, %Actor{} = actor) do
+    command =
+      struct(
+        Commands.RecordDisclosureVerdict,
+        Map.merge(attrs, %{
+          actor: actor,
+          at: Clock.now(),
+          id: stream(resident_id, key),
+          note: "the disclosure judge's verdict: #{attrs.verdict}",
+          resident_id: resident_id,
+          session_key: key,
+          turn_ref: turn_ref
+        })
+      )
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
   @doc """
   Records what retrieval did in a turn: each use `%{target, stage, via}`
   (`Events.RetrievalRecorded`). Nothing is recorded for a turn that

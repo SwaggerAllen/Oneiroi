@@ -176,6 +176,25 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
     end
   end
 
+  def execute(%__MODULE__{}, %Commands.RecordDisclosureVerdict{} = c),
+    do: %Events.DisclosureJudged{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      note: c.note,
+      resident_id: c.resident_id,
+      session_key: c.session_key,
+      turn_ref: c.turn_ref,
+      decision: c.decision,
+      policy_version: c.policy_version,
+      audience: c.audience,
+      verdict: c.verdict,
+      reasons: c.reasons,
+      candidate_sha: c.candidate_sha,
+      fragment_refs: c.fragment_refs,
+      model: c.model
+    }
+
   def execute(%__MODULE__{}, %Commands.RecordContext{} = c) do
     %Events.ContextAssembled{
       actor: c.actor,
@@ -395,6 +414,7 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   end
 
   def apply(%__MODULE__{} = s, %Events.ContextAssembled{}), do: s
+  def apply(%__MODULE__{} = s, %Events.DisclosureJudged{}), do: s
   def apply(%__MODULE__{} = s, %Events.RetrievalRecorded{}), do: s
 
   def apply(%__MODULE__{} = s, %Events.Compacted{} = e),

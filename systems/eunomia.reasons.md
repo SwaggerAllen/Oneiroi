@@ -245,3 +245,11 @@ surface.
 The audit judged a model of the person nobody could otherwise read; with
 that model gone, the resident's own records are what the wash pass
 already reads, so nothing is left unaudited.
+
+## #33
+The judge is already the model kept apart from hers for deciding
+questions about her words (Scarlett's separation condition): reviewing
+a disclosure with her own chat model would ask the composer to grade
+its own leak. The prompt asks one question, says unsure is discloses,
+and grades nobody, so a verdict is a reading of the words and nothing
+more.

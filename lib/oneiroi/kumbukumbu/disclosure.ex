@@ -1,0 +1,164 @@
+defmodule Oneiroi.Kumbukumbu.Disclosure do
+  @moduledoc """
+  The review a held-back delivery is owed (kumbukumbu#82; the house
+  thread's design, the witness's ruling #7, Lily's letter #1514). The
+  ledger's union check is the tripwire: it says *when* a review is owed,
+  because something the audience may not hear was in the turn's context.
+  The judge says *whether* the candidate discloses it.
+
+  **What is reviewable.** Inputs held back because no policy allows the
+  audience, because their domain has none, or because they are
+  unclassified. An explicit deny, or an audience not resolved, is refused
+  as before, unreviewed: the judge may refuse, never grant past a deny.
+
+  **What the judge sees.** The exact candidate and the held-back inputs'
+  words, sufficient rather than trimmed (`Ledger.fragments/3`: a message
+  brings its turn, a bookmark its line, summary and anchor turn). An
+  input whose words cannot be found leaves the ledger unproven, and the
+  delivery fails closed.
+
+  **Fail closed.** No judge named, a call that fails, times out
+  (`KUMBUKUMBU_DISCLOSURE_JUDGE_MS`) or answers out of form, a verdict
+  that it discloses: nothing ships, and she is told in her own context.
+
+  **The record.** Every verdict the judge gives or fails to give is a
+  `DisclosureJudged` decision on her conversation's stream: the decision
+  id, the policy version, the audience, the verdict and its reasons, the
+  candidate's SHA-256, the fragments' refs and the model. Never the
+  restricted words; her repository's reading copy shows it, the house
+  nothing.
+  """
+
+  alias Oneiroi.Actor
+  alias Oneiroi.Config
+  alias Oneiroi.Kumbukumbu.Conversations
+  alias Oneiroi.Kumbukumbu.Error
+
+  @reviewable [:not_allowed, :no_policy, :unclassified]
+
+  @doc """
+  Reviews `candidate` for delivery to `audience`, held back by
+  `decision`: `{:ok, decision}` on a clean verdict, the refusal
+  otherwise. `refused` is the refusal's details, the ledger's; `shown`
+  finds the held-back inputs' words (`Ledger.fragments/3`).
+  """
+  def review(turn, audience, candidate, decision, inputs, refused, shown) do
+    held = MapSet.new(decision.withheld, & &1.id)
+
+    cond do
+      not Enum.all?(decision.withheld, &(&1.reason in @reviewable)) ->
+        {:error,
+         Error.new(:kumbukumbu_withheld_by_policy, :kumbukumbu_disclosure_denied, refused)}
+
+      not is_binary(turn.session_key) ->
+        {:error,
+         Error.new(:kumbukumbu_withheld_by_policy, :kumbukumbu_disclosure_no_session, refused)}
+
+      true ->
+        judged(
+          turn,
+          audience,
+          candidate,
+          decision,
+          shown.(Enum.filter(inputs, &(&1.id in held))),
+          refused
+        )
+    end
+  end
+
+  defp judged(turn, audience, candidate, decision, found, refused) do
+    with {:ok, port} <- port(refused),
+         {:ok, fragments} <- fragments(found, refused) do
+      request = %{
+        candidate: candidate,
+        fragments: fragments,
+        audience: "#{audience.kind}:#{audience.id}"
+      }
+
+      verdict = ask(port, turn.resident_id, request)
+
+      with :ok <- record(turn, decision, candidate, fragments, verdict),
+           do: answer(verdict, decision, refused)
+    end
+  end
+
+  defp port(refused) do
+    case Config.fetch!(:kumbukumbu, :disclosure_judge) do
+      :none ->
+        {:error,
+         Error.new(:kumbukumbu_withheld_by_policy, :kumbukumbu_disclosure_no_judge, refused)}
+
+      port ->
+        {:ok, port}
+    end
+  end
+
+  defp fragments(found, refused) do
+    case found do
+      {:ok, fragments} ->
+        {:ok, fragments}
+
+      :unproven ->
+        {:error,
+         Error.new(:kumbukumbu_withheld_by_policy, :kumbukumbu_disclosure_unproven, refused)}
+    end
+  end
+
+  # Bounded: past the bound the review failed, and fails closed.
+  defp ask(port, resident_id, request) do
+    task = Task.async(fn -> port.judge_disclosure(resident_id, request) end)
+
+    case Task.yield(task, Config.fetch!(:kumbukumbu, :disclosure_judge_ms)) ||
+           Task.shutdown(task) do
+      {:ok, {:ok, %{verdict: v} = verdict}} when v in [:clean, :discloses] -> verdict
+      {:ok, {:ok, _out_of_form}} -> failed("an answer out of form")
+      {:ok, {:error, reason}} -> failed("the call failed: #{reason_words(reason)}")
+      {:exit, _reason} -> failed("the call crashed")
+      nil -> failed("the call timed out")
+    end
+  end
+
+  defp failed(why), do: %{verdict: :failed, reasons: why, model: nil}
+
+  defp reason_words(%{meaning: meaning}) when is_binary(meaning), do: meaning
+  defp reason_words(reason), do: inspect(reason)
+
+  defp record(turn, decision, candidate, fragments, verdict) do
+    Conversations.record_disclosure(
+      turn.resident_id,
+      turn.session_key,
+      turn.turn_ref,
+      %{
+        decision: decision.id,
+        policy_version: decision.snapshot.version,
+        audience: "#{decision.audience.kind}:#{decision.audience.id}",
+        verdict: Atom.to_string(verdict.verdict),
+        reasons: verdict.reasons,
+        candidate_sha: :sha256 |> :crypto.hash(candidate) |> Base.encode16(case: :lower),
+        fragment_refs: Enum.map(fragments, & &1.ref),
+        model: verdict.model
+      },
+      Actor.new(:judge, "disclosure", verdict.model)
+    )
+  end
+
+  defp answer(%{verdict: :clean}, decision, _refused), do: {:ok, decision}
+
+  defp answer(%{verdict: :discloses, reasons: reasons}, _decision, refused),
+    do:
+      {:error,
+       Error.new(
+         :kumbukumbu_withheld_by_policy,
+         :kumbukumbu_disclosure_discloses,
+         Keyword.put(refused, :review, reasons)
+       )}
+
+  defp answer(%{reasons: why}, _decision, refused),
+    do:
+      {:error,
+       Error.new(
+         :kumbukumbu_withheld_by_policy,
+         :kumbukumbu_disclosure_failed,
+         Keyword.put(refused, :review, why)
+       )}
+end

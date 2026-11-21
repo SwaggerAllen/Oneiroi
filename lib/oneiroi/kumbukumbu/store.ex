@@ -1299,6 +1299,7 @@ defmodule Oneiroi.Kumbukumbu.Store do
           select: %{
             sequence: m.sequence,
             position: m.position,
+            turn_ref: m.turn_ref,
             person: m.domain_person,
             domain: m.domain
           }

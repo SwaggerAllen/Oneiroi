@@ -54,6 +54,7 @@ defmodule Oneiroi.Kumbukumbu do
       Memories,
       Madeleine,
       Tree,
+      DisclosureJudge,
       MemoryRouter,
       ReactsRouter,
       Commands.React,
@@ -110,6 +111,7 @@ defmodule Oneiroi.Kumbukumbu do
       Commands.StartTurn,
       Commands.CaptureTurn,
       Commands.RecordContext,
+      Commands.RecordDisclosureVerdict,
       Commands.RecordRetrieval,
       Commands.ClaimTurn,
       Commands.FailCapture,
@@ -121,6 +123,7 @@ defmodule Oneiroi.Kumbukumbu do
       Events.TurnStarted,
       Events.TurnCaptured,
       Events.ContextAssembled,
+      Events.DisclosureJudged,
       Events.RetrievalRecorded,
       Events.TurnClaimed,
       Events.CaptureFailed,
@@ -293,12 +296,30 @@ defmodule Oneiroi.Kumbukumbu do
        default: "30",
        tag: :bound,
        usage:
-         "how long after its last turn a conversation still counts as open (kumbukumbu#42): a runtime that quits says nothing, so open is spoken in lately; a guess at a working session's pauses, never measured"}
+         "how long after its last turn a conversation still counts as open (kumbukumbu#42): a runtime that quits says nothing, so open is spoken in lately; a guess at a working session's pauses, never measured"},
+      {:disclosure_judge, "KUMBUKUMBU_DISCLOSURE_JUDGE",
+       cast: &__MODULE__.cast_judge/1,
+       default: "none",
+       usage:
+         "which disclosure judge reviews a delivery her turn's ledger held back (kumbukumbu#82, `Oneiroi.Kumbukumbu.DisclosureJudge`): none, every such delivery refused as before, until the witness names the judge; eunomia, the resident's judge model (EUNOMIA_JUDGE_MODEL or hers), billed under judge"},
+      {:disclosure_judge_ms, "KUMBUKUMBU_DISCLOSURE_JUDGE_MS",
+       cast: :integer,
+       default: "60000",
+       tag: :bound,
+       usage:
+         "how long the disclosure judge may take over one candidate before the review fails and the delivery fails closed (kumbukumbu#82); a bound, not measured"}
     ]
   end
 
   @impl Oneiroi.Component
   def telemetry_events, do: [[:oneiroi, :kumbukumbu, :turn_attributed]]
+
+  @doc false
+  def cast_judge("none"), do: {:ok, :none}
+  def cast_judge("eunomia"), do: {:ok, :"Elixir.Oneiroi.Eunomia"}
+
+  # oneiroi:allow error_site: a config cast's contract is {:error, report_line}, printed at boot (Oneiroi.Config)
+  def cast_judge(other), do: {:error, "is #{inspect(other)}, expected \"none\" or \"eunomia\""}
 
   @doc false
   def cast_tree("ethos"), do: {:ok, :"Elixir.Oneiroi.Ethos"}
@@ -314,6 +335,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.TurnStarted, 1},
       {Oneiroi.Kumbukumbu.Events.TurnCaptured, 1},
       {Oneiroi.Kumbukumbu.Events.ContextAssembled, 1},
+      {Oneiroi.Kumbukumbu.Events.DisclosureJudged, 1},
       {Oneiroi.Kumbukumbu.Events.RetrievalRecorded, 2},
       {Oneiroi.Kumbukumbu.Events.TurnClaimed, 1},
       {Oneiroi.Kumbukumbu.Events.Compacted, 1},
@@ -398,7 +420,7 @@ defmodule Oneiroi.Kumbukumbu do
        "a revision is one text of at most 2,000 characters, not blank",
        remedy: "say what is right"},
       {:kumbukumbu_withheld_by_policy,
-       "withheld by policy: what this turn's context holds may not reach that audience, by the dyad's domain policies; nothing was delivered (kumbukumbu#80)",
+       "withheld by policy: what this turn's context holds may not reach that audience, by the dyad's domain policies, and no review released it; nothing was delivered (kumbukumbu#80, #82)",
        remedy:
          "say it where the policies allow (in your own chat, or to an audience they grant), or let the turn's context move on; the policies are the dyad's to change by agreement"},
       {:kumbukumbu_unwrap_refused,
@@ -484,6 +506,21 @@ defmodule Oneiroi.Kumbukumbu do
   defexport(delivery_check(resident_id, session_key, turn_ref, audience),
     do: Ledger.check(resident_id, session_key, turn_ref, audience)
   )
+
+  @doc "The same check with the words to be delivered (kumbukumbu#82): held back, the disclosure judge reviews them, and a clean verdict delivers."
+  @spec delivery_check(String.t(), String.t() | nil, String.t() | nil, map(), String.t() | nil) ::
+          {:ok, map()} | {:error, term()}
+  defexport(delivery_check(resident_id, session_key, turn_ref, audience, candidate),
+    do: Ledger.check(resident_id, session_key, turn_ref, audience, candidate)
+  )
+
+  @doc "The words of a turn's sections that may hold restricted material (kumbukumbu#82), kept for the disclosure judge."
+  defexport(note_sections(resident_id, turn_ref, texts),
+    do: TurnReads.sections(resident_id, turn_ref, texts)
+  )
+
+  @doc "The section names whose words a disclosure judge may need (kumbukumbu#82)."
+  defexport(restricted_sections(), do: Ledger.restricted_sections())
 
   @doc "A turn assembled for an audience past the dyad (kumbukumbu#81): the sections and window rows kept, the citations withheld, the ledger recorded."
   @spec assemble_for(String.t(), String.t(), String.t(), map(), [String.t()], [map()]) :: map()
