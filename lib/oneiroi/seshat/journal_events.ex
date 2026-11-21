@@ -15,7 +15,23 @@ defmodule Oneiroi.Seshat.Events.JournalEntryAdded do
   # length, and a summary of at most 2,000 characters is what the turn's
   # journal section shows of a longer one; nil on every earlier entry,
   # which the identity upcaster leaves as the struct's default.
-  use Oneiroi.Event, version: 3, fields: [:id, :day, :number, :kind, :text, :register, :summary]
+  # Version 4 adds the writing turn (kumbukumbu#84): `session_key`,
+  # `turn_ref` and `labels`, every distinct label its context held,
+  # never words; nil on every earlier entry, read as unclassified.
+  use Oneiroi.Event,
+    version: 4,
+    fields: [
+      :id,
+      :day,
+      :number,
+      :kind,
+      :text,
+      :register,
+      :summary,
+      :session_key,
+      :turn_ref,
+      :labels
+    ]
 end
 
 defimpl Commanded.Event.Upcaster, for: Oneiroi.Seshat.Events.JournalEntryAdded do

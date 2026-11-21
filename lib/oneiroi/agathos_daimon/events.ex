@@ -248,6 +248,15 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :number]
   end
 
+  defmodule SoulLineAnnotated do
+    # Her annotation of a soul line (agathos-daimon#55; Lily's letter
+    # #1550): the domains it is about (`%{"person", "domain"}` maps, none
+    # for the common room) and whether it is private, dyad-only with no
+    # grant path. A decision with her note; the latest wins, the stream
+    # keeps every one, and the line is never cut.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :number, :domains, :private]
+  end
+
   defmodule SoulLinesOrdered do
     use Oneiroi.Event, version: 1, fields: [:id, :numbers]
   end
@@ -298,7 +307,16 @@ defmodule Oneiroi.AgathosDaimon.Events do
     # A letter from the resident to its next self (spec §12, P41),
     # numbered from the `letter` sequence; `model` is the instance that
     # wrote it, from the actor, so the incoming one knows whose words.
-    use Oneiroi.Event, version: 1, fields: [:id, :number, :text, :model]
+    # Version 2 adds the writing turn (kumbukumbu#84): `session_key`,
+    # `turn_ref` and `labels`, every distinct label its context held,
+    # never words; nil on a version 1 letter, read as unclassified.
+    use Oneiroi.Event,
+      version: 2,
+      fields: [:id, :number, :text, :model, :session_key, :turn_ref, :labels]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: SelfLetterWritten do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule StateLineSet do

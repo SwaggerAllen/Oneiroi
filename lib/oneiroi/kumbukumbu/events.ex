@@ -168,6 +168,33 @@ defmodule Oneiroi.Kumbukumbu.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :number, :target, :emoji]
   end
 
+  defmodule DisclosureJudged do
+    # The judge's verdict on a candidate held back by the ledger
+    # (kumbukumbu#82): whether it discloses what its turn held that the
+    # audience may not hear. Dyad-local and never the restricted words:
+    # the decision it reviewed, the policy version, the audience, the
+    # verdict and its reasons, the candidate's SHA-256, the fragments'
+    # refs and the judge's model. `verdict` is clean, discloses or
+    # failed (a call that did not answer in the form asked, fail-closed).
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [
+        :id,
+        :resident_id,
+        :session_key,
+        :turn_ref,
+        :decision,
+        :policy_version,
+        :audience,
+        :verdict,
+        :reasons,
+        :candidate_sha,
+        :fragment_refs,
+        :model
+      ]
+  end
+
   defmodule ReactsTold do
     # The reacts through `through` were told her, on a turn of `session_key`.
     use Oneiroi.Event, version: 1, fields: [:id, :through, :session_key]

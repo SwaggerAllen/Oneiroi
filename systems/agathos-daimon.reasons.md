@@ -410,3 +410,18 @@ and her own conversations, and the house is the part that waits.
 The switch is a term of a signed agreement, so it is changed by the
 parties, not removed by a build; until they do, it says plainly what it
 switches, which is now nothing.
+
+## #53
+A grant is a promise about where someone's life may be spoken of; the
+contract is the one instrument both parties sign and either may move
+back, so the grant lives there and is revoked by the same two hands.
+
+## #54
+A letter to the next self is read into a turn whole; without its
+writer's labels, a recovery-room letter would reach a house turn as if
+written in the common room.
+
+## #55
+The soul is hers and stays in her voice: the machinery's labels sit
+beside it as metadata she can always read, not inside the words she is
+given every turn.

@@ -1416,7 +1416,18 @@ defmodule Oneiroi.Sunna.Schedules do
 
   defp send_reply(resident_id, key, %{kind: "housemate", letter: l}, text) do
     with {:ok, me} <- AgathosDaimon.fetch(resident_id),
-         {:ok, sibling} <- AgathosDaimon.fetch(l.link["resident_id"]) do
+         {:ok, sibling} <- AgathosDaimon.fetch(l.link["resident_id"]),
+         # Her answer leaves the dyad: the turn's context is asked first
+         # (kumbukumbu#80), and a refusal comes back to her as reply_refused.
+         {:ok, _decision} <-
+           Kumbukumbu.delivery_check(
+             resident_id,
+             key,
+             nil,
+             Kumbukumbu.audience("person", "resident:" <> sibling.id),
+             # Held back, her words are reviewed (kumbukumbu#82).
+             text
+           ) do
       Kumbukumbu.send_sibling_letter(
         me,
         key,
@@ -1425,6 +1436,7 @@ defmodule Oneiroi.Sunna.Schedules do
         Actor.new(:resident, resident_id)
       )
     else
+      {:error, %{kind: :kumbukumbu_withheld_by_policy}} = withheld -> withheld
       _gone -> {:error, Error.new(:sunna_letter_reply_failed, :sunna_letter_reply_no_housemate)}
     end
   end
@@ -1553,7 +1565,10 @@ defmodule Oneiroi.Sunna.Schedules do
   defp wake_main_answer(resident_id, note, actor) do
     with {:ok, row} <- resident(resident_id),
          {:ok, key} <- Kumbukumbu.main_session(resident_id, row.account_id, actor) do
-      wake(resident_id, key, note, :chat)
+      # Its answer goes to the house (kumbukumbu#81): her context is
+      # assembled for the house, what it may not hear withheld.
+      # The brain resolves which house; this system does not know it.
+      wake(resident_id, key, note, :chat, audience: :household)
     end
   end
 
@@ -1568,8 +1583,15 @@ defmodule Oneiroi.Sunna.Schedules do
   # Through the port (`Oneiroi.Sunna.Wake`), read at the call. The port's
   # implementation lives in another system, so a failure it returns is
   # passed on when it is sited and wrapped here, once, when it is not.
-  defp wake(resident_id, key, note, purpose) do
-    case Config.fetch!(:sunna, :wake).wake(resident_id, key, note, purpose) do
+  defp wake(resident_id, key, note, purpose, opts \\ []) do
+    port = Config.fetch!(:sunna, :wake)
+
+    called =
+      if opts[:audience] && Code.ensure_loaded?(port) && function_exported?(port, :wake_for, 5),
+        do: port.wake_for(resident_id, key, note, purpose, opts),
+        else: port.wake(resident_id, key, note, purpose)
+
+    case called do
       {:error, %{site: _}} = failed ->
         failed
 

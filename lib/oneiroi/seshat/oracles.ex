@@ -34,10 +34,14 @@ defmodule Oneiroi.Seshat.Oracles do
   attributed to `actor` (the resident, with the model that read), then
   records it answered; returns the path.
   """
-  def answer(resident_id, number, content, %{} = measured, %Actor{} = actor) do
+  def answer(resident_id, number, content, %{} = measured, %Actor{} = actor, opts \\ []) do
     with %Store.Oracle{} = row <- oracle(resident_id, number) || absent(number),
          path = "oracle/#{number}-#{slug(row.question)}.md",
-         {:ok, _written} <- Documents.write(resident_id, path, content, actor, core: true),
+         {:ok, _written} <-
+           Documents.write(resident_id, path, content, actor,
+             core: true,
+             provenance: Keyword.get(opts, :provenance)
+           ),
          {:ok, _events} <-
            dispatch(%Commands.AnswerOracle{
              actor: actor,

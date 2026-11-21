@@ -29,6 +29,25 @@ defmodule Oneiroi.Kumbukumbu.Commands do
       fields: [:id, :resident_id, :session_key, :turn_ref, :started_at, :messages]
   end
 
+  defmodule RecordDisclosureVerdict do
+    use Oneiroi.Command,
+      decision: true,
+      fields: [
+        :id,
+        :resident_id,
+        :session_key,
+        :turn_ref,
+        :decision,
+        :policy_version,
+        :audience,
+        :verdict,
+        :reasons,
+        :candidate_sha,
+        :fragment_refs,
+        :model
+      ]
+  end
+
   defmodule RecordContext do
     use Oneiroi.Command, fields: [:id, :resident_id, :session_key, :turn_ref, :injections]
   end

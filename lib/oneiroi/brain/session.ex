@@ -77,10 +77,17 @@ defmodule Oneiroi.Brain.Session do
   end
 
   @doc "Runs a wake on the session's process: the core's note, answered under its purpose."
-  @spec wake(String.t(), String.t(), String.t(), atom()) :: {:ok, map()} | {:error, term()}
-  def wake(resident_id, session_key, note, purpose) do
+  @spec wake(String.t(), String.t(), String.t(), atom(), keyword()) ::
+          {:ok, map()} | {:error, term()}
+  def wake(resident_id, session_key, note, purpose, opts \\ []) do
     with {:ok, pid} <- ensure(resident_id, session_key) do
-      item = %{ref: nil, text: note, actor: Actor.platform(), opts: [as: :note, purpose: purpose]}
+      # An audience past the dyad rides to the turn (kumbukumbu#81).
+      item = %{
+        ref: nil,
+        text: note,
+        actor: Actor.platform(),
+        opts: [as: :note, purpose: purpose] ++ Keyword.take(opts, [:audience])
+      }
 
       # A wake that outlasts the wait is still her turn, running on in its
       # session (brain#97): the caller hears so and goes on. On 2026-11-14

@@ -30,8 +30,9 @@ defmodule Oneiroi.Seshat.Researches do
   @note_chars 20_000
 
   @doc "Asks the reader's research pass a named question, with the pages to start from; its number."
-  def ask(resident_id, session_key, question, urls, %Actor{} = actor) do
+  def ask(resident_id, session_key, question, urls, %Actor{} = actor, ledger \\ nil) do
     command = %Commands.AskResearch{
+      ledger: ledger,
       actor: actor,
       at: Clock.now(),
       id: resident_id,
@@ -52,10 +53,14 @@ defmodule Oneiroi.Seshat.Researches do
     with %Store.Research{status: "open"} = row <- research(resident_id, number) || absent(number),
          dir = "research/#{number}-#{slug(row.question)}",
          sources = found |> field(:sources) |> List.wrap() |> Enum.take(@max_sources),
-         {:ok, notes} <- write_notes(resident_id, dir, sources, actor),
+         # Every note inherits the asking turn's ledger (kumbukumbu#84);
+         # a question asked before it was kept leaves them unclassified.
+         provenance = row.ledger && %{ledger: row.ledger},
+         {:ok, notes} <- write_notes(resident_id, dir, sources, actor, provenance),
          {:ok, _} <-
            Documents.write(resident_id, dir <> "/task.md", task(row, found, notes), actor,
-             core: true
+             core: true,
+             provenance: provenance
            ),
          {:ok, _events} <-
            dispatch(%Commands.AnswerResearch{
@@ -103,7 +108,7 @@ defmodule Oneiroi.Seshat.Researches do
   def research(resident_id, number),
     do: Scope.resident(resident_id, fn -> Store.research(number) end)
 
-  defp write_notes(resident_id, dir, sources, actor) do
+  defp write_notes(resident_id, dir, sources, actor, provenance) do
     sources
     |> Enum.with_index(1)
     |> Enum.reduce_while({:ok, []}, fn {source, i}, {:ok, acc} ->
@@ -113,7 +118,7 @@ defmodule Oneiroi.Seshat.Researches do
       path = "#{dir}/#{i}-#{slug(title)}.md"
       content = "# #{title}\n\nSource: #{url}\n\n#{notes}\n"
 
-      case Documents.write(resident_id, path, content, actor, core: true) do
+      case Documents.write(resident_id, path, content, actor, core: true, provenance: provenance) do
         {:ok, _} -> {:cont, {:ok, acc ++ [%{url: url, title: title, path: path}]}}
         {:error, _} = failed -> {:halt, failed}
       end

@@ -59,7 +59,36 @@ defmodule Oneiroi.Seshat.Library do
           kind: c.kind,
           hash: c.hash,
           bytes: c.bytes,
-          note: c.note
+          note: c.note,
+          session_key: c.session_key,
+          turn_ref: c.turn_ref,
+          ledger: c.ledger,
+          composed_for: c.composed_for
+        }
+    end
+  end
+
+  # Its author classifies a document she has (seshat#102): a resident's
+  # own act, as a turn's domain tag is.
+  def execute(%__MODULE__{documents: documents}, %Commands.ClassifyDocument{} = c) do
+    cond do
+      c.actor.kind != :resident ->
+        {:error,
+         Error.new(:seshat_classify_invalid, :seshat_classify_document_not_resident, path: c.path)}
+
+      not Map.has_key?(documents, c.path) ->
+        {:error,
+         Error.new(:seshat_no_such_document, :seshat_classify_document_absent, path: c.path)}
+
+      true ->
+        %Events.DocumentClassified{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          note: c.note,
+          path: c.path,
+          person: c.person,
+          domain: c.domain
         }
     end
   end
@@ -460,7 +489,8 @@ defmodule Oneiroi.Seshat.Library do
         number: (researches |> Map.keys() |> Enum.max(fn -> 0 end)) + 1,
         question: question,
         urls: urls,
-        session_key: c.session_key
+        session_key: c.session_key,
+        ledger: c.ledger
       }
     else
       {:error, Error.new(:seshat_research_invalid, :seshat_ask_research_invalid)}
@@ -687,6 +717,7 @@ defmodule Oneiroi.Seshat.Library do
     do: %{s | documents: Map.delete(s.documents, e.path)}
 
   def apply(%__MODULE__{} = l, %Events.DocumentWritten{} = e), do: register(l, e)
+  def apply(%__MODULE__{} = l, %Events.DocumentClassified{}), do: l
 
   def apply(%__MODULE__{documents: docs} = l, %Events.DocumentArchived{} = e),
     do: %{

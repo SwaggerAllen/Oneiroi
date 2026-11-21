@@ -127,6 +127,8 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
         text: e.text,
         keepsake: e.keepsake,
         link: Map.get(e, :link),
+        turn_ref: Map.get(e, :turn_ref),
+        labels: Map.get(e, :labels),
         by_kind: actor_field(e.actor, :kind),
         sent_at: e.at
       },

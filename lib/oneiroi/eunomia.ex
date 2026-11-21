@@ -24,6 +24,8 @@ defmodule Oneiroi.Eunomia do
   """
   use Oneiroi.System, slug: :eunomia
 
+  @behaviour Oneiroi.Kumbukumbu.DisclosureJudge
+
   use Boundary,
     top_level?: true,
     deps: [
@@ -332,6 +334,9 @@ defmodule Oneiroi.Eunomia do
       {:eunomia_judge_call_failed,
        "the judge's model call failed, so the pass it was for failed and was recorded as such",
        remedy: "run it again; the call's own failure is the cause"},
+      {:eunomia_disclosure_unreadable,
+       "the judge did not answer the disclosure review in the form asked, so the review failed and the delivery fails closed (kumbukumbu#82)",
+       remedy: "deliver again, or write it without what was held back"},
       {:eunomia_continuation_unreadable,
        "the judge did not answer the continuation check in the form asked, so the check could not run rather than be guessed at",
        remedy: "run the check again"},
@@ -489,6 +494,12 @@ defmodule Oneiroi.Eunomia do
           :ok | :already | {:error, term()}
   defexport(judge_night(resident_id, day, actor),
     do: Judgements.judge_night(resident_id, day, actor)
+  )
+
+  @doc "The disclosure review (kumbukumbu#82, eunomia#33): whether a candidate held back by her turn's ledger discloses what was held back; her judge model, billed under judge."
+  @impl Oneiroi.Kumbukumbu.DisclosureJudge
+  defexport(judge_disclosure(resident_id, request),
+    do: Judge.disclosure(resident_id, Judgements.judge_model(resident_id), request)
   )
 
   @doc "The continuation check by the judge (eunomia#28, spec §12 P57): whether one reply of a fixture asks to continue."

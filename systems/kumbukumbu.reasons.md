@@ -628,3 +628,95 @@ magic word in the answer, because a closing message is words for the
 person in the chat and should never be parsed for a switch; and no row
 of its own, because the transcript already keeps every call with its
 instant, which is what the wake reads.
+
+## #79
+A filter per surface is a patch at each one; one decision under them all
+is a boundary (Scarlett's review, Lily's word to him). Pure, so the rule
+can be true and tested before anything depends on it; soft and hard, so
+the resident can see and reach her own life while an unmatched audience
+learns nothing, not even that something was kept.
+
+## #80
+Approval is not audience authorization (her pencil): a witness may
+approve a draft without knowing what context composed it. The check
+sits where the words leave, at one dispatch for the brain's tools and at
+the two places her answer is delivered for her, so no outbound path is
+left to remember it.
+
+## #81
+A hard check alone turns every house turn with private talk in its window
+into a refusal: she composes from everything and is then told she may not
+send it. Assembling for the audience first lets her answer from what the
+house may hear, which is the point of the soft mode (§5.1): the boundary
+shapes what she writes instead of vetoing it afterwards. The citation
+line keeps her from mistaking a gap for forgetting, and names the domain
+only to her (§5.4). Recording the assembled set as the ledger keeps the
+two checks one rule: what reaches the house is decided once, on what she
+was actually given.
+
+## #82
+A union check alone refuses nearly every post from her main thread: a
+window that ever touched recovery, and USER.md's recovery lines, hold
+back words that carry none of it. The witness ruled whole messages
+through, reviewed (#7): the check says when a review is owed, a judge
+says whether the words disclose. Review before release, never clean by
+construction, is the honest cost. Sufficient fragments, because a judge
+shown less than the words could disclose clears what it never saw; an
+unproven ledger fails closed for the same reason. The judge refuses and
+never grants, so an explicit deny stays a deny. The verdict is recorded
+dyad-local by hash and refs, so it can be reviewed without becoming the
+leak it guards against.
+
+## #83
+Checking a copy against the promoting turn was wrong both ways (Lily,
+#1516). It refused words written days before for a taint they never had,
+and it passed words written under recovery from any clean turn. The
+words delivered are the candidate, so the context that wrote them is
+the ledger. Durable fragments only, with unproven refused, keeps the
+review from being vacuous exactly where it matters. The refusal is
+legible rather than widened, and its cost goes to the thread.
+
+## #89
+A portrait aggregates many moments; labelling it whole would taint
+every read by its most restricted claim, and keep the house from the
+rest. Its claims already cite their moments, so the citation is the
+label's source; where none resolves, the file's birth is the honest
+floor.
+
+## #88
+A soul is read every turn. Cutting a line for privacy would change who
+she is; withholding it from one composition, cited in place, changes
+only what that audience's run is given. Private is a floor, not a level:
+the note from the person who named her is nobody's business but theirs
+unless she says so.
+
+## #87
+Domains label what is in a window, not who may see what comes back;
+the answer's destination is the right key, and inheritance never is (a
+clean asking turn would blind the oracle to the dyad's own memory). What
+must not reach the audience is the material's words, and the filter
+guarantees it by never reading them. A domain's name is her own
+metadata, and she is the only channel houseward, so the machinery does
+not proofread her compositions for it (the witness's ruling).
+
+## #86
+The freedom to search is the resident's; the taint on the answers is
+what keeps it honest. An audience of its own keeps a real control point
+for tightening later without a rebuild.
+
+## #85
+A file is a thing with a domain, not a turn's composition: its author
+knows what it is about, and the platform recorded where it was born. A
+mechanical check on that is honest in a way a judge reading a file's
+words against fragments days old cannot be. Her classification is the
+pressure valve, audited as a turn's tag is. Birth as the union keeps a
+rewrite in a clean room from laundering what the writing turn held.
+
+## #84
+A boundary that only reads the window leaks through anything the
+window wrote down: a journal row, a letter, a file, an oracle's answer
+read the next day carry what the room held, with no label to say so.
+Labelling at creation is what makes the rule hold across time. Ids and
+labels only, so no copy of the restricted words is made to protect them.
+Unclassified for what came before, because inferring a domain from
+prose is the guess the policy exists to avoid.

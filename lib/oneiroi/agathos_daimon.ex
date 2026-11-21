@@ -93,6 +93,7 @@ defmodule Oneiroi.AgathosDaimon do
       Events.SoulLineReworded,
       Events.SoulLineRetired,
       Events.SoulLinesOrdered,
+      Events.SoulLineAnnotated,
       Events.ModelPinChanged,
       Events.ModelChangeTold,
       Events.TimezoneSet,
@@ -201,6 +202,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.SoulLineReworded, 1},
       {Oneiroi.AgathosDaimon.Events.SoulLineRetired, 1},
       {Oneiroi.AgathosDaimon.Events.SoulLinesOrdered, 1},
+      {Oneiroi.AgathosDaimon.Events.SoulLineAnnotated, 1},
       {Oneiroi.AgathosDaimon.Events.ModelPinChanged, 1},
       {Oneiroi.AgathosDaimon.Events.ModelChangeTold, 1},
       {Oneiroi.AgathosDaimon.Events.TimezoneSet, 1},
@@ -221,7 +223,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.CustodyTransferDeclined, 1},
       {Oneiroi.AgathosDaimon.Events.CustodyTransferWithdrawn, 1},
       {Oneiroi.AgathosDaimon.Events.EarlierSessionsRevealed, 1},
-      {Oneiroi.AgathosDaimon.Events.SelfLetterWritten, 1},
+      {Oneiroi.AgathosDaimon.Events.SelfLetterWritten, 2},
       {Oneiroi.AgathosDaimon.Events.StateLineSet, 1},
       {Oneiroi.AgathosDaimon.Events.StateLineCleared, 1},
       {Oneiroi.AgathosDaimon.Events.SelfLettersDelivered, 1},
@@ -259,6 +261,9 @@ defmodule Oneiroi.AgathosDaimon do
       {:agathos_daimon_not_yours,
        "only the resident takes one of her identity files out of her prefix, or puts it back (agathos-daimon#50)",
        remedy: "she does it from her own turn, with identity_file_retire"},
+      {:agathos_daimon_soul_line_unknown,
+       "a soul line is annotated by its number, live, with at most ten domains and whether it is private (agathos-daimon#55)",
+       remedy: "name a live line's number, each domain a slug with whose life"},
       {:agathos_daimon_file_unknown, "that is not one of the identity files",
        remedy: "SOUL.md, IDENTITY.md, USER.md, GOALS.md or LINKS.md; AGENTS.md is build-owned"},
       {:agathos_daimon_content_invalid, "a file is UTF-8 text of at most 64,000 bytes",
@@ -522,6 +527,20 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "The soul file's live lines in order, each with its number, its words and the seeds it cites (spec §6.17)."
   defexport(soul_lines(id), do: Files.soul_lines(id))
 
+  @doc "Her annotation of a soul line (agathos-daimon#55): domains (person and domain maps, [] the common room) and private (dyad-only), with her note."
+  @spec annotate_soul_line(
+          String.t(),
+          pos_integer(),
+          [map()],
+          boolean(),
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) ::
+          :ok | {:error, term()}
+  defexport(annotate_soul_line(id, number, domains, private?, note, actor),
+    do: Files.annotate(id, number, domains, private?, note, actor)
+  )
+
   @doc "She takes one of her identity files out of her prefix, or puts it back (agathos-daimon#50), with a note."
   @spec retire_identity_file(String.t(), String.t(), boolean(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
@@ -560,6 +579,11 @@ defmodule Oneiroi.AgathosDaimon do
   @spec write_self_letter(String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, pos_integer()} | {:error, term()}
   defexport(write_self_letter(id, text, actor), do: Residents.write_self_letter(id, text, actor))
+
+  @doc "`write_self_letter/3` with the writing turn and its labels (kumbukumbu#84)."
+  defexport(write_self_letter(id, text, actor, provenance),
+    do: Residents.write_self_letter(id, text, actor, provenance)
+  )
 
   @doc "The letters by number with their delivery; the resident's own read, and the platform's, which leave no receipt."
   @spec self_letters(String.t()) :: [Oneiroi.AgathosDaimon.Store.SelfLetter.t()]
@@ -728,6 +752,10 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "The domain walls in force (agathos-daimon#45): each a memory's (person, domain) and the context it is never named into."
   @spec domain_walls(String.t()) :: [map()]
   defexport(domain_walls(id), do: Agreements.domain_walls(id))
+
+  @doc "The domains' disclosure policies in force (agathos-daimon#53), with their contract version: the catalogue and its filters."
+  @spec domain_policies(String.t()) :: %{version: pos_integer() | nil, policies: [map()]}
+  defexport(domain_policies(id), do: Agreements.domain_policies(id))
 
   @doc "The switch registry for the resident: every switch, its value in force and in the open proposal."
   @spec switches(String.t()) :: [map()]

@@ -459,7 +459,9 @@ defmodule Oneiroi.Kumbukumbu.Memory do
           in_reply_to: c.in_reply_to,
           text: c.text,
           keepsake: c.keepsake,
-          link: c.link
+          link: c.link,
+          turn_ref: c.turn_ref,
+          labels: letter_labels(c)
         }
     end
   end
@@ -762,4 +764,13 @@ defmodule Oneiroi.Kumbukumbu.Memory do
         status: status
       }
   end
+
+  # A letter no turn of hers wrote (the witness's, the platform's) is the
+  # common room, as an unnamed message is (his answer 3); hers carries
+  # her turn's labels, and one without them is unclassified when read.
+  defp letter_labels(%{labels: labels}) when is_list(labels), do: labels
+  defp letter_labels(%{actor: actor}), do: platform_labels(actor)
+
+  defp platform_labels(%{kind: :resident}), do: nil
+  defp platform_labels(_witness_or_platform), do: [%{"kind" => "common_room"}]
 end

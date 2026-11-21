@@ -576,6 +576,37 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     end
   end
 
+  # Her annotation of a live soul line (agathos-daimon#55): hers alone.
+  def execute(%__MODULE__{} = r, %Commands.AnnotateSoulLine{} = c) do
+    cond do
+      not match?(%{kind: :resident, id: id} when id == r.id, c.actor) ->
+        {:error, Error.new(:agathos_daimon_not_yours, :agathos_daimon_resident_annotate_not_hers)}
+
+      not List.keymember?(r.soul, c.number, 0) ->
+        {:error,
+         Error.new(:agathos_daimon_soul_line_unknown, :agathos_daimon_resident_annotate_line,
+           number: c.number
+         )}
+
+      not annotation_ok?(c.domains, c.private) ->
+        {:error,
+         Error.new(:agathos_daimon_soul_line_unknown, :agathos_daimon_resident_annotate_shape,
+           number: c.number
+         )}
+
+      true ->
+        %Events.SoulLineAnnotated{
+          actor: c.actor,
+          at: c.at,
+          id: r.id,
+          note: c.note,
+          number: c.number,
+          domains: c.domains,
+          private: c.private
+        }
+    end
+  end
+
   def execute(%__MODULE__{} = r, %Commands.WriteFile{} = c) do
     with :ok <- write_ok(c), do: write_file(r, c, soul_content(c.file, c.content))
   end
@@ -950,7 +981,10 @@ defmodule Oneiroi.AgathosDaimon.Resident do
             id: c.id,
             number: n,
             text: c.text,
-            model: c.actor.model
+            model: c.actor.model,
+            session_key: c.session_key,
+            turn_ref: c.turn_ref,
+            labels: c.labels
           }
         ]
     end
@@ -1228,6 +1262,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def apply(%__MODULE__{} = r, %Events.SoulLineRetired{} = e),
     do: %{r | soul: List.keydelete(r.soul, e.number, 0)}
 
+  def apply(%__MODULE__{} = r, %Events.SoulLineAnnotated{}), do: r
+
   def apply(%__MODULE__{} = r, %Events.SoulLinesOrdered{} = e) do
     lines = for n <- e.numbers, line = List.keyfind(r.soul, n, 0), do: line
     %{r | soul: lines}
@@ -1495,6 +1531,10 @@ defmodule Oneiroi.AgathosDaimon.Resident do
       # The domain walls (agathos-daimon#45): the one term that is not a
       # switch, a list of (memory, context) pairs.
       {"domain_walls", walls} -> walls_ok?(walls)
+      # The domains' disclosure policies (agathos-daimon#53; Lily's
+      # design/audience-policy.md §2, the witness's answer 2): the
+      # catalogue and its filters, set in the dyad's contract.
+      {"domain_policies", policies} -> policies_ok?(policies)
       {k, v} -> is_binary(k) and k in keys and is_boolean(v)
     end)
   end
@@ -1522,10 +1562,49 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   defp side_ok?(_side), do: false
 
+  @policies 100
+  @audience_kinds ~w(dyad conversation person household thread workspace correspondent publication export processor researcher)
+
+  defp policies_ok?(policies) when is_list(policies) and length(policies) <= @policies,
+    do: Enum.all?(policies, &policy_ok?/1)
+
+  defp policies_ok?(_policies), do: false
+
+  # One domain of one person (or the common room, "*" and "common-room"),
+  # its default, and the audiences allowed and denied by name.
+  defp policy_ok?(%{"domain" => %{"person" => p, "domain" => d}} = policy) do
+    domain? = (person?(p) and slug?(d)) or (p == "*" and d == "common-room")
+
+    domain? and policy["default"] in ["allow", "deny"] and
+      audiences_ok?(Map.get(policy, "allow", [])) and audiences_ok?(Map.get(policy, "deny", []))
+  end
+
+  defp policy_ok?(_policy), do: false
+
+  defp audiences_ok?(list) when is_list(list) and length(list) <= @policies,
+    do: Enum.all?(list, &audience_ok?/1)
+
+  defp audiences_ok?(_list), do: false
+
+  defp audience_ok?(%{"kind" => k, "id" => id}),
+    do: k in @audience_kinds and is_binary(id) and id != "" and String.length(id) <= 200
+
+  defp audience_ok?(_audience), do: false
+
   defp person?(p), do: is_binary(p) and Regex.match?(@person, p)
   defp slug?(d), do: is_binary(d) and Regex.match?(@slug, d)
 
   defp prose_ok?(prose), do: is_binary(prose) and String.length(prose) <= @prose_limit
 
   defp state_key?(key), do: is_binary(key) and Regex.match?(~r/\A[a-z0-9][a-z0-9_-]{0,63}\z/, key)
+
+  defp annotation_ok?(domains, private) when is_list(domains) and is_boolean(private),
+    do:
+      length(domains) <= 10 and
+        Enum.all?(domains, fn
+          %{"person" => p, "domain" => d} -> is_binary(p) and is_binary(d) and d != ""
+          _other -> false
+        end)
+
+  defp annotation_ok?(_domains, _private), do: false
 end

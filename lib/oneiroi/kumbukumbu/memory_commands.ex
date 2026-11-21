@@ -101,7 +101,19 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
   # sender's conversation as the server names it, never the caller's word.
   defmodule SendHouseLetter do
     use Oneiroi.Command,
-      fields: [:id, :from, :from_session, :to, :to_session, :in_reply_to, :text, :keepsake, :link]
+      fields: [
+        :id,
+        :from,
+        :from_session,
+        :to,
+        :to_session,
+        :in_reply_to,
+        :text,
+        :keepsake,
+        :link,
+        :turn_ref,
+        :labels
+      ]
   end
 
   defmodule ReadHouseLetters do

@@ -2,8 +2,25 @@ defmodule Oneiroi.Seshat.Commands do
   @moduledoc "The library aggregate's commands; `id` is the resident's id."
 
   defmodule WriteDocument do
-    # `note` (seshat#54): what the writer said of this version, or nil.
-    use Oneiroi.Command, fields: [:id, :path, :kind, :hash, :bytes, :note]
+    # `note` (seshat#54): what the writer said of this version, or nil;
+    # the provenance (seshat#100): the writing turn and its ledger, or nil.
+    use Oneiroi.Command,
+      fields: [
+        :id,
+        :path,
+        :kind,
+        :hash,
+        :bytes,
+        :note,
+        :session_key,
+        :turn_ref,
+        :ledger,
+        :composed_for
+      ]
+  end
+
+  defmodule ClassifyDocument do
+    use Oneiroi.Command, decision: true, fields: [:id, :path, :person, :domain]
   end
 
   defmodule MoveDocument do
@@ -75,7 +92,7 @@ defmodule Oneiroi.Seshat.Commands do
   # with the pages to start from; numbered from the library's research
   # sequence; `session_key` is the conversation told when it lands.
   defmodule AskResearch do
-    use Oneiroi.Command, fields: [:id, :question, :urls, :session_key]
+    use Oneiroi.Command, fields: [:id, :question, :urls, :session_key, :ledger]
   end
 
   defmodule AnswerResearch do

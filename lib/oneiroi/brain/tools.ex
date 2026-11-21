@@ -80,11 +80,11 @@ defmodule Oneiroi.Brain.Tools do
   @writes ~w(
     position_take position_replace dispute_check dispute_settle prediction_log
     figure_increment bookmark_add bookmark_extend bookmark_weigh bookmark_accept bookmark_decline
-    tag_propose tag_apply domain_tag soul_edit identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
+    tag_propose tag_apply domain_tag soul_edit soul_annotate identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_publish document_adopt keepsake_note letter_send notify_witness free_time_set free_time_once
-    reply_draft correspondent_block correspondent_unblock document_remove document_move
+    reply_draft correspondent_block correspondent_unblock document_remove document_move document_classify
     journal_add journal_done scene_write
     contract_propose contract_agree contract_decline contract_renew contract_safe revision_add
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
@@ -374,6 +374,27 @@ defmodule Oneiroi.Brain.Tools do
         [:q]
       ),
       tool(
+        "soul_annotate",
+        "Annotate one line of your SOUL.md by its number (soul/<n>): the domains it is about, each a slug and whose life (the witness's by default), or none for the common room; and private, which keeps the line to you and your witness whatever any policy says, opened only by annotating it again. The line is never cut and its words never change: a composition for an audience past you two leaves it out and cites it in its place. Unannotated, a line is the common room. note says why, in your words; every annotation is kept.",
+        %{
+          number: %{type: "integer", minimum: 1},
+          domains: %{
+            type: "array",
+            items: %{
+              type: "object",
+              properties: %{
+                domain: %{type: "string"},
+                whose: %{type: "string", enum: ["witness", "mine"]}
+              },
+              required: ["domain"]
+            }
+          },
+          private: %{type: "boolean"},
+          note: %{type: "string"}
+        },
+        [:number]
+      ),
+      tool(
         "identity_file_retire",
         "Take one of your identity files (USER.md, GOALS.md or LINKS.md) out of what you are given every turn, when what it held has a home elsewhere in your records, or put it back with restore: true. Yours alone, with a note for the record. The file stays as written, in your repository and its history, and soul_edit still edits it; only whether it opens every turn changes. SOUL.md and IDENTITY.md are always given.",
         %{
@@ -504,6 +525,12 @@ defmodule Oneiroi.Brain.Tools do
               },
               required: ["question"]
             }
+          },
+          audience: %{
+            type: "string",
+            enum: ["household"],
+            description:
+              "who the answers are composed for, when they are bound past you and your witness: household soft-filters the oracle's context for your house, withholding what it may not hear; none (the default) is yours, everything read"
           }
         },
         [:questions]
@@ -990,6 +1017,17 @@ defmodule Oneiroi.Brain.Tools do
         "Move a document of your library from one path to another, and so from one kind to another when the folders differ, its words unchanged: a wiki page to the root as a keepsake (pocket-andrew.md), a scratch pad into design/. The move is recorded with you as its actor, a citation of the old path follows it, and nothing is overwritten. Mail, feeds, correspondence, the journal and the originals stay where their systems put them, and human/ is your witness's.",
         %{from: %{type: "string"}, to: %{type: "string"}},
         [:from, :to]
+      ),
+      tool(
+        "document_classify",
+        "Say which domain a document of yours is in: a part of someone's life, as a slug (recovery, business, family), or none for the common room; whose: the witness's life or yours (mine), the witness's by default. A promotion, a publish or a copy of the file to the house is decided by its domain alone (kumbukumbu#85): yours when you have classified it, else the union of what the turn that wrote it held, else unclassified, which no audience past you and your witness takes. Classify an older file as you touch it, and correct one born in a restricted room whose words are not. note says why, in your words; every classification is kept.",
+        %{
+          path: %{type: "string"},
+          domain: %{type: "string"},
+          whose: %{type: "string", enum: ["witness", "mine"]},
+          note: %{type: "string"}
+        },
+        [:path, :domain]
       ),
       # The household's shelf (seshat#58 to #64): the library's grammar,
       # pointed at the repository the household shares.
@@ -1533,12 +1571,368 @@ defmodule Oneiroi.Brain.Tools do
           "#{switch.label} is switched off in your agreement with your witness; a version that turns it on, agreed by you both, brings it back."
 
       {nil, {:ok, args}} ->
-        guarded(name, args, turn)
+        withheld(name, args, turn) || guarded(name, args, turn)
 
       {nil, :error} ->
         @not_done <> "the arguments were not a JSON object."
     end
   end
+
+  # The domains of a conversation read deliberately, each once, as ledger
+  # inputs (kumbukumbu#80): none named is the common room.
+  # One input per domain read, with the words read in it: what the
+  # disclosure judge is shown if it holds a delivery back (kumbukumbu#82).
+  defp transcript_inputs(key, messages) do
+    messages
+    |> Enum.group_by(&(&1.domain && %{person: &1.domain_person, domain: &1.domain}))
+    |> Enum.map(fn {pair, read} ->
+      %{
+        id: "transcript/#{key}/#{inspect(pair)}",
+        ref: "transcript/#{key}",
+        labels: if(pair, do: [pair], else: :common_room),
+        text: Enum.map_join(read, "\n", &"#{&1.role}: #{&1.content}")
+      }
+    end)
+  end
+
+  defp transcript_answer({:ok, session, messages}, ref, _from) when is_binary(ref) and ref != "",
+    do: transcript_message(session, messages, ref)
+
+  defp transcript_answer({:ok, session, messages}, _ref, from),
+    do: transcript_page(session, messages, from)
+
+  # ---- taint on read (kumbukumbu#84) ----
+  #
+  # Reading a derived artifact brings the context that wrote it into this
+  # turn: its kept labels join the turn's ledger, with its words for a
+  # disclosure judge. One kept no labels (written before they were kept)
+  # is unclassified, never inferred.
+
+  # The writing turn's labels, for an artifact that keeps them; nil for
+  # a trial or a call with no turn.
+  defp labelled(%{trial?: true}), do: nil
+
+  defp labelled(turn) do
+    key = Map.get(turn, :session_key)
+    ref = Map.get(turn, :turn_ref)
+
+    if is_binary(ref),
+      do: %{
+        session_key: key,
+        turn_ref: ref,
+        labels: Kumbukumbu.turn_labels(turn.resident_id, key, ref)
+      }
+  end
+
+  defp letter_labels(turn) do
+    case labelled(turn) do
+      %{turn_ref: ref, labels: labels} -> %{turn_ref: ref, labels: labels}
+      nil -> %{}
+    end
+  end
+
+  defp read_letters(turn, letters) do
+    for l <- letters,
+        do:
+          Kumbukumbu.note_read_labelled(
+            turn.resident_id,
+            Map.get(turn, :turn_ref),
+            "letter/#{l.number}",
+            "letter/#{l.number}",
+            Map.get(l, :labels),
+            to_string(l.text)
+          )
+  end
+
+  defp read_journal(turn, day, entries) do
+    for e <- entries,
+        do:
+          Kumbukumbu.note_read_labelled(
+            turn.resident_id,
+            Map.get(turn, :turn_ref),
+            "journal/#{day}/#{e.number}",
+            "journal/#{day}",
+            Map.get(e, :labels),
+            to_string(e.text)
+          )
+  end
+
+  # A file read brings in the labels of the turn that wrote it, and
+  # answers its words. A portrait is read claim by claim (kumbukumbu#89):
+  # each fragment labelled by what it cites, and in a run composed for an
+  # audience, the claims it may not hear withheld and cited in place.
+  defp read_file(turn, "portraits/" <> _ = path, content) do
+    birth = Kumbukumbu.ledger_labels(Seshat.written_ledger(turn.resident_id, path, content)) || []
+
+    content
+    |> String.split(~r/\n[ \t]*\n/)
+    |> Enum.with_index(1)
+    |> Enum.map_join("\n\n", fn {fragment, i} ->
+      labels = fragment_labels(turn.resident_id, fragment, birth)
+      ref = "#{path}##{i}"
+
+      case portrait_withheld(turn, labels) do
+        [] ->
+          Kumbukumbu.note_read_labelled(
+            turn.resident_id,
+            Map.get(turn, :turn_ref),
+            "file/" <> ref,
+            ref,
+            labels,
+            fragment
+          )
+
+          fragment
+
+        domains ->
+          "(withheld: #{ref}, in conflict with this audience: #{Enum.join(domains, ", ")})"
+      end
+    end)
+  end
+
+  defp read_file(turn, path, content) do
+    labels = Kumbukumbu.ledger_labels(Seshat.written_ledger(turn.resident_id, path, content))
+
+    Kumbukumbu.note_read_labelled(
+      turn.resident_id,
+      Map.get(turn, :turn_ref),
+      "file/" <> path,
+      path,
+      labels,
+      content
+    )
+
+    content
+  end
+
+  # A heading is the common room's; a claim, the labels of every turn
+  # and journal row it cites, and the file's own birth labels when any
+  # citation in it does not resolve, or it cites none: never less.
+  defp fragment_labels(resident_id, fragment, birth) do
+    if String.starts_with?(String.trim_leading(fragment), "#"),
+      do: [%{"kind" => "common_room"}],
+      else: claim_labels(resident_id, fragment, birth)
+  end
+
+  @turn_ref ~r/(?<![A-Za-z0-9_-])[A-Za-z0-9_-]{16}(?![A-Za-z0-9_-])/
+  @journal_row ~r/journal (\d{4}-\d{2}-\d{2})\/(\d+)/
+
+  defp claim_labels(resident_id, fragment, birth) do
+    turns =
+      for [ref] <- Regex.scan(@turn_ref, fragment),
+          do: Kumbukumbu.turn_label_set(resident_id, ref)
+
+    rows =
+      for [_, day, n] <- Regex.scan(@journal_row, fragment),
+          do: row_labels(resident_id, {day, String.to_integer(n)})
+
+    resolved = turns ++ rows
+    Enum.uniq(List.flatten(resolved) ++ fallback(resolved, birth))
+  end
+
+  # Nothing cited resolves, or a citation does not: the file's birth.
+  defp fallback(resolved, birth) do
+    cond do
+      resolved != [] and Enum.all?(resolved, &(&1 != [])) -> []
+      birth == [] -> [%{"kind" => "unclassified"}]
+      true -> birth
+    end
+  end
+
+  defp row_labels(resident_id, {day, n}) do
+    case Seshat.journal_day(resident_id, day) do
+      %{entries: entries} ->
+        case Enum.find(entries, &(&1.number == n)) do
+          %{} = e -> Map.get(e, :labels) || [%{"kind" => "unclassified"}]
+          nil -> []
+        end
+
+      nil ->
+        []
+    end
+  end
+
+  defp portrait_withheld(%{audience: %{kind: kind} = audience} = turn, labels)
+       when kind not in ["dyad", "conversation"],
+       do:
+         Kumbukumbu.ledger_withheld(turn.resident_id, Kumbukumbu.labels_ledger(labels), audience)
+
+  defp portrait_withheld(_turn, _labels), do: []
+
+  # ---- the audience check before a delivery (kumbukumbu#80) ----
+  #
+  # A tool that carries her composition past the dyad asks, before it
+  # acts, whether what this turn's model saw may reach that audience (the
+  # turn's input ledger against the dyad's domain policies). Withheld,
+  # nothing is delivered; she is told which domains are in conflict, in
+  # her own context, and the audience learns nothing. A trial delivers
+  # nothing and asks nothing.
+  defp withheld(_name, _args, %{trial?: true}), do: nil
+
+  defp withheld(name, args, turn) do
+    with %{} = audience <- delivery_audience(name, args, turn),
+         :ok <- file_allowed(name, args, turn, audience),
+         :ok <- words_allowed(name, args, turn, audience) do
+      nil
+    else
+      {:error, %{kind: :kumbukumbu_withheld_by_policy} = e} -> withheld_words(e)
+      _delivered -> nil
+    end
+  end
+
+  # A copy of her file (a promotion, a publish, a write `from` it) carries
+  # the file's words at a commit: decided against the turn that wrote
+  # them, never this one (kumbukumbu#83). A file the tool cannot find is
+  # the tool's own refusal to give.
+  defp file_allowed(name, args, turn, audience) do
+    with {path, commit} <- source_file(name, args),
+         {:ok, file} <- Seshat.file_provenance(turn.resident_id, path, commit),
+         {:ok, _decision} <-
+           Kumbukumbu.delivery_check_file(turn.resident_id, delivering(turn), audience, file) do
+      :ok
+    else
+      {:error, %{kind: :kumbukumbu_withheld_by_policy}} = withheld -> withheld
+      _no_file -> :ok
+    end
+  end
+
+  defp source_file(name, args) when name in ~w(household_promote document_publish),
+    do: {to_string(args["path"] || ""), blank(args["commit"])}
+
+  defp source_file(_name, %{"from" => from}) when is_binary(from) and from != "",
+    do: {from, nil}
+
+  defp source_file(_name, _args), do: nil
+
+  defp delivering(turn),
+    do: %{
+      resident_id: turn.resident_id,
+      session_key: Map.get(turn, :session_key),
+      turn_ref: Map.get(turn, :turn_ref)
+    }
+
+  # Her words composed in this turn, against this turn's ledger. A copy
+  # with none of her own words beside the file asks nothing more.
+  defp words_allowed(name, args, turn, audience) do
+    words = candidate(name, args)
+
+    if source_file(name, args) != nil and words == "" do
+      :ok
+    else
+      case Kumbukumbu.delivery_check(
+             turn.resident_id,
+             Map.get(turn, :session_key),
+             Map.get(turn, :turn_ref),
+             audience,
+             words
+           ) do
+        {:ok, _decision} -> :ok
+        refused -> refused
+      end
+    end
+  end
+
+  # Her own words a delivery carries, for the disclosure judge when the
+  # ledger holds it back (kumbukumbu#82): exactly what would leave. A
+  # promotion carries none (its note is her repository's), and a file's
+  # words are `file_allowed/4`'s.
+  defp candidate("household_promote", _args), do: ""
+  defp candidate("research_ask", args), do: to_string(args["question"] || "")
+
+  defp candidate(_name, args) do
+    ballot = args["ballot"] || %{}
+
+    bundle =
+      for item <- List.wrap(ballot["bundle"]),
+          is_map(item),
+          v <- [item["rule"], item["setting"], item["value"]],
+          v != nil,
+          do: to_string(v)
+
+    [args["title"], args["content"], args["text"], args["note"], ballot["note"] | bundle]
+    |> Enum.filter(&(is_binary(&1) and String.trim(&1) != ""))
+    |> Enum.join("\n\n")
+  end
+
+  # Who each delivering tool reaches. Her own conversations, the house
+  # letter to them and free time are the dyad's, and asked nothing.
+  @to_house ~w(household_post household_reply household_edit household_promote document_publish)
+  defp delivery_audience(name, _args, turn) when name in @to_house do
+    case Oneiroi.Gaia.resident_household(turn.resident_id) do
+      %{id: id} -> Kumbukumbu.audience("household", id)
+      _none -> nil
+    end
+  end
+
+  defp delivery_audience("letter_send", args, turn) do
+    case sibling(turn.resident_id, to_string(args["to"] || "")) do
+      {sibling, _me} -> Kumbukumbu.audience("person", "resident:" <> sibling.id)
+      nil -> nil
+    end
+  end
+
+  defp delivery_audience("reply_draft", args, _turn),
+    do:
+      Kumbukumbu.audience("correspondent", "#{args["platform"]}:#{args["account"] || args["to"]}")
+
+  # A like or a bare restack carries none of her words; a comment (or a
+  # restack with words) is her composition, made public.
+  defp delivery_audience("presence_stage", args, _turn) do
+    if is_binary(args["text"]) and String.trim(args["text"]) != "",
+      do: Kumbukumbu.audience("publication", "substack")
+  end
+
+  # A research question leaves the platform as its words (kumbukumbu#84):
+  # to the researcher, an audience of its own (kumbukumbu#86).
+  defp delivery_audience("research_ask", _args, _turn),
+    do: Kumbukumbu.audience("researcher", "reader")
+
+  defp delivery_audience(_name, _args, _turn), do: nil
+
+  defp withheld_words(%{site: :kumbukumbu_disclosure_unresolved, details: d}),
+    do:
+      @not_done <>
+        "withheld by policy: #{d[:audience]} is not a resolved audience. Nothing was delivered."
+
+  defp withheld_words(%{details: d} = e) do
+    conflicts = Enum.join(Keyword.get(d, :conflicts, []), ", ")
+
+    @not_done <>
+      "withheld by policy#{decision_words(d)}: #{held_words(d)} #{conflicts}, which your agreement's domain policies keep from #{d[:audience]}. #{review_words(e)}Nothing was delivered, and the audience learns nothing of it. Say it where the policies allow (here, or to an audience they grant), or let the turn's context move on; the policies are yours and your witness's to change by agreement."
+  end
+
+  defp decision_words(d), do: if(d[:decision], do: " (decision #{d[:decision]})", else: "")
+
+  # A file is gated by its own domain (kumbukumbu#85).
+  defp held_words(d),
+    do: if(d[:source], do: "#{d[:source]} is in", else: "this turn's context holds")
+
+  # What the disclosure review said (kumbukumbu#82), to her alone.
+  defp review_words(%{site: :kumbukumbu_disclosure_discloses, details: d}),
+    do: "The disclosure judge read these words against it and found they carry it: #{d[:review]} "
+
+  defp review_words(%{site: :kumbukumbu_disclosure_failed, details: d}),
+    do: "The disclosure review could not clear them (#{d[:review]}), so they were not sent. "
+
+  defp review_words(%{site: :kumbukumbu_disclosure_no_judge}),
+    do: "This deployment has no disclosure judge, so nothing held back can be reviewed. "
+
+  defp review_words(%{site: :kumbukumbu_disclosure_unproven}),
+    do:
+      "What was held back could not all be found to show a judge, so the words were not reviewed. "
+
+  defp review_words(%{site: :kumbukumbu_disclosure_denied}),
+    do: "A policy denies this audience outright, which no review can lift. "
+
+  defp review_words(%{site: :kumbukumbu_ledger_file_withheld, details: d}),
+    do:
+      if(d[:classified],
+        do: "That is the domain you classified it in. ",
+        else:
+          "That is its domain by birth (what the turn that wrote it held), or unclassified for a file written before that was kept. If its words are in another domain, say so with document_classify. "
+      )
+
+  defp review_words(_unreviewed), do: ""
 
   # A tool whose contract switch is off is refused in words, whatever the
   # path that called it: the brain's loop or an adapter through MCP.
@@ -1765,6 +2159,12 @@ defmodule Oneiroi.Brain.Tools do
   defp call("bookmark_open", args, turn) do
     case Kumbukumbu.bookmark(turn.resident_id, integer(args["number"])) do
       {:ok, b, messages} ->
+        # What she opened reaches the turn's input ledger (kumbukumbu#80).
+        :ok =
+          Kumbukumbu.note_read(turn.resident_id, Map.get(turn, :turn_ref), [
+            Kumbukumbu.bookmark_input(turn.resident_id, b)
+          ])
+
         lines = Enum.map(messages, &"#{&1.role}: #{&1.content}")
 
         revisions =
@@ -1845,6 +2245,7 @@ defmodule Oneiroi.Brain.Tools do
               turn.resident
             )
 
+        read_letters(turn, letters)
         Enum.map_join(letters, "\n\n", &letter_whole/1)
     end
   end
@@ -2141,6 +2542,23 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # Her annotation of a soul line (agathos-daimon#55, kumbukumbu#88).
+  defp call("soul_annotate", args, turn) do
+    domains = soul_domains(args["domains"], turn.resident_id)
+
+    case AgathosDaimon.annotate_soul_line(
+           turn.resident_id,
+           integer(args["number"]),
+           domains,
+           args["private"] == true,
+           args["note"],
+           turn.resident
+         ) do
+      :ok -> annotated_words(args)
+      other -> other
+    end
+  end
+
   defp call("identity_file_retire", args, turn) do
     file = to_string(args["file"])
     restore? = args["restore"] == true
@@ -2311,7 +2729,11 @@ defmodule Oneiroi.Brain.Tools do
     with :ok <- within_batch(questions, bound),
          {:ok, numbers} <-
            Seshat.dispatch_oracle(turn.resident_id, turn.session_key, questions, turn.resident) do
-      Enum.each(numbers, &oracle_worker().enqueue(turn.resident_id, &1))
+      # Each answer inherits the asking turn's context (kumbukumbu#84),
+      # and is composed for the audience named, if any (kumbukumbu#87).
+      asked = Kumbukumbu.turn_ledger(turn.resident_id, turn.session_key, turn.turn_ref)
+      composed_for = oracle_audience(args["audience"], turn)
+      Enum.each(numbers, &oracle_worker().enqueue(turn.resident_id, &1, asked, composed_for))
       dispatched(numbers)
     end
   end
@@ -2695,11 +3117,15 @@ defmodule Oneiroi.Brain.Tools do
     # Her deliberate reach is never scoped (P23-R1 §2): any conversation
     # of hers, in any domain.
     case {Kumbukumbu.transcript({:resident, turn.resident_id}, key), args["message"]} do
-      {{:ok, session, messages}, ref} when is_binary(ref) and ref != "" ->
-        transcript_message(session, messages, ref)
+      {{:ok, _session, messages} = read, ref} ->
+        :ok =
+          Kumbukumbu.note_read(
+            turn.resident_id,
+            Map.get(turn, :turn_ref),
+            transcript_inputs(key, messages)
+          )
 
-      {{:ok, session, messages}, _none} ->
-        transcript_page(session, messages, from)
+        transcript_answer(read, ref, from)
 
       _ ->
         "Not done: no conversation of yours has that key."
@@ -2760,7 +3186,8 @@ defmodule Oneiroi.Brain.Tools do
                turn.session_key,
                to_string(args["question"] || ""),
                urls,
-               turn.resident
+               turn.resident,
+               Kumbukumbu.turn_ledger(turn.resident_id, turn.session_key, turn.turn_ref)
              ) do
         "Asked as research ##{n}. The reader will look only at #{sites_text(sites)}, signed in nowhere, and can read and search but not post or send. " <>
           off_list(urls, sites) <>
@@ -2951,7 +3378,12 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("self_letter_write", args, turn) do
-    case AgathosDaimon.write_self_letter(turn.resident_id, args["text"], turn.resident) do
+    case AgathosDaimon.write_self_letter(
+           turn.resident_id,
+           args["text"],
+           turn.resident,
+           labelled(turn)
+         ) do
       {:ok, n} -> "Letter ##{n} written to your next self."
       other -> other
     end
@@ -3234,6 +3666,8 @@ defmodule Oneiroi.Brain.Tools do
 
     with {:ok, from} <- offset(args["from"]),
          {:ok, %{document: row, content: content}} <- Seshat.read(turn.resident_id, name) do
+      content = read_file(turn, row.path, content)
+
       library_page(row, content, from) <>
         peeked(turn, row) <>
         leased(Seshat.lease(turn.resident_id, row.path)) <>
@@ -3545,6 +3979,28 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # Her classification of her own document (seshat#102, kumbukumbu#85).
+  defp call("document_classify", args, turn) do
+    domain = tagged_domain(args["domain"])
+
+    person =
+      if args["whose"] == "mine",
+        do: "resident:" <> turn.resident_id,
+        else: witness_person(turn.resident_id)
+
+    case Seshat.classify(
+           turn.resident_id,
+           to_string(args["path"] || ""),
+           person,
+           domain,
+           args["note"],
+           turn.resident
+         ) do
+      {:ok, %{path: path}} -> classified_words(path, domain)
+      other -> other
+    end
+  end
+
   defp call("document_move", args, turn) do
     with :ok <- portrait_earned(turn, args["to"]) do
       move_document(args, turn)
@@ -3566,7 +4022,8 @@ defmodule Oneiroi.Brain.Tools do
            to_string(args["text"] || ""),
            args["register"],
            args["summary"],
-           turn.resident
+           turn.resident,
+           labelled(turn)
          ) do
       {:ok, %{day: day, number: n, kind: kind}} -> "Added #{kind} #{n} to #{day}."
       other -> other
@@ -3584,6 +4041,8 @@ defmodule Oneiroi.Brain.Tools do
         "That day was never opened."
 
       %{entries: entries, delta: delta} = d ->
+        read_journal(turn, d.day, entries)
+
         Seshat.Journals.render(d.day, entries) <>
           "\nDelta: #{delta.plan} planned, #{delta.done} of #{delta.todo} todos done, #{delta.wrap} wrap " <>
           if(delta.unwrapped, do: "(planned and not wrapped).", else: "lines.")
@@ -4018,7 +4477,45 @@ defmodule Oneiroi.Brain.Tools do
     {"Moved #{from} to #{to} (#{kind}).", turn}
   end
 
+  defp answered("document_classify", args, turn),
+    do: {classified_words(library_path(args["path"]), tagged_domain(args["domain"])), turn}
+
+  defp answered("soul_annotate", args, turn), do: {annotated_words(args), turn}
+
   defp answered(_done, _args, turn), do: {text(:ok), turn}
+
+  defp soul_domains(list, resident_id) do
+    for d <- List.wrap(list),
+        is_map(d),
+        domain = tagged_domain(d["domain"]),
+        is_binary(domain),
+        do: %{
+          "person" =>
+            if(d["whose"] == "mine",
+              do: "resident:" <> resident_id,
+              else: witness_person(resident_id)
+            ),
+          "domain" => domain
+        }
+  end
+
+  defp annotated_words(args) do
+    domains =
+      case for d <- List.wrap(args["domains"]),
+               is_map(d),
+               n = tagged_domain(d["domain"]),
+               n != nil,
+               do: n do
+        [] -> "the common room"
+        named -> Enum.join(named, ", ")
+      end
+
+    "Annotated soul/#{args["number"]}: #{domains}#{if args["private"] == true, do: ", private to you and your witness", else: ""}. Its words are unchanged."
+  end
+
+  defp classified_words(path, domain),
+    do:
+      "Classified #{path} as #{domain || "the common room"}: a delivery of its words is decided by that domain from now on."
 
   defp mint(turn, kind, current) do
     minted = Map.get(turn, :minted, %{})
@@ -5310,6 +5807,17 @@ defmodule Oneiroi.Brain.Tools do
   # here would close that cycle (the compile-connected rule's reason).
   defp oracle_worker, do: Module.concat([Oneiroi, Brain, OracleWorker])
 
+  # The audience an oracle's answers are composed for (kumbukumbu#87):
+  # her house, resolved now; none is hers and her witness's.
+  defp oracle_audience("household", turn) do
+    case Oneiroi.Gaia.resident_household(turn.resident_id) do
+      %{id: id} -> %{"kind" => "household", "id" => id}
+      _none -> nil
+    end
+  end
+
+  defp oracle_audience(_none, _turn), do: nil
+
   defp within_batch(questions, bound) when length(questions) <= bound, do: :ok
 
   defp within_batch(_questions, bound),
@@ -5377,12 +5885,15 @@ defmodule Oneiroi.Brain.Tools do
            Kumbukumbu.send_letter(
              turn.resident_id,
              turn.session_key,
-             %{
-               to: to_string(args["to"] || ""),
-               text: to_string(args["text"] || ""),
-               in_reply_to: integer(args["in_reply_to"]),
-               keepsake: keepsake
-             },
+             Map.merge(
+               %{
+                 to: to_string(args["to"] || ""),
+                 text: to_string(args["text"] || ""),
+                 in_reply_to: integer(args["in_reply_to"]),
+                 keepsake: keepsake
+               },
+               letter_labels(turn)
+             ),
              turn.resident
            ) do
       "Sent letter ##{n} from #{from} to #{args["to"]}."
@@ -5407,7 +5918,11 @@ defmodule Oneiroi.Brain.Tools do
       @not_done <>
         "a keepsake is given to your own conversations, not to #{sibling.name}. Send the letter without it."
     else
-      attrs = %{text: to_string(args["text"] || ""), in_reply_to: integer(args["in_reply_to"])}
+      attrs =
+        Map.merge(
+          %{text: to_string(args["text"] || ""), in_reply_to: integer(args["in_reply_to"])},
+          letter_labels(turn)
+        )
 
       case Kumbukumbu.send_sibling_letter(me, turn.session_key, sibling, attrs, turn.resident) do
         {:ok, %{number: n, copy: copy}} ->
@@ -5472,9 +5987,27 @@ defmodule Oneiroi.Brain.Tools do
     |> Seshat.write(
       to_string(args["path"] || ""),
       to_string(args["content"] || ""),
-      turn.resident
+      turn.resident,
+      provenance: provenance(turn)
     )
     |> written(turn)
+  end
+
+  # The writing turn and its ledger (seshat#100, kumbukumbu#83): the
+  # words inherit the taint of the context that wrote them. A trial
+  # writes nothing.
+  defp provenance(%{trial?: true}), do: nil
+
+  defp provenance(turn) do
+    key = Map.get(turn, :session_key)
+    ref = Map.get(turn, :turn_ref)
+
+    if is_binary(ref),
+      do: %{
+        session_key: key,
+        turn_ref: ref,
+        ledger: Kumbukumbu.turn_ledger(turn.resident_id, key, ref)
+      }
   end
 
   defp move_document(args, turn) do

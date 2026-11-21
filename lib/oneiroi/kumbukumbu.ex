@@ -54,6 +54,7 @@ defmodule Oneiroi.Kumbukumbu do
       Memories,
       Madeleine,
       Tree,
+      DisclosureJudge,
       MemoryRouter,
       ReactsRouter,
       Commands.React,
@@ -110,6 +111,7 @@ defmodule Oneiroi.Kumbukumbu do
       Commands.StartTurn,
       Commands.CaptureTurn,
       Commands.RecordContext,
+      Commands.RecordDisclosureVerdict,
       Commands.RecordRetrieval,
       Commands.ClaimTurn,
       Commands.FailCapture,
@@ -121,6 +123,7 @@ defmodule Oneiroi.Kumbukumbu do
       Events.TurnStarted,
       Events.TurnCaptured,
       Events.ContextAssembled,
+      Events.DisclosureJudged,
       Events.RetrievalRecorded,
       Events.TurnClaimed,
       Events.CaptureFailed,
@@ -135,13 +138,16 @@ defmodule Oneiroi.Kumbukumbu do
       Store.RetrievalUse
     ]
 
+  alias Oneiroi.Kumbukumbu.Audience
   alias Oneiroi.Kumbukumbu.Conversations
   alias Oneiroi.Kumbukumbu.Days
   alias Oneiroi.Kumbukumbu.Domains
+  alias Oneiroi.Kumbukumbu.Ledger
   alias Oneiroi.Kumbukumbu.Madeleine
   alias Oneiroi.Kumbukumbu.Memories
   alias Oneiroi.Kumbukumbu.Passages
   alias Oneiroi.Kumbukumbu.Search
+  alias Oneiroi.Kumbukumbu.TurnReads
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -290,12 +296,41 @@ defmodule Oneiroi.Kumbukumbu do
        default: "30",
        tag: :bound,
        usage:
-         "how long after its last turn a conversation still counts as open (kumbukumbu#42): a runtime that quits says nothing, so open is spoken in lately; a guess at a working session's pauses, never measured"}
+         "how long after its last turn a conversation still counts as open (kumbukumbu#42): a runtime that quits says nothing, so open is spoken in lately; a guess at a working session's pauses, never measured"},
+      {:disclosure_judge, "KUMBUKUMBU_DISCLOSURE_JUDGE",
+       cast: &__MODULE__.cast_judge/1,
+       default: "eunomia",
+       usage:
+         "which disclosure judge reviews a delivery her turn's ledger held back (kumbukumbu#82, `Oneiroi.Kumbukumbu.DisclosureJudge`): eunomia, her configured judge model (hers, else EUNOMIA_JUDGE_MODEL), billed under judge to the witness (the witness's ruling, 2026-11-20: every resident already has one); none refuses every review, for a deployment with no judge"},
+      {:researcher_default, "KUMBUKUMBU_RESEARCHER_DEFAULT",
+       cast: &__MODULE__.cast_allow/1,
+       default: "allow",
+       usage:
+         "whether a domain with no policy of its own may reach the researcher, the reader's research pass a question goes to (kumbukumbu#86, the witness's ruling 2026-11-20): allow (Lily's lean: broad freedom to search, the answers labelled with the asking turn either way) or deny; a domain's own policy always decides first"},
+      {:disclosure_judge_ms, "KUMBUKUMBU_DISCLOSURE_JUDGE_MS",
+       cast: :integer,
+       default: "60000",
+       tag: :bound,
+       usage:
+         "how long the disclosure judge may take over one candidate before the review fails and the delivery fails closed (kumbukumbu#82); a bound, not measured"}
     ]
   end
 
   @impl Oneiroi.Component
   def telemetry_events, do: [[:oneiroi, :kumbukumbu, :turn_attributed]]
+
+  @doc false
+  def cast_allow(v) when v in ["allow", "deny"], do: {:ok, v}
+
+  # oneiroi:allow error_site: a config cast's contract is {:error, report_line}, printed at boot (Oneiroi.Config)
+  def cast_allow(other), do: {:error, "is #{inspect(other)}, expected \"allow\" or \"deny\""}
+
+  @doc false
+  def cast_judge("none"), do: {:ok, :none}
+  def cast_judge("eunomia"), do: {:ok, :"Elixir.Oneiroi.Eunomia"}
+
+  # oneiroi:allow error_site: a config cast's contract is {:error, report_line}, printed at boot (Oneiroi.Config)
+  def cast_judge(other), do: {:error, "is #{inspect(other)}, expected \"none\" or \"eunomia\""}
 
   @doc false
   def cast_tree("ethos"), do: {:ok, :"Elixir.Oneiroi.Ethos"}
@@ -311,6 +346,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.TurnStarted, 1},
       {Oneiroi.Kumbukumbu.Events.TurnCaptured, 1},
       {Oneiroi.Kumbukumbu.Events.ContextAssembled, 1},
+      {Oneiroi.Kumbukumbu.Events.DisclosureJudged, 1},
       {Oneiroi.Kumbukumbu.Events.RetrievalRecorded, 2},
       {Oneiroi.Kumbukumbu.Events.TurnClaimed, 1},
       {Oneiroi.Kumbukumbu.Events.Compacted, 1},
@@ -331,7 +367,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionApplied, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionDeclined, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 3},
+      {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 4},
       {Oneiroi.Kumbukumbu.Events.Memory.HouseLettersRead, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagApproved, 1},
@@ -394,6 +430,13 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_revision_text_invalid,
        "a revision is one text of at most 2,000 characters, not blank",
        remedy: "say what is right"},
+      {:kumbukumbu_withheld_by_policy,
+       "withheld by policy: what this turn's context holds may not reach that audience, by the dyad's domain policies, and no review released it; nothing was delivered (kumbukumbu#80, #82)",
+       remedy:
+         "say it where the policies allow (in your own chat, or to an audience they grant), or let the turn's context move on; the policies are the dyad's to change by agreement"},
+      {:kumbukumbu_unwrap_refused,
+       "an unwrap releases one withheld input from her own composition by her deliberate act, with a note; delivery to an audience has no unwrap (kumbukumbu#79)",
+       remedy: "name an input the decision withheld, and say why you release it"},
       {:kumbukumbu_letter_invalid,
        "a house letter is a text of up to 20,000 characters, to a conversation's name or `house`",
        remedy: "address it to the Oneiroi chat, a Claude Code conversation by its name, or house"},
@@ -449,13 +492,133 @@ defmodule Oneiroi.Kumbukumbu do
   end
 
   @impl Oneiroi.Component
+  def processes, do: [{:kumbukumbu_turn_reads, :local}]
+
+  @impl Oneiroi.Component
   def children,
     do: [
+      # What each turn read deliberately, for its input ledger (kumbukumbu#80).
+      Oneiroi.Kumbukumbu.TurnReads,
       Oneiroi.Kumbukumbu.Projectors.Conversations,
       Oneiroi.Kumbukumbu.Projectors.Memory,
       Oneiroi.Kumbukumbu.Projectors.Edges,
       Oneiroi.Kumbukumbu.Projectors.Reacts
     ]
+
+  @doc "A resolved audience (kumbukumbu#79): kind, id, and optionally participants, visibility and route."
+  @spec audience(String.t(), String.t(), keyword()) :: map()
+  defexport(audience(kind, id, opts \\ []),
+    do: Audience.audience(kind, id, opts)
+  )
+
+  @doc "Whether a turn's composition may be delivered to an audience (kumbukumbu#80): `{:ok, decision}`, or withheld by policy, nothing delivered."
+  @spec delivery_check(String.t(), String.t() | nil, String.t() | nil, map()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(delivery_check(resident_id, session_key, turn_ref, audience),
+    do: Ledger.check(resident_id, session_key, turn_ref, audience)
+  )
+
+  @doc "The same check with the words to be delivered (kumbukumbu#82): held back, the disclosure judge reviews them, and a clean verdict delivers."
+  @spec delivery_check(String.t(), String.t() | nil, String.t() | nil, map(), String.t() | nil) ::
+          {:ok, map()} | {:error, term()}
+  defexport(delivery_check(resident_id, session_key, turn_ref, audience, candidate),
+    do: Ledger.check(resident_id, session_key, turn_ref, audience, candidate)
+  )
+
+  @doc "A turn's input ledger as a derived artifact keeps it (kumbukumbu#83): ids, refs, turns and labels, never words."
+  @spec turn_ledger(String.t(), String.t() | nil, String.t() | nil) :: [map()]
+  defexport(turn_ledger(resident_id, session_key, turn_ref),
+    do: resident_id |> Ledger.inputs(session_key, turn_ref) |> Ledger.encode()
+  )
+
+  @doc "Whether a file's words at a commit may reach an audience (kumbukumbu#83): against the writing turn's ledger, reviewed when held back."
+  @spec delivery_check_file(String.t(), map(), map(), map()) :: {:ok, map()} | {:error, term()}
+  defexport(delivery_check_file(resident_id, turn, audience, file),
+    do: Ledger.check_file(resident_id, turn, audience, file)
+  )
+
+  @doc "The words of a turn's sections that may hold restricted material (kumbukumbu#82), kept for the disclosure judge."
+  defexport(note_sections(resident_id, turn_ref, texts),
+    do: TurnReads.sections(resident_id, turn_ref, texts)
+  )
+
+  @doc "The section names whose words a disclosure judge may need (kumbukumbu#82)."
+  defexport(restricted_sections(), do: Ledger.restricted_sections())
+
+  @doc "A turn assembled for an audience past the dyad (kumbukumbu#81): the sections and window rows kept, the citations withheld, the ledger recorded."
+  @spec assemble_for(String.t(), String.t(), String.t(), map(), [String.t()], [map()]) :: map()
+  defexport(assemble_for(resident_id, session_key, turn_ref, audience, names, rows),
+    do: Ledger.assemble(resident_id, session_key, turn_ref, audience, names, rows)
+  )
+
+  @doc "A turn read these inputs deliberately (kumbukumbu#80): its ledger counts them."
+  @spec note_read(String.t(), String.t() | nil, [map()]) :: :ok
+  defexport(note_read(resident_id, turn_ref, inputs),
+    do: TurnReads.note(resident_id, turn_ref, inputs)
+  )
+
+  @doc "The labels a turn's derived artifact keeps (kumbukumbu#84): every distinct label its context held, never words; [] for no turn."
+  @spec turn_labels(String.t(), String.t() | nil, String.t() | nil) :: [term()]
+  defexport(turn_labels(resident_id, session_key, turn_ref),
+    do:
+      if(is_binary(turn_ref),
+        do: resident_id |> Ledger.inputs(session_key, turn_ref) |> Ledger.label_set(),
+        else: []
+      )
+  )
+
+  @doc "A turn read a derived artifact (kumbukumbu#84): its kept labels join the turn's ledger, with its words for a judge; none kept is unclassified."
+  @spec note_read_labelled(
+          String.t(),
+          String.t() | nil,
+          String.t(),
+          String.t(),
+          term(),
+          String.t()
+        ) :: :ok
+  defexport(note_read_labelled(resident_id, turn_ref, id, ref, labels, text),
+    do: TurnReads.note(resident_id, turn_ref, Ledger.read_inputs(id, ref, labels, text))
+  )
+
+  @doc "Ledger inputs as a derived artifact keeps them (kumbukumbu#84): ids, refs, turns and labels."
+  defexport(encode_inputs(inputs), do: Ledger.encode(inputs))
+
+  @doc "A whole conversation's messages as kept ledger inputs, by their domains (kumbukumbu#84), for a source read whole."
+  defexport(transcript_ledger(resident_id, session_key),
+    do: resident_id |> Ledger.message_inputs(session_key, 100_000) |> Ledger.encode()
+  )
+
+  @doc "The timeline's bookmarks' labels as kept labels (kumbukumbu#84): every domain they hold, or the common room."
+  defexport(timeline_label_set(resident_id),
+    do: Ledger.label_set([%{labels: Ledger.timeline_labels(resident_id)}])
+  )
+
+  @doc "What of a kept ledger may not reach `audience` (kumbukumbu#87): the domains in conflict, [] when it all may; a source for a composition bound there."
+  @spec ledger_withheld(String.t(), [map()], map()) :: [String.t()]
+  defexport(ledger_withheld(resident_id, ledger, audience),
+    do: Ledger.withheld_domains(resident_id, ledger, audience)
+  )
+
+  @doc "A turn's messages' labels as kept labels (kumbukumbu#89), or [] when no such turn is held: what a portrait claim citing it carries."
+  @spec turn_label_set(String.t(), String.t()) :: [map()]
+  defexport(turn_label_set(resident_id, turn_ref),
+    do: Ledger.turn_label_set(resident_id, turn_ref)
+  )
+
+  @doc "Kept labels as a kept ledger, one entry each (kumbukumbu#89)."
+  defexport(labels_ledger(labels), do: Ledger.labels_ledger(labels))
+
+  @doc "The union of a kept ledger's labels (kumbukumbu#84), for a file read."
+  @spec ledger_labels([map()] | nil) :: [term()] | nil
+  defexport(ledger_labels(ledger),
+    do: if(is_list(ledger), do: ledger |> Ledger.decode() |> Ledger.label_set(), else: nil)
+  )
+
+  @doc "A bookmark as a ledger input, labelled by its domain (kumbukumbu#80)."
+  @spec bookmark_input(String.t(), map()) :: map()
+  defexport(bookmark_input(resident_id, bookmark),
+    do: Ledger.bookmark_input(resident_id, bookmark)
+  )
 
   @doc "Opens a session of a kind for the resident with the accounts party to it; returns its key."
   @spec open_session(String.t(), String.t(), String.t(), [String.t()], Oneiroi.Actor.t()) ::

@@ -950,3 +950,9 @@ agreement do not silently lose a line the resident proposed to change.
 A push that fires on every wake teaches the witness that pushes mean
 nothing; one she sends on purpose means she wants him. The decision to
 interrupt someone's day belongs to whoever is doing the interrupting.
+
+## #109
+The tools are where words cross from a turn into something kept, and
+back. Labelling there, once, covers every artifact without each system
+learning the policy. The research question is the one composition that
+leaves the platform on its own, so it is a delivery like a letter.

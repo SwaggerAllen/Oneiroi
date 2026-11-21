@@ -64,5 +64,23 @@ defmodule Oneiroi.Sunna.Wake do
               lists :: map()
             ) :: {:ok, String.t()} | :skip
 
-  @optional_callbacks checkin_part: 2, digest_pending?: 1, night_pass_note: 4, backfill_note: 5
+  @doc """
+  A wake whose answer goes past the dyad (kumbukumbu#81): the same as
+  `wake/4`, with the audience the answer reaches (`audience:`), so her
+  context for it is assembled for that audience. An implementation
+  without it is woken by `wake/4`.
+  """
+  @callback wake_for(
+              resident_id :: String.t(),
+              session_key :: String.t(),
+              note :: String.t(),
+              purpose :: atom(),
+              opts :: keyword()
+            ) :: {:ok, map()} | {:error, term()}
+
+  @optional_callbacks wake_for: 5,
+                      checkin_part: 2,
+                      digest_pending?: 1,
+                      night_pass_note: 4,
+                      backfill_note: 5
 end

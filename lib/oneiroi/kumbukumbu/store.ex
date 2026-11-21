@@ -219,6 +219,9 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:text, :string)
       field(:keepsake, :string)
       field(:link, :map)
+      # The writing turn and its labels (kumbukumbu#84); nil before.
+      field(:turn_ref, :string)
+      field(:labels, {:array, :map})
       field(:by_kind, :string)
       field(:sent_at, :utc_datetime_usec)
       field(:read_by, {:array, :string}, default: [])
@@ -1286,6 +1289,36 @@ defmodule Oneiroi.Kumbukumbu.Store do
     rows = Repo.all(query)
     {rows |> Enum.take(limit) |> with_tags(), length(rows) > limit}
   end
+
+  @doc "A session's last `limit` messages' domains, newest first, for its input ledger (kumbukumbu#80)."
+  @spec recent_domains(String.t(), pos_integer()) :: [map()]
+  def recent_domains(session_key, limit),
+    do:
+      Repo.all(
+        from(m in Message,
+          where: m.session_key == ^session_key,
+          order_by: [desc: m.sequence, desc: m.position],
+          limit: ^limit,
+          select: %{
+            sequence: m.sequence,
+            position: m.position,
+            turn_ref: m.turn_ref,
+            person: m.domain_person,
+            domain: m.domain
+          }
+        )
+      )
+
+  @doc "The timeline's bookmarks with their anchors, for their domains (kumbukumbu#80)."
+  @spec timeline_anchors() :: [map()]
+  def timeline_anchors,
+    do:
+      Repo.all(
+        from(b in Bookmark,
+          where: not is_nil(b.pinned_at) or b.importance >= 2,
+          select: %{number: b.number, session_key: b.session_key, anchor_ref: b.anchor_ref}
+        )
+      )
 
   @doc "The timeline's bookmarks (kumbukumbu#51): pinned, or weighed 2 and up; oldest first by when the moment was."
   def timeline_bookmarks do

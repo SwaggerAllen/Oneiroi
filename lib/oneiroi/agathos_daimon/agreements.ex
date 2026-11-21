@@ -137,6 +137,37 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
     walls_of(in_force && in_force.terms)
   end
 
+  @doc """
+  The domains' disclosure policies in force (agathos-daimon#53), with
+  the contract version they are of: each `%{domain: %{person, domain},
+  default: "allow" | "deny", allow: [audience], deny: [audience]}`, an
+  audience `%{kind, id}` (id `"*"` for any of that kind). The catalogue is
+  these domains; each is its `person`'s. None in force: version nil, [].
+  """
+  @spec domain_policies(String.t()) :: %{version: pos_integer() | nil, policies: [map()]}
+  def domain_policies(resident_id) do
+    in_force =
+      Scope.resident(resident_id, fn ->
+        Enum.find(Store.contracts(), &(&1.state == "agreed"))
+      end)
+
+    %{version: in_force && in_force.version, policies: policies_of(in_force && in_force.terms)}
+  end
+
+  @doc "A version's domain policies, from its terms."
+  def policies_of(%{"domain_policies" => policies}) when is_list(policies),
+    do:
+      Enum.map(policies, fn p ->
+        %{
+          domain: %{person: p["domain"]["person"], domain: p["domain"]["domain"]},
+          default: p["default"],
+          allow: Enum.map(Map.get(p, "allow", []), &%{kind: &1["kind"], id: &1["id"]}),
+          deny: Enum.map(Map.get(p, "deny", []), &%{kind: &1["kind"], id: &1["id"]})
+        }
+      end)
+
+  def policies_of(_terms), do: []
+
   @doc "A version's walls, from its terms."
   def walls_of(%{"domain_walls" => walls}) when is_list(walls),
     do:

@@ -239,6 +239,8 @@ defmodule OneiroiWeb.ReaderKitTest do
     turn = %{resident_id: ctx.id, session_key: key, turn_ref: "t-r", resident: ctx.lily}
     ask = fn args -> Tools.run("research_ask", Jason.encode!(args), turn) end
 
+    # The question goes to the researcher, an audience of its own
+    # (kumbukumbu#86): a domain with no policy reaches it by default.
     # No research sites yet: refused, saying who sets them.
     assert ask.(%{question: "When do herons fish?"}) =~ "no sites it may research yet"
 

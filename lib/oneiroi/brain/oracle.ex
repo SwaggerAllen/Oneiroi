@@ -39,14 +39,18 @@ defmodule Oneiroi.Brain.Oracle do
   @platform Actor.platform()
 
   @doc "Runs question `number`; `:ok` once it is answered or failed, either way said in its records."
-  @spec run(String.t(), pos_integer()) :: :ok
-  def run(resident_id, number) do
+  @spec run(String.t(), pos_integer(), [map()] | nil, map() | nil) :: :ok
+  def run(resident_id, number, asked \\ nil, composed_for \\ nil) do
     with {:ok, row} <- AgathosDaimon.fetch(resident_id) |> found(),
          %{status: "open"} = q <- Seshat.oracle(resident_id, number) do
       model = row.chat_model || Config.fetch!(:brain, :chat_model)
       actor = Actor.new(:resident, resident_id, model)
 
-      with {:ok, text, steps} <- answer(row, resident_id, model, actor, q),
+      ref = Kumbukumbu.turn_ref()
+      audience = audience(composed_for)
+      q = filtered(resident_id, q, audience)
+
+      with {:ok, text, steps} <- answer(row, resident_id, model, actor, q, ref, audience),
            {confidence, body} = confidence(text),
            read = read(q.sources, steps, row.slug),
            used = used(text),
@@ -56,7 +60,12 @@ defmodule Oneiroi.Brain.Oracle do
                number,
                document(q, body, confidence, model),
                %{confidence: confidence, read: read, used: used},
-               actor
+               actor,
+               provenance: %{
+                 turn_ref: ref,
+                 ledger: inherited(resident_id, asked, q, ref),
+                 composed_for: audience && "#{audience.kind}:#{audience.id}"
+               }
              ) do
         measure(resident_id, q, read, used, actor)
         tell(resident_id, q, "answered: #{path}, confidence #{confidence}.")
@@ -68,8 +77,74 @@ defmodule Oneiroi.Brain.Oracle do
     end
   end
 
-  defp answer(row, resident_id, model, actor, q) do
-    materials = materials(row, resident_id, model, actor, q)
+  # The audience the answer is composed for (kumbukumbu#87), or nil: hers
+  # and her witness's, everything read.
+  defp audience(%{"kind" => kind, "id" => id}), do: Kumbukumbu.audience(kind, id)
+  defp audience(_none), do: nil
+
+  # Composed for an audience, a named source it may not hear is withheld
+  # from the oracle's materials, cited with its ref and its domains (one
+  # grammar everywhere, Lily's #1537); what was withheld is not read, so
+  # it is not inherited.
+  defp filtered(_resident_id, q, nil), do: Map.put(q, :withheld, [])
+
+  defp filtered(resident_id, q, audience) do
+    cited =
+      for ref <- q.sources,
+          do:
+            {ref,
+             Kumbukumbu.ledger_withheld(resident_id, source_ledger(resident_id, ref), audience)}
+
+    q
+    |> Map.put(:sources, for({ref, []} <- cited, do: ref))
+    |> Map.put(:withheld, for({ref, [_ | _] = domains} <- cited, do: {ref, domains}))
+  end
+
+  # What the answer inherits (kumbukumbu#84): the asking turn's ledger,
+  # what its own run held and read, and every source named, each by its
+  # labels; a source whose labels cannot be read is unclassified.
+  defp inherited(resident_id, asked, q, ref) do
+    own = Kumbukumbu.turn_ledger(resident_id, nil, ref)
+    sources = Enum.flat_map(q.sources, &source_ledger(resident_id, &1))
+    List.wrap(asked) ++ own ++ sources
+  end
+
+  defp source_ledger(resident_id, "bookmark/" <> n = ref) do
+    with {number, ""} <- Integer.parse(n),
+         {:ok, b, _span} <- Kumbukumbu.bookmark(resident_id, number) do
+      Kumbukumbu.encode_inputs([Kumbukumbu.bookmark_input(resident_id, b)])
+    else
+      _ -> unclassified(ref)
+    end
+  end
+
+  defp source_ledger(resident_id, "transcript/" <> key = ref) do
+    case Kumbukumbu.transcript_ledger(resident_id, key |> String.split("/") |> hd()) do
+      [] -> unclassified(ref)
+      ledger -> ledger
+    end
+  end
+
+  # The platform's own source is the common room's: nobody's life.
+  defp source_ledger(_resident_id, "source:" <> path),
+    do: [%{"id" => "source:" <> path, "ref" => "source:" <> path, "labels" => "common_room"}]
+
+  defp source_ledger(resident_id, "repo:" <> path = ref), do: file_ledger(resident_id, path, ref)
+  defp source_ledger(resident_id, ref), do: file_ledger(resident_id, ref, ref)
+
+  defp file_ledger(resident_id, path, ref) do
+    with {:ok, %{document: d, content: content}} <- Seshat.read(resident_id, path),
+         [_ | _] = ledger <- Seshat.written_ledger(resident_id, d.path, content) do
+      ledger
+    else
+      _ -> unclassified(ref)
+    end
+  end
+
+  defp unclassified(ref), do: [%{"id" => ref, "ref" => ref, "labels" => "unclassified"}]
+
+  defp answer(row, resident_id, model, actor, q, ref, audience) do
+    materials = materials(row, resident_id, model, actor, q) <> withheld_sources(q)
 
     text =
       """
@@ -82,7 +157,7 @@ defmodule Oneiroi.Brain.Oracle do
       #{materials}
       """
 
-    case Turn.oracle(row, resident_id, model, text) do
+    case Turn.oracle(row, resident_id, model, text, ref, audience) do
       {:ok, %{content: content}, steps} when is_binary(content) and content != "" ->
         {:ok, content, steps}
 
@@ -97,6 +172,15 @@ defmodule Oneiroi.Brain.Oracle do
         {:error, reason}
     end
   end
+
+  defp withheld_sources(%{withheld: [_ | _] = withheld}),
+    do:
+      "\n\nWithheld from this composition by your agreement's domain policies, and not read: " <>
+        Enum.map_join(withheld, "; ", fn {ref, domains} ->
+          "#{ref} (in conflict with this audience: #{Enum.join(domains, ", ")})"
+        end) <> "."
+
+  defp withheld_sources(_q), do: ""
 
   # The sources as text: whole when they fit, otherwise read in chunks
   # first and given as the notes taken from each.

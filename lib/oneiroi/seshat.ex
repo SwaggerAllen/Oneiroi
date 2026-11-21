@@ -64,6 +64,7 @@ defmodule Oneiroi.Seshat do
       HouseholdBeatWorker,
       HouseholdTurnWorker,
       Commands.WriteDocument,
+      Commands.ClassifyDocument,
       Commands.AdoptDocument,
       Commands.PublishPiece,
       Commands.PublishDocument,
@@ -79,6 +80,7 @@ defmodule Oneiroi.Seshat do
       Commands.AnswerDigest,
       Commands.FailDigest,
       Events.DocumentWritten,
+      Events.DocumentClassified,
       Events.DocumentAdopted,
       Events.PiecePublished,
       Events.DocumentPublished,
@@ -178,6 +180,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Pastes
   alias Oneiroi.Seshat.PieceReviews
   alias Oneiroi.Seshat.PluginFiles
+  alias Oneiroi.Seshat.Provenance
   alias Oneiroi.Seshat.Published
   alias Oneiroi.Seshat.Researches
   alias Oneiroi.Seshat.Scenes
@@ -285,7 +288,8 @@ defmodule Oneiroi.Seshat do
   @impl Oneiroi.Component
   def events do
     [
-      {Oneiroi.Seshat.Events.DocumentWritten, 2},
+      {Oneiroi.Seshat.Events.DocumentWritten, 3},
+      {Oneiroi.Seshat.Events.DocumentClassified, 1},
       {Oneiroi.Seshat.Events.DocumentAdopted, 2},
       {Oneiroi.Seshat.Events.PiecePublished, 1},
       {Oneiroi.Seshat.Events.DocumentPublished, 1},
@@ -312,14 +316,14 @@ defmodule Oneiroi.Seshat do
       {Oneiroi.Seshat.Events.OracleDispatched, 1},
       {Oneiroi.Seshat.Events.OracleAnswered, 1},
       {Oneiroi.Seshat.Events.OracleFailed, 1},
-      {Oneiroi.Seshat.Events.ResearchAsked, 1},
+      {Oneiroi.Seshat.Events.ResearchAsked, 2},
       {Oneiroi.Seshat.Events.ResearchAnswered, 1},
       {Oneiroi.Seshat.Events.ResearchFailed, 1},
       {Oneiroi.Seshat.Events.ExternalCommissioned, 1},
       {Oneiroi.Seshat.Events.ExternalFetchAsked, 1},
       {Oneiroi.Seshat.Events.ExternalFetched, 1},
       {Oneiroi.Seshat.Events.ExternalFetchFailed, 1},
-      {Oneiroi.Seshat.Events.JournalEntryAdded, 3},
+      {Oneiroi.Seshat.Events.JournalEntryAdded, 4},
       {Oneiroi.Seshat.Events.JournalTodoDone, 1},
       {Oneiroi.Seshat.Events.SceneWritten, 2},
       {Oneiroi.Seshat.Events.SceneCorrected, 1},
@@ -481,6 +485,9 @@ defmodule Oneiroi.Seshat do
       {:seshat_lease_invalid,
        "an edit lease is the witness's editor's: acquired, renewed and released by a witness",
        remedy: "the resident's document_write waits on a lease rather than taking one"},
+      {:seshat_classify_invalid,
+       "a document's domain is classified by the resident whose document it is (seshat#102)",
+       remedy: "classify it from her own turn"},
       {:seshat_no_such_document, "no registered document has that path",
        remedy: "write it, or adopt the file if it was made outside the flow"},
       {:seshat_no_such_file, "no file at that path in the repository",
@@ -931,11 +938,24 @@ defmodule Oneiroi.Seshat do
     do: Leases.write(resident_id, path, content, actor)
   )
 
-  @doc "`write/4` with `note:`, what the writer says of this version (seshat#54)."
+  @doc "`write/4` with `note:`, what the writer says of this version (seshat#54), and `provenance:`, the writing turn and its ledger (seshat#100)."
   @spec write(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), keyword()) ::
           {:ok, map()} | {:error, term()}
   defexport(write(resident_id, path, content, actor, opts),
-    do: Leases.write(resident_id, path, content, actor, Keyword.take(opts, [:note]))
+    do: Leases.write(resident_id, path, content, actor, Keyword.take(opts, [:note, :provenance]))
+  )
+
+  @doc "A file's words at a commit (nil: the head) and the turn that wrote them (seshat#100): what a delivery of the file is decided against."
+  @spec file_provenance(String.t(), String.t(), String.t() | nil) ::
+          {:ok, map()} | {:error, term()}
+  defexport(file_provenance(resident_id, path, commit),
+    do: Provenance.of(resident_id, path, commit)
+  )
+
+  @doc "The kept ledger of the version of `path` holding `content` (seshat#100), or nil when none was kept."
+  @spec written_ledger(String.t(), String.t(), String.t()) :: [map()] | nil
+  defexport(written_ledger(resident_id, path, content),
+    do: Provenance.ledger_of(resident_id, path, content)
   )
 
   @doc "The witness pastes a conversation of his with another person into her human-correspondence/ (seshat#65): a new document, or appended to one there under a dated heading (seshat#66); written as him with a note, and indexed."
@@ -1034,6 +1054,11 @@ defmodule Oneiroi.Seshat do
     do: Oracles.answer(resident_id, number, content, measured, actor)
   )
 
+  @doc "`answer_oracle/5` with `provenance:` (kumbukumbu#84): what its answer inherits, kept on the file's version."
+  defexport(answer_oracle(resident_id, number, content, measured, actor, opts),
+    do: Oracles.answer(resident_id, number, content, measured, actor, opts)
+  )
+
   @doc "Records oracle question `number` as failed, with the reason in words."
   @spec fail_oracle(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
@@ -1079,6 +1104,11 @@ defmodule Oneiroi.Seshat do
           {:ok, pos_integer()} | {:error, term()}
   defexport(ask_research(resident_id, session_key, question, urls, actor),
     do: Researches.ask(resident_id, session_key, question, urls, actor)
+  )
+
+  @doc "`ask_research/5` with the asking turn's ledger (kumbukumbu#84), which its answers inherit."
+  defexport(ask_research(resident_id, session_key, question, urls, actor, ledger),
+    do: Researches.ask(resident_id, session_key, question, urls, actor, ledger)
   )
 
   @doc "Writes the reader's notes for research `number` under research/, records it answered and tells the asking conversation; the folder."
@@ -1176,6 +1206,20 @@ defmodule Oneiroi.Seshat do
   @spec move(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, %{from: String.t(), to: String.t(), kind: String.t()}} | {:error, term()}
   defexport(move(resident_id, from, to, actor), do: Documents.move(resident_id, from, to, actor))
+
+  @doc "Its author classifies a document (seshat#102): `person` and `domain`, or the common room (`domain` nil), with her note."
+  @spec classify(
+          String.t(),
+          String.t(),
+          String.t() | nil,
+          String.t() | nil,
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) ::
+          {:ok, map()} | {:error, term()}
+  defexport(classify(resident_id, path, person, domain, note, actor),
+    do: Documents.classify(resident_id, path, person, domain, note, actor)
+  )
 
   @doc "Adopts a file made outside the flow, registering it; the index runs."
   @spec adopt(String.t(), String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
@@ -1437,6 +1481,15 @@ defmodule Oneiroi.Seshat do
           {:ok, map()} | {:error, term()}
   defexport(journal_add(resident_id, day, kind, text, register, summary, actor),
     do: Journals.add(resident_id, day, kind, text, register, actor, summary: summary)
+  )
+
+  @doc "`journal_add/7` with the writing turn's provenance (kumbukumbu#84): `%{session_key, turn_ref, labels}`."
+  defexport(journal_add(resident_id, day, kind, text, register, summary, actor, provenance),
+    do:
+      Journals.add(resident_id, day, kind, text, register, actor,
+        summary: summary,
+        provenance: provenance
+      )
   )
 
   @doc "The journal entries written since an instant, oldest first, for the corpus-shape report."

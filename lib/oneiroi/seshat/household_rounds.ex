@@ -250,13 +250,18 @@ defmodule Oneiroi.Seshat.HouseholdRounds do
       # The turn's own answer is her reply (seshat#94): when the wake ends
       # with the token unspent and she said something, the caller posts it.
       case {live?(household_id, turn_id), final_text(answer)} do
-        {true, text} when is_binary(text) -> {:answered, turn, text}
+        # With the wake's own turn, whose assembly for the house its
+        # delivery is checked against (kumbukumbu#81).
+        {true, text} when is_binary(text) -> {:answered, turn, text, turn_ref(answer)}
         _spent_or_silent -> end_turn(household_id, turn_id, "empty")
       end
     else
       :ok
     end
   end
+
+  defp turn_ref({:ok, %{turn_ref: ref}}), do: ref
+  defp turn_ref(_answer), do: nil
 
   @doc "After her answer was posted for her (seshat#94): a turn still live then, the post refused, ends `empty`."
   def settle(household_id, turn_id) do
