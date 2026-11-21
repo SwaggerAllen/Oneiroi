@@ -307,12 +307,9 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
         |> Enum.filter(fn {_ref, ins} -> Enum.all?(ins, &(&1.id in kept)) end)
         |> Enum.map(&elem(&1, 0)),
       rows: for({r, i} <- numbered, "message/#{i}" in kept, do: r),
-      # Named (the ref, the fact and the domain) where the citation's
-      # reader is the dyad; by ref alone where what is composed goes to
-      # the audience unread by her first (Lily's #1537, #1540).
+      # One citation grammar everywhere (the witness's ruling, Lily's
+      # #1537): the ref, the fact, and the domain, dyad material all.
       withheld: decision.withheld |> Enum.map(&Audience.told(decision, &1)) |> Enum.uniq(),
-      withheld_refs:
-        decision.withheld |> Enum.map(&"withheld: #{&1.ref || &1.id}") |> Enum.uniq(),
       decision: decision.id
     }
   end
