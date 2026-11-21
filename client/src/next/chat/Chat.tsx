@@ -20,7 +20,7 @@ import { Reacts } from './Reacts';
 import { useReacts } from './useReacts';
 import { useChat } from './useChat';
 import { DomainChip } from './DomainChip';
-import { domainBreaks, knownDomains } from './domains';
+import { declaredDomains, domainBreaks } from './domains';
 
 const READ_KEY = 'oneiroi.next.read.';
 
@@ -232,7 +232,9 @@ export function Chat({
   // carries the conversation's current one.
   const [picked, setPicked] = useState<string | null | undefined>(undefined);
   const breaks = useMemo(() => domainBreaks(chat.messages), [chat.messages]);
-  const known = useMemo(() => knownDomains(chat.messages, chat.domainNow), [chat.messages, chat.domainNow]);
+  // Only the domains the agreement declares (kumbukumbu#90): a dropdown, never free text.
+  const agreement = useQuery({ queryKey: ['resident', residentId, 'soul', 'agreement'], queryFn: () => api.agreement(residentId) });
+  const known = useMemo(() => declaredDomains(agreement.data?.domains, chat.domainNow), [agreement.data, chat.domainNow]);
 
   const submit = () => {
     const text = draft.trim();

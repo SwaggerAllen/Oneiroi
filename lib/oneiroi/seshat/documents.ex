@@ -500,6 +500,7 @@ defmodule Oneiroi.Seshat.Documents do
   """
   def classify(resident_id, path, person, domain, note, %Actor{} = actor) do
     with {:ok, path} <- normalize(resident_id, path),
+         :ok <- declared(resident_id, person, domain),
          {:ok, _events} <-
            dispatch(%Commands.ClassifyDocument{
              actor: actor,
@@ -512,6 +513,17 @@ defmodule Oneiroi.Seshat.Documents do
            }) do
       {:ok, %{path: path, person: domain && person, domain: domain}}
     end
+  end
+
+  # Only a declared domain classifies a document (agathos-daimon#57).
+  defp declared(resident_id, person, domain) do
+    if Oneiroi.AgathosDaimon.domain_declared?(resident_id, person, domain),
+      do: :ok,
+      else:
+        {:error,
+         Error.new(:seshat_domain_undeclared, :seshat_classify_document_undeclared,
+           domain: domain
+         )}
   end
 
   @doc """

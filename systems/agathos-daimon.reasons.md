@@ -432,3 +432,10 @@ no audience policy could hold: its recovery facts rode into every room.
 Portraits are where facts about a person already live, cited, labelled
 claim by claim; moving USER.md's content there puts it under the same
 rules as every other memory of him.
+
+## #57
+A free-text domain set grows without bound and fills with domains no
+rule governs, the tag problem again; once domains decide who hears what,
+an undeclared one is a governance entity minted unilaterally. Declaring
+it in the agreement, with its policy, keeps every domain both parties'
+and every domain ruled.

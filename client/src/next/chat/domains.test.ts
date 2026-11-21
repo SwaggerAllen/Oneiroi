@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { Message } from '../../api/types';
-import { chipLabel, domainBreaks, knownDomains, SLUG } from './domains';
+import { chipLabel, declaredDomains, domainBreaks, knownDomains, SLUG } from './domains';
 
 const him = 'account:00000000-0000-0000-0000-000000000000';
 const msg = (i: number, role: string, slug: string | null): Message => ({
@@ -45,4 +45,16 @@ describe('domains in the chat (kumbukumbu#72)', () => {
     expect(SLUG.test('Recovery')).toBe(false);
     expect(SLUG.test('in-person')).toBe(true);
   });
+
+  it('offers only the declared domains, each once, the current one first (kumbukumbu#90)', () => {
+    const declared = [
+      { person: 'account:a', domain: 'recovery' },
+      { person: 'resident:b', domain: 'recovery' },
+      { person: 'account:a', domain: 'business' },
+    ];
+    expect(declaredDomains(declared, { slug: 'recovery', person: 'account:a' })).toEqual(['recovery', 'business']);
+    expect(declaredDomains(declared, null)).toEqual(['business', 'recovery']);
+    expect(declaredDomains(undefined, null)).toEqual([]);
+  });
+
 });

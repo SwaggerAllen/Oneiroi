@@ -183,12 +183,6 @@ export function Work() {
   );
 }
 
-const slugList = (text: string) =>
-  text
-    .split(/[,\s]+/)
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-
 /**
  * The memory backfill (sunna#59): {name} writes the scenes, names the
  * domains (from your list and hers) and runs the people pass for each past
@@ -201,8 +195,14 @@ function Backfill() {
   const status = useQuery({ queryKey: settingsKey(id, 'backfill'), queryFn: () => api.backfill(id), refetchInterval: 30_000 });
   const [from, setFrom] = useState('2026-10-17');
   const [to, setTo] = useState('');
-  const [his, setHis] = useState('');
-  const [hers, setHers] = useState('');
+  // Only declared domains (kumbukumbu#90): his and hers, picked, never typed.
+  const agreement = useQuery({ queryKey: ['resident', id, 'soul', 'agreement'], queryFn: () => api.agreement(id) });
+  const persons = agreement.data?.persons;
+  const declared = agreement.data?.domains ?? [];
+  const yours = [...new Set(declared.filter((d) => d.person === persons?.witness).map((d) => d.domain))].sort();
+  const theirs = [...new Set(declared.filter((d) => d.person === persons?.resident).map((d) => d.domain))].sort();
+  const [his, setHis] = useState<string[]>([]);
+  const [hers, setHers] = useState<string[]>([]);
   const act = useAct();
   const s = status.data;
   const PASS = { scenes: 'writing the scenes', domains: 'naming the domains', people: 'the people pass' } as const;
@@ -226,7 +226,7 @@ function Backfill() {
           onSubmit={(e) => {
             e.preventDefault();
             void act.run(
-              () => api.startBackfill(id, from, to, slugList(his), slugList(hers)).then((r) => `Started: ${r.days} days.`),
+              () => api.startBackfill(id, from, to, his, hers).then((r) => `Started: ${r.days} days.`),
               settingsKey(id, 'backfill'),
             );
           }}
@@ -235,8 +235,8 @@ function Backfill() {
             <Field label="From (YYYY-MM-DD)" value={from} onChange={(e) => setFrom(e.target.value)} />
             <Field label="To, before today" value={to} onChange={(e) => setTo(e.target.value)} />
           </div>
-          <Field label="Your domains (slugs, comma-separated)" value={his} onChange={(e) => setHis(e.target.value)} />
-          <Field label={`${name}'s domains`} value={hers} onChange={(e) => setHers(e.target.value)} />
+          <DomainPicks label="Your domains" options={yours} picked={his} onChange={setHis} />
+          <DomainPicks label={`${name}'s domains`} options={theirs} picked={hers} onChange={setHers} />
           <div className={css.row}>
             <button type="submit" className={css.primary} disabled={act.busy || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)}>
               Start the backfill
@@ -246,6 +246,29 @@ function Backfill() {
       )}
       <Said said={act.said} />
     </Card>
+  );
+}
+
+// Declared domains as choices (kumbukumbu#90): the agreement says which exist.
+function DomainPicks({ label, options, picked, onChange }: { label: string; options: string[]; picked: string[]; onChange: (p: string[]) => void }) {
+  return (
+    <fieldset className={css.column}>
+      <legend className={css.text}>{label}</legend>
+      {options.length === 0 ? (
+        <span className={css.text}>None declared in the agreement yet.</span>
+      ) : (
+        options.map((slug) => (
+          <label key={slug} className={css.row}>
+            <input
+              type="checkbox"
+              checked={picked.includes(slug)}
+              onChange={(e) => onChange(e.target.checked ? [...picked, slug] : picked.filter((s) => s !== slug))}
+            />
+            {slug}
+          </label>
+        ))
+      )}
+    </fieldset>
   );
 }
 

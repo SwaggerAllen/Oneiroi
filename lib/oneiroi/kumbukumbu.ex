@@ -430,6 +430,10 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_revision_text_invalid,
        "a revision is one text of at most 2,000 characters, not blank",
        remedy: "say what is right"},
+      {:kumbukumbu_domain_undeclared,
+       "that domain is not declared in the agreement in force: a domain is named only once the dyad has declared it with its policy (kumbukumbu#90, agathos-daimon#57)",
+       remedy:
+         "name one of the declared domains, or none for the common room; a new domain is declared in the agreement first"},
       {:kumbukumbu_withheld_by_policy,
        "withheld by policy: what this turn's context holds may not reach that audience, by the dyad's domain policies, and no review released it; nothing was delivered (kumbukumbu#80, #82)",
        remedy:
@@ -766,6 +770,13 @@ defmodule Oneiroi.Kumbukumbu do
   @spec walled?(String.t(), map() | nil, map() | nil) :: boolean()
   defexport(walled?(resident_id, key, current),
     do: Domains.walled?(resident_id, key, current)
+  )
+
+  @doc "Whether a domain may be named in a session (kumbukumbu#90): the common room always, any other only when declared in the agreement."
+  @spec check_domain(String.t(), String.t(), String.t() | nil, String.t() | nil) ::
+          :ok | {:error, term()}
+  defexport(check_domain(resident_id, key, person, domain),
+    do: Conversations.check_domain(resident_id, key, person, domain)
   )
 
   @doc "Tags a turn's messages into a domain (kumbukumbu#72), by its ref, before or after it is captured; `domain` nil is the common room, `person` nil the conversation's counterpart."

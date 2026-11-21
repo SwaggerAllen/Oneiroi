@@ -192,20 +192,27 @@ defmodule Oneiroi.Kumbukumbu.Audience do
     end
   end
 
-  # A domain with no policy of its own, before the researcher, takes the
-  # researcher's default as if it were its policy.
+  # Before the researcher, a domain's policy decides only where it names
+  # the researcher (an explicit allow or deny); otherwise, or with no
+  # policy at all, the researcher's default stands in for the policy's
+  # own (kumbukumbu#86: her freedom to search, his to tighten).
   defp researcher(policies, %{labels: labels}, snapshot) when is_list(labels) do
     default = Map.get(snapshot, :researcher, "allow")
-
-    missing =
-      for l <- labels,
-          policy(l, policies) == nil,
-          do: %{domain: l, default: default, allow: [], deny: []}
-
-    policies ++ missing
+    for_labels = Enum.map(labels, &researcher_policy(policy(&1, policies), &1, default))
+    others = Enum.reject(policies, fn p -> Enum.any?(labels, &(policy(&1, [p]) != nil)) end)
+    for_labels ++ others
   end
 
+  defp researcher_policy(nil, label, default),
+    do: %{domain: label, default: default, allow: [], deny: []}
+
+  defp researcher_policy(p, _label, default),
+    do: if(names_researcher?(p), do: p, else: %{p | default: default})
+
   defp researcher(policies, _input, _snapshot), do: policies
+
+  defp names_researcher?(p),
+    do: Enum.any?(p.allow ++ p.deny, &(&1.kind == "researcher"))
 
   # Every label must permit; the conflicts are the labels that do not.
   defp label_verdicts(labels, audience, policies) do

@@ -179,6 +179,7 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
          decision: decision.id,
          audience: "#{audience.kind}:#{audience.id}",
          conflicts: conflicts(decision.withheld),
+         unruled: unruled(decision.withheld),
          source: file.source,
          classified: file[:classified] != nil
        )}
@@ -257,7 +258,8 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
     refused = [
       decision: decision.id,
       audience: "#{audience.kind}:#{audience.id}",
-      conflicts: conflicts(decision.withheld)
+      conflicts: conflicts(decision.withheld),
+      unruled: unruled(decision.withheld)
     ]
 
     cond do
@@ -535,6 +537,17 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
 
   defp label(nil), do: :common_room
   defp label(%{person: _, domain: _} = pair), do: [pair]
+
+  # The domains withheld for want of any policy (Lily's #1564): an
+  # absence, never to be told as a rule.
+  defp unruled(withheld) do
+    withheld
+    |> Enum.flat_map(fn
+      %{reason: :no_policy, conflicts: cs} -> Enum.map(cs, & &1.domain)
+      _other -> []
+    end)
+    |> Enum.uniq()
+  end
 
   defp conflicts([]), do: []
 

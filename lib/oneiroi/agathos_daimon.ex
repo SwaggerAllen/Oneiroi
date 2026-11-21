@@ -261,6 +261,9 @@ defmodule Oneiroi.AgathosDaimon do
       {:agathos_daimon_not_yours,
        "only the resident takes one of her identity files out of her prefix, or puts it back (agathos-daimon#50)",
        remedy: "she does it from her own turn, with identity_file_retire"},
+      {:agathos_daimon_domain_undeclared,
+       "that domain is not declared in the agreement in force: a domain is named only once the dyad has declared it, with its policy (agathos-daimon#57)",
+       remedy: "name a declared domain or the common room, or declare it in the agreement first"},
       {:agathos_daimon_soul_line_unknown,
        "a soul line is annotated by its number, live, with at most ten domains and whether it is private (agathos-daimon#55)",
        remedy: "name a live line's number, each domain a slug with whose life"},
@@ -757,6 +760,14 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "The domains' disclosure policies in force (agathos-daimon#53), with their contract version: the catalogue and its filters."
   @spec domain_policies(String.t()) :: %{version: pos_integer() | nil, policies: [map()]}
   defexport(domain_policies(id), do: Agreements.domain_policies(id))
+
+  @doc "The domains the agreement in force declares (agathos-daimon#57): the only ones any tag, classification or annotation may name."
+  @spec declared_domains(String.t()) :: [%{person: String.t(), domain: String.t()}]
+  defexport(declared_domains(id), do: Agreements.declared_domains(id))
+
+  @doc "Whether the agreement in force declares a domain of a person's life (agathos-daimon#57); nil, the common room, always is."
+  @spec domain_declared?(String.t(), String.t(), String.t() | nil) :: boolean()
+  defexport(domain_declared?(id, person, domain), do: Agreements.declared?(id, person, domain))
 
   @doc "The switch registry for the resident: every switch, its value in force and in the open proposal."
   @spec switches(String.t()) :: [map()]

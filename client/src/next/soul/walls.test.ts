@@ -26,4 +26,11 @@ describe('the domain walls (agathos-daimon#45)', () => {
     expect(wallsOf(undefined)).toEqual([]);
     expect(sameWall(wall, { ...wall })).toBe(true);
   });
+
+  it('carries the declared domains and their policies into every version (agathos-daimon#53, #57)', () => {
+    const policy = { domain: { person: 'account:a', domain: 'recovery' }, default: 'deny' as const, allow: [{ kind: 'household', id: '*' }], deny: [] };
+    expect(withWalls({ x: true }, [], [policy])).toEqual({ x: true, domain_policies: [policy] });
+    expect(withWalls({ x: true }, [])).toEqual({ x: true });
+  });
+
 });

@@ -485,6 +485,10 @@ defmodule Oneiroi.Seshat do
       {:seshat_lease_invalid,
        "an edit lease is the witness's editor's: acquired, renewed and released by a witness",
        remedy: "the resident's document_write waits on a lease rather than taking one"},
+      {:seshat_domain_undeclared,
+       "that domain is not declared in the agreement in force: a document is classified only into a declared domain (agathos-daimon#57)",
+       remedy:
+         "name a declared domain or none for the common room; a new domain is declared in the agreement first"},
       {:seshat_classify_invalid,
        "a document's domain is classified by the resident whose document it is (seshat#102)",
        remedy: "classify it from her own turn"},

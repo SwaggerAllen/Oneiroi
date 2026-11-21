@@ -1,12 +1,12 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api, type Agreement, type DomainWall } from '../../api/client';
+import { api, type Agreement, type DomainPolicy, type DomainWall } from '../../api/client';
 import { ScrollArea } from '../shell/ScrollArea';
 import { useSubject } from '../state/resident';
 import { NoteAction, PageHead } from './NoteAction';
 import { day, switchChanges } from './soul';
 import * as css from './soul.css';
-import { personOf, sameWall, wallsOf, wallWords, withWalls, type Persons, type Who } from './walls';
+import { personOf, policyWords, samePolicyDomain, sameWall, wallsOf, wallWords, withWalls, type Persons, type Who } from './walls';
 
 const GROUPS: { id: string; title: string }[] = [
   { id: 'privacy', title: 'PRIVACY' },
@@ -96,10 +96,13 @@ function Propose({ a }: { a: Agreement }) {
   // The walls in force carry into the version unless changed here: a
   // version is the whole agreement, so leaving them out would drop them.
   const [walls, setWalls] = useState<DomainWall[]>(() => a.domain_walls ?? wallsOf(a.contract.in_force?.terms));
+  // The declared domains and their policies ride the version too
+  // (agathos-daimon#53, #57): leaving them out would drop them.
+  const [policies, setPolicies] = useState<DomainPolicy[]>(() => a.domain_policies ?? []);
   const changed = switchChanges(a.switches, draft);
   const open = a.contract.open !== null;
   const propose = useMutation({
-    mutationFn: () => api.proposeContract(id, withWalls(draft, walls), prose, note.trim()),
+    mutationFn: () => api.proposeContract(id, withWalls(draft, walls, policies), prose, note.trim()),
     onSuccess: (r) => {
       setSaid(`Version ${r.version} is proposed; ${name} decides.`);
       return queries.invalidateQueries({ queryKey: ['resident', id, 'soul', 'agreement'] });
@@ -130,6 +133,7 @@ function Propose({ a }: { a: Agreement }) {
           <p className={css.note}>
             {changed.length ? `It changes: ${changed.map((s) => `${s.label} ${draft[s.key] ? 'on' : 'off'}`).join(', ')}.` : 'As it stands, it changes no switch.'}
           </p>
+          {a.persons && <PolicyEditor policies={policies} persons={a.persons} name={name} onChange={setPolicies} />}
           {a.persons && <WallEditor walls={walls} persons={a.persons} name={name} onChange={setWalls} />}
           <textarea className={css.editor} rows={8} value={prose} onChange={(e) => setProse(e.target.value)} aria-label="Your vows, in prose" placeholder="Your vows, in prose" />
           <textarea className={css.noteBox} rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={`Why, for ${name} to read`} aria-label="Note" />
@@ -168,6 +172,99 @@ function Walls({ a }: { a: Agreement }) {
 }
 
 const SLUG = /^[a-z][a-z0-9-]{1,31}$/;
+
+const KINDS = ['household', 'thread', 'workspace', 'person', 'correspondent', 'publication', 'export', 'processor', 'researcher'] as const;
+
+// The domains a version declares, each with its policy (agathos-daimon#53,
+// #57): the one place a new domain is written; everywhere else picks from
+// these. A domain is declared for your life or hers, with a default, and
+// grants or denials for named audiences.
+function PolicyEditor({ policies, persons, name, onChange }: { policies: DomainPolicy[]; persons: Persons; name: string; onChange: (p: DomainPolicy[]) => void }) {
+  const [who, setWho] = useState<Who>('witness');
+  const [slug, setSlug] = useState('');
+  const [fallback, setFallback] = useState<'deny' | 'allow'>('deny');
+  const fresh = slug.trim().toLowerCase();
+  const person = personOf(who, persons);
+  const candidate: DomainPolicy | null =
+    person && person !== '*' && SLUG.test(fresh) ? { domain: { person, domain: fresh }, default: fallback, allow: [], deny: [] } : null;
+  const ok = candidate !== null && !policies.some((p) => samePolicyDomain(p, candidate));
+  const replace = (p: DomainPolicy, next: DomainPolicy) => onChange(policies.map((x) => (samePolicyDomain(x, p) ? next : x)));
+  return (
+    <div className={css.section} aria-label="Domains declared in this version">
+      <p className={css.note}>
+        Domains: a part of your life or {name}'s, declared here with who it may reach. Only a declared domain can be tagged, classified or annotated anywhere else; everywhere else picks from this list.
+      </p>
+      {policies.map((p) => (
+        <div key={`${p.domain.person}/${p.domain.domain}`} className={css.formRow}>
+          <span className={css.plain}>{policyWords(p, persons, name)}</span>
+          <GrantAdder onAdd={(side, grant) => replace(p, { ...p, [side]: [...p[side], grant] })} />
+          {[...p.allow.map((g) => ['allow', g] as const), ...p.deny.map((g) => ['deny', g] as const)].map(([side, g]) => (
+            <button
+              key={`${side}:${g.kind}:${g.id}`}
+              type="button"
+              className={css.secondary}
+              onClick={() => replace(p, { ...p, [side]: p[side].filter((x) => !(x.kind === g.kind && x.id === g.id)) })}
+            >
+              Remove {side} {g.kind}:{g.id}
+            </button>
+          ))}
+          <button type="button" className={css.secondary} onClick={() => onChange(policies.filter((x) => !samePolicyDomain(x, p)))}>
+            Remove the domain
+          </button>
+        </div>
+      ))}
+      <div className={css.formRow}>
+        <select className={css.select} value={who} onChange={(e) => setWho(e.target.value as Who)} aria-label="Whose life">
+          <option value="witness">your</option>
+          <option value="resident">{name}'s</option>
+        </select>
+        <input className={css.input} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="recovery" aria-label="The domain to declare" />
+        <select className={css.select} value={fallback} onChange={(e) => setFallback(e.target.value as 'deny' | 'allow')} aria-label="Its default">
+          <option value="deny">reaches no audience past you two by default</option>
+          <option value="allow">reaches any audience by default</option>
+        </select>
+        <button
+          type="button"
+          className={css.secondary}
+          disabled={!ok}
+          onClick={() => {
+            if (candidate && ok) onChange([...policies, candidate]);
+            setSlug('');
+          }}
+        >
+          Declare the domain
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// One grant or denial for a declared domain: an audience kind and its id
+// ("*" for every one of the kind).
+function GrantAdder({ onAdd }: { onAdd: (side: 'allow' | 'deny', grant: { kind: string; id: string }) => void }) {
+  const [side, setSide] = useState<'allow' | 'deny'>('allow');
+  const [kind, setKind] = useState<string>('household');
+  const [gid, setGid] = useState('*');
+  return (
+    <>
+      <select className={css.select} value={side} onChange={(e) => setSide(e.target.value as 'allow' | 'deny')} aria-label="Allow or deny">
+        <option value="allow">allow</option>
+        <option value="deny">deny</option>
+      </select>
+      <select className={css.select} value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Audience kind">
+        {KINDS.map((k) => (
+          <option key={k} value={k}>
+            {k}
+          </option>
+        ))}
+      </select>
+      <input className={css.input} value={gid} onChange={(e) => setGid(e.target.value)} aria-label="Audience id, * for any" />
+      <button type="button" className={css.secondary} disabled={!gid.trim()} onClick={() => onAdd(side, { kind, id: gid.trim() })}>
+        Add
+      </button>
+    </>
+  );
+}
 
 // The walls a version proposes (agathos-daimon#45): each a domain of
 // yours or hers, and the context it is never named into.

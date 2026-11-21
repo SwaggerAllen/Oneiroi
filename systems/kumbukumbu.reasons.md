@@ -676,6 +676,11 @@ the ledger. Durable fragments only, with unproven refused, keeps the
 review from being vacuous exactly where it matters. The refusal is
 legible rather than widened, and its cost goes to the thread.
 
+## #90
+The tag is where a domain is born into the record; checking there, once,
+keeps every later decision about it a decision about a domain both
+parties declared.
+
 ## #89
 A portrait aggregates many moments; labelling it whole would taint
 every read by its most restricted claim, and keep the house from the

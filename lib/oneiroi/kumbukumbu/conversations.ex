@@ -11,6 +11,7 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu.Commands
@@ -143,35 +144,70 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     do: {:domain, Domains.current(resident_id, session_key)}
 
   @doc """
+  Whether `domain` may be named in session `key` (kumbukumbu#90): the
+  common room always; any other only when the agreement declares it for
+  `person`, or the conversation's counterpart when nil.
+  """
+  def check_domain(resident_id, key, person, domain) do
+    person = whose(resident_id, key, person)
+    domain = blank_nil(domain)
+
+    # A malformed slug or person is the aggregate's to refuse, by its
+    # own kind; only a well-formed one is asked whether it is declared.
+    if not well_formed?(person, domain) or
+         AgathosDaimon.domain_declared?(resident_id, person, domain),
+       do: :ok,
+       else:
+         {:error,
+          Error.new(:kumbukumbu_domain_undeclared, :kumbukumbu_conversations_tag_undeclared,
+            domain: domain,
+            declared: Enum.map(AgathosDaimon.declared_domains(resident_id), & &1.domain)
+          )}
+  end
+
+  defp well_formed?(person, domain),
+    do:
+      is_binary(domain) and Regex.match?(~r/\A[a-z][a-z0-9-]{1,31}\z/, domain) and
+        is_binary(person) and Regex.match?(~r/\A(account|resident):/, person)
+
+  defp whose(resident_id, key, person) do
+    person ||
+      Scope.resident(resident_id, fn ->
+        case Store.session(key) do
+          nil -> nil
+          session -> Domains.counterpart(session, resident_id)
+        end
+      end) || "resident:" <> resident_id
+  end
+
+  @doc """
   Tags a turn's messages into a domain (P23-R1, kumbukumbu#72), by its
   ref, before or after it is captured; `domain` nil is the common room.
   `person` is whose life (`"account:<id>"` or `"resident:<id>"`); nil
   takes the conversation's counterpart, the witness's in a conversation
-  with him and hers in her own.
+  with him and hers in her own. Only a declared domain (kumbukumbu#90).
   """
   def tag_domain(resident_id, key, turn_ref, person, domain, %Actor{} = actor) do
-    person =
-      person ||
-        Scope.resident(resident_id, fn ->
-          case Store.session(key) do
-            nil -> nil
-            session -> Domains.counterpart(session, resident_id)
-          end
-        end)
+    person = whose(resident_id, key, person)
+    domain = blank_nil(domain)
 
-    dispatch(%Commands.TagDomain{
-      actor: actor,
-      at: Clock.now(),
-      id: stream(resident_id, key),
-      resident_id: resident_id,
-      session_key: key,
-      turn_ref: turn_ref,
-      person: person || "resident:" <> resident_id,
-      domain: blank_nil(domain)
-    })
-    |> case do
-      {:ok, _} -> :ok
-      error -> error
+    # Only a domain the agreement declares is named (agathos-daimon#57,
+    # kumbukumbu#90): none exists without its rule.
+    with :ok <- check_domain(resident_id, key, person, domain) do
+      dispatch(%Commands.TagDomain{
+        actor: actor,
+        at: Clock.now(),
+        id: stream(resident_id, key),
+        resident_id: resident_id,
+        session_key: key,
+        turn_ref: turn_ref,
+        person: person,
+        domain: domain
+      })
+      |> case do
+        {:ok, _} -> :ok
+        error -> error
+      end
     end
   end
 

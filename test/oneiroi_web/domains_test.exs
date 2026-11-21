@@ -17,6 +17,7 @@ defmodule OneiroiWeb.DomainsTest do
 
     account = Fixtures.account!()
     resident = Fixtures.resident!(account)
+    Fixtures.declare_domains!(resident.id, account.id, ~w(business recovery))
     actor = Oneiroi.Actor.new(:witness, account.id)
     :ok = Oneiroi.Gaia.store_key(account.id, "sk-or-test", actor)
     Fake.reply("Heard.", for: resident.id)
@@ -115,5 +116,32 @@ defmodule OneiroiWeb.DomainsTest do
         Process.sleep(50)
         eventually(check, tries - 1)
     end
+  end
+
+  test "an undeclared domain is refused before the message is taken, and by the tag route; the agreement lists the declared",
+       %{conn: conn, id: id} do
+    # The witness's ruling, 2026-11-21 (agathos-daimon#57, kumbukumbu#90).
+    assert %{"key" => key} =
+             conn |> post("/v1/residents/#{id}/sessions", %{}) |> json_response(201)
+
+    assert %{"error" => %{"kind" => "kumbukumbu_domain_undeclared"}} =
+             conn
+             |> post("/v1/residents/#{id}/sessions/#{key}/turns", %{
+               text: "the deck",
+               client_ref: "composer-ref-2",
+               domain: "family"
+             })
+             |> json_response(422)
+
+    assert %{"error" => %{"kind" => "kumbukumbu_domain_undeclared"}} =
+             conn
+             |> post("/v1/residents/#{id}/sessions/#{key}/turns/t-x/domain", %{domain: "family"})
+             |> json_response(422)
+
+    assert %{"domains" => domains} =
+             conn |> get("/v1/residents/#{id}/agreement") |> json_response(200)
+
+    assert domains |> Enum.map(& &1["domain"]) |> Enum.uniq() |> Enum.sort() ==
+             ~w(business recovery)
   end
 end

@@ -33,7 +33,12 @@ defmodule OneiroiWeb.AgreementController do
           witness: r.account_id && "account:" <> r.account_id,
           resident: "resident:" <> id
         },
-        domain_walls: AgathosDaimon.domain_walls(id)
+        domain_walls: AgathosDaimon.domain_walls(id),
+        # The domains declared in force and their policies (agathos-daimon
+        # #53, #57): the only domains a tag, classification or annotation
+        # names, and every dropdown's options.
+        domain_policies: AgathosDaimon.domain_policies(id).policies,
+        domains: AgathosDaimon.declared_domains(id)
       })
     else
       :error ->

@@ -169,8 +169,10 @@ clipboard, or "Couldn't copy; select it" when the browser refuses
   what it is doing (writing the scenes, naming the domains or the people
   pass), for which day and turn, through which day, and "Stop the
   backfill"; otherwise what it does in words and a form: from and to
-  (YYYY-MM-DD, to before today), your domains and hers as slugs, comma-
-  or space-separated, "Start the backfill".
+  (YYYY-MM-DD, to before today), your domains and hers picked from the
+  domains the agreement declares for each life (kumbukumbu#90; "None
+  declared in the agreement yet" when there are none), "Start the
+  backfill".
 
 - **Backups, imports and reports** (`backups`):
   - the backup repository (sima-qian): where the records are pushed

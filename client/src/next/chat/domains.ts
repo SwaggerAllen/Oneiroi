@@ -26,6 +26,17 @@ export function domainBreaks(messages: Message[]): Map<number, string | null> {
   return breaks;
 }
 
+/**
+ * The domains a message may be put in (kumbukumbu#90, the witness's
+ * ruling 2026-11-21): only those the agreement declares, each slug once,
+ * the conversation's current one leading when it is among them.
+ */
+export function declaredDomains(declared: { domain: string }[] | undefined, now: Domain | null): string[] {
+  const slugs = [...new Set((declared ?? []).map((d) => d.domain))].sort();
+  const current = slugOf(now);
+  return current && slugs.includes(current) ? [current, ...slugs.filter((s) => s !== current)] : slugs;
+}
+
 /** The domains this conversation has named, newest first, the current one leading. */
 export function knownDomains(messages: Message[], now: Domain | null): string[] {
   const seen: string[] = [];

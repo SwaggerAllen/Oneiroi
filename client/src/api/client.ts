@@ -1201,7 +1201,7 @@ export interface DomainWall {
 }
 
 // A version's terms: the switches, and the walls, the one term that is a list.
-export type ContractTerms = Record<string, boolean | DomainWall[]>;
+export type ContractTerms = Record<string, boolean | DomainWall[] | DomainPolicy[]>;
 
 export interface ContractVersion {
   version: number;
@@ -1242,6 +1242,18 @@ export interface Agreement {
   // Who a wall may name, as a domain's person is written, and the walls in force.
   persons?: { witness: string | null; resident: string };
   domain_walls?: DomainWall[];
+  // The domains' policies in force and the domains they declare
+  // (agathos-daimon#53, #57): the only domains any dropdown offers.
+  domain_policies?: DomainPolicy[];
+  domains?: { person: string; domain: string }[];
+}
+
+/** One domain's disclosure policy (agathos-daimon#53): declared in the agreement, decided by the dyad. */
+export interface DomainPolicy {
+  domain: { person: string; domain: string };
+  default: 'allow' | 'deny';
+  allow: { kind: string; id: string }[];
+  deny: { kind: string; id: string }[];
 }
 
 export interface InviteDefaults {

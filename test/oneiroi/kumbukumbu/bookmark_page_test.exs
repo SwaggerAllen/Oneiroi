@@ -16,6 +16,7 @@ defmodule Oneiroi.Kumbukumbu.BookmarkPageTest do
   setup do
     witness = Fixtures.account!()
     resident = Fixtures.resident!(witness)
+    Fixtures.declare_domains!(resident.id, witness.id, ~w(intimate))
     id = resident.id
     actor = Actor.new(:witness, witness.id)
     brain = Actor.new(:resident, id, "fake/model")

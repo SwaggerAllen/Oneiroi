@@ -13,6 +13,7 @@ defmodule Oneiroi.AgathosDaimon.Files do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon.Agreements
   alias Oneiroi.AgathosDaimon.Commands
   alias Oneiroi.AgathosDaimon.Error
   alias Oneiroi.AgathosDaimon.Resident
@@ -63,11 +64,33 @@ defmodule Oneiroi.AgathosDaimon.Files do
   with her note. The line is never cut; the latest annotation wins.
   """
   def annotate(resident_id, number, domains, private?, note, %Actor{} = actor) do
+    with :ok <- all_declared(resident_id, domains),
+         do: dispatch_annotation(resident_id, number, domains, private?, note, actor)
+  end
+
+  # Only declared domains are named (agathos-daimon#57).
+  defp all_declared(resident_id, domains) do
+    case Enum.reject(
+           List.wrap(domains),
+           &Agreements.declared?(resident_id, &1["person"], &1["domain"])
+         ) do
+      [] ->
+        :ok
+
+      [first | _] ->
+        {:error,
+         Error.new(:agathos_daimon_domain_undeclared, :agathos_daimon_files_annotate_undeclared,
+           domain: first["domain"]
+         )}
+    end
+  end
+
+  defp dispatch_annotation(resident_id, number, domains, private?, note, actor) do
     command = %Commands.AnnotateSoulLine{
       actor: actor,
       at: Clock.now(),
       id: resident_id,
-      note: note,
+      note: if(is_binary(note) and String.trim(note) != "", do: note, else: "annotated"),
       number: number,
       domains: domains,
       private: private?

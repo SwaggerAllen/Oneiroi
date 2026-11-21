@@ -52,8 +52,10 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
 - **The domain (kumbukumbu#72):** above the box, "In <domain>", a chip
   naming the domain the next message goes in: the conversation's
   current one (the session's `domain`), or the common room. It opens a
-  picker of the domains this conversation has named, the common room,
-  and a new one as a slug ("Use"); what is picked shows "· next
+  picker of the domains the agreement declares (kumbukumbu#90, the
+  agreement's `domains`) and the common room, never free text; with none
+  declared it says so. A refused submit (`kumbukumbu_domain_undeclared`)
+  keeps the message unsent. What is picked shows "· next
   message", rides that message's turn (`domain` on the submit, kept
   when it is sent again) and clears once sent, the server carrying it
   forward. A rule, "— <domain> —", is drawn where the transcript moves

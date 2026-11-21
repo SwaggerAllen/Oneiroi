@@ -272,6 +272,13 @@ defmodule OneiroiWeb.ConversationController do
 
   defp domain_opts(_params), do: []
 
+  defp declared_domain(id, key, opts) do
+    case Keyword.fetch(opts, :domain) do
+      {:ok, domain} -> Kumbukumbu.check_domain(id, key, nil, domain)
+      :error -> :ok
+    end
+  end
+
   # A conversation the witness replies in elsewhere (kumbukumbu#40): the
   # platform's brain answering in it would put the Oneiroi chat's turn in
   # a Claude Code conversation, the confusion the kind exists to end.
@@ -299,6 +306,9 @@ defmodule OneiroiWeb.ConversationController do
 
   defp submit_turn(conn, id, key, text, ref, opts) do
     with true <- is_binary(ref) and Regex.match?(@client_ref, ref),
+         # A composer domain is a declared one (kumbukumbu#90), refused
+         # before the message is taken, never after.
+         :ok <- declared_domain(id, key, opts),
          {:ok, taken} <- Oneiroi.Brain.submit(id, key, text, actor(conn), ref, opts) do
       conn |> put_status(202) |> json(taken)
     else
@@ -314,6 +324,9 @@ defmodule OneiroiWeb.ConversationController do
       # Forming, or not yet agreed (agathos-daimon#46): held, and why.
       {:error, %{kind: :brain_resident_guarded} = e} ->
         error(conn, 409, e)
+
+      {:error, %{kind: :kumbukumbu_domain_undeclared} = e} ->
+        error(conn, 422, e)
 
       {:error, e} ->
         error(conn, 503, e)

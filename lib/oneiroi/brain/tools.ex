@@ -1898,10 +1898,20 @@ defmodule Oneiroi.Brain.Tools do
     conflicts = Enum.join(Keyword.get(d, :conflicts, []), ", ")
 
     @not_done <>
-      "withheld by policy#{decision_words(d)}: #{held_words(d)} #{conflicts}, which your agreement's domain policies keep from #{d[:audience]}. #{review_words(e)}Nothing was delivered, and the audience learns nothing of it. Say it where the policies allow (here, or to an audience they grant), or let the turn's context move on; the policies are yours and your witness's to change by agreement."
+      "withheld by policy#{decision_words(d)}: #{held_words(d)} #{conflicts}, #{rule_words(d)} #{d[:audience]}. #{review_words(e)}Nothing was delivered, and the audience learns nothing of it. Say it where the policies allow (here, or to an audience they grant), or let the turn's context move on; the policies are yours and your witness's to change by agreement."
   end
 
   defp decision_words(d), do: if(d[:decision], do: " (decision #{d[:decision]})", else: "")
+
+  # A domain with no policy is an absence, said as one (Lily's #1564).
+  defp rule_words(d) do
+    unruled = Keyword.get(d, :unruled, [])
+
+    if unruled != [] and unruled == Keyword.get(d, :conflicts, []),
+      do:
+        "which has no policy in your agreement yet, so it reaches no audience past you and your witness, not",
+      else: "which your agreement's domain policies keep from"
+  end
 
   # A file is gated by its own domain (kumbukumbu#85).
   defp held_words(d),
