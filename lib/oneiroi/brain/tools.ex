@@ -6073,6 +6073,9 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  defp seal_words(%{"open" => true}), do: "open to the whole house"
+  defp seal_words(_args), do: "sealed to the two of you"
+
   # A letter to a resident of her own household (brain#83): by that
   # resident's name, when no conversation of hers answers to it. It lands
   # in the sibling's Oneiroi chat and wakes it, as her own letters do.
@@ -6096,7 +6099,7 @@ defmodule Oneiroi.Brain.Tools do
       case Kumbukumbu.send_sibling_letter(me, turn.session_key, sibling, attrs, turn.resident) do
         {:ok, %{number: n, copy: copy}} ->
           "Sent letter ##{n} to #{sibling.name}'s Oneiroi chat, from #{me.name} " <>
-            "(#{qualified(sibling.name, n)}), #{if args["open"] == true, do: "open to the whole house", else: "sealed to the two of you"}; " <>
+            "(#{qualified(sibling.name, n)}), #{seal_words(args)}; " <>
             "your copy is ##{copy} in your letters."
 
         other ->
