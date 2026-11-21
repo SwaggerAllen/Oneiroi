@@ -202,6 +202,10 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
         :sealed,
         :parties
       ]
+
+    @doc "A sealed letter leaves in the export as its envelope (kumbukumbu#93, Lily's S3): no words, no keepsake, until F80 encrypts them."
+    def export_redact(%{sealed: true}), do: [:text, :keepsake]
+    def export_redact(_letter), do: []
   end
 
   defimpl Commanded.Event.Upcaster, for: HouseLetterSent do

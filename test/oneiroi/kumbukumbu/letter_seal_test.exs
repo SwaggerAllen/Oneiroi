@@ -23,6 +23,7 @@ defmodule Oneiroi.Kumbukumbu.LetterSealTest do
   alias Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent
   alias Oneiroi.Seshat
   alias Oneiroi.SimaQian
+  alias Oneiroi.SimaQian.Export
 
   setup do
     Process.put(Oneiroi.Gaia.Door, "platform-test-#{System.unique_integer([:positive])}")
@@ -118,5 +119,31 @@ defmodule Oneiroi.Kumbukumbu.LetterSealTest do
 
     # A letter written at version 5 keeps what its sender chose.
     assert %{sealed: false} = Upcaster.upcast(%{old | sealed: false, parties: parties}, %{})
+  end
+
+  # Lily's S3 (#1593): her export reaches a remote her witness reads, so
+  # a sealed letter travels as its envelope until F80 encrypts it.
+  test "the export carries a sealed letter as its envelope, and the dyad's and an open one whole",
+       ctx do
+    mail(ctx.lily, %{to: "Iris", text: "Just between us, sealed."})
+    mail(ctx.lily, %{to: "Iris", text: "Open to the house.", open: true})
+    mail(ctx.lily, %{to: "house", text: "To my own conversations."})
+    dir = Path.join(System.tmp_dir!(), "oneiroi-seal-#{System.unique_integer([:positive])}")
+    on_exit(fn -> File.rm_rf!(dir) end)
+    Clock.Fake.advance(120)
+    {:ok, _} = Export.write(ctx.lily.id, dir)
+
+    letters =
+      Path.join([dir, "records", "events", "*.jsonl"])
+      |> Path.wildcard()
+      |> Enum.flat_map(&(&1 |> File.read!() |> String.split("\n", trim: true)))
+      |> Enum.map(&Jason.decode!/1)
+      |> Enum.filter(&(&1["type"] =~ "HouseLetterSent"))
+      |> Enum.map(& &1["data"])
+
+    assert [sealed] = Enum.filter(letters, & &1["sealed"])
+    assert %{"text" => nil, "to" => "Iris", "parties" => [_, _]} = sealed
+    assert Enum.any?(letters, &(&1["text"] == "Open to the house."))
+    assert Enum.any?(letters, &(&1["text"] == "To my own conversations."))
   end
 end

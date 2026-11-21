@@ -1440,6 +1440,11 @@ Owns `lib/oneiroi/sima_qian/**`.
     export would tell her what the unawareness invariant hides.
   - `redacted`: fields an event declares `redact:`, the records remote's
     encrypted token among them; secrets stay in the vault.
+  - `sealed letters`: a sealed letter's words and keepsake
+    (kumbukumbu#93): her export reaches a remote her witness reads, and
+    no witness is a party to a letter between residents, so it travels
+    as its envelope until F80 encrypts it. Its parties read it on the
+    platform.
   - `leases`: the witness's edit leases (seshat#55), who has an editor
     open on which file, minutes long. What one decides lands in the
     repository as the writes it let through and the draft it kept; a

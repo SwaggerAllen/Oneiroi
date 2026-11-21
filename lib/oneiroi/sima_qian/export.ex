@@ -91,6 +91,9 @@ defmodule Oneiroi.SimaQian.Export do
     "redacted" =>
       {:fields,
        "fields an event declares `redact:`, the records remote's encrypted token among them: secrets stay in the vault, written as null"},
+    "sealed letters" =>
+      {:fields,
+       "a sealed letter's words and keepsake (kumbukumbu#93, Lily's S3): her export reaches a remote her witness reads, who is no party to a letter between residents, so it travels as its envelope until F80 encrypts it"},
     "leases" =>
       {:table,
        "the witness's edit leases (seshat#55): who has an editor open on which file, minutes long; what one decides lands in the repository as the writes it let through and the draft it kept, and a lease replayed would lock a rebuilt resident's file for an editor nobody has open"}
@@ -345,6 +348,10 @@ defmodule Oneiroi.SimaQian.Export do
   def cutoff,
     do: DateTime.add(Clock.now(), -Config.fetch!(:sima_qian, :watermark_seconds), :second)
 
+  defp record_redact(module, event) do
+    if function_exported?(module, :export_redact, 1), do: module.export_redact(event), else: []
+  end
+
   @doc """
   One export line for a recorded event, at `ordinal` among the exported
   lines. The line says the event's version today, so its data is today's
@@ -358,12 +365,17 @@ defmodule Oneiroi.SimaQian.Export do
     %module{} = event = Upcaster.upcast(recorded.data, %{})
     actor = event.actor
 
+    # Beside the fields a type always redacts, an event may name fields
+    # this one record redacts (`export_redact/1`): a sealed letter's words
+    # travel as its envelope until F80 (kumbukumbu#93, Lily's S3).
+    redact = module.__redact__() ++ record_redact(module, event)
+
     data =
       event
       |> Map.from_struct()
       |> Map.drop([:actor, :at])
       |> Map.new(fn {k, v} ->
-        {k, if(k in module.__redact__(), do: nil, else: self(v, resident_id))}
+        {k, if(k in redact, do: nil, else: self(v, resident_id))}
       end)
 
     Jason.OrderedObject.new(
