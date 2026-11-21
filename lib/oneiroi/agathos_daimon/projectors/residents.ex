@@ -497,6 +497,16 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     )
   end)
 
+  # Her annotation (agathos-daimon#55): the latest wins.
+  fold(%Events.SoulLineAnnotated{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      {:soul_annotated, e.number},
+      from(l in SoulLine, where: l.resident_id == ^e.id and l.number == ^e.number),
+      set: [domains: e.domains, private: e.private, annotated_at: e.at]
+    )
+  end)
+
   fold(%Events.SoulLinesOrdered{} = e, _metadata, fn multi ->
     e.numbers
     |> Enum.with_index(1)
@@ -616,6 +626,9 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
         number: e.number,
         text: e.text,
         model: e.model,
+        session_key: Map.get(e, :session_key),
+        turn_ref: Map.get(e, :turn_ref),
+        labels: Map.get(e, :labels),
         written_at: e.at
       },
       on_conflict: :nothing,

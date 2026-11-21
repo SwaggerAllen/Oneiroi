@@ -16,6 +16,7 @@ defmodule Oneiroi.Kumbukumbu.DomainsTest do
   alias Oneiroi.Ethos
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Kumbukumbu.Audience
   alias Oneiroi.Nisaba.Provider.Fake
 
   setup do
@@ -255,5 +256,47 @@ defmodule Oneiroi.Kumbukumbu.DomainsTest do
     assert text =~ "turn t-biz: \"The pitch deck"
     assert text =~ "turn t-rec: nearby in another domain (recovery)"
     refute text =~ "ninety"
+  end
+
+  # agathos-daimon#53, kumbukumbu#79: the domains' disclosure policies are
+  # a term of the dyad's contract, in force only once both agree, and the
+  # audience decision reads them.
+  test "domain policies: refused malformed, in force once agreed, read by the audience decision",
+       ctx do
+    id = ctx.id
+    policy = %{"domain" => %{"person" => ctx.him, "domain" => "recovery"}, "default" => "deny"}
+
+    assert {:error, %{kind: :agathos_daimon_terms_invalid}} =
+             AgathosDaimon.propose_contract(
+               id,
+               %{"domain_policies" => [%{policy | "default" => "maybe"}]},
+               "",
+               "a policy",
+               ctx.actor
+             )
+
+    {:ok, v} =
+      AgathosDaimon.propose_contract(
+        id,
+        %{
+          "domain_policies" => [Map.put(policy, "allow", [%{"kind" => "household", "id" => "*"}])]
+        },
+        "",
+        "recovery reaches the house",
+        ctx.actor
+      )
+
+    assert %{version: nil, policies: []} = AgathosDaimon.domain_policies(id)
+    :ok = AgathosDaimon.agree_contract(id, v, "agreed", ctx.brain)
+
+    assert %{version: ^v, policies: [%{default: "deny", allow: [%{kind: "household"}]}]} =
+             AgathosDaimon.domain_policies(id)
+
+    recovery = %{id: "r", labels: [%{person: ctx.him, domain: "recovery"}]}
+    house = Audience.audience("household", "h1")
+    assert %{allowed: ["r"]} = Audience.decide_for(id, [recovery], house, :hard)
+
+    assert %{allowed: []} =
+             Audience.decide_for(id, [recovery], Audience.audience("person", "jack"), :hard)
   end
 end

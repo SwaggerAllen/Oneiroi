@@ -11,8 +11,27 @@ defmodule Oneiroi.Seshat.Events do
     # Version 2 adds `note` (seshat#54): what the writer said of this
     # version, a restore's "restored from" among them, shown in the
     # document's versions; nil on every version 1 write, which the
-    # identity upcaster leaves as the struct's default.
-    use Oneiroi.Event, version: 2, fields: [:id, :path, :kind, :hash, :bytes, :note]
+    # identity upcaster leaves as the struct's default. Version 3 adds
+    # the writing turn's provenance (seshat#100, kumbukumbu#83):
+    # `session_key`, `turn_ref` and `ledger`, the turn's inputs by id,
+    # ref, turn and labels, never their words; nil on every earlier
+    # write and on a write no turn made, which leaves its words unproven;
+    # `composed_for`, the audience a composition was made for (an
+    # oracle's answer, kumbukumbu#87), or nil.
+    use Oneiroi.Event,
+      version: 3,
+      fields: [
+        :id,
+        :path,
+        :kind,
+        :hash,
+        :bytes,
+        :note,
+        :session_key,
+        :turn_ref,
+        :ledger,
+        :composed_for
+      ]
   end
 
   defimpl Commanded.Event.Upcaster, for: Oneiroi.Seshat.Events.DocumentWritten do
@@ -57,6 +76,14 @@ defmodule Oneiroi.Seshat.Events do
 
   defmodule PiecePublished do
     use Oneiroi.Event, version: 1, fields: [:id, :path, :url]
+  end
+
+  defmodule DocumentClassified do
+    # Its author's classification of a document (seshat#102, kumbukumbu
+    # #85): whose life (`person`) and which domain, or the common room
+    # (`domain` nil); a decision with her note. The latest wins; the
+    # stream keeps every one.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :path, :person, :domain]
   end
 
   defmodule DocumentArchived do
@@ -120,8 +147,15 @@ defmodule Oneiroi.Seshat.Events do
   defmodule ResearchAsked do
     # A question for the reader's research pass (seshat#38): named,
     # with the pages to start from, by whoever the actor is, and the
-    # conversation told when it lands.
-    use Oneiroi.Event, version: 1, fields: [:id, :number, :question, :urls, :session_key]
+    # conversation told when it lands. Version 2 adds `ledger`
+    # (kumbukumbu#84): the asking turn's inputs by id, ref, turn and
+    # labels, never words, which its answers inherit; nil on version 1,
+    # whose answers are unclassified.
+    use Oneiroi.Event, version: 2, fields: [:id, :number, :question, :urls, :session_key, :ledger]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: ResearchAsked do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule ResearchAnswered do

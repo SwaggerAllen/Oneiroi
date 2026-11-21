@@ -133,13 +133,18 @@ defmodule Oneiroi.Brain.Turn do
   """
   @spec oracle(map(), String.t(), String.t(), String.t()) ::
           {:ok, Result.t(), [map()]} | {:error, term()}
-  def oracle(row, resident_id, model, text) do
+  def oracle(row, resident_id, model, text, turn_ref \\ nil, audience \\ nil) do
     turn = %{
       resident_id: resident_id,
       # A conversation nobody opened, as a trial's: the common room's
       # memory, no history.
       session_key: 16 |> :crypto.strong_rand_bytes() |> Base.url_encode64(padding: false),
-      turn_ref: nil,
+      # Its own ref when the caller keeps what it read (kumbukumbu#84):
+      # its deliberate reads are noted under it.
+      turn_ref: turn_ref,
+      # Composed for an audience past the dyad (kumbukumbu#87): its
+      # context soft-filtered for it, as a house wake's is.
+      audience: audience,
       started_at: Clock.now(),
       model: model,
       resident: Actor.new(:resident, resident_id, model),
@@ -260,17 +265,26 @@ defmodule Oneiroi.Brain.Turn do
         guarded?
       )
 
+    # The client's ref when the message came by `submit` (brain#45), so
+    # its retry is known for the same turn.
+    turn_ref = Keyword.get(opts, :turn_ref) || Kumbukumbu.turn_ref()
+
+    # The letters to her next self read in this turn carry the context
+    # that wrote them into its ledger (kumbukumbu#84).
+    read_self_letters(resident_id, turn_ref, notices[:letters])
+
     %{
       resident_id: resident_id,
       session_key: session_key,
-      # The client's ref when the message came by `submit` (brain#45),
-      # so its retry is known for the same turn.
-      turn_ref: Keyword.get(opts, :turn_ref) || Kumbukumbu.turn_ref(),
+      turn_ref: turn_ref,
       started_at: started_at,
       model: model,
       resident: Actor.new(:resident, resident_id, model),
       as: as,
       purpose: Keyword.get(opts, :purpose, :chat),
+      # Where the answer goes, when past the dyad (kumbukumbu#81): her
+      # context is assembled for it.
+      audience: audience(resident_id, Keyword.get(opts, :audience)),
       opening: %{role: opening_role(as), content: text, sent_at: started_at, actor: actor},
       earlier: earlier,
       batch: length(earlier) + 1,
@@ -291,6 +305,18 @@ defmodule Oneiroi.Brain.Turn do
       notice_kinds: for({kind, [_ | _]} <- notices, do: kind)
     }
   end
+
+  # The house a household wake answers to is hers, resolved here: the
+  # schedule that wakes her does not know it.
+  defp audience(resident_id, :household) do
+    case Oneiroi.Gaia.resident_household(resident_id) do
+      %{id: id} -> Kumbukumbu.audience("household", id)
+      # No house: the wake still answers, to nobody past the dyad.
+      _none -> nil
+    end
+  end
+
+  defp audience(_resident_id, audience), do: audience
 
   @doc """
   The next turn of `session_key` as a dry run, for the witness's
@@ -960,6 +986,22 @@ defmodule Oneiroi.Brain.Turn do
 
   defp letters_notice(_row, _resident_id), do: []
 
+  defp read_self_letters(_resident_id, _turn_ref, none) when none in [nil, []], do: :ok
+
+  defp read_self_letters(resident_id, turn_ref, _told) do
+    for l <- Oneiroi.AgathosDaimon.self_letters(resident_id),
+        is_nil(l.delivered_at),
+        do:
+          Kumbukumbu.note_read_labelled(
+            resident_id,
+            turn_ref,
+            "self-letter/#{l.number}",
+            "self-letter/#{l.number}",
+            Map.get(l, :labels),
+            to_string(l.text)
+          )
+  end
+
   defp letters_text(letters, zone) do
     Enum.map_join(letters, "\n\n", fn l ->
       "## Letter #{l.number}, written #{Local.day(zone, l.written_at)} under #{l.model || "an unrecorded model"}\n\n#{l.text}"
@@ -1187,11 +1229,14 @@ defmodule Oneiroi.Brain.Turn do
     count = Config.fetch!(:brain, :transcript_messages)
     {rest, index} = turn_sections(row, turn, text)
     sections = prefix_sections(row, turn) ++ rest
+    keep_sections(turn, sections)
 
     # The inline stamps (brain#58) only under BRAIN_HISTORY_STAMPS (#59).
     zone = History.zone(turn.resident_id)
 
     {rows, earlier, reason} = window(turn, count)
+    {sections, rows, withheld} = for_audience(turn, sections, rows)
+    note_labelled(turn, sections)
     history = earlier ++ History.messages(rows, zone)
 
     transcript = %{
@@ -1232,10 +1277,112 @@ defmodule Oneiroi.Brain.Turn do
 
     messages =
       (sections |> Enum.map(& &1.message) |> Enum.reject(&is_nil/1)) ++
-        history ++ notices ++ batched ++ [opening]
+        history ++ notices ++ withheld ++ batched ++ [opening]
 
     %{sections: sections, injections: injections, messages: messages}
   end
+
+  # A section that carries its own labels (kumbukumbu#84: today's
+  # journal, by its rows) is decided by them, its words with them.
+  defp assembled_name(%{labels: labels, label: label, message: %{content: text}})
+       when is_list(labels),
+       do: {label, labels, text}
+
+  defp assembled_name(section), do: section.label
+
+  # Such a section, once in her context, is in the turn's ledger by its
+  # labels (kumbukumbu#84). A trial keeps nothing.
+  defp note_labelled(%{trial?: true}, _sections), do: :ok
+
+  defp note_labelled(turn, sections) do
+    for %{labels: labels, label: label, message: %{content: text}} <- sections,
+        is_list(labels),
+        do:
+          Kumbukumbu.note_read_labelled(
+            turn.resident_id,
+            Map.get(turn, :turn_ref),
+            "section/" <> label,
+            label,
+            labels,
+            text
+          )
+  end
+
+  # The words of the sections that may hold restricted material, kept for
+  # the turn's disclosure review (kumbukumbu#82): a delivery its ledger
+  # holds back is judged against what the turn was actually given. A
+  # trial delivers nothing and keeps nothing.
+  defp keep_sections(%{trial?: true}, _sections), do: :ok
+
+  defp keep_sections(turn, sections) do
+    names = Kumbukumbu.restricted_sections()
+
+    texts =
+      for %{label: label, message: %{content: text}} <- sections,
+          label in names,
+          is_binary(text),
+          into: %{},
+          do: {label, text}
+
+    Kumbukumbu.note_sections(turn.resident_id, Map.get(turn, :turn_ref), texts)
+  end
+
+  # A turn whose answer goes past the dyad (kumbukumbu#81, the soft path):
+  # what that audience may not hear is left out of her context before she
+  # composes, and one line tells her what, by citation and domain, so she
+  # knows what she is not holding. Her own conversations, and a turn with
+  # no audience, are assembled whole.
+  defp for_audience(%{audience: %{kind: kind} = audience} = turn, sections, rows)
+       when kind not in ["dyad", "conversation"] do
+    kept =
+      Kumbukumbu.assemble_for(
+        turn.resident_id,
+        turn.session_key,
+        turn.turn_ref,
+        audience,
+        Enum.map(sections, &assembled_name/1),
+        rows
+      )
+
+    note =
+      case kept.withheld do
+        [] ->
+          []
+
+        lines ->
+          [
+            %{
+              role: :system,
+              content:
+                Prompt.render!("audience_withheld", %{
+                  audience: "#{audience.kind}:#{audience.id}",
+                  lines: Enum.map_join(lines, "\n", &("- " <> &1)),
+                  decision: kept.decision
+                })
+            }
+          ]
+      end
+
+    sections =
+      for s <- sections, s.label in kept.sections, do: without_lines(s, kept.soul_withheld)
+
+    {sections, kept.rows, note}
+  end
+
+  defp for_audience(_turn, sections, rows), do: {sections, rows, []}
+
+  # Her soul with the lines this audience may not hear left out, each
+  # cited in its place (kumbukumbu#88): never cut from SOUL.md itself.
+  defp without_lines(%{label: "SOUL.md", message: %{content: text} = m} = s, [_ | _] = withheld) do
+    text =
+      Enum.reduce(withheld, text, fn {n, told}, acc ->
+        String.replace(acc, ~r/\[soul\/#{n}\][^\n]*(\n(?!\s*\n)[^\n]*)*/, "[soul/#{n}] (#{told})")
+      end)
+
+    %{s | message: %{m | content: text}}
+  end
+
+  defp without_lines(section, _withheld), do: section
 
   # The transcript's window. Compacted (brain#60's `on`): the messages
   # since the session's compaction, under its summary. Truncated (`off`,

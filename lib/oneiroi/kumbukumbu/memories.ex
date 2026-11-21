@@ -860,7 +860,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
         to_session: attrs[:to_session],
         in_reply_to: attrs[:in_reply_to],
         text: attrs[:text],
-        keepsake: attrs[:keepsake]
+        keepsake: attrs[:keepsake],
+        turn_ref: attrs[:turn_ref],
+        labels: attrs[:labels]
       }
 
       case dispatch(command) do
@@ -897,7 +899,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
              to: to.name,
              in_reply_to: attrs[:in_reply_to],
              text: attrs[:text],
-             link: %{"direction" => "to", "resident_id" => to.id, "resident" => to.name}
+             link: %{"direction" => "to", "resident_id" => to.id, "resident" => to.name},
+             turn_ref: attrs[:turn_ref],
+             labels: attrs[:labels]
            }),
          {:ok, arrived} <-
            record(to.id, actor, %{
@@ -906,6 +910,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
              to: "Oneiroi chat",
              in_reply_to: theirs,
              text: attrs[:text],
+             # The sender's turn's labels travel with the words: what
+             # wrote them, in the sender's dyad (kumbukumbu#84).
+             labels: attrs[:labels],
              link: %{
                "direction" => "from",
                "resident_id" => from.id,
@@ -954,7 +961,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
       in_reply_to: attrs.in_reply_to,
       text: attrs.text,
       keepsake: nil,
-      link: attrs.link
+      link: attrs.link,
+      turn_ref: attrs[:turn_ref],
+      labels: attrs[:labels]
     }
 
     case dispatch(command) do

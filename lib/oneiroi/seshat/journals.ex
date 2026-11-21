@@ -46,7 +46,10 @@ defmodule Oneiroi.Seshat.Journals do
              kind: kind,
              text: text,
              register: register,
-             summary: blank_to_nil(opts[:summary])
+             summary: blank_to_nil(opts[:summary]),
+             session_key: opts[:provenance][:session_key],
+             turn_ref: opts[:provenance][:turn_ref],
+             labels: opts[:provenance][:labels]
            }),
          :ok <- render_day(resident_id, day, actor) do
       {:ok, %{day: day, number: event.number, kind: kind}}
@@ -207,7 +210,9 @@ defmodule Oneiroi.Seshat.Journals do
           kind: e.kind,
           at: e.at,
           first: first_line(Map.get(e, :summary) || e.text),
-          done: not is_nil(e.done_at)
+          done: not is_nil(e.done_at),
+          # Its writing turn's labels (kumbukumbu#84), for whoever shows it.
+          labels: Map.get(e, :labels)
         }
       end
 

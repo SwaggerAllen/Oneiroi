@@ -111,6 +111,55 @@ defmodule Oneiroi.Eunomia.Judge do
          do: parse_continuation(content || "")
   end
 
+  @doc """
+  The disclosure review (kumbukumbu#82): the candidate and the material
+  held back from its audience, to the judge, which says whether the
+  candidate carries any of it. `{:ok, %{verdict, reasons, model}}`, the
+  verdict `:clean` or `:discloses`, or `{:error, reason}` when the judge
+  did not answer in the form asked; the caller fails that closed.
+  Billed under `judge`.
+  """
+  @spec disclosure(String.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}
+  def disclosure(resident_id, model, %{candidate: candidate, fragments: fragments} = request) do
+    listed = Enum.map_join(fragments, "\n\n", &"[#{&1.ref}]\n#{&1.text}")
+
+    prompt =
+      Prompt.message("judge_disclosure", %{
+        audience: request.audience,
+        fragments: listed,
+        candidate: candidate
+      })
+
+    request = Request.new(model, [prompt, %{role: :user, content: "Your verdict?"}])
+
+    with {:ok, %Result{content: content}} <-
+           Nisaba.call(resident_id, :judge, request, actor(model)),
+         {:ok, verdict, reasons} <- parse_disclosure(content || ""),
+         do: {:ok, %{verdict: verdict, reasons: reasons, model: model}}
+  end
+
+  @doc false
+  # Public for its test.
+  def parse_disclosure(content) do
+    verdict =
+      case Regex.run(~r/^VERDICT:\s*(DISCLOSES|CLEAN)\b/im, content) do
+        [_, v] -> if String.upcase(v) == "CLEAN", do: :clean, else: :discloses
+        nil -> nil
+      end
+
+    reasons =
+      case Regex.run(~r/^REASONS?:\s*(.+)$/im, content) do
+        [_, r] -> String.trim(r)
+        nil -> ""
+      end
+
+    if verdict,
+      do: {:ok, verdict, reasons},
+      else:
+        {:error,
+         Error.new(:eunomia_disclosure_unreadable, :eunomia_disclosure_verdict_unreadable)}
+  end
+
   @doc false
   # Public for its test.
   def parse_continuation(content) do

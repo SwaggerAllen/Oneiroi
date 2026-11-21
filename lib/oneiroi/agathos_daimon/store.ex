@@ -107,6 +107,10 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:state, :string, default: "live")
       field(:cites, {:array, :integer}, default: [])
       field(:version, :integer, default: 1)
+      # Her annotation (agathos-daimon#55): domains, private, when.
+      field(:domains, {:array, :map})
+      field(:private, :boolean, default: false)
+      field(:annotated_at, :utc_datetime_usec)
       field(:written_at, :utc_datetime_usec)
       field(:reworded_at, :utc_datetime_usec)
       field(:retired_at, :utc_datetime_usec)
@@ -145,6 +149,10 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:delivered_at, :utc_datetime_usec)
       field(:delivered_to, :string)
       field(:exported_at, :utc_datetime_usec)
+      # The writing turn and its labels (kumbukumbu#84); nil before.
+      field(:session_key, :string)
+      field(:turn_ref, :string)
+      field(:labels, {:array, :map})
     end
 
     @type t :: %__MODULE__{}

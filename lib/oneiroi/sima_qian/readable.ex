@@ -25,7 +25,7 @@ defmodule Oneiroi.SimaQian.Readable do
 
   # The conversation stream's events a reading copy shows, in the order
   # they happened; `TurnStarted` and `ContextAssembled` carry no words.
-  @shown ~w(SessionOpened SessionMadePrivate SessionShared TurnCaptured Compacted CaptureFailed CaptureFailureResolved)
+  @shown ~w(SessionOpened SessionMadePrivate SessionShared TurnCaptured Compacted CaptureFailed CaptureFailureResolved DisclosureJudged)
 
   @doc "Every reading copy, `{path, content}`, from the export's lines in sequence order."
   @spec render([map()]) :: [{String.t(), String.t()}]
@@ -201,6 +201,16 @@ defmodule Oneiroi.SimaQian.Readable do
 
     "*The failed capture of turn `#{data["turn_ref"]}` was #{how} by " <>
       "#{who(line["actor"])} at #{time(line["at"], day)}.*" <> note(data) <> "\n\n"
+  end
+
+  # The disclosure judge's verdict (kumbukumbu#82): dyad-local, its
+  # reasons hers to read; the candidate by its hash, never its words.
+  defp shown("DisclosureJudged", line, data, day) do
+    "*Disclosure review of turn `#{data["turn_ref"]}` at #{time(line["at"], day)}, " <>
+      "for `#{data["audience"]}` (decision `#{data["decision"]}`, policy version " <>
+      "#{data["policy_version"]}), by #{data["model"] || "no model"}: " <>
+      "**#{data["verdict"]}**. #{data["reasons"]} The words reviewed: `#{data["candidate_sha"]}`; " <>
+      "what was held back: #{Enum.map_join(data["fragment_refs"] || [], ", ", &"`#{&1}`")}.*\n\n"
   end
 
   defp message(m, day) do

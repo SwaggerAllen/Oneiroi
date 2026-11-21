@@ -57,7 +57,12 @@ defmodule Oneiroi.Seshat.Documents do
              kind: kind.kind,
              hash: hash(content),
              bytes: byte_size(content),
-             note: note(Keyword.get(opts, :note))
+             note: note(Keyword.get(opts, :note)),
+             # The writing turn (seshat#100): its words inherit its taint.
+             session_key: provenance(opts)[:session_key],
+             turn_ref: provenance(opts)[:turn_ref],
+             ledger: provenance(opts)[:ledger],
+             composed_for: provenance(opts)[:composed_for]
            }) do
       # The record first, as the aggregate may refuse; then the file,
       # through the repositories' port (sima-qian#57).
@@ -488,6 +493,28 @@ defmodule Oneiroi.Seshat.Documents do
     do: Scope.resident(resident_id, fn -> Store.discussions(path) end)
 
   @doc """
+  Its author classifies a document (seshat#102, kumbukumbu#85): whose
+  life and which domain, or the common room (`domain` nil), with her
+  note. What a delivery of its words is gated by from then on, until
+  she classifies it again.
+  """
+  def classify(resident_id, path, person, domain, note, %Actor{} = actor) do
+    with {:ok, path} <- normalize(resident_id, path),
+         {:ok, _events} <-
+           dispatch(%Commands.ClassifyDocument{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             note: note(note) || "classified",
+             path: path,
+             person: domain && person,
+             domain: domain
+           }) do
+      {:ok, %{path: path, person: domain && person, domain: domain}}
+    end
+  end
+
+  @doc """
   Moves a document from one path to another (seshat#39): from one kind to
   another when the folders differ, its bytes unchanged. The mover may
   write both kinds (`write/4`'s rule, so a system's own kinds and the
@@ -498,7 +525,6 @@ defmodule Oneiroi.Seshat.Documents do
   in the repository, the index re-keyed without an embedding, and a
   citation of the old path follows to the new one.
   """
-
   def move(resident_id, from, to, %Actor{} = actor, opts \\ []) do
     core = Keyword.get(opts, :core, false)
 
@@ -656,6 +682,8 @@ defmodule Oneiroi.Seshat.Documents do
   end
 
   defp name_folder(_kind, _path, _current, _actor, _kept), do: :ok
+
+  defp provenance(opts), do: Keyword.get(opts, :provenance) || %{}
 
   @doc "The SHA-256 of a file's bytes, hex, lower case: what decides a re-embed."
   @spec hash(binary()) :: String.t()

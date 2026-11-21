@@ -154,8 +154,16 @@ defmodule Oneiroi.AgathosDaimon.Residents do
   # ---- the self-conversation (spec §12, P41) ----
 
   @doc "The resident writes a letter to its next self; returns its number."
-  def write_self_letter(id, text, %Actor{} = actor) do
-    command = %Commands.WriteSelfLetter{actor: actor, at: Clock.now(), id: id, text: text}
+  def write_self_letter(id, text, %Actor{} = actor, provenance \\ nil) do
+    command = %Commands.WriteSelfLetter{
+      actor: actor,
+      at: Clock.now(),
+      id: id,
+      text: text,
+      session_key: provenance[:session_key],
+      turn_ref: provenance[:turn_ref],
+      labels: provenance[:labels]
+    }
 
     with {:ok, events} <- Router.dispatch_sited(command),
          do: {:ok, events |> Enum.find(&match?(%{number: _}, &1)) |> Map.fetch!(:number)}

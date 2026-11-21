@@ -172,8 +172,13 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
     # `%{"direction" => "from" | "to", "resident_id", "resident", "number"}`
     # (the sender's own number on the copy that arrives, so an answer
     # threads under it); nil on every other letter and on versions 1 and 2.
+    # Version 4 adds `turn_ref` and `labels` (kumbukumbu#84): the writing
+    # turn and every distinct label its context held, never words; a
+    # letter of the witness or the platform is the common room (his
+    # answer 3, unnamed is the common room); nil on every earlier letter,
+    # read as unclassified.
     use Oneiroi.Event,
-      version: 3,
+      version: 4,
       fields: [
         :id,
         :number,
@@ -184,7 +189,9 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
         :in_reply_to,
         :text,
         :keepsake,
-        :link
+        :link,
+        :turn_ref,
+        :labels
       ]
   end
 

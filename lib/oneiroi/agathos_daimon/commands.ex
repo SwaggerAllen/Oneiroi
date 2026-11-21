@@ -25,6 +25,10 @@ defmodule Oneiroi.AgathosDaimon.Commands do
 
   # A resident takes one of her identity files out of her prefix, or puts
   # it back (agathos-daimon#50): hers alone, with a note.
+  defmodule AnnotateSoulLine do
+    use Oneiroi.Command, decision: true, fields: [:id, :number, :domains, :private]
+  end
+
   defmodule RetireIdentityFile do
     use Oneiroi.Command, decision: true, fields: [:id, :file]
   end
@@ -179,7 +183,7 @@ defmodule Oneiroi.AgathosDaimon.Commands do
   # next self across a model swap, delivered once to the incoming
   # instance; a read by anyone but the resident leaves a receipt.
   defmodule WriteSelfLetter do
-    use Oneiroi.Command, fields: [:id, :text]
+    use Oneiroi.Command, fields: [:id, :text, :session_key, :turn_ref, :labels]
   end
 
   # The state store (agathos-daimon#32): the resident's present, a line
