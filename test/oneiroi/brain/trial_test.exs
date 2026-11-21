@@ -402,6 +402,8 @@ defmodule Oneiroi.Brain.TrialTest do
     # Her soul's annotation (agathos-daimon#55): answered as it would be.
     {"soul_annotate", %{number: 1, domains: [%{domain: "recovery"}], private: true}},
     {"disclosure_review", %{text: "A line of mine.", audience: "researcher"}},
+    # Her answer to his proposal (seshat#103): answered as it would be.
+    {"classification_answer", %{path: "design/note.md", accept: false}},
     # Her classification (seshat#102): answered as it would be, nothing kept.
     {"document_classify", %{path: "design/note.md", domain: "none"}},
     # Her prefix (agathos-daimon#50): answered as it would be, nothing retired.

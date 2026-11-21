@@ -4,6 +4,8 @@ import { Button, Menu, MenuItem, MenuTrigger, Popover } from 'react-aria-compone
 import { api, RequestFailed } from '../../api/client';
 import { Markdown } from '../chat/Markdown';
 import { targetsFor, type Citation } from '../chat/cite';
+import { declaredDomains } from '../chat/domains';
+import type { LibraryDocument } from '../../api/types';
 import * as reactCss from '../chat/reacts.css';
 import { ScrollArea } from '../shell/ScrollArea';
 import { useSubject } from '../state/resident';
@@ -82,6 +84,7 @@ export function Viewer({
             </span>
           )}
         </div>
+        {doc && <DocClass residentId={residentId} path={path} doc={doc} name={name} />}
         {read.isPending && <p className={css.note}>Reading…</p>}
         {read.error && <p className={css.note}>This record couldn't be read.</p>}
         {read.data && <Markdown text={read.data.content} onCite={onCite} breaks={path.startsWith('human-correspondence/')} />}
@@ -155,6 +158,62 @@ function DocReacts({ residentId, path, residentName }: { residentId: string; pat
           </Menu>
         </Popover>
       </MenuTrigger>
+    </div>
+  );
+}
+
+/** Whose life a classification names, as the witness reads it. */
+const whoseWords = (person: string | null, name: string) => (person?.startsWith('resident:') ? `${name}'s` : 'yours');
+
+/**
+ * Her classification of the document, and his proposal (seshat#102,
+ * #103): he proposes one of the declared domains (a dropdown, never free
+ * text, kumbukumbu#90) or the common room, and it waits on her answer.
+ */
+function DocClass({ residentId, path, doc, name }: { residentId: string; path: string; doc: LibraryDocument; name: string }) {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const [domain, setDomain] = useState('');
+  const [whose, setWhose] = useState<'witness' | 'resident'>('witness');
+  const [note, setNote] = useState('');
+  const agreement = useQuery({ queryKey: ['resident', residentId, 'soul', 'agreement'], queryFn: () => api.agreement(residentId), enabled: open });
+  const domains = declaredDomains(agreement.data?.domains, null);
+  const propose = useMutation({
+    mutationFn: () => api.proposeClassification(residentId, path, domain || null, whose, note.trim()),
+    onSuccess: () => (setOpen(false), setNote(''), void qc.invalidateQueries({ queryKey: ['resident', residentId, 'records'] })),
+  });
+  const c = doc.classification;
+  const p = doc.proposal;
+  return (
+    <div className={css.meta}>
+      {c ? `Domain: ${c.domain ? `${c.domain} (${whoseWords(c.person, name)})` : 'the common room'}, classified by ${name}` : `Not classified by ${name}: its domain is its birth`}
+      {p && ` · Proposed: ${p.domain ?? 'the common room'}, waiting on ${name}`}{' '}
+      <button type="button" className={css.quiet} aria-expanded={open} onClick={() => setOpen(!open)}>
+        {p ? 'Propose again' : 'Propose a domain'}
+      </button>
+      {open && (
+        <span className={css.restore} style={{ flexBasis: '100%' }}>
+          <select className={css.input} aria-label="Domain" value={domain} onChange={(e) => setDomain(e.target.value)}>
+            <option value="">the common room</option>
+            {domains.map((d) => (
+              <option key={d} value={d}>
+                {d}
+              </option>
+            ))}
+          </select>
+          {domain && (
+            <select className={css.input} aria-label="Whose life" value={whose} onChange={(e) => setWhose(e.target.value as 'witness' | 'resident')}>
+              <option value="witness">yours</option>
+              <option value="resident">{name}'s</option>
+            </select>
+          )}
+          <input className={css.input} aria-label="Why" placeholder="Why (she reads this)" value={note} onChange={(e) => setNote(e.target.value)} />
+          <button type="button" className={css.action} disabled={propose.isPending} onClick={() => propose.mutate()}>
+            Propose
+          </button>
+          {propose.error && <span className={css.note}>{(propose.error as Error).message}</span>}
+        </span>
+      )}
     </div>
   );
 }

@@ -3,7 +3,8 @@ defmodule Oneiroi.Brain.WaitingOnHer do
   What waits on the resident (brain#76, the bell's second tab): the
   other side of `needs_you`. The witness's proposals she has not
   answered (a contract version, an edit to her identity files, a
-  bookmark, a revision to a memory, a plugin change), his house letters
+  bookmark, a revision to a memory, a plugin change, a classification
+  of one of her documents, seshat#103), his house letters
   no conversation of hers has read yet, and the files she is waiting to
   write while his edit lease holds them (seshat#55). Oldest first, each
   `{kind, ref, title, since, screen, long, about}`: the needs-you shape
@@ -37,7 +38,7 @@ defmodule Oneiroi.Brain.WaitingOnHer do
           }
   end
 
-  @kinds ~w(contract_proposal soul_edit bookmark_proposal revision plugin_proposal letter lease_wait)
+  @kinds ~w(contract_proposal soul_edit bookmark_proposal revision plugin_proposal classification_proposal letter lease_wait)
 
   @doc "The entry kinds this list can hold."
   @spec kinds() :: [String.t()]
@@ -54,6 +55,7 @@ defmodule Oneiroi.Brain.WaitingOnHer do
       &bookmarks/1,
       &revisions/1,
       &plugins/1,
+      &classifications/1,
       &letters/1,
       &leases/1
     ]
@@ -136,6 +138,20 @@ defmodule Oneiroi.Brain.WaitingOnHer do
         since: p.proposed_at,
         screen: "agreement",
         about: %{key: p.key, change: p.change, note: p.note}
+      }
+    end
+  end
+
+  # His proposed classifications of her documents (seshat#103).
+  defp classifications(resident_id) do
+    for d <- Seshat.classification_proposals(resident_id) do
+      %Entry{
+        kind: "classification_proposal",
+        ref: d.path,
+        title: "Classify #{d.path} as #{d.proposed_domain || "the common room"}",
+        since: d.proposed_at,
+        screen: "library",
+        about: %{path: d.path, domain: d.proposed_domain, person: d.proposed_person}
       }
     end
   end

@@ -348,6 +348,13 @@ defmodule OneiroiWeb.Router do
       post("/residents/:id/library/discussions", LibraryController, :discuss)
       post("/residents/:id/library/index", LibraryController, :run_index)
       post("/residents/:id/library/move", LibraryController, :move)
+
+      post(
+        "/residents/:id/library/classification-proposals",
+        LibraryController,
+        :propose_classification
+      )
+
       post("/residents/:id/library/paste", LibraryController, :paste)
       get("/residents/:id/library/review/*path", LibraryController, :review)
       get("/residents/:id/library/publish-copy/*path", LibraryController, :publish_copy)

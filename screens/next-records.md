@@ -86,6 +86,12 @@ at `/client/#/records`. Built 2026-11-10.
   they are, and the server refuses a taken path); Remove asks twice and
   only shows on scratch and human documents (seshat#33), and returns to
   the tree.
+- **Its domain, and your proposal** (seshat#102, #103): under the
+  tools, her classification (the domain and whose life) or that its
+  birth decides, and a proposal of yours waiting on her. Propose a domain
+  opens a dropdown of the declared domains and the common room (never
+  free text, kumbukumbu#90), whose life when a domain is picked, and a
+  note she reads; it waits on her answer.
 - **Add a document of yours** (`new`, top of the tree): a name and its
   words, written in your folder, human/<your name>/ (seshat#81), which
   she reads and never edits. The first time, it asks the name you go by

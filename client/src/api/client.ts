@@ -947,6 +947,9 @@ export const api = {
     call<Lease>('POST', `/v1/residents/${residentId}/library/leases/renew`, draft === undefined ? { path } : { path, draft }),
   releaseLease: (residentId: string, path: string) => call<void>('POST', `/v1/residents/${residentId}/library/leases/release`, { path }),
   // From one path, and so one kind, to another, its bytes unchanged (seshat#39).
+  // The witness proposes a classification; it waits on her (seshat#103).
+  proposeClassification: (residentId: string, path: string, domain: string | null, whose: 'witness' | 'resident', note: string) =>
+    call<{ path: string; domain: string | null }>('POST', `/v1/residents/${residentId}/library/classification-proposals`, { path, domain, whose, note }),
   moveDocument: (residentId: string, from: string, to: string) =>
     call<{ from: string; to: string; kind: string }>('POST', `/v1/residents/${residentId}/library/move`, { from, to }),
   removeDocument: (residentId: string, path: string) =>

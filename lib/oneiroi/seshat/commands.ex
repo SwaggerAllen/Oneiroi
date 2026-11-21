@@ -23,6 +23,16 @@ defmodule Oneiroi.Seshat.Commands do
     use Oneiroi.Command, decision: true, fields: [:id, :path, :person, :domain]
   end
 
+  defmodule ProposeClassification do
+    # The witness's proposal of a classification (seshat#103): hers to answer.
+    use Oneiroi.Command, decision: true, fields: [:id, :path, :person, :domain]
+  end
+
+  defmodule AnswerClassification do
+    # Her answer to his proposal (seshat#103): `accept` true classifies it.
+    use Oneiroi.Command, decision: true, fields: [:id, :path, :accept]
+  end
+
   defmodule MoveDocument do
     # Seshat #39: a document taken from one path, and so one kind, to
     # another, its bytes unchanged (`hash` is what they hash to).

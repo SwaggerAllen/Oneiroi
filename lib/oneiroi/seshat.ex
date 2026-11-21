@@ -65,6 +65,8 @@ defmodule Oneiroi.Seshat do
       HouseholdTurnWorker,
       Commands.WriteDocument,
       Commands.ClassifyDocument,
+      Commands.ProposeClassification,
+      Commands.AnswerClassification,
       Commands.AdoptDocument,
       Commands.PublishPiece,
       Commands.PublishDocument,
@@ -81,6 +83,8 @@ defmodule Oneiroi.Seshat do
       Commands.FailDigest,
       Events.DocumentWritten,
       Events.DocumentClassified,
+      Events.ClassificationProposed,
+      Events.ClassificationAnswered,
       Events.DocumentAdopted,
       Events.PiecePublished,
       Events.DocumentPublished,
@@ -290,6 +294,8 @@ defmodule Oneiroi.Seshat do
     [
       {Oneiroi.Seshat.Events.DocumentWritten, 3},
       {Oneiroi.Seshat.Events.DocumentClassified, 1},
+      {Oneiroi.Seshat.Events.ClassificationProposed, 1},
+      {Oneiroi.Seshat.Events.ClassificationAnswered, 1},
       {Oneiroi.Seshat.Events.DocumentAdopted, 2},
       {Oneiroi.Seshat.Events.PiecePublished, 1},
       {Oneiroi.Seshat.Events.DocumentPublished, 1},
@@ -490,8 +496,10 @@ defmodule Oneiroi.Seshat do
        remedy:
          "name a declared domain or none for the common room; a new domain is declared in the agreement first"},
       {:seshat_classify_invalid,
-       "a document's domain is classified by the resident whose document it is (seshat#102)",
-       remedy: "classify it from her own turn"},
+       "a document's domain is classified by the resident whose document it is (seshat#102); the witness proposes, she answers (seshat#103)",
+       remedy: "classify or answer from her own turn; the witness proposes from the records view"},
+      {:seshat_no_such_proposal, "no classification proposal is waiting on that path",
+       remedy: "list what waits with classification_list"},
       {:seshat_no_such_document, "no registered document has that path",
        remedy: "write it, or adopt the file if it was made outside the flow"},
       {:seshat_no_such_file, "no file at that path in the repository",
@@ -1223,6 +1231,21 @@ defmodule Oneiroi.Seshat do
           {:ok, map()} | {:error, term()}
   defexport(classify(resident_id, path, person, domain, note, actor),
     do: Documents.classify(resident_id, path, person, domain, note, actor)
+  )
+
+  @doc "The witness proposes a document's classification (seshat#103): a declared domain, or none for the common room."
+  defexport(propose_classification(resident_id, path, person, domain, note, actor),
+    do: Documents.propose_classification(resident_id, path, person, domain, note, actor)
+  )
+
+  @doc "Her answer to his proposal (seshat#103): accepted, it is her classification."
+  defexport(answer_classification(resident_id, path, accept, note, actor),
+    do: Documents.answer_classification(resident_id, path, accept, note, actor)
+  )
+
+  @doc "The documents with a classification proposal waiting on her (seshat#103), oldest first."
+  defexport(classification_proposals(resident_id),
+    do: Documents.classification_proposals(resident_id)
   )
 
   @doc "Adopts a file made outside the flow, registering it; the index runs."

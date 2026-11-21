@@ -76,7 +76,7 @@ defmodule Oneiroi.Brain.Tools do
     self_letter_list seed_list library_search library_read library_cited_by writing_get
     document_unadopted journal_read trial_list trial_account revision_list memory_use
     keepsake_list letter_inbox letter_list correspondence_list correspondence_read reply_list
-    source_list source_read source_search pr_meta pr_diffs repo_list repo_read repo_log oracle_list
+    classification_list source_list source_read source_search pr_meta pr_diffs repo_list repo_read repo_log oracle_list
     research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
     kind_list route_list household_read household_beat wake_log_read letter_rest book_read
@@ -89,7 +89,7 @@ defmodule Oneiroi.Brain.Tools do
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_publish document_adopt keepsake_note letter_send notify_witness free_time_set free_time_once
-    reply_draft correspondent_block correspondent_unblock document_remove document_move document_classify
+    reply_draft correspondent_block correspondent_unblock document_remove document_move document_classify classification_answer
     journal_add journal_done scene_write
     contract_propose contract_agree contract_decline contract_renew contract_safe revision_add
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
@@ -1044,6 +1044,18 @@ defmodule Oneiroi.Brain.Tools do
           note: %{type: "string"}
         },
         [:path, :domain]
+      ),
+      tool(
+        "classification_list",
+        "The classifications your witness has proposed for your documents and you have not answered (seshat#103): each path, the domain he proposes (or the common room) and whose life, his note, and when. A proposal classifies nothing until you accept it.",
+        %{},
+        []
+      ),
+      tool(
+        "classification_answer",
+        "Answer your witness's proposed classification of a document of yours (seshat#103): accept: true makes it your classification, your act, exactly as document_classify would; false declines it and the document stays as it is. note says why, in your words; every answer is kept.",
+        %{path: %{type: "string"}, accept: %{type: "boolean"}, note: %{type: "string"}},
+        [:path, :accept]
       ),
       # The household's shelf (seshat#58 to #64): the library's grammar,
       # pointed at the repository the household shares.
@@ -4046,6 +4058,35 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # His proposals waiting on her (seshat#103).
+  defp call("classification_list", _args, turn) do
+    case Seshat.classification_proposals(turn.resident_id) do
+      [] -> "No classification proposal is waiting on you."
+      rows -> Enum.map_join(rows, "\n", &proposal_line/1)
+    end
+  end
+
+  defp call("classification_answer", args, turn) do
+    accept = args["accept"] == true
+
+    case Seshat.answer_classification(
+           turn.resident_id,
+           to_string(args["path"] || ""),
+           accept,
+           args["note"],
+           turn.resident
+         ) do
+      {:ok, %{path: path, accepted: true, domain: domain}} ->
+        "Accepted. " <> classified_words(path, domain)
+
+      {:ok, %{path: path}} ->
+        "Declined: #{path} stays as it was."
+
+      other ->
+        other
+    end
+  end
+
   defp call("document_move", args, turn) do
     with :ok <- portrait_earned(turn, args["to"]) do
       move_document(args, turn)
@@ -4527,6 +4568,18 @@ defmodule Oneiroi.Brain.Tools do
 
   defp answered("soul_annotate", args, turn), do: {annotated_words(args), turn}
 
+  defp answered("classification_answer", args, turn) do
+    path = library_path(args["path"])
+    waiting = Enum.find(Seshat.classification_proposals(turn.resident_id), &(&1.path == path))
+
+    words =
+      if args["accept"] == true,
+        do: "Accepted. " <> classified_words(path, waiting && waiting.proposed_domain),
+        else: "Declined: #{path} stays as it was."
+
+    {words, turn}
+  end
+
   defp answered("disclosure_review", args, turn),
     do: {reviewed({:ok, %{verdict: :clean}}, to_string(args["audience"] || "")), turn}
 
@@ -4559,6 +4612,15 @@ defmodule Oneiroi.Brain.Tools do
       end
 
     "Annotated soul/#{args["number"]}: #{domains}#{if args["private"] == true, do: ", private to you and your witness", else: ""}. Its words are unchanged."
+  end
+
+  defp proposal_line(d) do
+    whose =
+      if(String.starts_with?(d.proposed_person || "", "resident:"), do: "yours", else: "his")
+
+    domain = if d.proposed_domain, do: "#{d.proposed_domain} (#{whose})", else: "the common room"
+    note = if d.proposed_note, do: ": \"#{d.proposed_note}\"", else: ""
+    "#{d.path} → #{domain}, proposed #{local_day(d.proposed_at)}#{note}"
   end
 
   defp classified_words(path, domain),

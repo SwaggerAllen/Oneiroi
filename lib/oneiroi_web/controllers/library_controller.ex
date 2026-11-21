@@ -368,6 +368,46 @@ defmodule OneiroiWeb.LibraryController do
         {:error, Oneiroi.Seshat.Error.new(:seshat_path_invalid, :seshat_web_move_paths_required)}
       )
 
+  operation(:propose_classification,
+    summary:
+      "The witness proposes a document's classification (seshat#103): a declared domain, or none for the common room; whose life, his (witness) by default or hers (resident). It waits on her answer",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the proposal", "application/json",
+       %Schema{
+         type: :object,
+         required: [:path],
+         properties: %{
+           path: %Schema{type: :string},
+           domain: %Schema{type: :string, nullable: true},
+           whose: %Schema{type: :string, enum: ["witness", "resident"]},
+           note: %Schema{type: :string}
+         }
+       }},
+    responses: [ok: {"what was proposed", "application/json", %Schema{type: :object}}]
+  )
+
+  def propose_classification(conn, %{"id" => id} = params) do
+    actor = actor(conn)
+    domain = params["domain"] |> to_string() |> String.trim()
+    domain = if domain in ["", "none"], do: nil, else: domain
+
+    person =
+      if params["whose"] == "resident", do: "resident:" <> id, else: "account:" <> actor.id
+
+    case Seshat.propose_classification(
+           id,
+           to_string(params["path"] || ""),
+           person,
+           domain,
+           params["note"],
+           actor
+         ) do
+      {:ok, result} -> json(conn, result)
+      other -> respond(conn, other)
+    end
+  end
+
   operation(:adopt,
     summary: "Adopt a file made outside the flow, as it is",
     parameters: [id: [in: :path, type: :string]],
@@ -512,7 +552,19 @@ defmodule OneiroiWeb.LibraryController do
       published_url: d.published_url,
       published_at: d.published_at,
       # Why a keepsake mattered, in the resident's words (seshat#32).
-      note: d.note
+      note: d.note,
+      # Her classification (seshat#102) and his proposal waiting on her
+      # (seshat#103), each null when there is none.
+      classification:
+        d.classified_at && %{person: d.class_person, domain: d.class_domain, at: d.classified_at},
+      proposal:
+        d.proposed_at &&
+          %{
+            person: d.proposed_person,
+            domain: d.proposed_domain,
+            note: d.proposed_note,
+            at: d.proposed_at
+          }
     }
   end
 

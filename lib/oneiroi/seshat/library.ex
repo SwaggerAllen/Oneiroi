@@ -93,6 +93,72 @@ defmodule Oneiroi.Seshat.Library do
     end
   end
 
+  # His proposal (seshat#103): the witness's alone, on a document she has.
+  def execute(%__MODULE__{documents: documents}, %Commands.ProposeClassification{} = c) do
+    cond do
+      c.actor.kind != :witness ->
+        {:error,
+         Error.new(:seshat_classify_invalid, :seshat_propose_classification_not_witness,
+           path: c.path
+         )}
+
+      not Map.has_key?(documents, c.path) ->
+        {:error,
+         Error.new(:seshat_no_such_document, :seshat_propose_classification_absent, path: c.path)}
+
+      true ->
+        %Events.ClassificationProposed{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          note: c.note,
+          path: c.path,
+          person: c.person,
+          domain: c.domain
+        }
+    end
+  end
+
+  # Her answer (seshat#103): accepting is her classification, her act.
+  def execute(%__MODULE__{documents: documents}, %Commands.AnswerClassification{} = c) do
+    case {c.actor.kind, documents |> Map.get(c.path, %{}) |> Map.get(:proposal)} do
+      {kind, _proposal} when kind != :resident ->
+        {:error,
+         Error.new(:seshat_classify_invalid, :seshat_answer_classification_not_resident,
+           path: c.path
+         )}
+
+      {_kind, nil} ->
+        {:error,
+         Error.new(:seshat_no_such_proposal, :seshat_answer_classification_none, path: c.path)}
+
+      {_kind, proposal} ->
+        answered = %Events.ClassificationAnswered{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          note: c.note,
+          path: c.path,
+          accepted: c.accept == true
+        }
+
+        if c.accept == true,
+          do: [
+            answered,
+            %Events.DocumentClassified{
+              actor: c.actor,
+              at: c.at,
+              id: c.id,
+              note: c.note,
+              path: c.path,
+              person: proposal.person,
+              domain: proposal.domain
+            }
+          ],
+          else: answered
+    end
+  end
+
   # Seshat #39: a registered document to a path nothing holds, its bytes
   # as registered. Into a keepsake is deciding it one (#31); a keepsake
   # moved is still never edited, so the move carries the same hash.
@@ -719,6 +785,14 @@ defmodule Oneiroi.Seshat.Library do
   def apply(%__MODULE__{} = l, %Events.DocumentWritten{} = e), do: register(l, e)
   def apply(%__MODULE__{} = l, %Events.DocumentClassified{}), do: l
 
+  # A pending proposal rides its document (seshat#103): a move carries it,
+  # a removal or an archive drops it, an answer settles it.
+  def apply(%__MODULE__{} = l, %Events.ClassificationProposed{} = e),
+    do: put_proposal(l, e.path, %{person: e.person, domain: e.domain})
+
+  def apply(%__MODULE__{} = l, %Events.ClassificationAnswered{} = e),
+    do: put_proposal(l, e.path, nil)
+
   def apply(%__MODULE__{documents: docs} = l, %Events.DocumentArchived{} = e),
     do: %{
       l
@@ -749,6 +823,13 @@ defmodule Oneiroi.Seshat.Library do
 
   def apply(%__MODULE__{} = l, %Events.DiscussionOpened{} = e),
     do: %{l | discussions: MapSet.put(l.discussions, {e.path, e.session_key})}
+
+  defp put_proposal(%__MODULE__{documents: docs} = l, path, proposal) do
+    case Map.get(docs, path) do
+      nil -> l
+      doc -> %{l | documents: Map.put(docs, path, Map.put(doc, :proposal, proposal))}
+    end
+  end
 
   defp register(l, e) do
     kind = Kinds.released(e.kind)
