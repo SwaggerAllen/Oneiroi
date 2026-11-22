@@ -1318,7 +1318,7 @@ defmodule Oneiroi.Sunna.Schedules do
   # term it set, so a reply in that thread reaches her as one from her
   # own conversations does. A sibling's letter wakes it too (sunna#50):
   # waking is what a letter is for, where a thread mostly does not. And so
-  # does the platform's answer to what a conversation asked (sunna#79):
+  # does the platform's answer to what a conversation asked (sunna#62):
   # research, the oracle, an external copy, a digest the chat asked, each
   # addressed back to its session (`to_session`), as free time's wake
   # already reads them (#44). Before, only a conversation's letter woke
