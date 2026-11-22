@@ -1096,6 +1096,56 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   @doc "Every house letter, oldest first, each with the conversations that read it."
   def letters(resident_id), do: Scope.resident(resident_id, fn -> Store.house_letters() end)
 
+  @doc "The tool rows in `[from, to)` (kumbukumbu#101)."
+  def tool_rows(resident_id, from_at, to_at),
+    do: Scope.resident(resident_id, fn -> Store.tool_rows(from_at, to_at) end)
+
+  @doc """
+  Records a day's derived labels (kumbukumbu#101): `records`, each
+  `%{"kind", "record_id", "labels", "edges"}`. Nothing is recorded for
+  none.
+  """
+  def derive_labels(_resident_id, _day, [], %Actor{}), do: :ok
+
+  def derive_labels(resident_id, day, records, %Actor{} = actor) do
+    command = %Commands.DeriveLabels{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      day: day,
+      records: records,
+      note: "labels derived again from the records' sources for #{day} (kumbukumbu#101)"
+    }
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  @doc "The derived labels of records of `kind` by id (kumbukumbu#101): `%{record_id => labels}`, only those derived."
+  def derived_labels(resident_id, kind, ids) do
+    ids = Enum.map(ids, &to_string/1)
+
+    resident_id
+    |> Scope.resident(fn -> Store.derived_labels(kind, ids) end)
+    |> Map.new()
+  end
+
+  @doc """
+  Rows of `kind` with their kept labels replaced by derived ones where
+  a derivation exists (kumbukumbu#101); `id_of` names each row's id.
+  """
+  def with_derived(_resident_id, _kind, [], _id_of), do: []
+
+  def with_derived(resident_id, kind, rows, id_of) do
+    derived = derived_labels(resident_id, kind, Enum.map(rows, id_of))
+
+    Enum.map(rows, fn row ->
+      case Map.fetch(derived, to_string(id_of.(row))) do
+        {:ok, labels} -> Map.put(row, :labels, labels)
+        :error -> row
+      end
+    end)
+  end
+
   @doc "How many messages she wrote in a session after an instant (kumbukumbu#75)."
   def tool_calls_after(resident_id, session_key, name, since),
     do: Scope.resident(resident_id, fn -> Store.tool_calls_after(session_key, name, since) end)

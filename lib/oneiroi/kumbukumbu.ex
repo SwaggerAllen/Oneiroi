@@ -91,6 +91,8 @@ defmodule Oneiroi.Kumbukumbu do
       Events.Memory.RevisionDeclined,
       Events.Memory.HouseLetterSent,
       Events.Memory.HouseLettersRead,
+      Events.Memory.LabelsDerived,
+      Store.DerivedLabel,
       Store.Revision,
       Store.HouseLetter,
       Events.Memory.TagProposed,
@@ -375,6 +377,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionDeclined, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 6},
       {Oneiroi.Kumbukumbu.Events.Memory.HouseLettersRead, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.LabelsDerived, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagApproved, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagRejected, 1},
@@ -1437,6 +1440,35 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "Every house letter, oldest first, with the conversations that read each."
   @spec letters(String.t()) :: [Oneiroi.Kumbukumbu.Store.HouseLetter.t()]
   defexport(letters(resident_id), do: Memories.letters(resident_id))
+
+  @doc "The tool rows in `[from, to)` (kumbukumbu#101): the calls that link a record to the turn that wrote it."
+  @spec tool_rows(String.t(), DateTime.t(), DateTime.t()) :: [map()]
+  defexport(tool_rows(resident_id, from_at, to_at),
+    do: Memories.tool_rows(resident_id, from_at, to_at)
+  )
+
+  @doc "Inputs' labels as kept labels (kumbukumbu#101): `Ledger.label_set/1`."
+  @spec input_labels([map()]) :: [map()]
+  defexport(input_labels(inputs), do: Ledger.label_set(inputs))
+
+  @doc ~s[Records a day's derived labels (kumbukumbu#101): each `%{"kind", "record_id", "labels", "edges"}`.]
+  @spec derive_labels(String.t(), String.t(), [map()], Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(derive_labels(resident_id, day, records, actor),
+    do: Memories.derive_labels(resident_id, day, records, actor)
+  )
+
+  @doc "The derived labels of records of `kind` by id (kumbukumbu#101), only those derived."
+  @spec derived_labels(String.t(), String.t(), [term()]) :: %{String.t() => [map()]}
+  defexport(derived_labels(resident_id, kind, ids),
+    do: Memories.derived_labels(resident_id, kind, ids)
+  )
+
+  @doc "Rows with kept labels replaced by derived ones where derived (kumbukumbu#101)."
+  @spec with_derived(String.t(), String.t(), [map()], (map() -> term())) :: [map()]
+  defexport(with_derived(resident_id, kind, rows, id_of),
+    do: Memories.with_derived(resident_id, kind, rows, id_of)
+  )
 
   @doc "What a viewer may see of a letter (kumbukumbu#93): `:whole` or `:envelope`; the one rule every read route asks."
   defexport(letter_view(letter, viewer), do: Memories.letter_view(letter, viewer))

@@ -1163,7 +1163,7 @@ export interface Hour {
   pressure: { jobs_waiting: number | null; oldest_wait_s: number | null; failures_by_kind: Record<string, Few> } | null;
 }
 
-export type BackfillPass = 'scenes' | 'domains' | 'people';
+export type BackfillPass = 'scenes' | 'domains' | 'people' | 'labels';
 
 export interface BackfillStatus {
   day: string;

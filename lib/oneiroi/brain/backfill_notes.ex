@@ -128,7 +128,8 @@ defmodule Oneiroi.Brain.BackfillNotes do
     Kumbukumbu.day_sessions(resident_id, from, to)
   end
 
-  defp bounds(resident_id, day) do
+  @doc "A day's bounds in her zone, as UTC instants: `{from, to}`."
+  def bounds(resident_id, day) do
     zone = Local.zone(resident_id)
     date = Date.from_iso8601!(day)
     {start(date, zone), start(Date.add(date, 1), zone)}

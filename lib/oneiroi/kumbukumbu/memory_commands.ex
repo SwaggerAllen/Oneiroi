@@ -123,4 +123,8 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
   defmodule ReadHouseLetters do
     use Oneiroi.Command, fields: [:id, :numbers, :by]
   end
+
+  defmodule DeriveLabels do
+    use Oneiroi.Command, fields: [:id, :day, :records, :note]
+  end
 end

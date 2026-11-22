@@ -500,6 +500,20 @@ defmodule Oneiroi.Kumbukumbu.Memory do
       }
   end
 
+  # A derivation is recorded as given (kumbukumbu#101): the backfill
+  # sends only the records whose labels changed.
+  def execute(%__MODULE__{}, %Commands.DeriveLabels{records: []}), do: []
+
+  def execute(%__MODULE__{}, %Commands.DeriveLabels{} = c),
+    do: %Events.LabelsDerived{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      day: c.day,
+      records: c.records,
+      note: c.note
+    }
+
   def execute(%__MODULE__{revisions: revisions}, %Commands.AcceptRevision{} = c) do
     case Map.get(revisions, c.number) do
       %{state: :proposed} = r ->
@@ -594,6 +608,8 @@ defmodule Oneiroi.Kumbukumbu.Memory do
 
   def apply(%__MODULE__{} = m, %Events.HouseLettersRead{} = e),
     do: %{m | letter_reads: Enum.reduce(e.numbers, m.letter_reads, &MapSet.put(&2, {&1, e.by}))}
+
+  def apply(%__MODULE__{} = m, %Events.LabelsDerived{} = e), do: %{m | id: e.id}
 
   def apply(%__MODULE__{} = m, %Events.RevisionDeclined{} = e),
     do: %{m | revisions: Map.update!(m.revisions, e.number, &%{&1 | state: :declined})}

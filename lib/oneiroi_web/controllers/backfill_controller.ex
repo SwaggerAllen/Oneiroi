@@ -38,7 +38,7 @@ defmodule OneiroiWeb.BackfillController do
            hers: %Schema{type: :array, items: %Schema{type: :string}},
            passes: %Schema{
              type: :array,
-             items: %Schema{type: :string, enum: ["scenes", "domains", "people"]},
+             items: %Schema{type: :string, enum: ["scenes", "domains", "people", "labels"]},
              description: "the passes to run each day, in their order; all three when absent"
            }
          }

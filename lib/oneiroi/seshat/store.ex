@@ -704,6 +704,26 @@ defmodule Oneiroi.Seshat.Store do
         from(v in DocumentVersion, where: v.path == ^path, order_by: [desc: v.event_number])
       )
 
+  @doc "The written versions in `[from, to)`, oldest first (kumbukumbu#101's derivation)."
+  def written_between(from_at, to_at),
+    do:
+      Repo.all(
+        from(v in DocumentVersion,
+          where: v.act == "written" and v.at >= ^from_at and v.at < ^to_at,
+          order_by: [asc: v.at, asc: v.event_number]
+        )
+      )
+
+  @doc "The journal rows written in `[from, to)`, oldest first, their kept labels as written (kumbukumbu#101)."
+  def journal_written_between(from_at, to_at),
+    do:
+      Repo.all(
+        from(j in JournalEntry,
+          where: j.at >= ^from_at and j.at < ^to_at,
+          order_by: [asc: j.at, asc: j.number]
+        )
+      )
+
   @doc "The lease on a path, held or taken (seshat#55); nil when none."
   @spec lease(String.t()) :: Lease.t() | nil
   def lease(path), do: Repo.one(from(l in Lease, where: l.path == ^path))

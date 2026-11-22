@@ -238,4 +238,12 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
     # unread count, is the rest of.
     use Oneiroi.Event, version: 1, fields: [:id, :numbers, :by]
   end
+
+  defmodule LabelsDerived do
+    # A day's records labelled again from what they came from
+    # (kumbukumbu#101): each record's kind and id, its derived labels and
+    # the edges they were read from. The labels kept at write time stay
+    # on their own events, as history; this is a new decision beside them.
+    use Oneiroi.Event, version: 1, fields: [:id, :day, :records, :note]
+  end
 end

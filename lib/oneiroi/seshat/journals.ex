@@ -121,10 +121,28 @@ defmodule Oneiroi.Seshat.Journals do
         nil
 
       row ->
-        entries = Scope.resident(resident_id, fn -> Store.journal_entries(day) end)
+        # Each row's labels as derived again where they were (kumbukumbu#101).
+        entries =
+          Oneiroi.Kumbukumbu.with_derived(
+            resident_id,
+            "journal",
+            Scope.resident(resident_id, fn -> Store.journal_entries(day) end),
+            &"#{&1.day}/#{&1.number}"
+          )
+
         %{day: day, opened_at: row.opened_at, entries: entries, delta: delta(entries)}
     end
   end
+
+  @doc "The written versions and journal rows in `[from, to)`, as kept (kumbukumbu#101's derivation)."
+  def written_between(resident_id, from_at, to_at),
+    do:
+      Scope.resident(resident_id, fn ->
+        %{
+          versions: Store.written_between(from_at, to_at),
+          journal: Store.journal_written_between(from_at, to_at)
+        }
+      end)
 
   @doc "The latest days with their deltas, newest first."
   def days(resident_id, limit) do

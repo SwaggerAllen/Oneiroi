@@ -37,7 +37,9 @@ defmodule Oneiroi.Sunna.Backfill do
   alias Oneiroi.Scope
   alias Oneiroi.Sunna.Error
 
-  @passes ["scenes", "domains", "people"]
+  # The labels pass is the platform's, no model (kumbukumbu#101): last,
+  # so it reads the day's domains as named and its portraits as written.
+  @passes ["scenes", "domains", "people", "labels"]
   @worker "Oneiroi.Sunna.BackfillWorker"
   @actor Actor.new(:job, "sunna_backfill")
   @between_days_s 60
@@ -140,6 +142,16 @@ defmodule Oneiroi.Sunna.Backfill do
       )
 
   @doc false
+  def run(%{"resident_id" => id, "day" => day, "pass" => "labels"} = args) do
+    port = Config.fetch!(:sunna, :wake)
+
+    if Code.ensure_loaded?(port) and function_exported?(port, :backfill_labels, 2),
+      do: port.backfill_labels(id, day)
+
+    next(args)
+    :ok
+  end
+
   def run(%{"resident_id" => id, "day" => day, "pass" => pass, "n" => n} = args)
       when pass in @passes do
     port = Config.fetch!(:sunna, :wake)
@@ -197,6 +209,7 @@ defmodule Oneiroi.Sunna.Backfill do
   defp turns("scenes"), do: Config.fetch!(:sunna, :backfill_scene_turns)
   defp turns("domains"), do: Config.fetch!(:sunna, :backfill_domain_turns)
   defp turns("people"), do: Config.fetch!(:sunna, :people_turns)
+  defp turns("labels"), do: 1
 
   defp session(_id, key) when is_binary(key), do: {:ok, key}
 
