@@ -814,3 +814,8 @@ checked lets the reader see a mismatch instead of inferring one.
 different acts, and read alike, the second sent the sender to
 reclassify what was never at fault. A received letter is part of every
 reply's context; left underived, one old letter withholds them all.
+## #104
+A refusal is a claim about the words; one that cannot point at them is
+a claim about something else. The quote costs the judge one line and
+turns its most damaging error, a finding about words that are not
+there, into a mechanical check the platform runs itself.

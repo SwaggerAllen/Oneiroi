@@ -84,7 +84,7 @@ defmodule Oneiroi.Kumbukumbu.Disclosure do
         audience: "#{audience.kind}:#{audience.id}"
       }
 
-      verdict = ask(port, turn.resident_id, request)
+      verdict = proven(port, turn.resident_id, request)
 
       with :ok <- record(turn, decision, candidate, fragments, verdict),
            do: answer(verdict, decision, refused)
@@ -100,7 +100,7 @@ defmodule Oneiroi.Kumbukumbu.Disclosure do
   def advise(turn, audience, candidate, decision, fragments) do
     with {:ok, port} <- port([]) do
       verdict =
-        ask(port, turn.resident_id, %{
+        proven(port, turn.resident_id, %{
           candidate: candidate,
           fragments: fragments,
           audience: "#{audience.kind}:#{audience.id}"
@@ -138,15 +138,68 @@ defmodule Oneiroi.Kumbukumbu.Disclosure do
 
     case Task.yield(task, Config.fetch!(:kumbukumbu, :disclosure_judge_ms)) ||
            Task.shutdown(task) do
-      {:ok, {:ok, %{verdict: v} = verdict}} when v in [:clean, :discloses] -> verdict
-      {:ok, {:ok, _out_of_form}} -> failed("an answer out of form")
-      {:ok, {:error, reason}} -> failed("the call failed: #{reason_words(reason)}")
-      {:exit, _reason} -> failed("the call crashed")
-      nil -> failed("the call timed out")
+      {:ok, {:ok, %{verdict: v} = verdict}} when v in [:clean, :discloses] ->
+        Map.put_new(verdict, :quote, nil)
+
+      {:ok, {:ok, _out_of_form}} ->
+        failed("an answer out of form")
+
+      {:ok, {:error, reason}} ->
+        failed("the call failed: #{reason_words(reason)}")
+
+      {:exit, _reason} ->
+        failed("the call crashed")
+
+      nil ->
+        failed("the call timed out")
     end
   end
 
   defp failed(why), do: %{verdict: :failed, reasons: why, model: nil}
+
+  # A finding proves itself (kumbukumbu#104; the witness, 2026-11-21:
+  # "make the judge prove its finding", after the judge refused
+  # Scarlett's letter for words it was not in): a DISCLOSES verdict
+  # quotes her words that carry the material, and the quote must be in
+  # them. One that is not is no finding: asked once more, and a second
+  # unproven finding is a review that gave no verdict, failing closed.
+  @asks 2
+  defp proven(port, resident_id, request, n \\ 1) do
+    verdict = ask(port, resident_id, request)
+
+    cond do
+      verdict.verdict != :discloses ->
+        verdict
+
+      quoted?(Map.get(verdict, :quote), request.candidate) ->
+        %{verdict | reasons: "#{verdict.reasons} (her words: «#{verdict.quote}»)"}
+
+      n < @asks ->
+        proven(port, resident_id, request, n + 1)
+
+      true ->
+        failed("its finding quoted nothing that is in her words, twice")
+    end
+  end
+
+  # The quote is in her words, compared as text: case, spacing and the
+  # kind of quotation mark aside. A quote of fewer than two words points
+  # at nothing.
+  defp quoted?(quote, candidate) when is_binary(quote) and is_binary(candidate) do
+    q = plain(quote)
+    length(String.split(q)) >= 2 and String.contains?(plain(candidate), q)
+  end
+
+  defp quoted?(_quote, _candidate), do: false
+
+  defp plain(text),
+    do:
+      text
+      |> String.downcase()
+      |> String.replace(~r/[“”"«»]/u, "")
+      |> String.replace(~r/[‘’]/u, "'")
+      |> String.replace(~r/\s+/u, " ")
+      |> String.trim()
 
   defp reason_words(%{meaning: meaning}) when is_binary(meaning), do: meaning
   defp reason_words(reason), do: inspect(reason)

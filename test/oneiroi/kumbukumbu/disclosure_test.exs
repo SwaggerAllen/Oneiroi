@@ -32,8 +32,29 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
         request.candidate =~ "broken" ->
           {:error, :unavailable}
 
+        # A finding that points at words she never wrote (kumbukumbu#104).
+        request.candidate =~ "invented" ->
+          :persistent_term.put(
+            {__MODULE__, :times},
+            :persistent_term.get({__MODULE__, :times}, 0) + 1
+          )
+
+          {:ok,
+           %{
+             verdict: :discloses,
+             reasons: "reveals the nineteen notes",
+             quote: "Andrew's nineteen notes",
+             model: "fake/judge"
+           }}
+
         request.candidate =~ "meeting" ->
-          {:ok, %{verdict: :discloses, reasons: "names the meeting", model: "fake/judge"}}
+          {:ok,
+           %{
+             verdict: :discloses,
+             reasons: "names the meeting",
+             quote: "the meeting",
+             model: "fake/judge"
+           }}
 
         true ->
           {:ok, %{verdict: :clean, reasons: "carries none of it", model: "fake/judge"}}
@@ -161,6 +182,34 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
     assert said =~ "names the meeting"
     assert threads(ctx) == []
     assert [%{verdict: "discloses"}] = verdicts(ctx)
+  end
+
+  # The witness, 2026-11-21: "make the judge prove its finding". A
+  # finding quoting words that are not hers is no finding: asked twice,
+  # then a review with no verdict, never a refusal for what she wrote.
+  test "a finding must quote her own words; one that does not is asked again, then no verdict",
+       ctx do
+    judge(FakeJudge)
+    :persistent_term.put({FakeJudge, :times}, 0)
+    said = post(ctx, "An invented case, about the house rules.")
+    assert :persistent_term.get({FakeJudge, :times}) == 2
+    refute said =~ "found they carry it"
+    assert said =~ "quoted nothing that is in her words"
+    assert threads(ctx) == []
+    assert [%{verdict: "failed"}] = verdicts(ctx)
+  end
+
+  test "a proven finding names the words it found", ctx do
+    judge(FakeJudge)
+    assert post(ctx, "Back from the meeting.") =~ "her words: «the meeting»"
+  end
+
+  test "the judge's quote is read from its answer; NONE is none" do
+    assert Judge.parse_quote("VERDICT: DISCLOSES\nQUOTE: \"the meeting\"\nREASONS: x") ==
+             "the meeting"
+
+    assert Judge.parse_quote("VERDICT: CLEAN\nQUOTE: NONE\nREASONS: x") == nil
+    assert Judge.parse_quote("VERDICT: CLEAN\nREASONS: x") == nil
   end
 
   test "a judge that fails fails closed, recorded as failed", ctx do

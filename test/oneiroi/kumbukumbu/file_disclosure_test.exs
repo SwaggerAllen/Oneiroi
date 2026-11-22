@@ -28,7 +28,14 @@ defmodule Oneiroi.Kumbukumbu.FileDisclosureTest do
       :persistent_term.put({__MODULE__, :asked}, request)
 
       if request.candidate =~ "meeting",
-        do: {:ok, %{verdict: :discloses, reasons: "names the meeting", model: "fake/judge"}},
+        do:
+          {:ok,
+           %{
+             verdict: :discloses,
+             reasons: "names the meeting",
+             quote: "the meeting",
+             model: "fake/judge"
+           }},
         else: {:ok, %{verdict: :clean, reasons: "carries none of it", model: "fake/judge"}}
     end
   end

@@ -20,7 +20,14 @@ defmodule Oneiroi.Kumbukumbu.DisclosureJudge do
           fragments: [%{ref: String.t(), text: String.t()}],
           audience: String.t()
         }
-  @type verdict :: %{verdict: :clean | :discloses, reasons: String.t(), model: String.t()}
+  # `quote`: the candidate's own words a DISCLOSES verdict points at
+  # (kumbukumbu#104); a finding without one in the candidate is no finding.
+  @type verdict :: %{
+          verdict: :clean | :discloses,
+          reasons: String.t(),
+          quote: String.t() | nil,
+          model: String.t()
+        }
 
   @doc "The verdict on one candidate, or the failure: a failure ships nothing."
   @callback judge_disclosure(resident_id :: String.t(), request()) ::
