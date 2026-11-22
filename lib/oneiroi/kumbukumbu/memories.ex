@@ -915,6 +915,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
              # wrote them, in the sender's dyad (kumbukumbu#84).
              labels: attrs[:labels],
              open: attrs[:open],
+             quiet: attrs[:quiet],
              link: %{
                "direction" => "from",
                "resident_id" => from.id,
@@ -966,7 +967,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
       link: attrs.link,
       turn_ref: attrs[:turn_ref],
       labels: attrs[:labels],
-      open: attrs[:open] == true
+      open: attrs[:open] == true,
+      quiet: attrs[:quiet] == true
     }
 
     case dispatch(command) do

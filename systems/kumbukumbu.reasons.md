@@ -676,6 +676,12 @@ the ledger. Durable fragments only, with unproven refused, keeps the
 review from being vacuous exactly where it matters. The refusal is
 legible rather than widened, and its cost goes to the thread.
 
+## #98
+A seal that only he could see past by asking made him the poller. The
+choice of what crosses is hers, made deliberately and in her words; the
+receipt to the letter's other holder is what keeps a paraphrase honest,
+and the quiet keeps two residents from waking each other forever.
+
 ## #97
 "Common room" read as everyone, and wasn't; a default nobody can see or
 change is a rule hidden in code. An audience is something a grant can

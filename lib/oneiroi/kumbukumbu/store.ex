@@ -229,6 +229,8 @@ defmodule Oneiroi.Kumbukumbu.Store do
       # unless sent open; `parties` its two residents, nil on the dyad's.
       field(:sealed, :boolean, default: false)
       field(:parties, {:array, :string})
+      # Wakes nobody (kumbukumbu#98): a forward's receipt.
+      field(:quiet, :boolean, default: false)
       field(:by_kind, :string)
       field(:sent_at, :utc_datetime_usec)
       field(:read_by, {:array, :string}, default: [])

@@ -460,14 +460,14 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   account reads a sealed turn's messages as having been said, never
   what; the resident reads her own whole.
   """
-  def seen({:account, _id}, messages),
-    do:
-      Enum.map(
-        messages,
-        &if(Map.get(&1, :sealed) == true, do: %{&1 | content: @sealed_words}, else: &1)
-      )
-
+  def seen({:account, _id}, messages), do: Enum.map(messages, &witnessed/1)
   def seen(_scope, messages), do: messages
+
+  # Her forward out of a sealed wake is her deliberate word to him
+  # (kumbukumbu#98): the one line of a sealed turn he reads.
+  defp witnessed(%{sealed: true, role: "tool", content: "mail_forward(" <> _} = m), do: m
+  defp witnessed(%{sealed: true} = m), do: %{m | content: @sealed_words}
+  defp witnessed(m), do: m
 
   defp seen_window({:ok, session, window}, scope),
     do: {:ok, session, %{window | messages: seen(scope, window.messages)}}

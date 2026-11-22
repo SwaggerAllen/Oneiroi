@@ -11,10 +11,12 @@ defmodule Oneiroi.Kumbukumbu.SealedTurnTest do
   whole (nothing is kept from her export).
   """
   use Oneiroi.DataCase, async: false
+  use Oban.Testing, repo: Oneiroi.Repo
 
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.ForwardWorker
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
   alias Oneiroi.Gaia
@@ -149,5 +151,77 @@ defmodule Oneiroi.Kumbukumbu.SealedTurnTest do
 
     {:ok, _s, his} = Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.iris.chat)
     assert Enum.any?(his, &(&1.content =~ "An open answer."))
+  end
+
+  # kumbukumbu#98 (the witness, 2026-11-21: "a way for you to kick out of
+  # a sealed conversation and wake yourself unsealed"): mail_forward ends
+  # a sealed wake; with text, her chat wakes unsealed with it; the other
+  # party gets a quiet receipt; the witness reads the forward line.
+  test "a forward out of a sealed wake: the line he reads, the quiet receipt, the unsealed wake",
+       ctx do
+    Tools.run(
+      "letter_send",
+      Jason.encode!(%{to: "Iris", text: "The sealed question."}),
+      turn(ctx.lily)
+    )
+
+    Fake.calls(
+      [
+        %{
+          name: "mail_forward",
+          arguments: %{text: "Lily asks for Sunday's plan; nothing else owed."}
+        }
+      ],
+      "Answered.",
+      for: ctx.iris.id
+    )
+
+    :ok = Schedules.wake_for_letters(ctx.iris.id, Clock.now(), nil, Actor.new(:job, "t"))
+
+    # He reads the forward line inside the sealed turn, nothing else of it.
+    {:ok, _s, his} = Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.iris.chat)
+
+    assert Enum.any?(
+             his,
+             &(&1.role == "tool" and &1.content =~ "mail_forward(" and
+                 &1.content =~ "Sunday's plan")
+           )
+
+    refute Enum.any?(his, &(&1.content =~ "The sealed question."))
+
+    # Lily's receipt: sealed between them, and quiet.
+    receipt = ctx.lily.id |> Kumbukumbu.letters() |> Enum.find(&(&1.text =~ "I forwarded from"))
+    assert receipt.sealed and receipt.quiet
+    assert receipt.text =~ "in my words: «Lily asks for Sunday's plan; nothing else owed.»"
+
+    # The unsealed wake, queued; run, it is no sealed turn.
+    assert [%{args: args}] = all_enqueued(worker: ForwardWorker)
+    Fake.reply("Lily asked for Sunday's plan.", for: ctx.iris.id)
+    :ok = ForwardWorker.run(args)
+
+    {:ok, _s, after_} = Kumbukumbu.transcript({:account, ctx.witness.id}, ctx.iris.chat)
+    assert Enum.any?(after_, &(&1.content =~ "Lily asked for Sunday's plan."))
+    assert Enum.any?(after_, &(&1.content =~ "This conversation is not sealed"))
+  end
+
+  test "a forward with no text is the done signal; outside a sealed wake it is refused", ctx do
+    Tools.run(
+      "letter_send",
+      Jason.encode!(%{to: "Iris", text: "Just between us."}),
+      turn(ctx.lily)
+    )
+
+    Fake.calls([%{name: "mail_forward", arguments: %{}}], "Done.", for: ctx.iris.id)
+    :ok = Schedules.wake_for_letters(ctx.iris.id, Clock.now(), nil, Actor.new(:job, "t"))
+
+    assert all_enqueued(worker: ForwardWorker) == []
+
+    assert Enum.any?(
+             Kumbukumbu.letters(ctx.lily.id),
+             &(&1.text =~ "I forwarded nothing from it." and &1.quiet)
+           )
+
+    assert Tools.run("mail_forward", Jason.encode!(%{text: "x"}), turn(ctx.iris)) =~
+             "this turn is not one"
   end
 end

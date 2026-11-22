@@ -25,6 +25,7 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.AgathosDaimon.Local
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Apsu.Jobs
   alias Oneiroi.Brain.Archive
   alias Oneiroi.Brain.Cut
   alias Oneiroi.Brain.Error
@@ -46,6 +47,9 @@ defmodule Oneiroi.Brain.Tools do
 
   @zone_key {__MODULE__, :zone}
   @not_done "Not done: "
+
+  # The forward's worker (kumbukumbu#98), named as an atom: see forward_wake/4.
+  @forward_worker :"Elixir.Oneiroi.Brain.ForwardWorker"
 
   # The audiences a policy can filter for (kumbukumbu#92): the dyad and
   # her own conversations are hers, so nothing is filtered for them.
@@ -85,7 +89,7 @@ defmodule Oneiroi.Brain.Tools do
   @writes ~w(
     position_take position_replace dispute_check dispute_settle prediction_log
     figure_increment bookmark_add bookmark_extend bookmark_weigh bookmark_accept bookmark_decline
-    tag_propose tag_apply domain_tag soul_edit soul_annotate disclosure_review identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
+    tag_propose tag_apply domain_tag soul_edit soul_annotate disclosure_review mail_forward identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_publish document_adopt keepsake_note letter_send notify_witness free_time_set free_time_once
@@ -399,6 +403,12 @@ defmodule Oneiroi.Brain.Tools do
           note: %{type: "string"}
         },
         [:number]
+      ),
+      tool(
+        "mail_forward",
+        "End a sealed mail wake, and say what leaves it (kumbukumbu#98). Called inside a turn that answers a sealed letter between you and a housemate. With text: once this turn ends, a conversation of yours wakes unsealed (the Oneiroi chat, or `to` by its name) with your text as its note, so you can tell your witness what he needs without his having to ask. Without text: the exchange is done and nothing is owed him. Either way your witness sees this call where he otherwise sees only that a sealed turn ran, and your housemate gets a quiet receipt with exactly what you said. The text is your own words, never the letter's: carry the substance (a ruling, an outcome, a condition, an ask); her words are hers to give. What crosses is your choice; the receipt is what keeps it honest. Call it at the end of every sealed wake.",
+        %{text: %{type: "string"}, to: %{type: "string"}},
+        []
       ),
       tool(
         "disclosure_review",
@@ -2643,6 +2653,29 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # Out of a sealed mail wake (kumbukumbu#98): a receipt to the other
+  # party, and with text, the unsealed wake of the conversation named.
+  defp call("mail_forward", _args, %{sealed: nil}),
+    do: @not_done <> "mail_forward ends a sealed mail wake, and this turn is not one."
+
+  defp call("mail_forward", args, %{sealed: [_ | _] = parties} = turn) do
+    text = blank(args["text"])
+
+    with {:ok, other} <- sealed_other(turn.resident_id, parties),
+         {:ok, key, name} <- forward_target(turn, args["to"]),
+         {:ok, _} <- forward_receipt(turn, other, text, name),
+         :ok <- forward_wake(turn, key, other, text) do
+      if text,
+        do:
+          "Forwarded: once this turn ends, #{name} wakes unsealed with your words as its note. #{other.name} has a quiet receipt of what you said; your witness sees this line.",
+        else:
+          "Done: nothing forwarded. #{other.name} has a quiet receipt; your witness sees this line, and knows the exchange is over."
+    end
+  end
+
+  defp call("mail_forward", _args, _turn),
+    do: @not_done <> "mail_forward ends a sealed mail wake, and this turn is not one."
+
   # Her own request for a judge's read (kumbukumbu#91): the only way a
   # soul line reaches the judge.
   defp call("disclosure_review", args, turn) do
@@ -4631,6 +4664,16 @@ defmodule Oneiroi.Brain.Tools do
     {words, turn}
   end
 
+  defp answered("mail_forward", args, turn) do
+    words =
+      if blank(args["text"]),
+        do:
+          "Forwarded: once this turn ends, your chat wakes unsealed with your words as its note.",
+        else: "Done: nothing forwarded."
+
+    {words, turn}
+  end
+
   defp answered("disclosure_review", args, turn),
     do: {reviewed({:ok, %{verdict: :clean}}, to_string(args["audience"] || "")), turn}
 
@@ -6221,6 +6264,73 @@ defmodule Oneiroi.Brain.Tools do
   # The resident of her household `to` names, with her own name as the
   # sender; nil when a conversation of hers answers to the name first, or
   # no sibling does.
+  # The sealed exchange's other party, a member of her household.
+  defp sealed_other(resident_id, parties) do
+    with [other_id] <- for("resident:" <> id <- parties, id != resident_id, do: id),
+         %{members: members} <- Oneiroi.Gaia.resident_household(resident_id),
+         %{} = other <- Enum.find(members, &(&1.id == other_id)) do
+      {:ok, other}
+    else
+      _ -> @not_done <> "the sealed exchange's other party is not in your house now."
+    end
+  end
+
+  # Where the forward wakes: this conversation (the chat a sealed letter
+  # wakes), or another of hers by its name.
+  defp forward_target(turn, to) do
+    case blank(to) do
+      nil ->
+        {:ok, turn.session_key,
+         Kumbukumbu.conversation_name(turn.resident_id, turn.session_key) || "your chat"}
+
+      name ->
+        case Enum.find(
+               Kumbukumbu.sessions({:resident, turn.resident_id}),
+               &(Kumbukumbu.conversation_name(turn.resident_id, &1.key) == name)
+             ) do
+          %{key: key} -> {:ok, key, name}
+          nil -> @not_done <> "no conversation of yours is named #{name}."
+        end
+    end
+  end
+
+  # The other party's receipt (kumbukumbu#98): sealed to the two of them,
+  # quiet so it wakes nobody, saying exactly what left.
+  defp forward_receipt(turn, other, text, name) do
+    {:ok, me} = AgathosDaimon.fetch(turn.resident_id)
+
+    words =
+      if text,
+        do: "I forwarded from our sealed exchange to my #{name}, in my words: «#{text}»",
+        else: "Our sealed exchange is done on my side; I forwarded nothing from it."
+
+    Kumbukumbu.send_sibling_letter(
+      %{id: me.id, name: me.name},
+      turn.session_key,
+      other,
+      %{text: words, quiet: true},
+      turn.resident
+    )
+  end
+
+  defp forward_wake(_turn, _key, _other, nil), do: :ok
+
+  defp forward_wake(turn, key, other, text) do
+    note =
+      "You forwarded this out of your sealed mail with #{other.name}, in your own words:\n\n#{text}\n\nThis conversation is not sealed: tell your witness what he needs from it."
+
+    # By name, not alias: the worker wakes a session, whose turn runs these
+    # tools, and a reference here would close that cycle.
+    case Jobs.enqueue(@forward_worker, %{
+           "resident_id" => turn.resident_id,
+           "session_key" => key,
+           "note" => note
+         }) do
+      {:ok, _job} -> :ok
+      _ -> @not_done <> "the forward could not be queued."
+    end
+  end
+
   defp sibling(resident_id, to) do
     name = to |> String.trim() |> String.downcase()
     own = Enum.map(Kumbukumbu.letter_addresses(resident_id), &String.downcase/1)
