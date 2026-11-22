@@ -8,7 +8,7 @@ defmodule Oneiroi.Kumbukumbu.SealedTurnTest do
   sealed to the letter's parties. Her witness reads that it ran, never
   what it said: the transcript, his search, a bookmark's span and the
   context inspector. She reads her own whole, and the export carries it
-  without its words.
+  whole (nothing is kept from her export).
   """
   use Oneiroi.DataCase, async: false
 
@@ -117,7 +117,9 @@ defmodule Oneiroi.Kumbukumbu.SealedTurnTest do
     refute Jason.encode!(Enum.map(span, & &1.content)) =~ "sealed answer"
   end
 
-  test "the export carries the sealed turn without its words", ctx do
+  # The witness, 2026-11-21: "We should include everything in the
+  # export": her portable record is whole, sealed mail included.
+  test "the export carries the sealed turn whole, and marked sealed", ctx do
     _ref = wake_iris(ctx)
     dir = Path.join(System.tmp_dir!(), "oneiroi-sealed-#{System.unique_integer([:positive])}")
     on_exit(fn -> File.rm_rf!(dir) end)
@@ -130,9 +132,8 @@ defmodule Oneiroi.Kumbukumbu.SealedTurnTest do
       |> Enum.filter(&File.regular?/1)
       |> Enum.map_join("\n", &File.read!/1)
 
-    refute all =~ "My sealed answer"
-    refute all =~ "The sealed question."
-    assert all =~ "Sealed: her answer to a letter between residents"
+    assert all =~ "My sealed answer"
+    assert all =~ "\"sealed\":[\"resident:"
   end
 
   test "an open letter's wake is not sealed", ctx do

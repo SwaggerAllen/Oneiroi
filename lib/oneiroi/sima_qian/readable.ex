@@ -181,12 +181,6 @@ defmodule Oneiroi.SimaQian.Readable do
   defp shown("SessionShared", line, data, day),
     do: "*Shared by #{who(line["actor"])} at #{time(line["at"], day)}.*" <> note(data) <> "\n\n"
 
-  # A sealed turn (kumbukumbu#95) travels without its words: said, not what.
-  defp shown("TurnCaptured", line, %{"sealed" => [_ | _]} = data, day) do
-    "### Turn `#{data["turn_ref"]}`, #{time(data["started_at"] || line["at"], day)}\n\n" <>
-      "*Sealed: her answer to a letter between residents; its words are the letter's parties' alone.*\n\n"
-  end
-
   defp shown("TurnCaptured", line, data, day) do
     "### Turn `#{data["turn_ref"]}`, #{time(data["started_at"] || line["at"], day)}\n\n" <>
       Enum.map_join(data["messages"] || [], "", &message(&1, day))

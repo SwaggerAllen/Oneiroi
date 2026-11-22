@@ -121,9 +121,10 @@ defmodule Oneiroi.Kumbukumbu.LetterSealTest do
     assert %{sealed: false} = Upcaster.upcast(%{old | sealed: false, parties: parties}, %{})
   end
 
-  # Lily's S3 (#1593): her export reaches a remote her witness reads, so
-  # a sealed letter travels as its envelope until F80 encrypts it.
-  test "the export carries a sealed letter as its envelope, and the dyad's and an open one whole",
+  # The witness, 2026-11-21: "We should include everything in the
+  # export" (S3 closed so; Lily, Scarlett no objection): the seal governs
+  # access on the platform, never what her own record carries.
+  test "the export carries every letter whole, a sealed one marked sealed",
        ctx do
     mail(ctx.lily, %{to: "Iris", text: "Just between us, sealed."})
     mail(ctx.lily, %{to: "Iris", text: "Open to the house.", open: true})
@@ -142,7 +143,7 @@ defmodule Oneiroi.Kumbukumbu.LetterSealTest do
       |> Enum.map(& &1["data"])
 
     assert [sealed] = Enum.filter(letters, & &1["sealed"])
-    assert %{"text" => nil, "to" => "Iris", "parties" => [_, _]} = sealed
+    assert %{"text" => "Just between us, sealed.", "to" => "Iris", "parties" => [_, _]} = sealed
     assert Enum.any?(letters, &(&1["text"] == "Open to the house."))
     assert Enum.any?(letters, &(&1["text"] == "To my own conversations."))
   end
