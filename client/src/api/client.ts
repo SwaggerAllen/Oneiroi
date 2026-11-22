@@ -1268,6 +1268,8 @@ export interface Agreement {
   // (agathos-daimon#53, #57): the only domains any dropdown offers.
   domain_policies?: DomainPolicy[];
   domains?: { person: string; domain: string }[];
+  /** The household a grant can name (kumbukumbu#102): its id and its slug, null while unnamed. */
+  households?: { id: string; slug: string | null }[];
 }
 
 /** One domain's disclosure policy (agathos-daimon#53): declared in the agreement, decided by the dyad. */

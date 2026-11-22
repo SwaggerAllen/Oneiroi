@@ -1982,10 +1982,18 @@ defmodule Oneiroi.Brain.Tools do
     conflicts = Enum.join(Keyword.get(d, :conflicts, []), ", ")
 
     @not_done <>
-      "withheld by policy#{decision_words(d)}: #{held_words(d)} #{conflicts}, #{rule_words(d)} #{d[:audience]}. #{review_words(e)}Nothing was delivered, and the audience learns nothing of it. Say it where the policies allow (here, or to an audience they grant), or let the turn's context move on; the policies are yours and your witness's to change by agreement."
+      "withheld by policy#{decision_words(d)}: #{held_words(d)} #{conflicts}, #{rule_words(d)} #{d[:audience]}. #{grant_words(d)}#{review_words(e)}Nothing was delivered, and the audience learns nothing of it. Say it where the policies allow (here, or to an audience they grant), or let the turn's context move on; the policies are yours and your witness's to change by agreement."
   end
 
   defp decision_words(d), do: if(d[:decision], do: " (decision #{d[:decision]})", else: "")
+
+  # The grants the audience was checked against (kumbukumbu#102).
+  defp grant_words(d) do
+    case Keyword.get(d, :grants, []) do
+      [] -> ""
+      grants -> "Policies checked: " <> Enum.join(grants, "; ") <> ". "
+    end
+  end
 
   # A domain with no policy is an absence, said as one (Lily's #1564).
   defp rule_words(d) do
@@ -2005,8 +2013,12 @@ defmodule Oneiroi.Brain.Tools do
   defp review_words(%{site: :kumbukumbu_disclosure_discloses, details: d}),
     do: "The disclosure judge read these words against it and found they carry it: #{d[:review]} "
 
+  # A review that gave no verdict is not a finding (Scarlett's report
+  # #26): said apart from one that found the words carry a domain, with
+  # the retry that needs no reclassifying (kumbukumbu#103).
   defp review_words(%{site: :kumbukumbu_disclosure_failed, details: d}),
-    do: "The disclosure review could not clear them (#{d[:review]}), so they were not sent. "
+    do:
+      "The disclosure judge gave no verdict (#{d[:review]}): this is not a finding that your words carry it, only that the review did not complete, and it fails closed. Sending the same words again runs the review again; nothing needs reclassifying for that. "
 
   defp review_words(%{site: :kumbukumbu_disclosure_no_judge}),
     do: "This deployment has no disclosure judge, so nothing held back can be reviewed. "

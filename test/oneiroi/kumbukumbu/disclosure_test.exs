@@ -166,7 +166,7 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
   test "a judge that fails fails closed, recorded as failed", ctx do
     judge(FakeJudge)
     said = post(ctx, "This one is broken.")
-    assert said =~ "could not clear them"
+    assert said =~ "gave no verdict"
     assert threads(ctx) == []
     assert [%{verdict: "failed", model: nil}] = verdicts(ctx)
   end

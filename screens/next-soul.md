@@ -134,7 +134,9 @@ turn.
   - **Propose a version**: every switch, the declared domains
     (agathos-daimon#57: the policies in force carried in; each in words,
     whose and its default, its grants and denials each removable and
-    one added by allow or deny, audience kind and id; a new one by whose
+    one added by allow or deny, audience kind and id (a household picked
+    by name from a dropdown, any household or hers, never typed,
+    kumbukumbu#102); a new one by whose
     life, its slug and its default, "Declare the domain"; the only place
     a domain is typed; the common room's line, its default in words until
     "Write the common room's policy" adds one to edit, kumbukumbu#97;

@@ -97,7 +97,7 @@ defmodule Oneiroi.Kumbukumbu.Audience do
 
     decide(
       inputs,
-      audience,
+      known_as(audience),
       %{
         version: version,
         policies: policies,
@@ -106,6 +106,23 @@ defmodule Oneiroi.Kumbukumbu.Audience do
       mode
     )
   end
+
+  # The names a grant may use for an audience (kumbukumbu#102; Scarlett's
+  # report #25, 2026-11-21): a household is granted by its slug on the
+  # agreement screen ("household:strut") and resolved by its id at
+  # delivery, so a named grant never met it and every household
+  # delivery fell to the domain's default. Both names now match.
+  defp known_as(%{kind: "household", id: id} = audience) when is_binary(id) do
+    # Only a house's own key is looked up; any other id names no house.
+    with {:ok, _uuid} <- Ecto.UUID.cast(id),
+         slug when is_binary(slug) <- Oneiroi.Gaia.household_slug(id) do
+      Map.update(audience, :aliases, [slug], &[slug | &1])
+    else
+      _none -> audience
+    end
+  end
+
+  defp known_as(audience), do: audience
 
   @doc """
   The decision (§3.6): which inputs may reach the audience, which are
@@ -254,6 +271,10 @@ defmodule Oneiroi.Kumbukumbu.Audience do
 
   defp matches?(%{kind: kind, id: "*"}, %{kind: kind}), do: true
   defp matches?(%{kind: kind, id: id}, %{kind: kind, id: id}), do: true
+
+  defp matches?(%{kind: kind, id: id}, %{kind: kind} = audience),
+    do: id in Map.get(audience, :aliases, [])
+
   defp matches?(_grant, _audience), do: false
 
   defp policy(label, policies),
