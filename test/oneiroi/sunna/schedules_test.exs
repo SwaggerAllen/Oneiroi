@@ -354,7 +354,7 @@ defmodule Oneiroi.Sunna.SchedulesTest do
     assert List.last(notes.()).content =~ "from the platform (the oracle)"
   end
 
-  # sunna#62: the platform's answer to what the chat asked (research, the
+  # sunna#79: the platform's answer to what the chat asked (research, the
   # oracle, an external copy), addressed back to its session, wakes it as
   # a conversation's letter does; on 2026-11-15 research #35's sat unread.
   test "the platform's answer addressed back to the chat wakes it", ctx do

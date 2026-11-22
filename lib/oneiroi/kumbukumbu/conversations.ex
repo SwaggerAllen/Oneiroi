@@ -593,6 +593,32 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   def day_sessions(resident_id, from_at, to_at),
     do: Scope.resident(resident_id, fn -> Store.day_sessions(from_at, to_at) end)
 
+  @doc "The turns named into a domain in `[from, to)` (kumbukumbu#100)."
+  def day_tag_points(resident_id, from_at, to_at),
+    do: Scope.resident(resident_id, fn -> Store.day_tag_points(from_at, to_at) end)
+
+  @doc """
+  Returns to the common room every turn in `[from, to)` named into a
+  domain the agreement in force does not declare (kumbukumbu#100; the
+  witness, 2026-11-21: the backfill "should retag using only declared
+  domains"). The tags of 11-14..16 named domains nobody declared; a tag
+  carries forward until the next, so each stale point is renamed, not
+  left to bleed past the new ones. `{:ok, cleared}`.
+  """
+  def clear_undeclared(resident_id, from_at, to_at, %Actor{} = actor) do
+    stale =
+      for p <- day_tag_points(resident_id, from_at, to_at),
+          p.domain != nil,
+          not AgathosDaimon.domain_declared?(resident_id, p.person, p.domain),
+          do: p
+
+    Enum.each(stale, fn p ->
+      :ok = tag_domain(resident_id, p.session_key, p.turn_ref, p.person, nil, actor)
+    end)
+
+    {:ok, length(stale)}
+  end
+
   @doc "How many of a session's messages came before `at`, and how many it holds in all."
   def counts(resident_id, key, at),
     do:

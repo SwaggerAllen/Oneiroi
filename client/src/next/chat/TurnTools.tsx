@@ -2,7 +2,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import * as css from '../inbox/inbox.css';
-import { SLUG } from './domains';
+import { declaredDomains } from './domains';
 
 /**
  * On her reply: what she was given that turn (brain#, the context's parts
@@ -39,7 +39,7 @@ export function TurnTools({
         </button>
       )}
       {open === 'given' && <Given residentId={residentId} turnRef={turnRef} />}
-      {open === 'domain' && onRetag && <Retag turnRef={turnRef} domain={domain ?? null} onRetag={onRetag} onDone={() => setOpen(null)} />}
+      {open === 'domain' && onRetag && <Retag residentId={residentId} turnRef={turnRef} domain={domain ?? null} onRetag={onRetag} onDone={() => setOpen(null)} />}
       {open === 'bookmark' && <Suggest residentId={residentId} sessionKey={sessionKey} turnRef={turnRef} residentName={residentName} onDone={() => setOpen(null)} />}
     </span>
   );
@@ -89,17 +89,46 @@ function Suggest({ residentId, sessionKey, turnRef, residentName, onDone }: { re
 }
 
 // Renames the domain a turn is in, after the fact (kumbukumbu#72): the
-// turn and every untagged one after it, up to the next one named.
-function Retag({ turnRef, domain, onRetag, onDone }: { turnRef: string; domain: string | null; onRetag: (turnRef: string, domain: string | null) => Promise<void>; onDone: () => void }) {
+// turn and every untagged one after it, up to the next one named. Only
+// the domains the agreement declares are offered (kumbukumbu#90), the
+// same list as the composer's chip; shared by the chat, a bookmark's peek
+// and search's transcript hits.
+export function Retag({
+  residentId,
+  turnRef,
+  domain,
+  onRetag,
+  onDone,
+}: {
+  residentId: string;
+  turnRef: string;
+  domain: string | null;
+  onRetag: (turnRef: string, domain: string | null) => Promise<void>;
+  onDone: () => void;
+}) {
+  const agreement = useQuery({ queryKey: ['resident', residentId, 'soul', 'agreement'], queryFn: () => api.agreement(residentId) });
+  const known = declaredDomains(agreement.data?.domains, null);
   const [slug, setSlug] = useState(domain ?? '');
-  const fresh = slug.trim().toLowerCase();
   const move = useMutation({ mutationFn: (to: string | null) => onRetag(turnRef, to), onSuccess: () => setTimeout(onDone, 800) });
   return (
     <div className={css.panel} style={{ flexBasis: '100%' }}>
-      <p className={css.note}>This turn, and every one after it not named otherwise, moves to the domain you give. A domain is never a wall: what one is walled from is the agreement's to say.</p>
-      <input className={css.input} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="a domain, as a slug" aria-label="The turn's domain" />
+      <p className={css.note}>This turn, and every one after it not named otherwise, moves to the domain you pick. Only the domains the agreement declares are here; who a domain reaches is its policy's to say.</p>
+      {agreement.isPending ? (
+        <p className={css.note}>Reading the agreement…</p>
+      ) : known.length === 0 ? (
+        <p className={css.note}>No domains are declared in the agreement in force yet: a domain is declared in a version she has agreed.</p>
+      ) : (
+        <select className={css.input} value={slug} onChange={(e) => setSlug(e.target.value)} aria-label="The turn's domain">
+          <option value="">Pick a domain</option>
+          {known.map((d) => (
+            <option key={d} value={d}>
+              {d}
+            </option>
+          ))}
+        </select>
+      )}
       <div className={css.row}>
-        <button type="button" className={css.primary} disabled={!SLUG.test(fresh) || move.isPending} onClick={() => move.mutate(fresh)}>
+        <button type="button" className={css.primary} disabled={!known.includes(slug) || move.isPending} onClick={() => move.mutate(slug)}>
           Move it
         </button>
         <button type="button" className={css.quiet} disabled={move.isPending} onClick={() => move.mutate(null)}>

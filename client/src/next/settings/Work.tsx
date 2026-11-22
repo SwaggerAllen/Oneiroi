@@ -1,7 +1,7 @@
 import { Linked } from '../shell/Linked';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
-import { api } from '../../api/client';
+import { api, type BackfillPass } from '../../api/client';
 import type { WorkItem, WorkQueue } from '../../api/types';
 import { useSubject } from '../state/resident';
 import { Card, Field, Said, Select } from './common';
@@ -203,6 +203,9 @@ function Backfill() {
   const theirs = [...new Set(declared.filter((d) => d.person === persons?.resident).map((d) => d.domain))].sort();
   const [his, setHis] = useState<string[]>([]);
   const [hers, setHers] = useState<string[]>([]);
+  // One kind of pass at a time, or several (sunna#79): the domains pass
+  // alone re-names past days without rewriting scenes or portraits.
+  const [passes, setPasses] = useState<BackfillPass[]>(['scenes', 'domains', 'people']);
   const act = useAct();
   const s = status.data;
   const PASS = { scenes: 'writing the scenes', domains: 'naming the domains', people: 'the people pass' } as const;
@@ -210,8 +213,8 @@ function Backfill() {
     <Card title="Memory backfill" witness>
       <p className={css.text}>
         {s
-          ? `Running: ${PASS[s.pass]} for ${s.day}${s.turn > 1 ? ` (turn ${s.turn})` : ''}, through ${s.to}.`
-          : `For each past day in a range, oldest first: ${name} writes its scenes where they are missing, names the domains of every conversation that day from your list and hers, and runs the people pass, whose seeds become portraits. A day at a time, each pass a housekeeping conversation of hers, billed to chat.`}
+          ? `Running: ${PASS[s.pass]} for ${s.day}${s.turn > 1 ? ` (turn ${s.turn})` : ''}, through ${s.to}${s.passes && s.passes.length < 3 ? `; passes: ${s.passes.join(', ')}` : ''}.`
+          : `For each past day in a range, oldest first, the passes you tick: ${name} writes its scenes where they are missing; names the domains of every conversation that day, from the declared domains you pick (tags of undeclared ones go back to the common room first); and runs the people pass, whose seeds become portraits. A day at a time, each pass a housekeeping conversation of hers, billed to chat.`}
       </p>
       {s ? (
         <div className={css.row}>
@@ -226,7 +229,7 @@ function Backfill() {
           onSubmit={(e) => {
             e.preventDefault();
             void act.run(
-              () => api.startBackfill(id, from, to, his, hers).then((r) => `Started: ${r.days} days.`),
+              () => api.startBackfill(id, from, to, his, hers, passes).then((r) => `Started: ${r.days} days.`),
               settingsKey(id, 'backfill'),
             );
           }}
@@ -235,10 +238,19 @@ function Backfill() {
             <Field label="From (YYYY-MM-DD)" value={from} onChange={(e) => setFrom(e.target.value)} />
             <Field label="To, before today" value={to} onChange={(e) => setTo(e.target.value)} />
           </div>
+          <fieldset className={css.column}>
+            <legend className={css.text}>Passes</legend>
+            {(['scenes', 'domains', 'people'] as const).map((p) => (
+              <label key={p} className={css.row}>
+                <input type="checkbox" checked={passes.includes(p)} onChange={(e) => setPasses(e.target.checked ? (['scenes', 'domains', 'people'] as const).filter((x) => x === p || passes.includes(x)) : passes.filter((x) => x !== p))} />
+                {PASS[p]}
+              </label>
+            ))}
+          </fieldset>
           <DomainPicks label="Your domains" options={yours} picked={his} onChange={setHis} />
           <DomainPicks label={`${name}'s domains`} options={theirs} picked={hers} onChange={setHers} />
           <div className={css.row}>
-            <button type="submit" className={css.primary} disabled={act.busy || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)}>
+            <button type="submit" className={css.primary} disabled={act.busy || passes.length === 0 || !/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)}>
               Start the backfill
             </button>
           </div>

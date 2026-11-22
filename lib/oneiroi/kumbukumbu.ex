@@ -912,6 +912,19 @@ defmodule Oneiroi.Kumbukumbu do
   @spec counts(String.t(), String.t(), DateTime.t()) :: {non_neg_integer(), non_neg_integer()}
   defexport(counts(resident_id, key, at), do: Conversations.counts(resident_id, key, at))
 
+  @doc "The turns named into a domain in `[from, to)` (kumbukumbu#100): session, turn, person, domain."
+  @spec day_tag_points(String.t(), DateTime.t(), DateTime.t()) :: [map()]
+  defexport(day_tag_points(resident_id, from_at, to_at),
+    do: Conversations.day_tag_points(resident_id, from_at, to_at)
+  )
+
+  @doc "Returns every turn in `[from, to)` named into an undeclared domain to the common room (kumbukumbu#100)."
+  @spec clear_undeclared(String.t(), DateTime.t(), DateTime.t(), Oneiroi.Actor.t()) ::
+          {:ok, non_neg_integer()}
+  defexport(clear_undeclared(resident_id, from_at, to_at, actor),
+    do: Conversations.clear_undeclared(resident_id, from_at, to_at, actor)
+  )
+
   @doc "The conversations with messages in `[from, to)` (kumbukumbu#73): key, kind, label, messages, first and last turn refs, and where a transcript read of the span starts."
   @spec day_sessions(String.t(), DateTime.t(), DateTime.t()) :: [map()]
   defexport(day_sessions(resident_id, from_at, to_at),

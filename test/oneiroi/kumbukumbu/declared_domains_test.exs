@@ -88,6 +88,38 @@ defmodule Oneiroi.Kumbukumbu.DeclaredDomainsTest do
     Oneiroi.Sunna.backfill_stop(ctx.id)
   end
 
+  # agathos-daimon#59 (2026-11-21): she agreed to version 3 seeing its
+  # prose alone; its two domains were stored and never shown her. And a
+  # version she proposed without domains would have dropped them all.
+  test "her agreement names every declared domain; her proposal keeps them or states her own",
+       ctx do
+    assert AgathosDaimon.contract_text(ctx.id) =~
+             "Domains declared (2): your witness's: recovery, reaches no audience past you two by default; yours: recovery, reaches no audience past you two by default."
+
+    assert run(ctx, "contract_propose", %{note: "my vows", prose: "I keep my word."}) =~
+             "Proposed version"
+
+    assert %{open: %{terms: %{"domain_policies" => carried}}} = AgathosDaimon.contract(ctx.id)
+    assert length(carried) == 2
+
+    run(ctx, "contract_propose", %{
+      note: "mine too",
+      domains: [
+        %{whose: "witness", domain: "recovery", default: "deny"},
+        %{whose: "mine", domain: "drafts", default: "allow"}
+      ]
+    })
+
+    assert %{open: %{terms: %{"domain_policies" => mine}}} = AgathosDaimon.contract(ctx.id)
+
+    assert Enum.map(mine, & &1["domain"]) == [
+             %{"person" => "account:" <> ctx.witness.id, "domain" => "recovery"},
+             %{"person" => "resident:" <> ctx.id, "domain" => "drafts"}
+           ]
+
+    assert AgathosDaimon.contract_text(ctx.id) =~ "yours: drafts, reaches any audience by default"
+  end
+
   # kumbukumbu#97 (the witness, 2026-11-21): the common room is written
   # where she reads her agreement, by its default or its own policy; no
   # policy grants the export (nothing is kept from it) or a thread (too

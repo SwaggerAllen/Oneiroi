@@ -35,7 +35,12 @@ defmodule OneiroiWeb.BackfillController do
            from: %Schema{type: :string, description: "YYYY-MM-DD"},
            to: %Schema{type: :string, description: "YYYY-MM-DD, before today"},
            his: %Schema{type: :array, items: %Schema{type: :string}},
-           hers: %Schema{type: :array, items: %Schema{type: :string}}
+           hers: %Schema{type: :array, items: %Schema{type: :string}},
+           passes: %Schema{
+             type: :array,
+             items: %Schema{type: :string, enum: ["scenes", "domains", "people"]},
+             description: "the passes to run each day, in their order; all three when absent"
+           }
          }
        }},
     responses: [created: {"the days", "application/json", %Schema{type: :object}}]
@@ -46,7 +51,7 @@ defmodule OneiroiWeb.BackfillController do
            id,
            params["from"],
            params["to"],
-           Map.take(params, ["his", "hers"]),
+           Map.take(params, ["his", "hers", "passes"]),
            actor(conn)
          ) do
       {:ok, days} -> conn |> put_status(201) |> json(%{days: days})

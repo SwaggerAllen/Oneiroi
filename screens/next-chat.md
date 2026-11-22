@@ -124,8 +124,9 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
   the server shows them); "Suggest a bookmark" proposes a line and why,
   which she accepts, rewrites or declines in her own words; "Domain:
   <domain>" moves the turn, and every untagged turn after it up to the
-  next named one, to another domain or the common room (`POST
-  .../turns/:turn_ref/domain`).
+  next named one, to a declared domain picked from a dropdown or the
+  common room (`POST .../turns/:turn_ref/domain`); the same picker sits on
+  a bookmark's peek and under search's transcript hits (kumbukumbu#99).
 - **Mail**, the third view beside Conversation and Sessions: letters,
   outside mail and blocks (`screens/next-mail.md`).
 

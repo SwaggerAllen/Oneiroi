@@ -563,8 +563,9 @@ export const api = {
     call<{ failures: Array<Record<string, unknown>>; discarded_jobs: Array<Record<string, unknown>> }>('GET', '/v1/ops/failures'),
   // The memory backfill (sunna#59): scenes, domains and people for past days, by her.
   backfill: (residentId: string) => call<BackfillStatus | null>('GET', `/v1/residents/${residentId}/backfill`),
-  startBackfill: (residentId: string, from: string, to: string, his: string[], hers: string[]) =>
-    call<{ days: number }>('POST', `/v1/residents/${residentId}/backfill`, { from, to, his, hers }),
+  // `passes`: the passes each day runs (sunna#79), all three when absent.
+  startBackfill: (residentId: string, from: string, to: string, his: string[], hers: string[], passes?: BackfillPass[]) =>
+    call<{ days: number }>('POST', `/v1/residents/${residentId}/backfill`, passes ? { from, to, his, hers, passes } : { from, to, his, hers }),
   stopBackfill: (residentId: string) => call<void>('DELETE', `/v1/residents/${residentId}/backfill`),
   // The operator's queue (apsu#31): what waits on whoever runs the platform.
   operatorQueue: () => call<{ open: OperatorItem[]; closed: OperatorItem[] }>('GET', '/v1/ops/queue'),
@@ -1162,9 +1163,12 @@ export interface Hour {
   pressure: { jobs_waiting: number | null; oldest_wait_s: number | null; failures_by_kind: Record<string, Few> } | null;
 }
 
+export type BackfillPass = 'scenes' | 'domains' | 'people';
+
 export interface BackfillStatus {
   day: string;
-  pass: 'scenes' | 'domains' | 'people';
+  pass: BackfillPass;
+  passes?: BackfillPass[];
   turn: number;
   to: string;
   his: string[];

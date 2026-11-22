@@ -276,6 +276,25 @@ function Versions({ a }: { a: Agreement }) {
           <div className={css.fileBody}>
             {v.note && <p className={css.note}>Note: “{v.note}”</p>}
             {v.decision_note && <p className={css.note}>Answer: “{v.decision_note}”</p>}
+            {/* The whole version, not its prose alone (agathos-daimon#59): what it switches on and the domains it declares. */}
+            <p className={css.note}>
+              Switched on:{' '}
+              {Object.entries(v.terms)
+                .filter(([, on]) => on === true)
+                .map(([k]) => k.replace(/_/g, ' '))
+                .join(', ') || 'nothing beyond the defaults'}
+            </p>
+            {(() => {
+              const policies = (Array.isArray(v.terms.domain_policies) ? v.terms.domain_policies : []) as DomainPolicy[];
+              if (policies.length === 0) return <p className={css.note}>Domains: none declared.</p>;
+              return (
+                <ul className={css.note}>
+                  {policies.map((p) => (
+                    <li key={`${p.domain.person}/${p.domain.domain}`}>{a.persons ? policyWords(p, a.persons, name) : `${p.domain.domain}: ${p.default}`}</li>
+                  ))}
+                </ul>
+              );
+            })()}
             <pre className={css.pre}>{v.prose}</pre>
           </div>
         </details>

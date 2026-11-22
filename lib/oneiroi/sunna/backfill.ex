@@ -51,7 +51,10 @@ defmodule Oneiroi.Sunna.Backfill do
   @doc """
   Starts the backfill over `from..to` (ISO days, `to` before today in her
   zone), with the witness's and her domain slugs as the lists she names
-  from; a running backfill is replaced. `{:ok, days}`.
+  from; a running backfill is replaced. `lists["passes"]` names the
+  passes each day runs, in their own order (sunna#79; the witness,
+  2026-11-21: "we should be able to run just one kind of pass at a
+  time"), all three when absent. `{:ok, days}`.
   """
   @spec start(String.t(), String.t(), String.t(), map(), Actor.t()) ::
           {:ok, non_neg_integer()} | {:error, Oneiroi.Error.t()}
@@ -62,6 +65,7 @@ defmodule Oneiroi.Sunna.Backfill do
          true <- Date.compare(last, today(resident_id)) == :lt,
          {:ok, his} <- slugs(lists["his"]),
          {:ok, hers} <- slugs(lists["hers"]),
+         {:ok, passes} <- passes(lists["passes"]),
          # Only declared domains (agathos-daimon#57): his life's, then hers.
          :ok <- declared(resident_id, :witness, his),
          :ok <- declared(resident_id, :resident, hers) do
@@ -72,7 +76,8 @@ defmodule Oneiroi.Sunna.Backfill do
           "resident_id" => resident_id,
           "day" => Date.to_iso8601(first),
           "to" => Date.to_iso8601(last),
-          "pass" => "scenes",
+          "pass" => hd(passes),
+          "passes" => passes,
           "n" => 1,
           "session_key" => nil,
           "his" => his,
@@ -117,6 +122,7 @@ defmodule Oneiroi.Sunna.Backfill do
           pass: args["pass"],
           turn: args["n"],
           to: args["to"],
+          passes: args["passes"] || @passes,
           his: args["his"],
           hers: args["hers"]
         }
@@ -161,7 +167,10 @@ defmodule Oneiroi.Sunna.Backfill do
   end
 
   defp next(%{"pass" => pass, "day" => day, "to" => to} = args, opts \\ []) do
-    case Enum.drop_while(@passes, &(&1 != pass)) do
+    # A job queued before sunna#79 carries no list: all three.
+    passes = Map.get(args, "passes") || @passes
+
+    case Enum.drop_while(passes, &(&1 != pass)) do
       [_this, following | _] ->
         enqueue(%{args | "pass" => following, "n" => 1, "session_key" => nil}, opts)
 
@@ -173,7 +182,7 @@ defmodule Oneiroi.Sunna.Backfill do
             %{
               args
               | "day" => Date.to_iso8601(tomorrow),
-                "pass" => "scenes",
+                "pass" => hd(passes),
                 "n" => 1,
                 "session_key" => nil
             },
@@ -226,6 +235,18 @@ defmodule Oneiroi.Sunna.Backfill do
          )}
     end
   end
+
+  defp passes(nil), do: {:ok, @passes}
+
+  defp passes(list) when is_list(list) do
+    given = list |> Enum.map(&to_string/1) |> Enum.uniq()
+
+    if given != [] and Enum.all?(given, &(&1 in @passes)),
+      do: {:ok, Enum.filter(@passes, &(&1 in given))},
+      else: :error
+  end
+
+  defp passes(_other), do: :error
 
   defp slugs(nil), do: {:ok, []}
 

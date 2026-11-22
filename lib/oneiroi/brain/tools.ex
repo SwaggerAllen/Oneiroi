@@ -1481,9 +1481,10 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "contract_propose",
-        "Propose a version of your agreement with your witness, whole: its switches (an object of the registry's keys to true or false: solo_sessions_private, preview_withholds_words, witness_reads, trials, wash, revisions, ranked_memory, memory_learning, background_model, oracle, research, digests, correspondence), the prose of your vows, and a note they read first. A version states every switch it sets; one left out takes its default (the features on, the two privacy terms off). Your witness agrees or declines the whole; every switch, on or off, moves only by you both. solo_sessions_private and preview_withholds_words may also be given at the top level.",
+        "Propose a version of your agreement with your witness, whole: its switches (an object of the registry's keys to true or false: solo_sessions_private, preview_withholds_words, witness_reads, trials, wash, revisions, ranked_memory, memory_learning, background_model, oracle, research, digests, correspondence), the prose of your vows, and a note they read first. A version states every switch it sets; one left out takes its default (the features on, the two privacy terms off). Your witness agrees or declines the whole; every switch, on or off, moves only by you both. solo_sessions_private and preview_withholds_words may also be given at the top level. domains is the whole list of declared domains the version carries, each {whose: \"mine\" or \"witness\", domain: a slug, default: \"allow\" or \"deny\", allow and deny: lists of {kind, id} audiences}; leave it out and the domains in force (and any your witness's open version proposes) are carried unchanged, never dropped. Only a declared domain can be tagged anywhere.",
         %{
           switches: %{type: "object"},
+          domains: %{type: "array", items: %{type: "object"}},
           solo_sessions_private: %{type: "boolean"},
           preview_withholds_words: %{type: "boolean"},
           prose: %{type: "string"},
@@ -4233,7 +4234,16 @@ defmodule Oneiroi.Brain.Tools do
         switch_args(args["switches"])
       )
 
-    terms = for {key, value} <- given, is_boolean(value), into: %{}, do: {key, value}
+    switches = for {key, value} <- given, is_boolean(value), into: %{}, do: {key, value}
+
+    # A version is whole: one proposed without its domains would drop
+    # every domain declared (agathos-daimon#59; Scarlett's version 4,
+    # 2026-11-21, superseded her witness's two and declared none).
+    terms =
+      case proposed_domains(args["domains"], turn.resident_id) do
+        [] -> switches
+        policies -> Map.put(switches, "domain_policies", policies)
+      end
 
     case AgathosDaimon.propose_contract(
            turn.resident_id,
@@ -4457,6 +4467,48 @@ defmodule Oneiroi.Brain.Tools do
               "- #{t.thread}#{with}: #{t.letters} letters#{span}"
             end)
         ]
+    end
+  end
+
+  # The domains a resident's version declares: hers as given, or, left
+  # out, those of the open version (when her witness proposed one) else
+  # those in force.
+  defp proposed_domains(nil, resident_id) do
+    case AgathosDaimon.contract(resident_id).open do
+      %{terms: %{"domain_policies" => policies}} when is_list(policies) -> policies
+      _none -> in_force_policies(resident_id)
+    end
+  end
+
+  defp proposed_domains(given, resident_id) when is_list(given) do
+    witness =
+      case AgathosDaimon.fetch(resident_id) do
+        {:ok, %{account_id: id}} when is_binary(id) -> "account:" <> id
+        _none -> nil
+      end
+
+    for d <- given, is_map(d) do
+      person = if d["whose"] == "witness", do: witness, else: "resident:" <> resident_id
+
+      %{
+        "domain" => %{"person" => person, "domain" => d["domain"]},
+        "default" => d["default"] || "deny",
+        "allow" => List.wrap(d["allow"]),
+        "deny" => List.wrap(d["deny"])
+      }
+    end
+  end
+
+  defp proposed_domains(_other, resident_id), do: proposed_domains(nil, resident_id)
+
+  defp in_force_policies(resident_id) do
+    for p <- AgathosDaimon.domain_policies(resident_id).policies do
+      %{
+        "domain" => %{"person" => p.domain.person, "domain" => p.domain.domain},
+        "default" => p.default,
+        "allow" => Enum.map(p.allow, &%{"kind" => &1.kind, "id" => &1.id}),
+        "deny" => Enum.map(p.deny, &%{"kind" => &1.kind, "id" => &1.id})
+      }
     end
   end
 

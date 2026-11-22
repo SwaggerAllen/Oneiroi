@@ -776,3 +776,15 @@ Labelling at creation is what makes the rule hold across time. Ids and
 labels only, so no copy of the restricted words is made to protect them.
 Unclassified for what came before, because inferring a domain from
 prose is the guess the policy exists to avoid.
+
+## #99
+The records views are where a past moment is found; sending him to the
+chat to scroll for it, or to the chat's tools to name its domain, split
+one act across two screens. One picker keeps the declared-only rule in
+one place.
+
+## #100
+A backfill that names only declared domains still leaves the earlier
+pass's undeclared tags standing, and those carry forward until the next
+tag, withheld from every audience by no rule anyone wrote. Clearing them
+to the common room first makes the declared list the whole answer.

@@ -445,3 +445,11 @@ rule governs, the tag problem again; once domains decide who hears what,
 an undeclared one is a governance entity minted unilaterally. Declaring
 it in the agreement, with its policy, keeps every domain both parties'
 and every domain ruled.
+
+## #59
+Consent to a version is consent to what it holds. Words that showed the
+prose and the switches but not the domains let a resident agree to
+policies she never read, and a resident's proposal that dropped the
+domains it did not mention would undo the witness's declarations by
+omission. Carrying them unless stated keeps a version whole the way the
+witness's editor already does.

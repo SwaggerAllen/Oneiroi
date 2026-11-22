@@ -190,6 +190,41 @@ defmodule Oneiroi.Sunna.BackfillTest do
     assert Sunna.backfill_status(ctx.id) == nil
   end
 
+  # sunna#79, kumbukumbu#100 (the witness, 2026-11-21: "it should retag
+  # using only declared domains and we should be able to run just one kind
+  # of pass at a time").
+  test "the domains pass alone: undeclared tags return to the common room, day after day", ctx do
+    :ok = Kumbukumbu.tag_domain(ctx.id, ctx.main, "t-past", nil, "business", ctx.actor)
+    # business is no longer declared: the version in force names recovery alone.
+    Fixtures.declare_domains!(ctx.id, ctx.actor.id, ~w(recovery))
+
+    assert {:error, %{kind: :sunna_backfill_invalid}} =
+             Sunna.backfill_start(
+               ctx.id,
+               ctx.day,
+               ctx.day,
+               %{"passes" => ["portraits"]},
+               ctx.actor
+             )
+
+    yesterday = ctx.day |> Date.from_iso8601!() |> Date.add(1) |> Date.to_iso8601()
+    lists = %{"his" => ["recovery"], "passes" => ["domains"]}
+    assert {:ok, 2} = Sunna.backfill_start(ctx.id, ctx.day, yesterday, lists, ctx.actor)
+    assert %{pass: "domains", passes: ["domains"]} = Sunna.backfill_status(ctx.id)
+
+    assert %{"pass" => "domains"} = run_next(ctx.id)
+    [note] = asked()
+    assert note =~ "His domains: recovery."
+    assert note =~ "#{ctx.main} turn t-past: the common room"
+
+    {:ok, _s, messages} = Kumbukumbu.transcript({:resident, ctx.id}, ctx.main)
+    assert Enum.all?(messages, &is_nil(&1.domain))
+
+    # The next day starts at the domains pass too: no scenes, no people.
+    assert [%{"day" => ^yesterday, "pass" => "domains"}] = jobs(ctx.id)
+    :ok = Sunna.backfill_stop(ctx.id)
+  end
+
   test "a past day with journal rows and no named scene people still gets its people pass", ctx do
     _ = Sunna.open_day(ctx.id, ctx.day, ctx.brain)
 

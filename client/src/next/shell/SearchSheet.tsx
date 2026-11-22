@@ -1,7 +1,8 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { Dialog, Heading, Input, Modal, ModalOverlay, SearchField, ToggleButton, ToggleButtonGroup } from 'react-aria-components';
 import { api, type SearchResult } from '../../api/client';
+import { Retag } from '../chat/TurnTools';
 import { formatHash } from '../state/routes';
 import { activeCount, CONVERSATIONS, FILTERED, NO_FILTERS, sorts, toParams, type Filters } from './searchFilters';
 import { useShell } from '../state/store';
@@ -294,13 +295,16 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
             {searchable && results.error && <p className={css.note}>{(results.error as Error).message}</p>}
             {searchable && hits?.length === 0 && <p className={css.note}>Nothing found.</p>}
             {hits?.map((hit, i) => (
-              <a key={`${hit.type}:${i}`} className={css.hit} href={hrefOf(hit)} onClick={() => setOpen(false)}>
-                <span className={css.hitPath}>
-                  {KIND[hit.type]} · {hit.title}
-                  {hit.at ? ` · ${hit.at.slice(0, 10)}` : ''}
-                </span>
-                <span className={css.hitText}>{hit.snippet}</span>
-              </a>
+              <div key={`${hit.type}:${i}`}>
+                <a className={css.hit} href={hrefOf(hit)} onClick={() => setOpen(false)}>
+                  <span className={css.hitPath}>
+                    {KIND[hit.type]} · {hit.title}
+                    {hit.at ? ` · ${hit.at.slice(0, 10)}` : ''}
+                  </span>
+                  <span className={css.hitText}>{hit.snippet}</span>
+                </a>
+                {hit.type === 'transcript' && <HitDomain residentId={residentId} sessionKey={hit.ref.session_key} turnRef={hit.ref.turn_ref} />}
+              </div>
             ))}
           </div>
           {scope === 'words' && searchable && (page > 1 || results.data?.more) && (
@@ -317,6 +321,24 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
         </Dialog>
       </Modal>
     </ModalOverlay>
+  );
+}
+
+/** Moving a found turn to a declared domain, where it was found (kumbukumbu#99). */
+function HitDomain({ residentId, sessionKey, turnRef }: { residentId: string; sessionKey: string; turnRef: string }) {
+  const [open, setOpen] = useState(false);
+  const queries = useQueryClient();
+  const retag = async (ref: string, to: string | null) => {
+    await api.tagDomain(residentId, sessionKey, ref, to);
+    await queries.invalidateQueries({ queryKey: ['resident', residentId] });
+  };
+  return (
+    <>
+      <button type="button" className={css.hitPath} style={{ background: 'none', border: 'none', padding: '0 12px', cursor: 'pointer', textDecoration: 'underline' }} aria-expanded={open} onClick={() => setOpen(!open)}>
+        Set its domain
+      </button>
+      {open && <Retag residentId={residentId} turnRef={turnRef} domain={null} onRetag={retag} onDone={() => setOpen(false)} />}
+    </>
   );
 }
 

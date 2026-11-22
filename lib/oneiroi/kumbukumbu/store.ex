@@ -759,6 +759,29 @@ defmodule Oneiroi.Kumbukumbu.Store do
   end
 
   @doc """
+  The turns named into a domain in `[from, to)` (kumbukumbu#100, the
+  backfill's domains pass): each tag point's session, turn, whose life
+  and domain (nil for a named common room), oldest first.
+  """
+  def day_tag_points(from_at, to_at) do
+    Repo.all(
+      from(m in Message,
+        where:
+          m.domain_tagged and m.sent_at >= ^from_at and m.sent_at < ^to_at and
+            m.role != "tool",
+        group_by: [m.session_key, m.turn_ref, m.domain_person, m.domain],
+        order_by: [asc: min(m.sent_at)],
+        select: %{
+          session_key: m.session_key,
+          turn_ref: m.turn_ref,
+          person: m.domain_person,
+          domain: m.domain
+        }
+      )
+    )
+  end
+
+  @doc """
   The conversations with messages in `[from, to)` (kumbukumbu#73, the
   backfill's day): each session's key, kind and label, how many messages
   it had then, the first and last turn refs, and how many came before

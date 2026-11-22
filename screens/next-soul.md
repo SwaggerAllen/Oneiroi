@@ -142,7 +142,9 @@ turn.
     refused while a version is open; once proposed, the form gives way
     to the version's number and that the one in force stays until she
     answers;
-  - the versions so far, each with its note, answer and prose;
+  - the versions so far, each with its note, answer, what it switches
+    on, the domains it declares in words ("Domains: none declared."
+    when none; agathos-daimon#59), and its prose;
   - who looks after her: the export wall (lock or reveal, with a note),
     handing over to an account by email, and withdrawing a handover,
     each with a note.

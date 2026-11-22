@@ -1,10 +1,13 @@
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useState } from 'react';
 import { Dialog, Heading, Modal, ModalOverlay } from 'react-aria-components';
 import { api } from '../../api/client';
 import { useWide } from '../shell/useWide';
+import { formatHash } from '../state/routes';
 import { documentPath, type Citation } from './cite';
 import { Markdown } from './Markdown';
 import * as css from './peek.css';
+import { Retag } from './TurnTools';
 
 export interface PeekProps {
   residentId: string;
@@ -50,8 +53,13 @@ function PeekBody({ residentId, citation, onClose, onOpenFully, onCite }: PeekPr
   });
   const bookmark = useQuery({
     queryKey: ['resident', residentId, 'memory', 'bookmark', citation.ref],
-    // The body is {bookmark, span}; the span is dropped (its words may be a private session's).
-    queryFn: () => api.bookmarkDetail(residentId, citation.ref).then((r) => r.bookmark),
+    // The body is {bookmark, span}; of the span only the anchor turn's
+    // domain is kept (its words may be a private session's).
+    queryFn: () =>
+      api.bookmarkDetail(residentId, citation.ref).then((r) => ({
+        ...r.bookmark,
+        domain: r.span.find((m) => m.turn_ref === r.bookmark.anchor_ref && m.domain)?.domain?.slug ?? null,
+      })),
     enabled: citation.kind === 'bookmark',
   });
 
@@ -87,6 +95,7 @@ function PeekBody({ residentId, citation, onClose, onOpenFully, onCite }: PeekPr
               <p className={css.meta}>
                 {new Date(bookmark.data.anchor_at).toLocaleString()} · {bookmark.data.tags.join(' · ')}
               </p>
+              {!bookmark.data.private && <TurnDomain residentId={residentId} sessionKey={bookmark.data.session_key} turnRef={bookmark.data.anchor_ref} domain={bookmark.data.domain} />}
             </>
           ) : (
             <p className={css.note}>This bookmark couldn't be read here.</p>
@@ -96,10 +105,39 @@ function PeekBody({ residentId, citation, onClose, onOpenFully, onCite }: PeekPr
         )}
       </div>
       <div className={css.actions}>
-        <button type="button" className={css.primary} onClick={() => onOpenFully(citation)}>
-          Open in Records
-        </button>
+        {citation.kind === 'bookmark' ? (
+          // The moment itself, read in its conversation from the bookmark's
+          // turn, with Read on past it (kumbukumbu#96, #99).
+          bookmark.data &&
+          !bookmark.data.private && (
+            <a className={css.primary} style={{ textDecoration: 'none', textAlign: 'center' }} href={formatHash({ tab: 'chat', path: `turn/${bookmark.data.session_key}/${bookmark.data.anchor_ref}` })} onClick={onClose}>
+              Read it in the conversation ›
+            </a>
+          )
+        ) : (
+          <button type="button" className={css.primary} onClick={() => onOpenFully(citation)}>
+            Open in Records
+          </button>
+        )}
       </div>
+    </>
+  );
+}
+
+/** The bookmarked turn's domain, and moving it (kumbukumbu#99): the same picker as the chat's. */
+function TurnDomain({ residentId, sessionKey, turnRef, domain }: { residentId: string; sessionKey: string; turnRef: string; domain: string | null }) {
+  const [open, setOpen] = useState(false);
+  const queries = useQueryClient();
+  const retag = async (ref: string, to: string | null) => {
+    await api.tagDomain(residentId, sessionKey, ref, to);
+    await queries.invalidateQueries({ queryKey: ['resident', residentId] });
+  };
+  return (
+    <>
+      <button type="button" className={css.meta} style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', textDecoration: 'underline' }} aria-expanded={open} onClick={() => setOpen(!open)}>
+        Domain: {domain ?? 'common room'}
+      </button>
+      {open && <Retag residentId={residentId} turnRef={turnRef} domain={domain} onRetag={retag} onDone={() => setOpen(false)} />}
     </>
   );
 }

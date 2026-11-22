@@ -375,8 +375,37 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
     solo <>
       " " <>
       preview_words(Map.get(terms || %{}, "preview_withholds_words")) <>
-      features_words(terms) <> common_room_words(policies_of(terms || %{}))
+      features_words(terms) <>
+      domains_words(policies_of(terms || %{})) <>
+      common_room_words(policies_of(terms || %{}))
   end
+
+  # Every domain a version declares, in the words she reads it by
+  # (agathos-daimon#59; 2026-11-21: she agreed to version 3 reading its
+  # prose alone, its two domains unseen, and took it for a renewal).
+  defp domains_words(policies) do
+    case Enum.reject(policies, &(&1.domain.person == "*")) do
+      [] ->
+        " Domains declared: none."
+
+      list ->
+        " Domains declared (#{length(list)}): " <>
+          Enum.map_join(list, "; ", &domain_words/1) <> "."
+    end
+  end
+
+  defp domain_words(p) do
+    reach =
+      if p.default == "allow",
+        do: "reaches any audience by default",
+        else: "reaches no audience past you two by default"
+
+    "#{whose(p.domain.person)} #{p.domain.domain}, #{reach}" <> grants_words(p)
+  end
+
+  defp whose("resident:" <> _id), do: "yours:"
+  defp whose("account:" <> _id), do: "your witness's:"
+  defp whose(_other), do: "another's:"
 
   # The common room in words (kumbukumbu#97; the witness, 2026-11-21: "if
   # common room doesn't mean literally everyone then it needs to be
