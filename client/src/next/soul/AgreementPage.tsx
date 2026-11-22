@@ -129,7 +129,7 @@ function Propose({ a }: { a: Agreement }) {
           <p className={css.note}>
             {changed.length ? `It changes: ${changed.map((s) => `${s.label} ${draft[s.key] ? 'on' : 'off'}`).join(', ')}.` : 'As it stands, it changes no switch.'}
           </p>
-          {a.persons && <PolicyEditor policies={policies} persons={a.persons} name={name} onChange={setPolicies} />}
+          {a.persons && <PolicyEditor policies={policies} persons={a.persons} name={name} households={a.households ?? []} onChange={setPolicies} />}
           <textarea className={css.editor} rows={8} value={prose} onChange={(e) => setProse(e.target.value)} aria-label="Your vows, in prose" placeholder="Your vows, in prose" />
           <textarea className={css.noteBox} rows={2} value={note} onChange={(e) => setNote(e.target.value)} placeholder={`Why, for ${name} to read`} aria-label="Note" />
           <div className={css.buttons}>
@@ -157,7 +157,7 @@ const isCommonRoom = (p: DomainPolicy) => p.domain.person === '*' && p.domain.do
 const COMMON_ROOM_DEFAULT =
   'The common room (what no domain names): no policy written, so it reaches every audience but the public ones (publication, processor).';
 
-function PolicyEditor({ policies, persons, name, onChange }: { policies: DomainPolicy[]; persons: Persons; name: string; onChange: (p: DomainPolicy[]) => void }) {
+function PolicyEditor({ policies, persons, name, households, onChange }: { policies: DomainPolicy[]; persons: Persons; name: string; households: Household[]; onChange: (p: DomainPolicy[]) => void }) {
   const [who, setWho] = useState<Who>('witness');
   const [slug, setSlug] = useState('');
   const [fallback, setFallback] = useState<'deny' | 'allow'>('deny');
@@ -187,7 +187,7 @@ function PolicyEditor({ policies, persons, name, onChange }: { policies: DomainP
       {policies.map((p) => (
         <div key={`${p.domain.person}/${p.domain.domain}`} className={css.formRow}>
           <span className={css.plain}>{policyWords(p, persons, name)}</span>
-          <GrantAdder onAdd={(side, grant) => replace(p, { ...p, [side]: [...p[side], grant] })} />
+          <GrantAdder households={households} onAdd={(side, grant) => replace(p, { ...p, [side]: [...p[side], grant] })} />
           {[...p.allow.map((g) => ['allow', g] as const), ...p.deny.map((g) => ['deny', g] as const)].map(([side, g]) => (
             <button
               key={`${side}:${g.kind}:${g.id}`}
@@ -230,25 +230,41 @@ function PolicyEditor({ policies, persons, name, onChange }: { policies: DomainP
 }
 
 // One grant or denial for a declared domain: an audience kind and its id
-// ("*" for every one of the kind).
-function GrantAdder({ onAdd }: { onAdd: (side: 'allow' | 'deny', grant: { kind: string; id: string }) => void }) {
+// ("*" for every one of the kind). A household is picked by its name,
+// never typed (kumbukumbu#102; the witness, 2026-11-21: "I had no way of
+// knowing the house id"): the grant holds its slug, or its id while the
+// house is unnamed, and either matches at delivery.
+type Household = { id: string; slug: string | null };
+function GrantAdder({ households, onAdd }: { households: Household[]; onAdd: (side: 'allow' | 'deny', grant: { kind: string; id: string }) => void }) {
   const [side, setSide] = useState<'allow' | 'deny'>('allow');
   const [kind, setKind] = useState<string>('household');
   const [gid, setGid] = useState('*');
+  const housePick = kind === 'household';
   return (
     <>
       <select className={css.select} value={side} onChange={(e) => setSide(e.target.value as 'allow' | 'deny')} aria-label="Allow or deny">
         <option value="allow">allow</option>
         <option value="deny">deny</option>
       </select>
-      <select className={css.select} value={kind} onChange={(e) => setKind(e.target.value)} aria-label="Audience kind">
+      <select className={css.select} value={kind} onChange={(e) => { setKind(e.target.value); setGid("*"); }} aria-label="Audience kind">
         {KINDS.map((k) => (
           <option key={k} value={k}>
             {k}
           </option>
         ))}
       </select>
-      <input className={css.input} value={gid} onChange={(e) => setGid(e.target.value)} aria-label="Audience id, * for any" />
+      {housePick ? (
+        <select className={css.select} value={gid} onChange={(e) => setGid(e.target.value)} aria-label="Which household">
+          <option value="*">any household</option>
+          {households.map((h) => (
+            <option key={h.id} value={h.slug ?? h.id}>
+              {h.slug ?? 'your household (unnamed)'}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input className={css.input} value={gid} onChange={(e) => setGid(e.target.value)} aria-label="Audience id, * for any" />
+      )}
       <button type="button" className={css.secondary} disabled={!gid.trim()} onClick={() => onAdd(side, { kind, id: gid.trim() })}>
         Add
       </button>

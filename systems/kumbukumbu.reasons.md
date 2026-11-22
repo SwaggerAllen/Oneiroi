@@ -801,3 +801,16 @@ Citations are the sharper edge: a turn's context holds everything in
 reach, while what a document cites is what it was built from. The graph
 is closed once over the range because citations point forward in time
 as often as back.
+
+## #102
+The agreement screen takes the id a person would type, and a household
+is known to its people by its name; the delivery path knows it by the
+key the platform minted. Matching both keeps the screen honest without
+asking anyone to type a UUID, and a refusal that shows the grants it
+checked lets the reader see a mismatch instead of inferring one.
+
+## #103
+"Your words were refused" and "the judge could not answer" called for
+different acts, and read alike, the second sent the sender to
+reclassify what was never at fault. A received letter is part of every
+reply's context; left underived, one old letter withholds them all.

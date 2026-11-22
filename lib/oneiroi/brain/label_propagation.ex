@@ -163,11 +163,12 @@ defmodule Oneiroi.Brain.LabelPropagation do
     }
 
   defp letters(resident_id, from, to) do
+    # A sibling's arriving copy is derived too (Scarlett's report #26: a
+    # received letter left unclassified taints every reply in its
+    # context): what it kept, the sender's labels, read against the
+    # receiver's agreement, a domain hers does not declare the common room.
     for l <- Kumbukumbu.letters(resident_id),
         within?(l.sent_at, from, to),
-        # A sibling's arriving copy carries the sender's labels, naming
-        # the sender's dyad; it is not derived here.
-        not arriving?(l),
         do: letter(l)
   end
 
@@ -183,9 +184,6 @@ defmodule Oneiroi.Brain.LabelPropagation do
       tool: "letter_send",
       needle: needle(l.text)
     }
-
-  defp arriving?(%{link: %{} = link, from_session: nil}), do: link != %{}
-  defp arriving?(_letter), do: false
 
   defp self_letters(resident_id, from, to) do
     for l <- AgathosDaimon.self_letters(resident_id),

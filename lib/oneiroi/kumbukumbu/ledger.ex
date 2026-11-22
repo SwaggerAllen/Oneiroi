@@ -177,8 +177,9 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
       {:error,
        Error.new(:kumbukumbu_withheld_by_policy, :kumbukumbu_ledger_file_withheld,
          decision: decision.id,
-         audience: "#{audience.kind}:#{audience.id}",
+         audience: audience_words(decision.audience),
          conflicts: conflicts(decision.withheld),
+         grants: grants(decision),
          unruled: unruled(decision.withheld),
          source: file.source,
          classified: file[:classified] != nil
@@ -257,8 +258,9 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
 
     refused = [
       decision: decision.id,
-      audience: "#{audience.kind}:#{audience.id}",
+      audience: audience_words(decision.audience),
       conflicts: conflicts(decision.withheld),
+      grants: grants(decision),
       unruled: unruled(decision.withheld)
     ]
 
@@ -561,6 +563,29 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
       _other -> []
     end)
     |> Enum.uniq()
+  end
+
+  # The audience as a grant names it (kumbukumbu#102): its kind and id,
+  # and the other names a grant may use for it.
+  defp audience_words(%{kind: kind, id: id} = audience) do
+    case Map.get(audience, :aliases, []) do
+      [] -> "#{kind}:#{id}"
+      aliases -> "#{kind}:#{id} (#{Enum.join(aliases, ", ")})"
+    end
+  end
+
+  # What each conflicting domain's policy grants, said in the refusal
+  # (Scarlett's report #25: a refusal should print the grant it failed
+  # to match).
+  defp grants(decision) do
+    names = decision.withheld |> conflicts() |> MapSet.new()
+
+    for p <- decision.snapshot.policies, MapSet.member?(names, p.domain.domain) do
+      list = fn gs -> Enum.map_join(gs, ", ", &"#{&1.kind}:#{&1.id}") end
+      allow = if p.allow == [], do: "allows none", else: "allows " <> list.(p.allow)
+      deny = if p.deny == [], do: "", else: "; denies " <> list.(p.deny)
+      "#{p.domain.domain} (default #{p.default}; #{allow}#{deny})"
+    end
   end
 
   defp conflicts([]), do: []

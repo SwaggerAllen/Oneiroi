@@ -24,6 +24,9 @@ defmodule Oneiroi.Kumbukumbu do
       # citation survives a rebuild (agathos-daimon#4); and the contract
       # text, the limits the madeleine keeps clear of (P2, P10).
       Oneiroi.AgathosDaimon,
+      # A household audience is granted by its slug and resolved by its id
+      # (kumbukumbu#102): the slug comes from the house's record.
+      Oneiroi.Gaia,
       # The madeleine's vectors come from the provider port, metered under
       # the embeddings purpose like the library's (spec §6.3, P10).
       Oneiroi.Nisaba,

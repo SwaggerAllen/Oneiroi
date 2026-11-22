@@ -15,6 +15,13 @@ defmodule OneiroiWeb.AgreementController do
     responses: [ok: {"the agreement", "application/json", %Schema{type: :object}}]
   )
 
+  defp households(resident_id) do
+    case Gaia.resident_household(resident_id) do
+      %{id: household} -> [%{id: household, slug: Gaia.household_slug(household)}]
+      _none -> []
+    end
+  end
+
   def show(conn, %{"id" => id}) do
     with :ok <- witness_or_proposed(conn, id), {:ok, r} <- AgathosDaimon.fetch(id) do
       contract = AgathosDaimon.contract(id)
@@ -37,7 +44,11 @@ defmodule OneiroiWeb.AgreementController do
         # #53, #57): the only domains a tag, classification or annotation
         # names, and every dropdown's options.
         domain_policies: AgathosDaimon.domain_policies(id).policies,
-        domains: AgathosDaimon.declared_domains(id)
+        domains: AgathosDaimon.declared_domains(id),
+        # The household a grant can name, by its name (kumbukumbu#102; the
+        # witness, 2026-11-21: "I had no way of knowing the house id"):
+        # the grant picker offers it, writing its slug when it has one.
+        households: households(id)
       })
     else
       :error ->
