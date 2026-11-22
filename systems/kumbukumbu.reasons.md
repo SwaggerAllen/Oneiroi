@@ -797,3 +797,7 @@ for an undeclared domain means withheld by no rule anyone wrote. The
 tool row is the one deterministic link an older record has to its
 turn: it names the tool and its arguments, never a guess from prose.
 A new decision beside the write keeps the history the write recorded.
+Citations are the sharper edge: a turn's context holds everything in
+reach, while what a document cites is what it was built from. The graph
+is closed once over the range because citations point forward in time
+as often as back.

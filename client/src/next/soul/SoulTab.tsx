@@ -236,7 +236,7 @@ function VersionBody({ v }: { v: ContractVersion }) {
 function OpenVersion({ v, name, inForce }: { v: ContractVersion; name: string; inForce: ContractVersion | null }) {
   const { id } = useSubject();
   const queries = useQueryClient();
-  const [mode, setMode] = useState<'read' | 'decline' | 'amend'>('read');
+  const [mode, setMode] = useState<'read' | 'agree' | 'decline' | 'amend'>('read');
   const [note, setNote] = useState('');
   const [prose, setProse] = useState(v.prose);
   const [said, setSaid] = useState<string | null>(null);
@@ -288,7 +288,7 @@ function OpenVersion({ v, name, inForce }: { v: ContractVersion; name: string; i
               className={css.noteBox}
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder={mode === 'decline' ? 'Why, for her to read' : 'What you changed, and why'}
+              placeholder={mode === 'decline' ? 'Why, for her to read' : mode === 'agree' ? 'Your note, for her to read' : 'What you changed, and why'}
               aria-label="Note"
               rows={2}
             />
@@ -296,7 +296,9 @@ function OpenVersion({ v, name, inForce }: { v: ContractVersion; name: string; i
           <div className={css.buttons}>
             {mode === 'read' && (
               <>
-                <button type="button" className={css.primary} disabled={decide.isPending} onClick={() => decide.mutate('agree')}>
+                {/* An answer carries a note (every decision event does): Agree
+                    asks for one, as Decline does, rather than sending none. */}
+                <button type="button" className={css.primary} onClick={() => setMode('agree')}>
                   Agree
                 </button>
                 <button type="button" className={css.secondary} onClick={() => setMode('amend')}>
@@ -306,6 +308,11 @@ function OpenVersion({ v, name, inForce }: { v: ContractVersion; name: string; i
                   Decline
                 </button>
               </>
+            )}
+            {mode === 'agree' && (
+              <button type="button" className={css.primary} disabled={!note.trim() || decide.isPending} onClick={() => decide.mutate('agree')}>
+                Agree with this note
+              </button>
             )}
             {mode === 'decline' && (
               <button type="button" className={css.secondary} disabled={!note.trim() || decide.isPending} onClick={() => decide.mutate('decline')}>

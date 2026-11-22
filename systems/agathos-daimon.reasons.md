@@ -453,3 +453,9 @@ policies she never read, and a resident's proposal that dropped the
 domains it did not mention would undo the witness's declarations by
 omission. Carrying them unless stated keeps a version whole the way the
 witness's editor already does.
+
+## #60
+A decision event carries its note, so an answer without one could never
+be recorded; refused by the bus it read as a fault in the platform, not
+as a missing note. Saying so by name, and asking for it on the screen,
+puts the requirement where the person answering can meet it.

@@ -391,6 +391,8 @@ defmodule Oneiroi.AgathosDaimon do
        remedy: "only an active resident pauses; read the resident"},
       {:agathos_daimon_not_paused, "the resident is not paused, so there is nothing to wake",
        remedy: "read the resident"},
+      {:agathos_daimon_note_required, "an answer to a version carries a note, and none was given",
+       remedy: "write a note for the other party to read with your answer"},
       {:agathos_daimon_dispatch_failed,
        "the command was not recorded: the command bus refused it or failed before the resident decided",
        remedy:

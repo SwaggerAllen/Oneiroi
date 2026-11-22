@@ -171,8 +171,9 @@ clipboard, or "Couldn't copy; select it" when the browser refuses
   backfill"; otherwise what it does in words and a form: from and to
   (YYYY-MM-DD, to before today), the passes to run, ticked (all four by
   default; the domains pass alone re-names days without scenes or
-  portraits, sunna#79; the labels pass carries the day's domains to
-  what was written from it, kumbukumbu#101), your domains and hers picked from the
+  portraits, sunna#79; the labels pass carries the domains to what
+  was written from the conversations and what it cites, once over the
+  range at its end, kumbukumbu#101), your domains and hers picked from the
   domains the agreement declares for each life (kumbukumbu#90; "None
   declared in the agreement yet" when there are none), "Start the
   backfill".

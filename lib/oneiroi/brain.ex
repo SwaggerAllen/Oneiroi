@@ -504,9 +504,9 @@ defmodule Oneiroi.Brain do
   )
 
   @impl Oneiroi.Sunna.Wake
-  @doc "The backfill's labels pass for a past day (kumbukumbu#101): its records labelled again from what they came from, deterministically; `{:ok, changed}`."
-  defexport(backfill_labels(resident_id, day),
-    do: LabelPropagation.run(resident_id, day)
+  @doc "The backfill's labels pass over a range of past days (kumbukumbu#101): its records labelled again from their turns and their citations, deterministically; `{:ok, changed}`."
+  defexport(backfill_labels(resident_id, from_day, to_day),
+    do: LabelPropagation.run(resident_id, from_day, to_day)
   )
 
   @impl Oneiroi.Sunna.Wake

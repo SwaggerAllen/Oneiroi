@@ -47,6 +47,16 @@ defmodule Oneiroi.AgathosDaimon.AgreementTest do
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_no_such_version}} =
              AgathosDaimon.agree_contract(id, 9, "yes", ctx.actor)
 
+    # An answer carries its note, refused by name without one (2026-11-21:
+    # the witness's Agree on her proposal sent none).
+    for note <- [nil, "", "  "] do
+      assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_note_required}} =
+               AgathosDaimon.agree_contract(id, 1, note, ctx.actor)
+
+      assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_note_required}} =
+               AgathosDaimon.decline_contract(id, 1, note, ctx.actor)
+    end
+
     other = Actor.new(:witness, Fixtures.account!().id)
 
     assert {:error, %AgathosDaimon.Error{kind: :agathos_daimon_not_a_party}} =

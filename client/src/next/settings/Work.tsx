@@ -214,7 +214,7 @@ function Backfill() {
       <p className={css.text}>
         {s
           ? `Running: ${PASS[s.pass]} for ${s.day}${s.turn > 1 ? ` (turn ${s.turn})` : ''}, through ${s.to}${s.passes && s.passes.length < 4 ? `; passes: ${s.passes.join(', ')}` : ''}.`
-          : `For each past day in a range, oldest first, the passes you tick: ${name} writes its scenes where they are missing; names the domains of every conversation that day, from the declared domains you pick (tags of undeclared ones go back to the common room first); runs the people pass, whose seeds become portraits; and carries the day's domains to what was written from those conversations (files, journal rows, letters), with no model. A day at a time, each pass a housekeeping conversation of hers, billed to chat.`}
+          : `For each past day in a range, oldest first, the passes you tick: ${name} writes its scenes where they are missing; names the domains of every conversation that day, from the declared domains you pick (tags of undeclared ones go back to the common room first); and runs the people pass, whose seeds become portraits; a day at a time, each a housekeeping conversation of hers, billed to chat. Then, once over the whole range and with no model, the labels pass carries those domains to what was written from the conversations (files, journal rows, letters) and down every citation.`}
       </p>
       {s ? (
         <div className={css.row}>

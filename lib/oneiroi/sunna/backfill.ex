@@ -73,10 +73,14 @@ defmodule Oneiroi.Sunna.Backfill do
          :ok <- declared(resident_id, :resident, hers) do
       stop(resident_id)
 
+      # The labels pass alone runs once, on the last day (kumbukumbu#101).
+      start = if passes == ["labels"], do: last, else: first
+
       {:ok, _job} =
         enqueue(%{
           "resident_id" => resident_id,
-          "day" => Date.to_iso8601(first),
+          "from" => Date.to_iso8601(first),
+          "day" => Date.to_iso8601(start),
           "to" => Date.to_iso8601(last),
           "pass" => hd(passes),
           "passes" => passes,
@@ -142,12 +146,21 @@ defmodule Oneiroi.Sunna.Backfill do
       )
 
   @doc false
-  def run(%{"resident_id" => id, "day" => day, "pass" => "labels"} = args) do
+  # The labels pass closes the citation graph once, over the whole range,
+  # on its last day (kumbukumbu#101): a record's citations reach records
+  # written after it, so day by day it would read them before they were
+  # named. Earlier days pass it by.
+  def run(%{"resident_id" => id, "day" => day, "to" => day, "pass" => "labels"} = args) do
     port = Config.fetch!(:sunna, :wake)
 
-    if Code.ensure_loaded?(port) and function_exported?(port, :backfill_labels, 2),
-      do: port.backfill_labels(id, day)
+    if Code.ensure_loaded?(port) and function_exported?(port, :backfill_labels, 3),
+      do: port.backfill_labels(id, args["from"] || day, day)
 
+    next(args)
+    :ok
+  end
+
+  def run(%{"pass" => "labels"} = args) do
     next(args)
     :ok
   end
