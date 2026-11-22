@@ -12,8 +12,10 @@ defmodule Oneiroi.Brain.LabelPropagationTest do
   use Oneiroi.DataCase, async: false
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Brain.LabelPropagation
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat
@@ -85,7 +87,7 @@ defmodule Oneiroi.Brain.LabelPropagationTest do
       )
 
     # Its identity files, written by the witness, are derived too: the common room.
-    assert {:ok, changed} = LabelPropagation.run(ctx.id, ctx.day)
+    assert {:ok, changed} = LabelPropagation.run(ctx.id, ctx.day, ctx.day)
     assert changed >= 2
 
     [row] = Seshat.journal_day(ctx.id, ctx.day).entries
@@ -97,7 +99,40 @@ defmodule Oneiroi.Brain.LabelPropagationTest do
              Kumbukumbu.derived_labels(ctx.id, "letter", [n])
 
     # Run again: nothing changed, nothing recorded.
-    assert {:ok, 0} = LabelPropagation.run(ctx.id, ctx.day)
+    assert {:ok, 0} = LabelPropagation.run(ctx.id, ctx.day, ctx.day)
+  end
+
+  # The witness, 2026-11-21: "the propagation should be via citations as
+  # well". A letter citing a document carries what the document came
+  # from: here the recovery turn that wrote it, two links down.
+  test "a citation carries its target's domains down the chain", ctx do
+    {:ok, %{slug: slug}} = AgathosDaimon.fetch(ctx.id)
+    turn!(ctx, "t-doc", "About the program.", "journal_read({}) -> nothing")
+    :ok = Kumbukumbu.tag_domain(ctx.id, ctx.key, "t-doc", ctx.his, "recovery", ctx.andrew)
+
+    Tools.run(
+      "document_write",
+      Jason.encode!(%{path: "design/program.md", content: "# The program\n\nNotes.\n"}),
+      %{resident_id: ctx.id, session_key: ctx.key, turn_ref: "t-doc", resident: ctx.brain}
+    )
+
+    # The letter's own turn is the common room; it cites the document.
+    {:ok, %{number: n}} =
+      Kumbukumbu.send_letter(
+        ctx.id,
+        ctx.key,
+        %{
+          to: "house",
+          text: "See #{slug}:design/program for the plan.",
+          labels: [%{"kind" => "common_room"}]
+        },
+        ctx.brain
+      )
+
+    assert {:ok, _} = LabelPropagation.run(ctx.id, ctx.day, ctx.day)
+    letter = to_string(n)
+    assert %{^letter => labels} = Kumbukumbu.derived_labels(ctx.id, "letter", [n])
+    assert %{"person" => ctx.his, "domain" => "recovery"} in labels
   end
 
   test "a retag reaches a row that kept its turn", ctx do
@@ -113,7 +148,7 @@ defmodule Oneiroi.Brain.LabelPropagationTest do
 
     # The turn moves to the common room; the row follows.
     :ok = Kumbukumbu.tag_domain(ctx.id, ctx.key, "t-new", nil, nil, ctx.andrew)
-    assert {:ok, _} = LabelPropagation.run(ctx.id, ctx.day)
+    assert {:ok, _} = LabelPropagation.run(ctx.id, ctx.day, ctx.day)
 
     [row] = Seshat.journal_day(ctx.id, ctx.day).entries
     # Its kept recovery stands beside the turn's common room: a kept

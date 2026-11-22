@@ -124,6 +124,14 @@ defmodule Oneiroi.Ethos.Seeds do
     end
   end
 
+  @doc "What a seed cites: `%{kind, id}` per citation."
+  def targets(resident_id, number) do
+    resident_id
+    |> Scope.resident(fn -> Store.citations("seed") end)
+    |> Enum.filter(&(&1.number == number))
+    |> Enum.map(&%{kind: &1.target_kind, id: &1.target_id})
+  end
+
   @doc "Every seed with its citation count and the distinct days it was cited, by number."
   @spec seeds(String.t()) :: [Store.Seed.t()]
   def seeds(resident_id) do

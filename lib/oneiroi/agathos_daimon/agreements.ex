@@ -41,6 +41,20 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
 
   @doc "The other party agrees to the open version, with a note; the version is in force."
   def agree_contract(resident_id, version, note, %Actor{} = actor) do
+    with :ok <- noted(note, :agathos_daimon_agreements_agree_unnoted),
+         do: dispatch_agree(resident_id, version, note, actor)
+  end
+
+  # An answer is a decision and carries its note; refused here, by name,
+  # rather than by the bus as a command missing a field (2026-11-21: the
+  # witness's Agree sent none, and read "the command bus refused it").
+  defp noted(note, site) do
+    if is_binary(note) and String.trim(note) != "",
+      do: :ok,
+      else: {:error, Error.new(:agathos_daimon_note_required, site)}
+  end
+
+  defp dispatch_agree(resident_id, version, note, actor) do
     command = %Commands.AgreeContract{
       actor: actor,
       at: Clock.now(),
@@ -67,6 +81,11 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
 
   @doc "The other party declines the open version, with a note."
   def decline_contract(resident_id, version, note, %Actor{} = actor) do
+    with :ok <- noted(note, :agathos_daimon_agreements_decline_unnoted),
+         do: dispatch_decline(resident_id, version, note, actor)
+  end
+
+  defp dispatch_decline(resident_id, version, note, actor) do
     command = %Commands.DeclineContract{
       actor: actor,
       at: Clock.now(),
