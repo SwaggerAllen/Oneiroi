@@ -1519,6 +1519,15 @@ defmodule Oneiroi.Seshat do
       )
   )
 
+  @doc "The written versions and journal rows in `[from, to)`, as kept (kumbukumbu#101's derivation)."
+  @spec written_between(String.t(), DateTime.t(), DateTime.t()) :: %{
+          versions: [map()],
+          journal: [map()]
+        }
+  defexport(written_between(resident_id, from_at, to_at),
+    do: Journals.written_between(resident_id, from_at, to_at)
+  )
+
   @doc "The journal entries written since an instant, oldest first, for the corpus-shape report."
   @spec journal_entries_since(String.t(), DateTime.t()) :: [Oneiroi.Seshat.Store.JournalEntry.t()]
   defexport(journal_entries_since(resident_id, since),

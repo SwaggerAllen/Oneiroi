@@ -78,7 +78,15 @@ defmodule Oneiroi.Sunna.Wake do
               opts :: keyword()
             ) :: {:ok, map()} | {:error, term()}
 
+  @doc """
+  The backfill's labels pass for a past day (kumbukumbu#101): no model,
+  each record of the day labelled again from what it came from.
+  """
+  @callback backfill_labels(resident_id :: String.t(), day :: String.t()) ::
+              {:ok, non_neg_integer()} | {:error, term()}
+
   @optional_callbacks wake_for: 5,
+                      backfill_labels: 2,
                       checkin_part: 2,
                       digest_pending?: 1,
                       night_pass_note: 4,

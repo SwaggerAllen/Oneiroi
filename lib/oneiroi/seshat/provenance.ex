@@ -62,11 +62,25 @@ defmodule Oneiroi.Seshat.Provenance do
     end
   end
 
-  defp written(resident_id, path, hash),
-    do:
-      resident_id
-      |> Scope.resident(fn -> Store.versions(path) end)
-      |> Enum.find(&(&1.act == "written" and &1.hash == hash))
+  # The written version, its ledger the derived labels' where they were
+  # derived again (kumbukumbu#101): the birth a delivery decides on.
+  defp written(resident_id, path, hash) do
+    resident_id
+    |> Scope.resident(fn -> Store.versions(path) end)
+    |> Enum.find(&(&1.act == "written" and &1.hash == hash))
+    |> derived(resident_id)
+  end
+
+  defp derived(nil, _resident_id), do: nil
+
+  defp derived(version, resident_id) do
+    id = "#{version.path}@#{version.hash}"
+
+    case Oneiroi.Kumbukumbu.derived_labels(resident_id, "file", [id]) do
+      %{^id => labels} -> %{version | ledger: Oneiroi.Kumbukumbu.labels_ledger(labels)}
+      _none -> version
+    end
+  end
 
   defp absent(path),
     do: {:error, Error.new(:seshat_no_such_document, :seshat_provenance_absent, path: path)}

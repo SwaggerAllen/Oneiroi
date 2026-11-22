@@ -1044,7 +1044,15 @@ defmodule Oneiroi.Brain.Turn do
   defp read_self_letters(_resident_id, _turn_ref, none) when none in [nil, []], do: :ok
 
   defp read_self_letters(resident_id, turn_ref, _told) do
-    for l <- Oneiroi.AgathosDaimon.self_letters(resident_id),
+    letters =
+      Kumbukumbu.with_derived(
+        resident_id,
+        "self_letter",
+        Oneiroi.AgathosDaimon.self_letters(resident_id),
+        & &1.number
+      )
+
+    for l <- letters,
         is_nil(l.delivered_at),
         do:
           Kumbukumbu.note_read_labelled(

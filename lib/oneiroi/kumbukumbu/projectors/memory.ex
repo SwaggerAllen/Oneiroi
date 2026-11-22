@@ -6,7 +6,16 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
 
   alias Ecto.Multi
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
-  alias Oneiroi.Kumbukumbu.Store.{Bookmark, BookmarkProposal, HouseLetter, Revision, Tag, Tagging}
+
+  alias Oneiroi.Kumbukumbu.Store.{
+    Bookmark,
+    BookmarkProposal,
+    DerivedLabel,
+    HouseLetter,
+    Revision,
+    Tag,
+    Tagging
+  }
 
   fold(%Events.BookmarkAdded{} = e, _metadata, fn multi ->
     multi
@@ -137,6 +146,26 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
       },
       on_conflict: :nothing,
       conflict_target: [:resident_id, :number]
+    )
+  end)
+
+  # A derivation replaces the record's derived row, never the copy its
+  # own event kept (kumbukumbu#101).
+  fold(%Events.LabelsDerived{} = e, _metadata, fn multi ->
+    rows =
+      for r <- e.records,
+          do: %{
+            resident_id: e.id,
+            kind: r["kind"] || r[:kind],
+            record_id: to_string(r["record_id"] || r[:record_id]),
+            labels: r["labels"] || r[:labels] || [],
+            edges: r["edges"] || r[:edges] || [],
+            derived_at: e.at
+          }
+
+    Multi.insert_all(multi, :derived_labels, DerivedLabel, rows,
+      on_conflict: {:replace, [:labels, :edges, :derived_at]},
+      conflict_target: [:resident_id, :kind, :record_id]
     )
   end)
 
