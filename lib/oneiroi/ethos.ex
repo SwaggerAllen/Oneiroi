@@ -353,6 +353,10 @@ defmodule Oneiroi.Ethos do
   @spec seeds(String.t()) :: [Oneiroi.Ethos.Store.Seed.t()]
   defexport(seeds(resident_id), do: Seeds.seeds(resident_id))
 
+  @doc "What a seed cites (kumbukumbu#101's read): `%{kind, id}`, a bookmark, a turn or a journal row."
+  @spec seed_targets(String.t(), integer()) :: [map()]
+  defexport(seed_targets(resident_id, number), do: Seeds.targets(resident_id, number))
+
   @doc "Whether a seed has graduated toward the portrait at `path` (ethos#21): the one thing that lets her write it."
   @spec portrait_earned?(String.t(), String.t()) :: boolean()
   defexport(portrait_earned?(resident_id, path),

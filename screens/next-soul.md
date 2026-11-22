@@ -16,7 +16,8 @@ turn.
   - Enforced terms are tagged, the prose is rendered, and the proposer's
     note is named as theirs.
 - **When a version of hers waits on the witness:**
-  - Agree.
+  - Agree: only with a note, for her to read ("Agree with this note"; it
+    sent none before, which the server refused, agathos-daimon#60).
   - Decline: only with a note, for her to read.
   - Amend: edits the prose and proposes it as a new whole version, with
     a note. There is no separate amend endpoint; an amendment is a new

@@ -180,6 +180,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Journals
   alias Oneiroi.Seshat.Kinds
   alias Oneiroi.Seshat.Leases
+  alias Oneiroi.Seshat.Lineage
   alias Oneiroi.Seshat.Oracles
   alias Oneiroi.Seshat.Pastes
   alias Oneiroi.Seshat.PieceReviews
@@ -1518,6 +1519,34 @@ defmodule Oneiroi.Seshat do
         provenance: provenance
       )
   )
+
+  @doc "What the labels pass reads of a document (kumbukumbu#101): its written versions, newest first."
+  @spec lineage_versions(String.t(), String.t()) :: [map()]
+  defexport(lineage_versions(resident_id, path), do: Lineage.versions(resident_id, path))
+
+  @doc "The citations a document's head makes, as indexed (kumbukumbu#101): `%{slug, kind, ref}`."
+  @spec lineage_references(String.t(), String.t()) :: [map()]
+  defexport(lineage_references(resident_id, path), do: Lineage.references(resident_id, path))
+
+  @doc "Her classification of a document (kumbukumbu#101's read), or nil."
+  @spec lineage_classification(String.t(), String.t()) :: map() | nil
+  defexport(lineage_classification(resident_id, path),
+    do: Lineage.classification(resident_id, path)
+  )
+
+  @doc "A journal row as written (kumbukumbu#101's read), or nil."
+  @spec lineage_journal_row(String.t(), String.t(), integer()) :: map() | nil
+  defexport(lineage_journal_row(resident_id, day, number),
+    do: Lineage.journal_row(resident_id, day, number)
+  )
+
+  @doc "The citations in a text (kumbukumbu#101's read): `%{slug, kind, ref}`."
+  @spec citations_in(String.t() | nil) :: [map()]
+  defexport(citations_in(text), do: Lineage.citations_in(text))
+
+  @doc "The path a document citation names (kumbukumbu#101's read)."
+  @spec citation_path(String.t(), String.t()) :: String.t()
+  defexport(citation_path(kind, ref), do: Lineage.path(kind, ref))
 
   @doc "The written versions and journal rows in `[from, to)`, as kept (kumbukumbu#101's derivation)."
   @spec written_between(String.t(), DateTime.t(), DateTime.t()) :: %{
