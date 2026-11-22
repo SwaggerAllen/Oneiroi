@@ -84,9 +84,11 @@ check the service's Disks tab shows it mounted.
    the deploy with the previous one still serving.
 6. Honcho is retired (proteus#20, 2026-11-18): Oneiroi no longer
    calls it, and sets no `PROTEUS_*` variable. The `honcho-api` and
-   `honcho-deriver` services and the `oneiroi_honcho` role and `honcho`
-   schema still stand until they are removed on the witness's word; a
-   new deploy needs none of them.
+   `honcho-deriver` services are off the blueprint (proteus#21,
+   2026-11-21); taking a service off a blueprint does not delete it on
+   Render, so each is deleted from the dashboard. The `oneiroi_honcho`
+   role and `honcho` schema still stand until they are removed on the
+   witness's word; a new deploy needs none of them.
 
 ### Metrics and Grafana (apsu#25)
 

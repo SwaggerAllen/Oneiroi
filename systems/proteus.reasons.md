@@ -113,3 +113,8 @@ second, opaque workspace of her that neither party could inspect line
 by line, which is the thing the platform exists not to have. The event
 modules stay because removing one would make every replay of the log
 fail on the first event of its kind: the record outlives the writer.
+
+## #21
+Nothing has called Honcho since #20; the services kept costing and kept a
+copy of the provider key. The schema holds the residents' old Honcho
+data, whose removal is a separate decision on the data itself.
