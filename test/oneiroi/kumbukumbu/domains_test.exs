@@ -193,7 +193,11 @@ defmodule Oneiroi.Kumbukumbu.DomainsTest do
     assert Enum.any?(across, &(&1.turn_ref == "t-rec"))
   end
 
-  test "a wall is a contract term both agreed: the door closes, her reach stays whole", ctx do
+  # Walls are retired (agathos-daimon#58; the witness, 2026-11-21: "I
+  # don't think those make sense anymore"): a version naming one is
+  # refused, an empty list reads as none, and the door stands.
+  test "walls are retired: a version with one is refused, none reads as none, the door stands",
+       ctx do
     id = ctx.id
     to_business(ctx)
 
@@ -202,42 +206,22 @@ defmodule Oneiroi.Kumbukumbu.DomainsTest do
       "context" => %{"person" => ctx.him, "domain" => "business"}
     }
 
-    # A malformed wall is refused with the version.
     assert {:error, %{kind: :agathos_daimon_terms_invalid}} =
              AgathosDaimon.propose_contract(
                id,
-               %{"domain_walls" => [%{"memory" => %{"domain" => "recovery"}}]},
+               %{"domain_walls" => [wall]},
                "",
                "a wall",
                ctx.actor
              )
 
-    {:ok, v} =
-      AgathosDaimon.propose_contract(id, %{"domain_walls" => [wall]}, "", "a wall", ctx.actor)
+    assert {:ok, _v} =
+             AgathosDaimon.propose_contract(id, %{"domain_walls" => []}, "", "none", ctx.actor)
 
-    # Proposed, not agreed: no wall stands on one party's word.
     assert Kumbukumbu.index(id, ctx.key).doors == [3]
-
-    :ok = AgathosDaimon.agree_contract(id, v, "agreed", ctx.brain)
-    assert [%{memory: %{domain: "recovery"}}] = AgathosDaimon.domain_walls(id)
-
-    built = Kumbukumbu.index(id, ctx.key)
-    assert built.doors == []
-    refute built.text =~ "#3"
-    assert built.near_misses == []
-
-    # Her reach stays whole: the bookmark opens, the cross finds it.
-    assert {:ok, %{number: 3}, _span} = Kumbukumbu.bookmark(id, 3)
-
-    assert [3, 2, 1] ==
-             Kumbukumbu.bookmark_page(id, ctx.key, across_domains: true).rows
-             |> Enum.map(& &1.number)
-
-    # The contract says the wall in words she reads.
-    assert AgathosDaimon.contract_text(id) =~ "Domain walls: recovery"
   end
 
-  test "the lane's exemplars: another domain's cited turn is a door, walled not even that", ctx do
+  test "the lane's exemplars: another domain's cited turn is a door", ctx do
     id = ctx.id
     to_business(ctx)
     noon = ~U[2026-10-26 12:00:00Z]

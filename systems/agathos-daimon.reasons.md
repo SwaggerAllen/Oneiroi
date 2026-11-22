@@ -433,9 +433,23 @@ Portraits are where facts about a person already live, cited, labelled
 claim by claim; moving USER.md's content there puts it under the same
 rules as every other memory of him.
 
+## #58
+A wall shaped her own context, and the work since made that shape the
+default: another domain arrives as a door, never its words. What a
+domain owes to others is the policies'. Keeping a second mechanism to
+hide a door would be a rule nobody needed, kept for its own sake.
+
 ## #57
 A free-text domain set grows without bound and fills with domains no
 rule governs, the tag problem again; once domains decide who hears what,
 an undeclared one is a governance entity minted unilaterally. Declaring
 it in the agreement, with its policy, keeps every domain both parties'
 and every domain ruled.
+
+## #59
+Consent to a version is consent to what it holds. Words that showed the
+prose and the switches but not the domains let a resident agree to
+policies she never read, and a resident's proposal that dropped the
+domains it did not mention would undo the witness's declarations by
+omission. Carrying them unless stated keeps a version whole the way the
+witness's editor already does.

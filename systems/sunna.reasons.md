@@ -558,3 +558,8 @@ at once is the attention the rule was for.
 A prompt that names only letters teaches the hour to be a dyad's. The
 house was always reachable; naming it beside the mail makes it company
 she can choose, and saying where privacy ends keeps the choice hers.
+
+## #79
+The people pass rewrites portraits and the scenes pass is skipped only
+for closed days; re-running the whole chain to re-name domains would
+spend those passes and risk the portraits for nothing.

@@ -460,14 +460,14 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   account reads a sealed turn's messages as having been said, never
   what; the resident reads her own whole.
   """
-  def seen({:account, _id}, messages),
-    do:
-      Enum.map(
-        messages,
-        &if(Map.get(&1, :sealed) == true, do: %{&1 | content: @sealed_words}, else: &1)
-      )
-
+  def seen({:account, _id}, messages), do: Enum.map(messages, &witnessed/1)
   def seen(_scope, messages), do: messages
+
+  # Her forward out of a sealed wake is her deliberate word to him
+  # (kumbukumbu#98): the one line of a sealed turn he reads.
+  defp witnessed(%{sealed: true, role: "tool", content: "mail_forward(" <> _} = m), do: m
+  defp witnessed(%{sealed: true} = m), do: %{m | content: @sealed_words}
+  defp witnessed(m), do: m
 
   defp seen_window({:ok, session, window}, scope),
     do: {:ok, session, %{window | messages: seen(scope, window.messages)}}
@@ -592,6 +592,32 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   @doc "The conversations with messages in `[from, to)` (kumbukumbu#73)."
   def day_sessions(resident_id, from_at, to_at),
     do: Scope.resident(resident_id, fn -> Store.day_sessions(from_at, to_at) end)
+
+  @doc "The turns named into a domain in `[from, to)` (kumbukumbu#100)."
+  def day_tag_points(resident_id, from_at, to_at),
+    do: Scope.resident(resident_id, fn -> Store.day_tag_points(from_at, to_at) end)
+
+  @doc """
+  Returns to the common room every turn in `[from, to)` named into a
+  domain the agreement in force does not declare (kumbukumbu#100; the
+  witness, 2026-11-21: the backfill "should retag using only declared
+  domains"). The tags of 11-14..16 named domains nobody declared; a tag
+  carries forward until the next, so each stale point is renamed, not
+  left to bleed past the new ones. `{:ok, cleared}`.
+  """
+  def clear_undeclared(resident_id, from_at, to_at, %Actor{} = actor) do
+    stale =
+      for p <- day_tag_points(resident_id, from_at, to_at),
+          p.domain != nil,
+          not AgathosDaimon.domain_declared?(resident_id, p.person, p.domain),
+          do: p
+
+    Enum.each(stale, fn p ->
+      :ok = tag_domain(resident_id, p.session_key, p.turn_ref, p.person, nil, actor)
+    end)
+
+    {:ok, length(stale)}
+  end
 
   @doc "How many of a session's messages came before `at`, and how many it holds in all."
   def counts(resident_id, key, at),

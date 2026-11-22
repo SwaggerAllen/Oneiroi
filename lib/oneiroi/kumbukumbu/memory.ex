@@ -463,7 +463,8 @@ defmodule Oneiroi.Kumbukumbu.Memory do
           turn_ref: c.turn_ref,
           labels: letter_labels(c),
           sealed: sealed?(c),
-          parties: parties(c)
+          parties: parties(c),
+          quiet: c.quiet == true
         }
     end
   end

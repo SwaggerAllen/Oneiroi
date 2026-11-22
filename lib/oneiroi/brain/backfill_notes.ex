@@ -19,6 +19,7 @@ defmodule Oneiroi.Brain.BackfillNotes do
     the scenes name no one and the day has no journal rows.
   """
 
+  alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon.Local
   alias Oneiroi.Brain.NightPasses
   alias Oneiroi.Config
@@ -28,6 +29,7 @@ defmodule Oneiroi.Brain.BackfillNotes do
 
   # Her own runs that are machinery, not conversation: never tagged.
   @untagged ~w(housekeeping)
+  @actor Actor.new(:job, "sunna_backfill")
 
   @doc "The note for turn `n` of a backfill `pass` on `day`, or `:skip`."
   @spec note(String.t(), String.t(), String.t(), pos_integer(), map()) ::
@@ -53,13 +55,19 @@ defmodule Oneiroi.Brain.BackfillNotes do
     end
   end
 
-  def note(resident_id, "domains", day, _n, lists) do
+  def note(resident_id, "domains", day, n, lists) do
     case Enum.reject(sessions(resident_id, day), &(&1.kind in @untagged)) do
       [] ->
         :skip
 
       rows ->
         scenes = scenes(resident_id, day)
+        {from, to} = bounds(resident_id, day)
+
+        # Only declared domains (kumbukumbu#100): before the day's first
+        # turn, its tags of undeclared domains go back to the common room,
+        # so none carries past what she names now.
+        if n == 1, do: {:ok, _} = Kumbukumbu.clear_undeclared(resident_id, from, to, @actor)
 
         {:ok,
          Prompt.render!("backfill_domains", %{
@@ -67,6 +75,7 @@ defmodule Oneiroi.Brain.BackfillNotes do
            his: words(lists["his"]),
            hers: words(lists["hers"]),
            conversations: Enum.map_join(rows, "\n", &conversation_line(&1, scenes)),
+           named: named_words(Kumbukumbu.day_tag_points(resident_id, from, to)),
            turns: Config.fetch!(:sunna, :backfill_domain_turns)
          })}
     end
@@ -92,6 +101,14 @@ defmodule Oneiroi.Brain.BackfillNotes do
   end
 
   def note(_resident_id, _pass, _day, _n, _lists), do: :skip
+
+  defp named_words([]), do: "none yet."
+
+  defp named_words(points),
+    do:
+      Enum.map_join(points, "; ", fn p ->
+        "#{p.session_key} turn #{p.turn_ref}: #{p.domain || "the common room"}"
+      end) <> "."
 
   # The day's chat with him: the Oneiroi chat, or before it existed the
   # chat an import carried (10-17 to 10-31 are imported), the largest

@@ -114,7 +114,9 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
         :turn_ref,
         :labels,
         # A letter to a sibling sent open, the sender's act (kumbukumbu#93).
-        :open
+        :open,
+        # A letter that wakes nobody (kumbukumbu#98).
+        :quiet
       ]
   end
 

@@ -51,7 +51,11 @@ at `/client/#/records`. Built 2026-11-10.
     there is no extension; keepsakes, root files and goals at the root).
 
   The same rule drives Chat's chips and peek. A record kind opens as a
-  peek over the tree (`cite/<kind>/<ref>`).
+  peek over the tree (`cite/<kind>/<ref>`). A bookmark's peek
+  (kumbukumbu#99) reads "Read it in the conversation ›" (the chat at its
+  turn, Read on past it; not for a private session's bookmark) and the
+  bookmarked turn's domain, "Domain: …", which opens the chat's picker:
+  a dropdown of the declared domains, Move it, and To the common room.
 - **Folder settings** (`folder/<kind>`, ui-structures.md D):
   - who edits;
   - whether it waits on the witness;

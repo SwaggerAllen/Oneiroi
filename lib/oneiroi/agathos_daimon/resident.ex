@@ -1564,9 +1564,10 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     keys = Switches.keys()
 
     Enum.all?(terms, fn
-      # The domain walls (agathos-daimon#45): the one term that is not a
-      # switch, a list of (memory, context) pairs.
-      {"domain_walls", walls} -> walls_ok?(walls)
+      # Domain walls are retired (agathos-daimon#58, superseding #45): an
+      # empty list is read as none, as older terms carry it; any wall is
+      # refused.
+      {"domain_walls", walls} -> walls == []
       # The domains' disclosure policies (agathos-daimon#53; Lily's
       # design/audience-policy.md §2, the witness's answer 2): the
       # catalogue and its filters, set in the dyad's contract.
@@ -1577,29 +1578,13 @@ defmodule Oneiroi.AgathosDaimon.Resident do
 
   defp terms_ok?(_terms), do: false
 
-  @walls 50
   @slug ~r/\A[a-z][a-z0-9-]{1,31}\z/
   @person ~r/\A(account|resident):[0-9a-fA-F-]{36}\z/
 
-  defp walls_ok?(walls) when is_list(walls) and length(walls) <= @walls,
-    do: Enum.all?(walls, &wall_ok?/1)
-
-  defp walls_ok?(_walls), do: false
-
-  # The memory side names one domain of one person; the context side may
-  # say anyone or any domain with "*".
-  defp wall_ok?(%{"memory" => %{"person" => p, "domain" => d}, "context" => %{} = c}),
-    do: person?(p) and slug?(d) and side_ok?(c)
-
-  defp wall_ok?(_wall), do: false
-
-  defp side_ok?(%{"person" => p, "domain" => d}),
-    do: (p == "*" or person?(p)) and (d == "*" or slug?(d))
-
-  defp side_ok?(_side), do: false
-
   @policies 100
-  @audience_kinds ~w(dyad conversation person household thread workspace correspondent publication export processor researcher)
+  # No `thread` (too short-lived to hold a grant) and no `export` (her
+  # whole record, from which nothing is kept): kumbukumbu#97.
+  @audience_kinds ~w(dyad conversation person household workspace correspondent publication processor researcher)
 
   defp policies_ok?(policies) when is_list(policies) and length(policies) <= @policies,
     do: Enum.all?(policies, &policy_ok?/1)

@@ -451,13 +451,10 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   end
 
   # The doors (P23-R1 §2): another domain's bookmarks that ranked in,
-  # named by number and domain and never shown, less those a wall in
-  # the contract closes (agathos-daimon#45). The near-miss row records
-  # the door for the audit; the index text tells her.
-  defp doors(resident_id, current, ranked_in) do
-    walls = Domains.walls(resident_id)
-    Enum.reject(ranked_in, &Domains.walled_by?(walls, &1.domain_key, current))
-  end
+  # named by number and domain and never shown (walls, which closed some,
+  # are retired: agathos-daimon#58). The near-miss row records the door
+  # for the audit; the index text tells her.
+  defp doors(_resident_id, _current, ranked_in), do: ranked_in
 
   defp door_misses(doors),
     do:
@@ -918,6 +915,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
              # wrote them, in the sender's dyad (kumbukumbu#84).
              labels: attrs[:labels],
              open: attrs[:open],
+             quiet: attrs[:quiet],
              link: %{
                "direction" => "from",
                "resident_id" => from.id,
@@ -969,7 +967,8 @@ defmodule Oneiroi.Kumbukumbu.Memories do
       link: attrs.link,
       turn_ref: attrs[:turn_ref],
       labels: attrs[:labels],
-      open: attrs[:open] == true
+      open: attrs[:open] == true,
+      quiet: attrs[:quiet] == true
     }
 
     case dispatch(command) do

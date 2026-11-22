@@ -63,7 +63,9 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
   the conversation at that turn (`#/chat/turn/<session>/<turn>`); a turn
   in another session switches to Conversation but cannot open there yet,
   because no transcript reader for other sessions is built. Transcripts
-  page by 50 with Newer and Next page buttons (kumbukumbu#67). Every
+  page by 50 with Newer and Next page buttons (kumbukumbu#67). Under each
+  transcript hit, "Set its domain" opens the chat's domain picker for
+  that turn (kumbukumbu#99): declared domains only, or the common room. Every
   scope but Everything and As she sees it has a **Filter** button
   (kumbukumbu#69) that opens its filters, with a count of those set and
   Clear: From and To days (this browser's zone, both included) and an

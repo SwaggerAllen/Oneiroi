@@ -1324,6 +1324,10 @@ defmodule Oneiroi.Sunna.Schedules do
   # already reads them (#44). Before, only a conversation's letter woke
   # the chat, and research #35's answer (2026-11-15) sat unread until the
   # witness asked.
+  # A quiet letter wakes nobody (kumbukumbu#98): a forward's receipt is
+  # read when she next reads her letters.
+  defp wakes?(%{quiet: true}), do: false
+
   defp wakes?(letter),
     do:
       is_binary(letter.from_session) or is_binary(letter.to_session) or

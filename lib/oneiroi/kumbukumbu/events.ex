@@ -73,10 +73,6 @@ defmodule Oneiroi.Kumbukumbu.Events do
       version: 2,
       fields: [:id, :resident_id, :session_key, :turn_ref, :started_at, :messages, :sealed],
       instants: [:started_at]
-
-    @doc "A sealed turn leaves in the export without its words (kumbukumbu#95), as a sealed letter does (#93)."
-    def export_redact(%{sealed: [_ | _]}), do: [:messages]
-    def export_redact(_turn), do: []
   end
 
   defmodule MessageDomainTagged do

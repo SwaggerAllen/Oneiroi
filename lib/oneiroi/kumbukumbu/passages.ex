@@ -21,9 +21,6 @@ defmodule Oneiroi.Kumbukumbu.Passages do
 
   # Inputs to one embedding request.
   @per_call 100
-  # A message longer than this many passages keeps its first ones: a
-  # pasted document is the library's to hold, not the transcript's.
-  @max_parts 20
 
   @doc "Embeds the next messages that have no passages, oldest first, up to `KUMBUKUMBU_PASSAGE_BATCH`; how many, and whether more wait."
   @spec refresh(String.t(), Actor.t()) ::
@@ -32,12 +29,14 @@ defmodule Oneiroi.Kumbukumbu.Passages do
   def refresh(resident_id, %Actor{} = actor) do
     batch = Config.fetch!(:kumbukumbu, :passage_batch)
     model = Config.fetch!(:kumbukumbu, :embedding_model)
-    messages = Scope.resident(resident_id, fn -> Store.unembedded_messages(batch) end)
+    waiting = Scope.resident(resident_id, fn -> Store.unembedded_messages(batch) end)
 
-    parts =
-      for m <- messages,
-          {text, part} <- m.content |> cut() |> Enum.take(@max_parts) |> Enum.with_index(),
-          do: {m, part, text}
+    # Every part of a message is embedded, however long (kumbukumbu#96;
+    # the witness, 2026-11-21: "what is the reason that we even need the
+    # cap"). A run is bounded by parts instead: messages are taken while
+    # their parts fit `KUMBUKUMBU_PASSAGE_PARTS`, the first always, so a
+    # long one is embedded whole in a run of its own and the rest wait.
+    {messages, parts} = within_budget(waiting, Config.fetch!(:kumbukumbu, :passage_parts))
 
     with {:ok, vectors} <- embed(resident_id, model, Enum.map(parts, &elem(&1, 2)), actor) do
       now = Clock.now()
@@ -62,8 +61,26 @@ defmodule Oneiroi.Kumbukumbu.Passages do
       Scope.resident(resident_id, fn -> Store.put_passages(rows) end)
 
       {:ok,
-       %{messages: length(messages), passages: length(rows), more: length(messages) == batch}}
+       %{
+         messages: length(messages),
+         passages: length(rows),
+         more: length(messages) < length(waiting) or length(waiting) == batch
+       }}
     end
+  end
+
+  defp within_budget(waiting, budget) do
+    waiting
+    |> Enum.reduce_while({[], [], 0}, fn m, {taken, parts, n} ->
+      cut = for {text, part} <- m.content |> cut() |> Enum.with_index(), do: {m, part, text}
+
+      if taken != [] and n + length(cut) > budget,
+        do: {:halt, {taken, parts, n}},
+        else: {:cont, {[m | taken], [cut | parts], n + length(cut)}}
+    end)
+    |> then(fn {taken, parts, _n} ->
+      {Enum.reverse(taken), parts |> Enum.reverse() |> Enum.concat()}
+    end)
   end
 
   @doc """
@@ -87,7 +104,12 @@ defmodule Oneiroi.Kumbukumbu.Passages do
       with {:ok, [vector]} <- embed(resident_id, model, [text], actor) do
         {:ok,
          Scope.resident(resident_id, fn ->
-           Store.nearest_passages(Pgvector.new(vector), within, limit)
+           Store.nearest_passages(
+             Pgvector.new(vector),
+             within,
+             limit,
+             Keyword.drop(opts, [:across_domains])
+           )
          end)}
       end
     end

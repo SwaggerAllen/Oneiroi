@@ -308,6 +308,8 @@ defmodule Oneiroi.Brain do
   def oban_queues,
     do: [
       {:brain_oracle, []},
+      # A forward out of a sealed mail wake (kumbukumbu#98).
+      {:brain_forward, []},
       {:brain_needs_you, cron: [{"* * * * *", Oneiroi.Brain.NeedsYouPushWorker}]}
     ]
 

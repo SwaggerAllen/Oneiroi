@@ -962,12 +962,13 @@ defmodule Oneiroi.Brain.Turn do
   # What the witness's channel is pushed (kumbukumbu#95): a sealed turn
   # lands without its words.
   defp witnessed(captured, %{sealed: [_ | _]}),
-    do: %{
-      captured
-      | messages: Enum.map(captured.messages, &Map.put(&1, :content, Kumbukumbu.sealed_words()))
-    }
+    do: %{captured | messages: Enum.map(captured.messages, &sealed_message/1)}
 
   defp witnessed(captured, _turn), do: captured
+
+  # Her forward is the one line of a sealed turn he reads (kumbukumbu#98).
+  defp sealed_message(%{content: "mail_forward(" <> _} = m), do: m
+  defp sealed_message(m), do: Map.put(m, :content, Kumbukumbu.sealed_words())
 
   # The witness's devices are told when she writes in the chat without
   # being written to (gaia#15): a check-in, a letter that woke the chat, a

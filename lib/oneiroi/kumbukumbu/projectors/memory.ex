@@ -131,6 +131,7 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
         labels: Map.get(e, :labels),
         sealed: Map.get(e, :sealed) == true,
         parties: Map.get(e, :parties),
+        quiet: Map.get(e, :quiet) == true,
         by_kind: actor_field(e.actor, :kind),
         sent_at: e.at
       },

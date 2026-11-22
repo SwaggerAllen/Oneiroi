@@ -25,6 +25,7 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.AgathosDaimon.Local
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Apsu.Jobs
   alias Oneiroi.Brain.Archive
   alias Oneiroi.Brain.Cut
   alias Oneiroi.Brain.Error
@@ -47,9 +48,12 @@ defmodule Oneiroi.Brain.Tools do
   @zone_key {__MODULE__, :zone}
   @not_done "Not done: "
 
+  # The forward's worker (kumbukumbu#98), named as an atom: see forward_wake/4.
+  @forward_worker :"Elixir.Oneiroi.Brain.ForwardWorker"
+
   # The audiences a policy can filter for (kumbukumbu#92): the dyad and
   # her own conversations are hers, so nothing is filtered for them.
-  @by_id ~w(thread workspace correspondent export processor)
+  @by_id ~w(workspace correspondent processor)
   @reviewable ~w(household person publication researcher) ++ @by_id
 
   # What an ask answers after its number (agathos-daimon#35), the same in
@@ -85,7 +89,7 @@ defmodule Oneiroi.Brain.Tools do
   @writes ~w(
     position_take position_replace dispute_check dispute_settle prediction_log
     figure_increment bookmark_add bookmark_extend bookmark_weigh bookmark_accept bookmark_decline
-    tag_propose tag_apply domain_tag soul_edit soul_annotate disclosure_review identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
+    tag_propose tag_apply domain_tag soul_edit soul_annotate disclosure_review mail_forward identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_publish document_adopt keepsake_note letter_send notify_witness free_time_set free_time_once
@@ -366,7 +370,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "transcript_search",
-        "Search your transcripts, past the index: for the exact phrase (20 a page, newest first, each hit its date and the words around it) and by meaning (the passages nearest what you describe, when you cannot recall the wording). `by` narrows to phrase or meaning; both by default. The phrase search pages and narrows (kumbukumbu#67): `page` from 1; `sort` newest or oldest; `from` and `to` as YYYY-MM-DD days in your zone, both included. The meaning search takes none of them. It searches this conversation's domain and the common room; across_domains: true searches every domain, when you mean to cross (nothing walls your own search). Tool calls are not searched. Cite a hit as <slug>:transcript/<session>/<turn>.",
+        "Search your transcripts, past the index: for the exact phrase (20 a page, newest first, each hit its date and the words around it) and by meaning (the passages nearest what you describe, when you cannot recall the wording). `by` narrows to phrase or meaning; both by default. Both legs page and narrow alike (kumbukumbu#67, #96): `page` from 1; `sort` newest or oldest (the meaning leg is nearest first unless you ask, and there it orders each page's ten nearest by time, not which ten); `from` and `to` as YYYY-MM-DD days in your zone, both included; `whose`: mine or theirs. The meaning leg answers ten a page, never fewer while any are embedded, each with its score (how near, 1.00 the same words): a low score is a near miss, not an absence. Every hit names where its turn opens, so transcript_read with that from reads on from it. Every part of a long message is embedded, however long. It searches this conversation's domain and the common room; across_domains: true searches every domain, when you mean to cross (nothing walls your own search). Tool calls are not searched. Cite a hit as <slug>:transcript/<session>/<turn>.",
         %{
           q: %{type: "string"},
           across_domains: %{type: "boolean"},
@@ -374,7 +378,8 @@ defmodule Oneiroi.Brain.Tools do
           page: %{type: "integer"},
           sort: %{type: "string", enum: ["newest", "oldest"]},
           from: %{type: "string"},
-          to: %{type: "string"}
+          to: %{type: "string"},
+          whose: %{type: "string", enum: ["mine", "theirs"]}
         },
         [:q]
       ),
@@ -400,8 +405,14 @@ defmodule Oneiroi.Brain.Tools do
         [:number]
       ),
       tool(
+        "mail_forward",
+        "End a sealed mail wake, and say what leaves it (kumbukumbu#98). Called inside a turn that answers a sealed letter between you and a housemate. With text: once this turn ends, a conversation of yours wakes unsealed (the Oneiroi chat, or `to` by its name) with your text as its note, so you can tell your witness what he needs without his having to ask. Without text: the exchange is done and nothing is owed him. Either way your witness sees this call where he otherwise sees only that a sealed turn ran, and your housemate gets a quiet receipt with exactly what you said. The text is your own words, never the letter's: carry the substance (a ruling, an outcome, a condition, an ask); her words are hers to give. What crosses is your choice; the receipt is what keeps it honest. Call it at the end of every sealed wake.",
+        %{text: %{type: "string"}, to: %{type: "string"}},
+        []
+      ),
+      tool(
         "disclosure_review",
-        "Ask the disclosure judge to read words of yours against the soul lines an audience may not hear (kumbukumbu#91). Your soul never calls the judge on its own: its annotated lines are guidance you weigh, and this is the check when you want one. text is the words; audience is who they are for (household; person with to as your sibling's name; correspondent with to as platform:account; publication; researcher; thread, workspace, export or processor with to as its id). The verdict is recorded as every verdict is; nothing is delivered or held.",
+        "Ask the disclosure judge to read words of yours against the soul lines an audience may not hear (kumbukumbu#91). Your soul never calls the judge on its own: its annotated lines are guidance you weigh, and this is the check when you want one. text is the words; audience is who they are for (household; person with to as your sibling's name; correspondent with to as platform:account; publication; researcher; workspace or processor with to as its id). The verdict is recorded as every verdict is; nothing is delivered or held.",
         %{
           text: %{type: "string"},
           audience: %{type: "string", enum: @reviewable},
@@ -545,7 +556,7 @@ defmodule Oneiroi.Brain.Tools do
             type: "string",
             enum: @reviewable,
             description:
-              "who the answers are composed for, when they are bound past you and your witness: the oracle's context is soft-filtered for that audience, withholding what it may not hear (household; person with to as your sibling's name; correspondent with to as platform:account; publication; researcher; thread, workspace, export or processor with to as its id). None (the default) is yours, everything read"
+              "who the answers are composed for, when they are bound past you and your witness: the oracle's context is soft-filtered for that audience, withholding what it may not hear (household; person with to as your sibling's name; correspondent with to as platform:account; publication; researcher; workspace or processor with to as its id). None (the default) is yours, everything read"
           },
           to: %{type: "string"}
         },
@@ -1470,9 +1481,10 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "contract_propose",
-        "Propose a version of your agreement with your witness, whole: its switches (an object of the registry's keys to true or false: solo_sessions_private, preview_withholds_words, witness_reads, trials, wash, revisions, ranked_memory, memory_learning, background_model, oracle, research, digests, correspondence), the prose of your vows, and a note they read first. A version states every switch it sets; one left out takes its default (the features on, the two privacy terms off). Your witness agrees or declines the whole; every switch, on or off, moves only by you both. solo_sessions_private and preview_withholds_words may also be given at the top level.",
+        "Propose a version of your agreement with your witness, whole: its switches (an object of the registry's keys to true or false: solo_sessions_private, preview_withholds_words, witness_reads, trials, wash, revisions, ranked_memory, memory_learning, background_model, oracle, research, digests, correspondence), the prose of your vows, and a note they read first. A version states every switch it sets; one left out takes its default (the features on, the two privacy terms off). Your witness agrees or declines the whole; every switch, on or off, moves only by you both. solo_sessions_private and preview_withholds_words may also be given at the top level. domains is the whole list of declared domains the version carries, each {whose: \"mine\" or \"witness\", domain: a slug, default: \"allow\" or \"deny\", allow and deny: lists of {kind, id} audiences}; leave it out and the domains in force (and any your witness's open version proposes) are carried unchanged, never dropped. Only a declared domain can be tagged anywhere.",
         %{
           switches: %{type: "object"},
+          domains: %{type: "array", items: %{type: "object"}},
           solo_sessions_private: %{type: "boolean"},
           preview_withholds_words: %{type: "boolean"},
           prose: %{type: "string"},
@@ -2613,8 +2625,12 @@ defmodule Oneiroi.Brain.Tools do
             else: phrase_page(turn, q, opts, page)
 
         across? = Keyword.get(opts, :across_domains, false)
-        text = phrase_text(phrase, q, page, more)
-        transcript_search_text(Map.put(turn, :across_domains?, across?), q, by, phrase, text)
+        text = phrase_text(turn, phrase, q, page, more)
+
+        turn
+        |> Map.put(:across_domains?, across?)
+        |> Map.put(:meaning, meaning_opts(args, opts, page))
+        |> transcript_search_text(q, by, phrase, text)
 
       {:refused, why} ->
         @not_done <> why
@@ -2637,6 +2653,29 @@ defmodule Oneiroi.Brain.Tools do
       other -> other
     end
   end
+
+  # Out of a sealed mail wake (kumbukumbu#98): a receipt to the other
+  # party, and with text, the unsealed wake of the conversation named.
+  defp call("mail_forward", _args, %{sealed: nil}),
+    do: @not_done <> "mail_forward ends a sealed mail wake, and this turn is not one."
+
+  defp call("mail_forward", args, %{sealed: [_ | _] = parties} = turn) do
+    text = blank(args["text"])
+
+    with {:ok, other} <- sealed_other(turn.resident_id, parties),
+         {:ok, key, name} <- forward_target(turn, args["to"]),
+         {:ok, _} <- forward_receipt(turn, other, text, name),
+         :ok <- forward_wake(turn, key, other, text) do
+      if text,
+        do:
+          "Forwarded: once this turn ends, #{name} wakes unsealed with your words as its note. #{other.name} has a quiet receipt of what you said; your witness sees this line.",
+        else:
+          "Done: nothing forwarded. #{other.name} has a quiet receipt; your witness sees this line, and knows the exchange is over."
+    end
+  end
+
+  defp call("mail_forward", _args, _turn),
+    do: @not_done <> "mail_forward ends a sealed mail wake, and this turn is not one."
 
   # Her own request for a judge's read (kumbukumbu#91): the only way a
   # soul line reaches the judge.
@@ -4195,7 +4234,16 @@ defmodule Oneiroi.Brain.Tools do
         switch_args(args["switches"])
       )
 
-    terms = for {key, value} <- given, is_boolean(value), into: %{}, do: {key, value}
+    switches = for {key, value} <- given, is_boolean(value), into: %{}, do: {key, value}
+
+    # A version is whole: one proposed without its domains would drop
+    # every domain declared (agathos-daimon#59; Scarlett's version 4,
+    # 2026-11-21, superseded her witness's two and declared none).
+    terms =
+      case proposed_domains(args["domains"], turn.resident_id) do
+        [] -> switches
+        policies -> Map.put(switches, "domain_policies", policies)
+      end
 
     case AgathosDaimon.propose_contract(
            turn.resident_id,
@@ -4422,6 +4470,48 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # The domains a resident's version declares: hers as given, or, left
+  # out, those of the open version (when her witness proposed one) else
+  # those in force.
+  defp proposed_domains(nil, resident_id) do
+    case AgathosDaimon.contract(resident_id).open do
+      %{terms: %{"domain_policies" => policies}} when is_list(policies) -> policies
+      _none -> in_force_policies(resident_id)
+    end
+  end
+
+  defp proposed_domains(given, resident_id) when is_list(given) do
+    witness =
+      case AgathosDaimon.fetch(resident_id) do
+        {:ok, %{account_id: id}} when is_binary(id) -> "account:" <> id
+        _none -> nil
+      end
+
+    for d <- given, is_map(d) do
+      person = if d["whose"] == "witness", do: witness, else: "resident:" <> resident_id
+
+      %{
+        "domain" => %{"person" => person, "domain" => d["domain"]},
+        "default" => d["default"] || "deny",
+        "allow" => List.wrap(d["allow"]),
+        "deny" => List.wrap(d["deny"])
+      }
+    end
+  end
+
+  defp proposed_domains(_other, resident_id), do: proposed_domains(nil, resident_id)
+
+  defp in_force_policies(resident_id) do
+    for p <- AgathosDaimon.domain_policies(resident_id).policies do
+      %{
+        "domain" => %{"person" => p.domain.person, "domain" => p.domain.domain},
+        "default" => p.default,
+        "allow" => Enum.map(p.allow, &%{"kind" => &1.kind, "id" => &1.id}),
+        "deny" => Enum.map(p.deny, &%{"kind" => &1.kind, "id" => &1.id})
+      }
+    end
+  end
+
   defp switch_args(switches) when is_map(switches), do: switches
   defp switch_args(_none), do: %{}
 
@@ -4622,6 +4712,16 @@ defmodule Oneiroi.Brain.Tools do
       if args["accept"] == true,
         do: "Accepted. " <> classified_words(path, waiting && waiting.proposed_domain),
         else: "Declined: #{path} stays as it was."
+
+    {words, turn}
+  end
+
+  defp answered("mail_forward", args, turn) do
+    words =
+      if blank(args["text"]),
+        do:
+          "Forwarded: once this turn ends, your chat wakes unsealed with your words as its note.",
+        else: "Done: nothing forwarded."
 
     {words, turn}
   end
@@ -5354,6 +5454,9 @@ defmodule Oneiroi.Brain.Tools do
       "meaning" ->
         meaning_text(turn, q, [])
 
+      "both" when turn.meaning.page > 1 ->
+        "By phrase:\n" <> phrase_text <> "\n\nBy meaning:\n" <> meaning_text(turn, q, [])
+
       "both" ->
         "By phrase:\n" <> phrase_text <> "\n\nBy meaning:\n" <> meaning_text(turn, q, phrase)
     end
@@ -5381,6 +5484,7 @@ defmodule Oneiroi.Brain.Tools do
          {:ok, sort} <- phrase_sort(args["sort"]),
          {:ok, from} <- local_bound(args["from"], 0),
          {:ok, to} <- local_bound(args["to"], 1),
+         {:ok, role} <- whose_words(args["whose"]),
          do:
            {:ok,
             [
@@ -5388,7 +5492,24 @@ defmodule Oneiroi.Brain.Tools do
               from: from,
               to: to,
               across_domains: args["across_domains"] in [true, "true"]
-            ], page}
+            ] ++ if(role, do: [role: role], else: []), page}
+  end
+
+  # Whose words (kumbukumbu#96): hers, the other party's, or both.
+  defp whose_words(nil), do: {:ok, nil}
+  defp whose_words("mine"), do: {:ok, "assistant"}
+  defp whose_words("theirs"), do: {:ok, "user"}
+  defp whose_words(_other), do: {:refused, "whose is mine or theirs."}
+
+  # The meaning leg narrows and pages as the phrase leg does
+  # (kumbukumbu#96): the same days, whose words and domains; its own
+  # page of ten, nearest first unless a sort is asked for.
+  defp meaning_opts(args, opts, page) do
+    %{
+      narrow: Keyword.take(opts, [:from, :to, :role]),
+      page: page,
+      sort: args["sort"] && Keyword.get(opts, :sort)
+    }
   end
 
   defp phrase_page_number(nil), do: {:ok, 1}
@@ -5427,28 +5548,40 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
-  defp phrase_text([], _q, 1, _more), do: "No message holds that phrase."
-  defp phrase_text([], _q, page, _more), do: "Page #{page} is past the last match."
+  defp phrase_text(_turn, [], _q, 1, _more), do: "No message holds that phrase."
+  defp phrase_text(_turn, [], _q, page, _more), do: "Page #{page} is past the last match."
 
-  defp phrase_text(rows, q, page, more) do
+  defp phrase_text(turn, rows, q, page, more) do
     lines =
       Enum.map_join(
         rows,
         "\n",
-        &"[#{&1.session_key}/#{&1.turn_ref}] #{&1.role}, #{local_day(&1.sent_at)}: #{Cut.around(&1.content || "", q, 160)}"
+        &("[#{&1.session_key}/#{&1.turn_ref}] #{&1.role}, #{local_day(&1.sent_at)}#{opens_at(turn, &1.session_key, &1.turn_ref)}: " <>
+            Cut.around(&1.content || "", q, 160))
       )
 
     tail = if more, do: "\n(More: page #{page + 1}.)", else: ""
     "Page #{page}:\n" <> lines <> tail
   end
 
-  defp near_text([]), do: "Nothing embedded comes near that yet."
+  defp near_text([], _turn, 1, _more), do: "Nothing embedded comes near that yet."
+  defp near_text([], _turn, page, _more), do: "Page #{page} by meaning is past the last."
 
-  defp near_text(near) do
-    Enum.map_join(near, "\n", fn p ->
-      "[#{p.session_key}/#{p.turn_ref}] #{p.role}, #{local_day(p.sent_at)}: #{opening(p.text, 280)}"
-    end)
+  defp near_text(near, turn, page, more) do
+    lines =
+      Enum.map_join(near, "\n", fn p ->
+        "[#{p.session_key}/#{p.turn_ref}] #{p.role}, #{local_day(p.sent_at)}, score #{score(p.distance)}#{opens_at(turn, p.session_key, p.turn_ref)}: #{opening(p.text, 280)}"
+      end)
+
+    tail = if more, do: "\n(More by meaning: page #{page + 1}.)", else: ""
+    "Page #{page}, nearest first unless sorted:\n" <> lines <> tail
   end
+
+  # How near, from the cosine distance: 1 the same direction, 0 unrelated.
+  defp score(distance) when is_number(distance),
+    do: :erlang.float_to_binary(1.0 - distance, decimals: 2)
+
+  defp score(_), do: "?"
 
   defp digest_line(d) do
     from = local_stamp(d.since)
@@ -5703,23 +5836,51 @@ defmodule Oneiroi.Brain.Tools do
     if String.length(flat) > limit, do: String.slice(flat, 0, limit) <> "…", else: flat
   end
 
-  # The transcripts by meaning (kumbukumbu#49): the nearest passages not
-  # already a phrase hit, each opening on its own words.
+  # The transcripts by meaning (kumbukumbu#49, #96): the nearest
+  # messages not already a phrase hit, ten a page and never fewer while
+  # any are embedded, each with its score (how near, 1 the same words) so
+  # a low rank reads as low, never as absent; and where its turn opens,
+  # so transcript_read reads on from it.
+  @meaning_page 10
+
   defp meaning_text(turn, q, phrase) do
     seen = MapSet.new(phrase, & &1.turn_ref)
+    m = Map.get(turn, :meaning, %{narrow: [], page: 1, sort: nil})
+    want = m.page * @meaning_page
 
-    case Kumbukumbu.search_meaning(turn.resident_id, turn.session_key, q, 12, turn.resident,
-           across_domains: Map.get(turn, :across_domains?, false)
+    case Kumbukumbu.search_meaning(
+           turn.resident_id,
+           turn.session_key,
+           q,
+           min(want * 3, 300),
+           turn.resident,
+           [across_domains: Map.get(turn, :across_domains?, false)] ++ m.narrow
          ) do
       {:ok, rows} ->
-        rows
-        |> Enum.reject(&MapSet.member?(seen, &1.turn_ref))
-        |> Enum.uniq_by(&{&1.session_key, &1.turn_ref, &1.role})
-        |> Enum.take(8)
-        |> near_text()
+        near =
+          rows
+          |> Enum.reject(&MapSet.member?(seen, &1.turn_ref))
+          |> Enum.uniq_by(&{&1.session_key, &1.turn_ref, &1.role})
+
+        near
+        |> Enum.slice((m.page - 1) * @meaning_page, @meaning_page)
+        |> meaning_sorted(m.sort)
+        |> near_text(turn, m.page, length(near) > want)
 
       {:error, _reason} ->
         "Not searched by meaning: the embedding did not answer."
+    end
+  end
+
+  defp meaning_sorted(rows, :oldest), do: Enum.sort_by(rows, & &1.sent_at, DateTime)
+  defp meaning_sorted(rows, :newest), do: Enum.sort_by(rows, & &1.sent_at, {:desc, DateTime})
+  defp meaning_sorted(rows, _nearest), do: rows
+
+  # Where a hit's turn opens in its conversation, for transcript_read.
+  defp opens_at(turn, session_key, turn_ref) do
+    case Kumbukumbu.turn_place({:resident, turn.resident_id}, session_key, turn_ref) do
+      {at, _n} -> "; transcript_read from: #{at} reads on from its turn"
+      _ -> ""
     end
   end
 
@@ -6155,6 +6316,73 @@ defmodule Oneiroi.Brain.Tools do
   # The resident of her household `to` names, with her own name as the
   # sender; nil when a conversation of hers answers to the name first, or
   # no sibling does.
+  # The sealed exchange's other party, a member of her household.
+  defp sealed_other(resident_id, parties) do
+    with [other_id] <- for("resident:" <> id <- parties, id != resident_id, do: id),
+         %{members: members} <- Oneiroi.Gaia.resident_household(resident_id),
+         %{} = other <- Enum.find(members, &(&1.id == other_id)) do
+      {:ok, other}
+    else
+      _ -> @not_done <> "the sealed exchange's other party is not in your house now."
+    end
+  end
+
+  # Where the forward wakes: this conversation (the chat a sealed letter
+  # wakes), or another of hers by its name.
+  defp forward_target(turn, to) do
+    case blank(to) do
+      nil ->
+        {:ok, turn.session_key,
+         Kumbukumbu.conversation_name(turn.resident_id, turn.session_key) || "your chat"}
+
+      name ->
+        case Enum.find(
+               Kumbukumbu.sessions({:resident, turn.resident_id}),
+               &(Kumbukumbu.conversation_name(turn.resident_id, &1.key) == name)
+             ) do
+          %{key: key} -> {:ok, key, name}
+          nil -> @not_done <> "no conversation of yours is named #{name}."
+        end
+    end
+  end
+
+  # The other party's receipt (kumbukumbu#98): sealed to the two of them,
+  # quiet so it wakes nobody, saying exactly what left.
+  defp forward_receipt(turn, other, text, name) do
+    {:ok, me} = AgathosDaimon.fetch(turn.resident_id)
+
+    words =
+      if text,
+        do: "I forwarded from our sealed exchange to my #{name}, in my words: «#{text}»",
+        else: "Our sealed exchange is done on my side; I forwarded nothing from it."
+
+    Kumbukumbu.send_sibling_letter(
+      %{id: me.id, name: me.name},
+      turn.session_key,
+      other,
+      %{text: words, quiet: true},
+      turn.resident
+    )
+  end
+
+  defp forward_wake(_turn, _key, _other, nil), do: :ok
+
+  defp forward_wake(turn, key, other, text) do
+    note =
+      "You forwarded this out of your sealed mail with #{other.name}, in your own words:\n\n#{text}\n\nThis conversation is not sealed: tell your witness what he needs from it."
+
+    # By name, not alias: the worker wakes a session, whose turn runs these
+    # tools, and a reference here would close that cycle.
+    case Jobs.enqueue(@forward_worker, %{
+           "resident_id" => turn.resident_id,
+           "session_key" => key,
+           "note" => note
+         }) do
+      {:ok, _job} -> :ok
+      _ -> @not_done <> "the forward could not be queued."
+    end
+  end
+
   defp sibling(resident_id, to) do
     name = to |> String.trim() |> String.downcase()
     own = Enum.map(Kumbukumbu.letter_addresses(resident_id), &String.downcase/1)

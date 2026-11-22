@@ -184,8 +184,11 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
     # send; every other letter is the dyad's, unsealed, with no parties.
     # The upcaster seals every earlier letter between residents, per
     # letter: none inherits openness.
+    # Version 6 adds `quiet` (kumbukumbu#98): a letter that wakes nobody,
+    # a forward's receipt to the sealed exchange's other party; false on
+    # every earlier letter.
     use Oneiroi.Event,
-      version: 5,
+      version: 6,
       fields: [
         :id,
         :number,
@@ -200,16 +203,16 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
         :turn_ref,
         :labels,
         :sealed,
-        :parties
+        :parties,
+        :quiet
       ]
-
-    @doc "A sealed letter leaves in the export as its envelope (kumbukumbu#93, Lily's S3): no words, no keepsake, until F80 encrypts them."
-    def export_redact(%{sealed: true}), do: [:text, :keepsake]
-    def export_redact(_letter), do: []
   end
 
   defimpl Commanded.Event.Upcaster, for: HouseLetterSent do
-    def upcast(%{sealed: nil} = event, _metadata) do
+    def upcast(event, _metadata), do: event |> sealed() |> quiet()
+
+    # Before version 5: a letter between residents is sealed, per letter.
+    defp sealed(%{sealed: nil} = event) do
       case event.link do
         %{"resident_id" => other} when is_binary(other) ->
           %{
@@ -223,7 +226,11 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
       end
     end
 
-    def upcast(event, _metadata), do: event
+    defp sealed(event), do: event
+
+    # Before version 6: every letter woke as its kind does.
+    defp quiet(%{quiet: nil} = event), do: %{event | quiet: false}
+    defp quiet(event), do: event
   end
 
   defmodule HouseLettersRead do

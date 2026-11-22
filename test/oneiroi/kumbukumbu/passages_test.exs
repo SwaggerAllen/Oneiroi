@@ -74,7 +74,7 @@ defmodule Oneiroi.Kumbukumbu.PassagesTest do
     out = Tools.run("transcript_search", Jason.encode!(%{q: "heron fishing at the weir"}), turn)
     assert out =~ "By phrase:\nNo message holds that phrase."
     [_, meaning] = String.split(out, "By meaning:\n")
-    assert [first | _] = String.split(meaning, "\n")
+    assert ["Page 1, nearest first unless sorted:", first | _] = String.split(meaning, "\n")
     assert first =~ "[#{ctx.key}/t-heron] user, "
     assert first =~ "a heron fished."
 
@@ -97,5 +97,82 @@ defmodule Oneiroi.Kumbukumbu.PassagesTest do
     {:ok, %{messages: 1}} = Kumbukumbu.refresh_passages(ctx.id, ctx.actor)
     ctx.say.("t-2", :assistant, "second words")
     assert {:ok, %{messages: 1, more: false}} = Kumbukumbu.refresh_passages(ctx.id, ctx.actor)
+  end
+
+  defp setting(key, value) do
+    store = {Oneiroi.Config, :values}
+    values = :persistent_term.get(store)
+    on_exit(fn -> :persistent_term.put(store, values) end)
+    :persistent_term.put(store, Map.put(values, {:kumbukumbu, key}, value))
+  end
+
+  defp meaning(ctx, args) do
+    turn = %{resident_id: ctx.id, session_key: ctx.key, turn_ref: "t-ask", resident: ctx.brain}
+    Tools.run("transcript_search", Jason.encode!(Map.merge(%{by: "meaning"}, args)), turn)
+  end
+
+  defp hits(out), do: out |> String.split("\n") |> Enum.filter(&String.starts_with?(&1, "["))
+
+  # kumbukumbu#96 (the witness, 2026-11-21): a meaning search answers ten
+  # a page while any are embedded, each with its score and where its turn
+  # opens; a low rank reads as low, never as absent.
+  test "ten a page, each scored and placed; the rest on the next page", ctx do
+    for n <- 1..12, do: ctx.say.("t-#{n}", :user, "Unrelated note number #{n} about something.")
+    {:ok, _} = Kumbukumbu.refresh_passages(ctx.id, ctx.actor)
+
+    first = meaning(ctx, %{q: "a heron at the weir"})
+    assert length(hits(first)) == 10
+
+    assert Enum.all?(
+             hits(first),
+             &(&1 =~ ~r/score -?\d\.\d\d; transcript_read from: \d+ reads on/)
+           )
+
+    assert first =~ "(More by meaning: page 2.)"
+
+    second = meaning(ctx, %{q: "a heron at the weir", page: 2})
+    assert length(hits(second)) == 2
+    refute second =~ "More by meaning"
+  end
+
+  test "the meaning leg narrows by whose words and by days, as the phrase leg does", ctx do
+    ctx.say.("t-his", :user, "His words about the garden.")
+    ctx.say.("t-hers", :assistant, "Her words about the garden.")
+    Clock.Fake.advance(3 * 86_400)
+    ctx.say.("t-later", :assistant, "Later words about the garden.")
+    {:ok, _} = Kumbukumbu.refresh_passages(ctx.id, ctx.actor)
+
+    mine = meaning(ctx, %{q: "the garden", whose: "mine"})
+    assert Enum.all?(hits(mine), &(&1 =~ "assistant"))
+    assert mine =~ "t-hers" and mine =~ "t-later"
+    refute mine =~ "t-his"
+
+    day = Oneiroi.Sunna.today(ctx.id).day
+    today = meaning(ctx, %{q: "the garden", from: day, to: day})
+    assert today =~ "t-later"
+    refute today =~ "t-hers"
+
+    assert meaning(ctx, %{q: "x", whose: "everyone"}) =~ "whose is mine or theirs"
+  end
+
+  # kumbukumbu#96 (the witness: "what is the reason that we even need the
+  # cap"): every part of a long message is embedded; a run is bounded by
+  # parts, the first message always taken whole.
+  test "a long message is embedded whole, and a run is bounded by parts", ctx do
+    long =
+      Enum.map_join(1..25, "\n\n", fn n ->
+        "Paragraph #{n}. " <> String.duplicate("word ", 250)
+      end)
+
+    ctx.say.("t-long", :user, long)
+    ctx.say.("t-short", :assistant, "A short one.")
+    setting(:passage_parts, 10)
+
+    # The long one alone, every part of it; the short one waits.
+    assert {:ok, %{messages: 1, passages: 25, more: true}} =
+             Kumbukumbu.refresh_passages(ctx.id, ctx.actor)
+
+    assert {:ok, %{messages: 1, passages: 1, more: false}} =
+             Kumbukumbu.refresh_passages(ctx.id, ctx.actor)
   end
 end

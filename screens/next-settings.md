@@ -169,7 +169,9 @@ clipboard, or "Couldn't copy; select it" when the browser refuses
   what it is doing (writing the scenes, naming the domains or the people
   pass), for which day and turn, through which day, and "Stop the
   backfill"; otherwise what it does in words and a form: from and to
-  (YYYY-MM-DD, to before today), your domains and hers picked from the
+  (YYYY-MM-DD, to before today), the passes to run, ticked (all three by
+  default; the domains pass alone re-names days without scenes or
+  portraits, sunna#79), your domains and hers picked from the
   domains the agreement declares for each life (kumbukumbu#90; "None
   declared in the agreement yet" when there are none), "Start the
   backfill".

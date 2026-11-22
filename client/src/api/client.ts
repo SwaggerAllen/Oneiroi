@@ -563,8 +563,9 @@ export const api = {
     call<{ failures: Array<Record<string, unknown>>; discarded_jobs: Array<Record<string, unknown>> }>('GET', '/v1/ops/failures'),
   // The memory backfill (sunna#59): scenes, domains and people for past days, by her.
   backfill: (residentId: string) => call<BackfillStatus | null>('GET', `/v1/residents/${residentId}/backfill`),
-  startBackfill: (residentId: string, from: string, to: string, his: string[], hers: string[]) =>
-    call<{ days: number }>('POST', `/v1/residents/${residentId}/backfill`, { from, to, his, hers }),
+  // `passes`: the passes each day runs (sunna#79), all three when absent.
+  startBackfill: (residentId: string, from: string, to: string, his: string[], hers: string[], passes?: BackfillPass[]) =>
+    call<{ days: number }>('POST', `/v1/residents/${residentId}/backfill`, passes ? { from, to, his, hers, passes } : { from, to, his, hers }),
   stopBackfill: (residentId: string) => call<void>('DELETE', `/v1/residents/${residentId}/backfill`),
   // The operator's queue (apsu#31): what waits on whoever runs the platform.
   operatorQueue: () => call<{ open: OperatorItem[]; closed: OperatorItem[] }>('GET', '/v1/ops/queue'),
@@ -856,6 +857,13 @@ export const api = {
     call<{ from: string; to: string; zone: string; days: Array<{ day: string; bookmarks: number; scenes: number; messages: number }> }>(
       'GET',
       `/v1/residents/${residentId}/density?from=${from}&to=${to}${session ? `&session=${encodeURIComponent(session)}` : ''}`,
+    ),
+  // Reading on past a jump (kumbukumbu#96; the witness, 2026-11-21: "I can
+  // go to a bookmark but I can't read the record after the bookmark").
+  transcriptAfter: (residentId: string, key: string, after: string, limit = 40) =>
+    call<Transcript & { more: boolean }>(
+      'GET',
+      `/v1/residents/${residentId}/sessions/${key}?after=${encodeURIComponent(after)}&limit=${limit}`,
     ),
   transcriptAround: (residentId: string, key: string, around: string, limit = 40) =>
     call<Transcript & { anchor: string; more_before: boolean; more_after: boolean }>(
@@ -1155,9 +1163,12 @@ export interface Hour {
   pressure: { jobs_waiting: number | null; oldest_wait_s: number | null; failures_by_kind: Record<string, Few> } | null;
 }
 
+export type BackfillPass = 'scenes' | 'domains' | 'people';
+
 export interface BackfillStatus {
   day: string;
-  pass: 'scenes' | 'domains' | 'people';
+  pass: BackfillPass;
+  passes?: BackfillPass[];
   turn: number;
   to: string;
   his: string[];
@@ -1211,15 +1222,9 @@ export interface ApiToken {
 export type GateState = 'closed' | 'invite' | 'open';
 export type PlatformRole = 'super_admin' | 'admin';
 
-// A domain wall (agathos-daimon#45): a memory's domain, never named into
-// the context the other side names; "*" there is anyone or any domain.
-export interface DomainWall {
-  memory: { person: string; domain: string };
-  context: { person: string; domain: string };
-}
-
-// A version's terms: the switches, and the walls, the one term that is a list.
-export type ContractTerms = Record<string, boolean | DomainWall[] | DomainPolicy[]>;
+// A version's terms: the switches, and the domain policies, the one term
+// that is a list (walls are retired, agathos-daimon#58).
+export type ContractTerms = Record<string, boolean | DomainPolicy[]>;
 
 export interface ContractVersion {
   version: number;
@@ -1257,9 +1262,8 @@ export interface Agreement {
   export_wall: 'locked' | 'revealed' | string;
   custody_proposed_to: string | null;
   custody_proposed_at: string | null;
-  // Who a wall may name, as a domain's person is written, and the walls in force.
+  // Who a domain's person may be, as it is written.
   persons?: { witness: string | null; resident: string };
-  domain_walls?: DomainWall[];
   // The domains' policies in force and the domains they declare
   // (agathos-daimon#53, #57): the only domains any dropdown offers.
   domain_policies?: DomainPolicy[];

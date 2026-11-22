@@ -267,6 +267,12 @@ defmodule Oneiroi.Kumbukumbu do
        tag: :bound,
        usage:
          "how many messages one passage run embeds for a resident (kumbukumbu#49), oldest first; a backlog takes several runs, ten minutes apart, rather than one long one"},
+      {:passage_parts, "KUMBUKUMBU_PASSAGE_PARTS",
+       cast: :integer,
+       default: "400",
+       tag: :bound,
+       usage:
+         "how many passages one run embeds for a resident (kumbukumbu#96): messages are taken while their parts fit, the first always, so a long message is embedded whole in a run of its own; bounds one run's work and memory where the old twenty-part cap dropped a long message's end; a guess"},
       {:embedding_width, "KUMBUKUMBU_EMBEDDING_WIDTH",
        cast: :integer,
        default: "1536",
@@ -367,7 +373,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionApplied, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.RevisionDeclined, 1},
-      {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 5},
+      {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 6},
       {Oneiroi.Kumbukumbu.Events.Memory.HouseLettersRead, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagApproved, 1},
@@ -779,12 +785,6 @@ defmodule Oneiroi.Kumbukumbu do
     do: Conversations.within(resident_id, session_key, across?)
   )
 
-  @doc "Whether the contract walls a memory of `key` from a turn in `current` (agathos-daimon#45); never consulted for her deliberate reach."
-  @spec walled?(String.t(), map() | nil, map() | nil) :: boolean()
-  defexport(walled?(resident_id, key, current),
-    do: Domains.walled?(resident_id, key, current)
-  )
-
   @doc "Whether a domain may be named in a session (kumbukumbu#90): the common room always, any other only when declared in the agreement."
   @spec check_domain(String.t(), String.t(), String.t() | nil, String.t() | nil) ::
           :ok | {:error, term()}
@@ -911,6 +911,19 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "How many of a session's messages came before `at`, and how many it holds in all (sunna#34's day range)."
   @spec counts(String.t(), String.t(), DateTime.t()) :: {non_neg_integer(), non_neg_integer()}
   defexport(counts(resident_id, key, at), do: Conversations.counts(resident_id, key, at))
+
+  @doc "The turns named into a domain in `[from, to)` (kumbukumbu#100): session, turn, person, domain."
+  @spec day_tag_points(String.t(), DateTime.t(), DateTime.t()) :: [map()]
+  defexport(day_tag_points(resident_id, from_at, to_at),
+    do: Conversations.day_tag_points(resident_id, from_at, to_at)
+  )
+
+  @doc "Returns every turn in `[from, to)` named into an undeclared domain to the common room (kumbukumbu#100)."
+  @spec clear_undeclared(String.t(), DateTime.t(), DateTime.t(), Oneiroi.Actor.t()) ::
+          {:ok, non_neg_integer()}
+  defexport(clear_undeclared(resident_id, from_at, to_at, actor),
+    do: Conversations.clear_undeclared(resident_id, from_at, to_at, actor)
+  )
 
   @doc "The conversations with messages in `[from, to)` (kumbukumbu#73): key, kind, label, messages, first and last turn refs, and where a transcript read of the span starts."
   @spec day_sessions(String.t(), DateTime.t(), DateTime.t()) :: [map()]

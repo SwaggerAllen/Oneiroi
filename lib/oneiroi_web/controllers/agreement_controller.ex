@@ -27,13 +27,12 @@ defmodule OneiroiWeb.AgreementController do
         export_wall: r.export_wall,
         custody_proposed_to: r.custody_proposed_to && Gaia.account_email(r.custody_proposed_to),
         custody_proposed_at: r.custody_proposed_at,
-        # Who a domain wall may name (agathos-daimon#45): the witness and
+        # Who a domain's person may be (agathos-daimon#53): the witness and
         # the resident, as a domain's person is written.
         persons: %{
           witness: r.account_id && "account:" <> r.account_id,
           resident: "resident:" <> id
         },
-        domain_walls: AgathosDaimon.domain_walls(id),
         # The domains declared in force and their policies (agathos-daimon
         # #53, #57): the only domains a tag, classification or annotation
         # names, and every dropdown's options.

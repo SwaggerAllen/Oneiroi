@@ -29,6 +29,11 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
     streamed into it (brain#111; the witness, 2026-11-21: "I kind of hate
     the live streamed responses"): the reply lands whole when the turn is
     captured. The same status events drive the header's presence line.
+  - A jump to a moment (a bookmark's "Open the moment", a search hit)
+    reads a window around it; reaching the window's end, or "Read on",
+    loads the next page after it, until the window meets the newest and
+    the chat is live again (kumbukumbu#96; the witness, 2026-11-21: "I can
+    go to a bookmark but I can't read the record after the bookmark").
   - A turn that answered a sealed letter between residents (kumbukumbu#95)
     shows in its place with each message reading "[sealed: her answer to
     a letter between residents; …]": the witness sees that it ran, never
@@ -119,8 +124,9 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
   the server shows them); "Suggest a bookmark" proposes a line and why,
   which she accepts, rewrites or declines in her own words; "Domain:
   <domain>" moves the turn, and every untagged turn after it up to the
-  next named one, to another domain or the common room (`POST
-  .../turns/:turn_ref/domain`).
+  next named one, to a declared domain picked from a dropdown or the
+  common room (`POST .../turns/:turn_ref/domain`); the same picker sits on
+  a bookmark's peek and under search's transcript hits (kumbukumbu#99).
 - **Mail**, the third view beside Conversation and Sessions: letters,
   outside mail and blocks (`screens/next-mail.md`).
 

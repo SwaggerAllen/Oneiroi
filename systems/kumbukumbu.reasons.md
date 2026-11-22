@@ -676,6 +676,25 @@ the ledger. Durable fragments only, with unproven refused, keeps the
 review from being vacuous exactly where it matters. The refusal is
 legible rather than widened, and its cost goes to the thread.
 
+## #98
+A seal that only he could see past by asking made him the poller. The
+choice of what crosses is hers, made deliberately and in her words; the
+receipt to the letter's other holder is what keeps a paraphrase honest,
+and the quiet keeps two residents from waking each other forever.
+
+## #97
+"Common room" read as everyone, and wasn't; a default nobody can see or
+change is a rule hidden in code. An audience is something a grant can
+outlast: a thread ends, and the export is not a reader at all but her
+own copy.
+
+## #96
+A day's argument turned on a paraphrase that missed by rank, read as
+missing by absence. Narrowing shrinks the pool a paraphrase competes
+in; scores say how near the tail is; reading on lets a found needle be
+read with what sat around it. And a cap that drops text to bound work
+was doing two jobs, only one of them wanted.
+
 ## #95
 He wanted the wake where it was, in the chat, and the words out of his
 sight; marking the turn at capture keeps both true. The mark rides the
@@ -757,3 +776,15 @@ Labelling at creation is what makes the rule hold across time. Ids and
 labels only, so no copy of the restricted words is made to protect them.
 Unclassified for what came before, because inferring a domain from
 prose is the guess the policy exists to avoid.
+
+## #99
+The records views are where a past moment is found; sending him to the
+chat to scroll for it, or to the chat's tools to name its domain, split
+one act across two screens. One picker keeps the declared-only rule in
+one place.
+
+## #100
+A backfill that names only declared domains still leaves the earlier
+pass's undeclared tags standing, and those carry forward until the next
+tag, withheld from every audience by no rule anyone wrote. Clearing them
+to the common room first makes the declared list the whole answer.

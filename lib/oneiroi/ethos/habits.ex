@@ -360,17 +360,12 @@ defmodule Oneiroi.Ethos.Habits do
       m ->
         key = m.domain && %{person: m.domain_person, domain: m.domain}
 
-        cond do
-          shown?(key, room) ->
+        if shown?(key, room),
+          do:
             "- turn #{turn_ref}: \"#{String.slice(m.content, 0, @exemplar_chars)}\"" <>
-              movement_line(citation.movement)
-
-          Kumbukumbu.walled?(resident_id, key, elem(room, 1)) ->
-            nil
-
-          true ->
+              movement_line(citation.movement),
+          else:
             "- turn #{turn_ref}: nearby in another domain (#{key.domain}); transcript_read opens it if you want it"
-        end
     end
   end
 

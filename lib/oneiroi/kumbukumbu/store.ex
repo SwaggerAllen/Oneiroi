@@ -229,6 +229,8 @@ defmodule Oneiroi.Kumbukumbu.Store do
       # unless sent open; `parties` its two residents, nil on the dyad's.
       field(:sealed, :boolean, default: false)
       field(:parties, {:array, :string})
+      # Wakes nobody (kumbukumbu#98): a forward's receipt.
+      field(:quiet, :boolean, default: false)
       field(:by_kind, :string)
       field(:sent_at, :utc_datetime_usec)
       field(:read_by, {:array, :string}, default: [])
@@ -757,6 +759,29 @@ defmodule Oneiroi.Kumbukumbu.Store do
   end
 
   @doc """
+  The turns named into a domain in `[from, to)` (kumbukumbu#100, the
+  backfill's domains pass): each tag point's session, turn, whose life
+  and domain (nil for a named common room), oldest first.
+  """
+  def day_tag_points(from_at, to_at) do
+    Repo.all(
+      from(m in Message,
+        where:
+          m.domain_tagged and m.sent_at >= ^from_at and m.sent_at < ^to_at and
+            m.role != "tool",
+        group_by: [m.session_key, m.turn_ref, m.domain_person, m.domain],
+        order_by: [asc: min(m.sent_at)],
+        select: %{
+          session_key: m.session_key,
+          turn_ref: m.turn_ref,
+          person: m.domain_person,
+          domain: m.domain
+        }
+      )
+    )
+  end
+
+  @doc """
   The conversations with messages in `[from, to)` (kumbukumbu#73, the
   backfill's day): each session's key, kind and label, how many messages
   it had then, the first and last turn refs, and how many came before
@@ -999,6 +1024,10 @@ defmodule Oneiroi.Kumbukumbu.Store do
 
         {:who, kind}, q when is_binary(kind) ->
           from([m, _s] in q, where: m.actor_kind == ^kind)
+
+        # Whose words (kumbukumbu#96): hers, or the other party's.
+        {:role, role}, q when role in ["user", "assistant"] ->
+          from([m, _s] in q, where: m.role == ^role)
 
         # Sent to (kumbukumbu#70): what she says goes to the witness only
         # in the conversations he takes part in; what anyone else says
@@ -1253,26 +1282,44 @@ defmodule Oneiroi.Kumbukumbu.Store do
   end
 
   @doc "The passages nearest a vector within a domain and the common room, or across every one (`within/2`), nearest first."
-  def nearest_passages(vector, within, limit) do
-    Repo.all(
-      from(p in Passage,
-        join: m in Message,
-        on:
-          m.resident_id == p.resident_id and m.session_key == p.session_key and
-            m.sent_at == p.sent_at and m.hash == p.hash,
-        where: ^passage_within(within),
-        order_by: cosine_distance(p.embedding, ^vector),
-        limit: ^limit,
-        select: %{
-          session_key: p.session_key,
-          turn_ref: p.turn_ref,
-          sent_at: p.sent_at,
-          role: p.role,
-          text: p.text,
-          distance: cosine_distance(p.embedding, ^vector)
-        }
-      )
+  def nearest_passages(vector, within, limit, opts \\ []) do
+    from(p in Passage,
+      join: m in Message,
+      on:
+        m.resident_id == p.resident_id and m.session_key == p.session_key and
+          m.sent_at == p.sent_at and m.hash == p.hash,
+      where: ^passage_within(within),
+      order_by: cosine_distance(p.embedding, ^vector),
+      limit: ^limit,
+      select: %{
+        session_key: p.session_key,
+        turn_ref: p.turn_ref,
+        sent_at: p.sent_at,
+        role: p.role,
+        text: p.text,
+        distance: cosine_distance(p.embedding, ^vector)
+      }
     )
+    |> passage_narrowed(opts)
+    |> Repo.all()
+  end
+
+  # The meaning leg narrows as the phrase leg does (kumbukumbu#96): a day
+  # range in her zone, whose words (`role`).
+  defp passage_narrowed(query, opts) do
+    Enum.reduce(opts, query, fn
+      {:from, %DateTime{} = at}, q ->
+        from([p, _m] in q, where: p.sent_at >= ^at)
+
+      {:to, %DateTime{} = at}, q ->
+        from([p, _m] in q, where: p.sent_at < ^at)
+
+      {:role, role}, q when role in ["user", "assistant"] ->
+        from([p, _m] in q, where: p.role == ^role)
+
+      _other, q ->
+        q
+    end)
   end
 
   defp passage_within(:any), do: dynamic(true)
