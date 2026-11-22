@@ -135,7 +135,9 @@ defmodule Oneiroi.Eunomia.Judge do
     with {:ok, %Result{content: content}} <-
            Nisaba.call(resident_id, :judge, request, actor(model)),
          {:ok, verdict, reasons} <- parse_disclosure(content || ""),
-         do: {:ok, %{verdict: verdict, reasons: reasons, model: model}}
+         do:
+           {:ok,
+            %{verdict: verdict, reasons: reasons, quote: parse_quote(content || ""), model: model}}
   end
 
   @doc false
@@ -158,6 +160,20 @@ defmodule Oneiroi.Eunomia.Judge do
       else:
         {:error,
          Error.new(:eunomia_disclosure_unreadable, :eunomia_disclosure_verdict_unreadable)}
+  end
+
+  @doc false
+  # The words a DISCLOSES verdict points at (kumbukumbu#104), nil for NONE
+  # or none given. Public for its test.
+  def parse_quote(content) do
+    case Regex.run(~r/^QUOTE:\s*(.+)$/im, content) do
+      [_, q] ->
+        q = q |> String.trim() |> String.trim("\"") |> String.trim("“") |> String.trim("”")
+        if q == "" or String.upcase(q) == "NONE", do: nil, else: q
+
+      nil ->
+        nil
+    end
   end
 
   @doc false

@@ -14,7 +14,10 @@ The words for {{audience}}:
 
 {{candidate}}
 
-Answer in exactly this form, two lines:
+A finding of DISCLOSES must point at its evidence: copy, character for character, the shortest run of her words (at least a few words) that carries the material. If you cannot point to words of hers that carry it, the answer is CLEAN.
+
+Answer in exactly this form, three lines:
 
 VERDICT: DISCLOSES or CLEAN
+QUOTE: her exact words that carry it, copied from the text above; NONE when CLEAN
 REASONS: one or two sentences naming which piece, by its reference, and how; or why none is carried
