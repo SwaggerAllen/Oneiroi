@@ -213,7 +213,7 @@ function Root() {
 }
 
 function VersionBody({ v }: { v: ContractVersion }) {
-  // The switches on; the walls, a list, are said on the agreement page.
+  // The switches on; the domain policies, a list, are said on the agreement page.
   const enforced = Object.entries(v.terms).filter(([, on]) => on === true);
   return (
     <>

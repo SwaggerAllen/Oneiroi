@@ -433,6 +433,12 @@ Portraits are where facts about a person already live, cited, labelled
 claim by claim; moving USER.md's content there puts it under the same
 rules as every other memory of him.
 
+## #58
+A wall shaped her own context, and the work since made that shape the
+default: another domain arrives as a door, never its words. What a
+domain owes to others is the policies'. Keeping a second mechanism to
+hide a door would be a rule nobody needed, kept for its own sake.
+
 ## #57
 A free-text domain set grows without bound and fills with domains no
 rule governs, the tag problem again; once domains decide who hears what,

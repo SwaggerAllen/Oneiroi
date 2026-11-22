@@ -785,12 +785,6 @@ defmodule Oneiroi.Kumbukumbu do
     do: Conversations.within(resident_id, session_key, across?)
   )
 
-  @doc "Whether the contract walls a memory of `key` from a turn in `current` (agathos-daimon#45); never consulted for her deliberate reach."
-  @spec walled?(String.t(), map() | nil, map() | nil) :: boolean()
-  defexport(walled?(resident_id, key, current),
-    do: Domains.walled?(resident_id, key, current)
-  )
-
   @doc "Whether a domain may be named in a session (kumbukumbu#90): the common room always, any other only when declared in the agreement."
   @spec check_domain(String.t(), String.t(), String.t() | nil, String.t() | nil) ::
           :ok | {:error, term()}

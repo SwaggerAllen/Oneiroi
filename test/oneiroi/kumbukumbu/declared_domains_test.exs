@@ -4,7 +4,7 @@ defmodule Oneiroi.Kumbukumbu.DeclaredDomainsTest do
   ruling, 2026-11-21; agathos-daimon#57, kumbukumbu#90; Lily's letter
   #1564): a tag, a classification, an annotation and a backfill's lists
   naming one it does not are refused, naming what is declared; the
-  common room always passes; a domain declared by a wall counts.
+  common room always passes.
   """
   use Oneiroi.DataCase, async: false
 
@@ -88,24 +88,46 @@ defmodule Oneiroi.Kumbukumbu.DeclaredDomainsTest do
     Oneiroi.Sunna.backfill_stop(ctx.id)
   end
 
-  test "a domain a wall names is declared too", ctx do
+  # kumbukumbu#97 (the witness, 2026-11-21): the common room is written
+  # where she reads her agreement, by its default or its own policy; no
+  # policy grants the export (nothing is kept from it) or a thread (too
+  # short-lived to hold a grant).
+  test "the common room is said in her agreement; export and thread are no audience", ctx do
+    assert AgathosDaimon.contract_text(ctx.id) =~
+             "The common room, what no domain names, has no policy written: it reaches every audience but the public ones (publication, processor)."
+
+    room = %{
+      "domain" => %{"person" => "*", "domain" => "common-room"},
+      "default" => "deny",
+      "allow" => [%{"kind" => "household", "id" => "*"}],
+      "deny" => []
+    }
+
     {:ok, v} =
       AgathosDaimon.propose_contract(
         ctx.id,
-        %{
-          "domain_walls" => [
-            %{
-              "memory" => %{"person" => "account:" <> ctx.witness.id, "domain" => "family"},
-              "context" => %{"person" => "*", "domain" => "*"}
-            }
-          ]
-        },
+        %{"domain_policies" => [room]},
         "",
-        "a wall",
+        "the room",
         ctx.andrew
       )
 
     :ok = AgathosDaimon.agree_contract(ctx.id, v, "agreed", ctx.lily)
-    assert :ok = Kumbukumbu.tag_domain(ctx.id, ctx.key, "t-1", nil, "family", ctx.andrew)
+
+    assert AgathosDaimon.contract_text(ctx.id) =~
+             "The common room, what no domain names: reaches no audience past you two by default; allows household:*."
+
+    for kind <- ["export", "thread"] do
+      grant = %{room | "allow" => [%{"kind" => kind, "id" => "*"}]}
+
+      assert {:error, %{kind: :agathos_daimon_terms_invalid}} =
+               AgathosDaimon.propose_contract(
+                 ctx.id,
+                 %{"domain_policies" => [grant]},
+                 "",
+                 kind,
+                 ctx.andrew
+               )
+    end
   end
 end

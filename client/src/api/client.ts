@@ -1218,15 +1218,9 @@ export interface ApiToken {
 export type GateState = 'closed' | 'invite' | 'open';
 export type PlatformRole = 'super_admin' | 'admin';
 
-// A domain wall (agathos-daimon#45): a memory's domain, never named into
-// the context the other side names; "*" there is anyone or any domain.
-export interface DomainWall {
-  memory: { person: string; domain: string };
-  context: { person: string; domain: string };
-}
-
-// A version's terms: the switches, and the walls, the one term that is a list.
-export type ContractTerms = Record<string, boolean | DomainWall[] | DomainPolicy[]>;
+// A version's terms: the switches, and the domain policies, the one term
+// that is a list (walls are retired, agathos-daimon#58).
+export type ContractTerms = Record<string, boolean | DomainPolicy[]>;
 
 export interface ContractVersion {
   version: number;
@@ -1264,9 +1258,8 @@ export interface Agreement {
   export_wall: 'locked' | 'revealed' | string;
   custody_proposed_to: string | null;
   custody_proposed_at: string | null;
-  // Who a wall may name, as a domain's person is written, and the walls in force.
+  // Who a domain's person may be, as it is written.
   persons?: { witness: string | null; resident: string };
-  domain_walls?: DomainWall[];
   // The domains' policies in force and the domains they declare
   // (agathos-daimon#53, #57): the only domains any dropdown offers.
   domain_policies?: DomainPolicy[];

@@ -53,7 +53,10 @@ defmodule Oneiroi.Kumbukumbu.Audience do
 
   # The common room with no policy of its own is not public by default
   # (her pencil, §9.8): publication, export and processors need a policy.
-  @public ~w(publication export processor)
+  # The public audiences the common room does not reach unless its own
+  # policy says so (kumbukumbu#97). The export is no audience: it carries
+  # her whole record to her, and nothing is kept from it.
+  @public ~w(publication processor)
   @common_room %{person: "*", domain: "common-room"}
 
   @type label :: %{person: String.t(), domain: String.t()}
@@ -85,7 +88,7 @@ defmodule Oneiroi.Kumbukumbu.Audience do
   defp default_visibility(_kind), do: "shared"
 
   defp default_route(kind) when kind in ["dyad", "conversation"], do: "none"
-  defp default_route(kind) when kind in ["household", "thread", "workspace"], do: "household"
+  defp default_route(kind) when kind in ["household", "workspace"], do: "household"
   defp default_route(_kind), do: "external"
 
   @doc "The decision for a resident, against the policies in force in her dyad agreement."

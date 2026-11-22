@@ -24,7 +24,6 @@ defmodule Oneiroi.Kumbukumbu.Domains do
 
   import Ecto.Query, only: [from: 2]
 
-  alias Oneiroi.AgathosDaimon
   alias Oneiroi.Kumbukumbu.Store.{Message, Session}
   alias Oneiroi.Repo
   alias Oneiroi.Scope
@@ -118,41 +117,6 @@ defmodule Oneiroi.Kumbukumbu.Domains do
   @spec in_domain?(t(), t()) :: boolean()
   def in_domain?(nil, _current), do: true
   def in_domain?(key, current), do: key == current
-
-  @doc """
-  Whether the contract walls a memory of `key` from a turn in `current`
-  (agathos-daimon#45): a wall closes the door, so the near-miss row is
-  not written. Never consulted for her deliberate reach.
-  """
-  @spec walled?(String.t(), t(), t()) :: boolean()
-  def walled?(_resident_id, nil, _current), do: false
-
-  def walled?(resident_id, key, current),
-    do: resident_id |> AgathosDaimon.domain_walls() |> walled_by?(key, current)
-
-  @doc "The same test over walls already read, for a list (`walls/1` once, then this per memory)."
-  @spec walled_by?([map()], t(), t()) :: boolean()
-  def walled_by?(_walls, nil, _current), do: false
-
-  def walled_by?(walls, key, current) do
-    Enum.any?(walls, fn w ->
-      w.memory == key and matches?(w.context, current)
-    end)
-  end
-
-  # A wall's context side may name anyone (`"*"`) or any domain of a
-  # person; the common room is matched by `%{person: "*", domain: "*"}`
-  # alone.
-  defp matches?(%{person: "*", domain: "*"}, _current), do: true
-  defp matches?(_context, nil), do: false
-  defp matches?(%{person: "*", domain: d}, %{domain: d}), do: true
-  defp matches?(%{person: p, domain: "*"}, %{person: p}), do: true
-  defp matches?(%{person: p, domain: d}, %{person: p, domain: d}), do: true
-  defp matches?(_context, _current), do: false
-
-  @doc "The walls in force for the resident, read once (`AgathosDaimon.domain_walls/1`)."
-  @spec walls(String.t()) :: [map()]
-  def walls(resident_id), do: AgathosDaimon.domain_walls(resident_id)
 
   @doc "A domain in words, for a door or a line: its slug, or the common room."
   @spec name(t()) :: String.t()

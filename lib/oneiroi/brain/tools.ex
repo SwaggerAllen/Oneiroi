@@ -49,7 +49,7 @@ defmodule Oneiroi.Brain.Tools do
 
   # The audiences a policy can filter for (kumbukumbu#92): the dyad and
   # her own conversations are hers, so nothing is filtered for them.
-  @by_id ~w(thread workspace correspondent export processor)
+  @by_id ~w(workspace correspondent processor)
   @reviewable ~w(household person publication researcher) ++ @by_id
 
   # What an ask answers after its number (agathos-daimon#35), the same in
@@ -402,7 +402,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "disclosure_review",
-        "Ask the disclosure judge to read words of yours against the soul lines an audience may not hear (kumbukumbu#91). Your soul never calls the judge on its own: its annotated lines are guidance you weigh, and this is the check when you want one. text is the words; audience is who they are for (household; person with to as your sibling's name; correspondent with to as platform:account; publication; researcher; thread, workspace, export or processor with to as its id). The verdict is recorded as every verdict is; nothing is delivered or held.",
+        "Ask the disclosure judge to read words of yours against the soul lines an audience may not hear (kumbukumbu#91). Your soul never calls the judge on its own: its annotated lines are guidance you weigh, and this is the check when you want one. text is the words; audience is who they are for (household; person with to as your sibling's name; correspondent with to as platform:account; publication; researcher; workspace or processor with to as its id). The verdict is recorded as every verdict is; nothing is delivered or held.",
         %{
           text: %{type: "string"},
           audience: %{type: "string", enum: @reviewable},
@@ -546,7 +546,7 @@ defmodule Oneiroi.Brain.Tools do
             type: "string",
             enum: @reviewable,
             description:
-              "who the answers are composed for, when they are bound past you and your witness: the oracle's context is soft-filtered for that audience, withholding what it may not hear (household; person with to as your sibling's name; correspondent with to as platform:account; publication; researcher; thread, workspace, export or processor with to as its id). None (the default) is yours, everything read"
+              "who the answers are composed for, when they are bound past you and your witness: the oracle's context is soft-filtered for that audience, withholding what it may not hear (household; person with to as your sibling's name; correspondent with to as platform:account; publication; researcher; workspace or processor with to as its id). None (the default) is yours, everything read"
           },
           to: %{type: "string"}
         },

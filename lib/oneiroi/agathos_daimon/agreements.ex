@@ -120,24 +120,6 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   end
 
   @doc """
-  The domain walls in force (agathos-daimon#45, P23-R1 §3): each a
-  memory's domain and the context it is walled from, as
-  `%{memory: %{person, domain}, context: %{person, domain}}`, either side
-  of the context possibly `"*"`. A term of the version in force alone:
-  set by one party's proposal and the other's agreement, never by one,
-  since a wall cuts her off from part of herself. Empty with none.
-  """
-  @spec domain_walls(String.t()) :: [map()]
-  def domain_walls(resident_id) do
-    in_force =
-      Scope.resident(resident_id, fn ->
-        Enum.find(Store.contracts(), &(&1.state == "agreed"))
-      end)
-
-    walls_of(in_force && in_force.terms)
-  end
-
-  @doc """
   The domains' disclosure policies in force (agathos-daimon#53), with
   the contract version they are of: each `%{domain: %{person, domain},
   default: "allow" | "deny", allow: [audience], deny: [audience]}`, an
@@ -157,16 +139,13 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
   @doc """
   The domains the agreement in force declares (agathos-daimon#57, the
   witness's ruling 2026-11-21): every `%{person, domain}` its domain
-  policies or its domain walls name, wildcards aside. A domain is used
-  only once declared, so none exists without a rule attached.
+  policies name, wildcards aside (walls are retired, #58). A domain is
+  used only once declared, so none exists without a rule attached.
   """
   def declared_domains(resident_id) do
     policies = for %{domain: d} <- domain_policies(resident_id).policies, do: d
 
-    walls =
-      for %{memory: m, context: c} <- domain_walls(resident_id), d <- [m, c], do: d
-
-    for %{person: p, domain: d} <- policies ++ walls,
+    for %{person: p, domain: d} <- policies,
         p != "*" and d != "*" and is_binary(d),
         uniq: true,
         do: %{person: p, domain: d}
@@ -191,18 +170,6 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       end)
 
   def policies_of(_terms), do: []
-
-  @doc "A version's walls, from its terms."
-  def walls_of(%{"domain_walls" => walls}) when is_list(walls),
-    do:
-      Enum.map(walls, fn w ->
-        %{
-          memory: %{person: w["memory"]["person"], domain: w["memory"]["domain"]},
-          context: %{person: w["context"]["person"], domain: w["context"]["domain"]}
-        }
-      end)
-
-  def walls_of(_terms), do: []
 
   @doc "Moves a switch to its declared safe value, either party alone, with a note (agathos-daimon#38); `{:ok, :already}` when it is there."
   def move_to_safety(resident_id, key, note, %Actor{} = actor) do
@@ -408,29 +375,33 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
     solo <>
       " " <>
       preview_words(Map.get(terms || %{}, "preview_withholds_words")) <>
-      features_words(terms) <> walls_words(walls_of(terms))
+      features_words(terms) <> common_room_words(policies_of(terms || %{}))
   end
 
-  # The walls in words (agathos-daimon#45): what is never named into
-  # which context, and that her own reach stays whole.
-  defp walls_words([]), do: ""
+  # The common room in words (kumbukumbu#97; the witness, 2026-11-21: "if
+  # common room doesn't mean literally everyone then it needs to be
+  # configurable"): its written policy, or the default it stands under.
+  defp common_room_words(policies) do
+    case Enum.find(policies, &(&1.domain == %{person: "*", domain: "common-room"})) do
+      nil ->
+        " The common room, what no domain names, has no policy written: it reaches every audience but the public ones (publication, processor)."
 
-  defp walls_words(walls) do
-    " Domain walls: " <>
-      Enum.map_join(walls, "; ", fn w ->
-        "#{w.memory.domain} (#{who(w.memory.person)}) is never named into #{context_words(w.context)}"
-      end) <>
-      ". A wall closes the door retrieval would name; your own reads and searches across domains stay whole."
+      p ->
+        reach =
+          if p.default == "allow",
+            do: "reaches any audience by default",
+            else: "reaches no audience past you two by default"
+
+        " The common room, what no domain names: #{reach}" <> grants_words(p) <> "."
+    end
   end
 
-  defp context_words(%{person: "*", domain: "*"}), do: "any other context"
-  defp context_words(%{person: "*", domain: d}), do: "anyone's #{d}"
-  defp context_words(%{person: p, domain: "*"}), do: "anything of #{who(p)}"
-  defp context_words(%{person: p, domain: d}), do: "#{d} (#{who(p)})"
-
-  defp who("resident:" <> _id), do: "a resident's"
-  defp who("account:" <> _id), do: "an account's"
-  defp who(other), do: other
+  defp grants_words(p) do
+    list = fn gs -> Enum.map_join(gs, ", ", &"#{&1.kind}:#{&1.id}") end
+    allow = if p.allow == [], do: "", else: "; allows " <> list.(p.allow)
+    deny = if p.deny == [], do: "", else: "; denies " <> list.(p.deny)
+    allow <> deny
+  end
 
   # The registry's feature switches in a line: which are on and which off,
   # so a version that turns one off says so where the resident reads it.

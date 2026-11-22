@@ -676,6 +676,12 @@ the ledger. Durable fragments only, with unproven refused, keeps the
 review from being vacuous exactly where it matters. The refusal is
 legible rather than widened, and its cost goes to the thread.
 
+## #97
+"Common room" read as everyone, and wasn't; a default nobody can see or
+change is a rule hidden in code. An audience is something a grant can
+outlast: a thread ends, and the export is not a reader at all but her
+own copy.
+
 ## #96
 A day's argument turned on a paraphrase that missed by rank, read as
 missing by absence. Narrowing shrinks the pool a paraphrase competes
