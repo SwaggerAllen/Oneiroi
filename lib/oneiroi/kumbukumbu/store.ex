@@ -207,6 +207,22 @@ defmodule Oneiroi.Kumbukumbu.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule DerivedLabel do
+    @moduledoc "A record's labels derived again from what it came from (kumbukumbu#101): preferred over the copy kept at write time."
+    use Ecto.Schema
+    @primary_key false
+    schema "kumbukumbu_derived_label" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:kind, :string, primary_key: true)
+      field(:record_id, :string, primary_key: true)
+      field(:labels, {:array, :map})
+      field(:edges, {:array, :map})
+      field(:derived_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule HouseLetter do
     @moduledoc "A letter between conversations of the resident (kumbukumbu#44), and which conversations have read it."
     use Ecto.Schema
@@ -519,9 +535,35 @@ defmodule Oneiroi.Kumbukumbu.Store do
     )
   end
 
+  @doc "The tool rows in `[from, to)`, oldest first (kumbukumbu#101): each its session, turn, words and instant."
+  def tool_rows(from_at, to_at),
+    do:
+      Repo.all(
+        from(m in Message,
+          where: m.role == "tool" and m.sent_at >= ^from_at and m.sent_at < ^to_at,
+          order_by: [asc: m.sent_at, asc: m.sequence, asc: m.position],
+          select: %{
+            session_key: m.session_key,
+            turn_ref: m.turn_ref,
+            content: m.content,
+            sent_at: m.sent_at
+          }
+        )
+      )
+
   @doc "Every house letter, oldest first (kumbukumbu#44)."
   @spec house_letters() :: [HouseLetter.t()]
   def house_letters, do: Repo.all(from(l in HouseLetter, order_by: l.number))
+
+  @doc "The derived labels of records of `kind` among `ids` (kumbukumbu#101), as `{record_id, labels}`."
+  def derived_labels(kind, ids),
+    do:
+      Repo.all(
+        from(d in DerivedLabel,
+          where: d.kind == ^kind and d.record_id in ^ids,
+          select: {d.record_id, d.labels}
+        )
+      )
 
   @doc "The newest `limit` letters' envelopes (kumbukumbu#74): who to whom, when, read by whom; never the words."
   @spec letter_envelopes(pos_integer()) :: [map()]

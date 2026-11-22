@@ -205,16 +205,16 @@ function Backfill() {
   const [hers, setHers] = useState<string[]>([]);
   // One kind of pass at a time, or several (sunna#79): the domains pass
   // alone re-names past days without rewriting scenes or portraits.
-  const [passes, setPasses] = useState<BackfillPass[]>(['scenes', 'domains', 'people']);
+  const [passes, setPasses] = useState<BackfillPass[]>(['scenes', 'domains', 'people', 'labels']);
   const act = useAct();
   const s = status.data;
-  const PASS = { scenes: 'writing the scenes', domains: 'naming the domains', people: 'the people pass' } as const;
+  const PASS = { scenes: 'writing the scenes', domains: 'naming the domains', people: 'the people pass', labels: 'carrying the domains to what was written from them' } as const;
   return (
     <Card title="Memory backfill" witness>
       <p className={css.text}>
         {s
-          ? `Running: ${PASS[s.pass]} for ${s.day}${s.turn > 1 ? ` (turn ${s.turn})` : ''}, through ${s.to}${s.passes && s.passes.length < 3 ? `; passes: ${s.passes.join(', ')}` : ''}.`
-          : `For each past day in a range, oldest first, the passes you tick: ${name} writes its scenes where they are missing; names the domains of every conversation that day, from the declared domains you pick (tags of undeclared ones go back to the common room first); and runs the people pass, whose seeds become portraits. A day at a time, each pass a housekeeping conversation of hers, billed to chat.`}
+          ? `Running: ${PASS[s.pass]} for ${s.day}${s.turn > 1 ? ` (turn ${s.turn})` : ''}, through ${s.to}${s.passes && s.passes.length < 4 ? `; passes: ${s.passes.join(', ')}` : ''}.`
+          : `For each past day in a range, oldest first, the passes you tick: ${name} writes its scenes where they are missing; names the domains of every conversation that day, from the declared domains you pick (tags of undeclared ones go back to the common room first); runs the people pass, whose seeds become portraits; and carries the day's domains to what was written from those conversations (files, journal rows, letters), with no model. A day at a time, each pass a housekeeping conversation of hers, billed to chat.`}
       </p>
       {s ? (
         <div className={css.row}>
@@ -240,9 +240,9 @@ function Backfill() {
           </div>
           <fieldset className={css.column}>
             <legend className={css.text}>Passes</legend>
-            {(['scenes', 'domains', 'people'] as const).map((p) => (
+            {(['scenes', 'domains', 'people', 'labels'] as const).map((p) => (
               <label key={p} className={css.row}>
-                <input type="checkbox" checked={passes.includes(p)} onChange={(e) => setPasses(e.target.checked ? (['scenes', 'domains', 'people'] as const).filter((x) => x === p || passes.includes(x)) : passes.filter((x) => x !== p))} />
+                <input type="checkbox" checked={passes.includes(p)} onChange={(e) => setPasses(e.target.checked ? (['scenes', 'domains', 'people', 'labels'] as const).filter((x) => x === p || passes.includes(x)) : passes.filter((x) => x !== p))} />
                 {PASS[p]}
               </label>
             ))}

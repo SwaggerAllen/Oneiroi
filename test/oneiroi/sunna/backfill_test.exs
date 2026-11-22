@@ -144,8 +144,12 @@ defmodule Oneiroi.Sunna.BackfillTest do
     assert note =~ "the Oneiroi chat, session #{ctx.main}"
     assert note =~ "free time, session #{ctx.free}"
 
-    # People: no scene names anyone, so it is skipped, and the range is done.
+    # People: no scene names anyone, so it is skipped.
     assert %{"pass" => "people"} = run_next(ctx.id)
+    assert asked() == []
+
+    # Labels: the platform's, no model (kumbukumbu#101); the range is done.
+    assert %{"pass" => "labels"} = run_next(ctx.id)
     assert asked() == []
     assert Sunna.backfill_status(ctx.id) == nil
 
@@ -182,7 +186,7 @@ defmodule Oneiroi.Sunna.BackfillTest do
     yesterday = ctx.day |> Date.from_iso8601!() |> Date.add(1) |> Date.to_iso8601()
     assert {:ok, 2} = Sunna.backfill_start(ctx.id, ctx.day, yesterday, %{}, ctx.actor)
 
-    for pass <- ["scenes", "domains", "people"],
+    for pass <- ["scenes", "domains", "people", "labels"],
         do: assert(%{"pass" => ^pass} = run_next(ctx.id))
 
     assert [%{"day" => ^yesterday, "pass" => "scenes"}] = jobs(ctx.id)

@@ -48,6 +48,7 @@ defmodule Oneiroi.Brain do
   alias Oneiroi.Brain.Drafting
   alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.FreeTime
+  alias Oneiroi.Brain.LabelPropagation
   alias Oneiroi.Brain.NeedsYou
   alias Oneiroi.Brain.NightPasses
   alias Oneiroi.Brain.PluginConsent
@@ -500,6 +501,12 @@ defmodule Oneiroi.Brain do
   @doc "The note for a pass of the memory backfill (sunna#59, brain#96): scenes, domains or people for a past day, from its transcripts' shape and scene rows; :skip when the day gives it nothing."
   defexport(backfill_note(resident_id, pass, day, n, lists),
     do: BackfillNotes.note(resident_id, pass, day, n, lists)
+  )
+
+  @impl Oneiroi.Sunna.Wake
+  @doc "The backfill's labels pass for a past day (kumbukumbu#101): its records labelled again from what they came from, deterministically; `{:ok, changed}`."
+  defexport(backfill_labels(resident_id, day),
+    do: LabelPropagation.run(resident_id, day)
   )
 
   @impl Oneiroi.Sunna.Wake

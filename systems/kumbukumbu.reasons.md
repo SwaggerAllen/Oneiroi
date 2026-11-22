@@ -788,3 +788,12 @@ A backfill that names only declared domains still leaves the earlier
 pass's undeclared tags standing, and those carry forward until the next
 tag, withheld from every audience by no rule anyone wrote. Clearing them
 to the common room first makes the declared list the whole answer.
+
+## #101
+A label copied at write time freezes whatever the conversation was
+named then; re-naming the conversation without carrying it on leaves
+every file, row and letter written from it under the old name, which
+for an undeclared domain means withheld by no rule anyone wrote. The
+tool row is the one deterministic link an older record has to its
+turn: it names the tool and its arguments, never a guess from prose.
+A new decision beside the write keeps the history the write recorded.

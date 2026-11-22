@@ -1707,6 +1707,9 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp read_letters(turn, letters) do
+    # Their labels as derived again where they were (kumbukumbu#101).
+    letters = Kumbukumbu.with_derived(turn.resident_id, "letter", letters, & &1.number)
+
     for l <- letters,
         do:
           Kumbukumbu.note_read_labelled(
