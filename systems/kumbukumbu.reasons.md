@@ -830,3 +830,6 @@ it is for.
 
 ## #106
 A tag that named a domain and was later retagged left its carry on the messages captured meanwhile, and nothing named them again; a classification in a domain the agreement dropped stayed in force. One clear over everything she keeps, carrying what was declared at the time, leaves no undeclared domain anywhere for the pass that follows to step around.
+
+## #107
+A judge that says DISCLOSES and cannot point at the words is reporting a feeling about the context, not a fact about the message, and failing that closed refused every delivery the context happened to touch. The prompt asked for two things at once, caution when unsure and proof always; asking only for proof, with her words fenced off from the material, is what makes a finding mean the message carries it.

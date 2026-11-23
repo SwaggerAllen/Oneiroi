@@ -162,8 +162,10 @@ defmodule Oneiroi.Kumbukumbu.Disclosure do
   # "make the judge prove its finding", after the judge refused
   # Scarlett's letter for words it was not in): a DISCLOSES verdict
   # quotes her words that carry the material, and the quote must be in
-  # them. One that is not is no finding: asked once more, and a second
-  # unproven finding is a review that gave no verdict, failing closed.
+  # them. One that is not is asked once more; a finding unproven twice is
+  # no finding, and the words are clean (kumbukumbu#107; the witness,
+  # 2026-11-23: "if the judge can't prove it then it's clean"). The
+  # record says it was unproven.
   @asks 2
   defp proven(port, resident_id, request, n \\ 1) do
     verdict = ask(port, resident_id, request)
@@ -179,19 +181,44 @@ defmodule Oneiroi.Kumbukumbu.Disclosure do
         proven(port, resident_id, request, n + 1)
 
       true ->
-        failed("its finding quoted nothing that is in her words, twice")
+        %{
+          verdict
+          | verdict: :clean,
+            reasons:
+              "clean: a finding that quoted nothing in her words, twice, is no finding (#{verdict.reasons})"
+        }
     end
   end
 
-  # The quote is in her words, compared as text: case, spacing and the
-  # kind of quotation mark aside. A quote of fewer than two words points
-  # at nothing.
+  # The quote is in her words, compared as text: case, spacing, the kind
+  # of quotation mark and an ellipsis between its pieces aside
+  # (kumbukumbu#107). A piece points at something when it is two words or
+  # more, or one word of five letters or more, or all of words that short.
   defp quoted?(quote, candidate) when is_binary(quote) and is_binary(candidate) do
-    q = plain(quote)
-    length(String.split(q)) >= 2 and String.contains?(plain(candidate), q)
+    words = plain(candidate)
+
+    pieces =
+      quote
+      |> String.split(~r/\s*(?:…|\.\.\.)\s*/u, trim: true)
+      |> Enum.map(&plain/1)
+      |> Enum.reject(&(&1 == ""))
+
+    pieces != [] and Enum.all?(pieces, &(pointed?(&1, words) and String.contains?(words, &1)))
   end
 
   defp quoted?(_quote, _candidate), do: false
+
+  @doc false
+  # Public for its test.
+  def quoted_for_test(quote, candidate), do: quoted?(quote, candidate)
+
+  defp pointed?(piece, words) do
+    case String.split(piece) do
+      [_, _ | _] -> true
+      [word] -> String.length(word) >= 5 or String.trim(words) == word
+      [] -> false
+    end
+  end
 
   defp plain(text),
     do:
