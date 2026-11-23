@@ -82,10 +82,11 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
 **Motion** (`shell/motion.ts`):
 - Tabs dissolve. The leaving tab stays shown and inert under the
   arriving one while it fades; no tab is remounted.
-- The dissolve goes through the ground: out 110 ms, then in 150 ms.
+- The dissolve goes through the ground: out 220 ms, then in 300 ms.
   The witness chose it over a direct crossfade from a side-by-side
   recording (2026-11-10): the crossfade barely registered as a
-  transition.
+  transition; and doubled it from 110/150 ms (2026-11-23) "so it
+  actually registers".
 - Pushes slide on a phone: deeper comes in from the right, back from
   the left, a short distance with a fade, without remounting the view.
   On a wide screen the list sits beside the page, so nothing slides.
@@ -110,8 +111,10 @@ witness, 2026-11-20: "a mark-all read button for each workspace", in the
 menu by his choice): the house as a whole, or a resident's chat, read up
 to now.
 Choosing another fades the house out to the ground, swaps her theme,
-records and connection, and fades in (decided: a subject switch carries
-the theme, so it gets the pause); every tab returns to its root, since
+records and connection, waits under the ground until the new view's
+reads have settled (nothing fetching for three frames, at most four
+seconds; the witness, 2026-11-23), and fades in (decided: a subject
+switch carries the theme, so it gets the pause); every tab returns to its root, since
 the old paths were the other resident's. The choice is kept on this
 device. "Wake someone new" opens creation over the house, with Back to
 return; Operator is listed for platform roles. Above the residents,

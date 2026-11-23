@@ -82,7 +82,10 @@ header's bell and gear. Built 2026-11-10.
   - Send feedback, and Operator for platform roles;
   - the account, and Sign out.
 - **Theme** (Settings → Theme, seshat#56): her three seeds (the
-  ground, hers, yours) as colour pickers, worn on screen as you pick,
+  ground, hers, yours), each a swatch that opens a grid of colours
+  twice the system picker's grid each way (24 by 20, dense at the dark
+  end so a ground dark enough is there without black; the witness,
+  2026-11-23), with the system picker beside it for anything between, worn on screen as you pick,
   with the seven readability checks the server also runs. Saved to her
   THEME.md with an optional note, or kept on this device only (a local
   override, never sent). Saving is refused while any check fails.

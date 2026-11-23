@@ -173,3 +173,14 @@ export const answer = style({
 export const answerRow = style({ display: 'flex', gap: 8 });
 export const colorRow = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44, fontSize: 15 });
 export const colorPick = style({ display: 'flex', alignItems: 'center', gap: 8 });
+// The theme picker's grid (2026-11-23): 24 by 20 cells, the full width.
+export const colorGrid = style({ display: 'grid', gridTemplateColumns: 'repeat(24, minmax(0, 1fr))', gap: 1, borderRadius: 8, overflow: 'hidden', border: `1px solid ${vars.color.border}` });
+export const colorCell = style({
+  aspectRatio: '1',
+  minWidth: 0,
+  padding: 0,
+  border: 'none',
+  cursor: 'pointer',
+  selectors: { '&[aria-pressed="true"]': { outline: `2px solid ${vars.color.text}`, outlineOffset: -2, zIndex: 1 } },
+});
+export const swatchButton = style({ width: 28, height: 28, borderRadius: 8, border: `1px solid ${vars.color.borderStrong}`, padding: 0, cursor: 'pointer' });

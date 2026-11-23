@@ -1,5 +1,5 @@
 import { isFailure } from './shell/failures';
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { api, RequestFailed } from '../api/client';
 import { Live } from './live/live';
@@ -24,10 +24,8 @@ import { useOperatorQueue } from './shell/operatorQueue';
 import { useShell } from './state/store';
 import { useResidentTheme } from './theme/useResidentTheme';
 import { useSubjectChoice } from './state/subject';
+import { queries } from './state/queries';
 
-const queries = new QueryClient({
-  defaultOptions: { queries: { staleTime: 60_000, refetchOnWindowFocus: false, retry: 1 } },
-});
 
 export function App() {
   return (

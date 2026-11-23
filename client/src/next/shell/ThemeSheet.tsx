@@ -4,6 +4,7 @@ import { api } from '../../api/client';
 import { useSubject } from '../state/resident';
 import { useShell } from '../state/store';
 import { derive, type Seeds } from '../theme/derive';
+import { grid } from '../theme/grid';
 import { readOverride, writeOverride } from '../theme/useResidentTheme';
 import * as css from './overlays.css';
 
@@ -27,6 +28,8 @@ export function ThemeSheet() {
   const [seeds, setSeedsLocal] = useState<Seeds | null>(null);
   const [note, setNote] = useState('');
   const [device, setDevice] = useState(() => readOverride(id) !== null);
+  // The seed whose grid is open: the ground first, where the dark shades matter.
+  const [picking, setPicking] = useState<keyof Seeds | null>('ground');
 
   useEffect(() => {
     if (!seeds && theme.data) setSeedsLocal(readOverride(id) ?? theme.data.seeds);
@@ -63,19 +66,31 @@ export function ThemeSheet() {
         {theme.data?.source === 'file' ? `From ${name}'s THEME.md.` : 'The house colours, until you or she choose others.'} You see it as you pick.
       </p>
       {FIELDS.map((f) => (
-        <label key={f.key} className={css.colorRow}>
-          <span>{f.label(name)}</span>
-          <span className={css.colorPick}>
-            <input
-              id={`theme-${f.key}`}
-              type="color"
-              value={seeds[f.key]}
-              onChange={(e) => setSeedsLocal({ ...seeds, [f.key]: e.target.value })}
-              aria-label={f.label(name)}
-            />
-            <code className={css.since}>{seeds[f.key]}</code>
-          </span>
-        </label>
+        <div key={f.key} className={css.stack}>
+          <div className={css.colorRow}>
+            <span>{f.label(name)}</span>
+            <span className={css.colorPick}>
+              <button
+                type="button"
+                className={css.swatchButton}
+                style={{ background: seeds[f.key] }}
+                aria-expanded={picking === f.key}
+                aria-label={`Pick ${f.label(name).toLowerCase()} from the grid`}
+                onClick={() => setPicking(picking === f.key ? null : f.key)}
+              />
+              {/* The system's own picker, for anything between the grid's steps. */}
+              <input
+                id={`theme-${f.key}`}
+                type="color"
+                value={seeds[f.key]}
+                onChange={(e) => setSeedsLocal({ ...seeds, [f.key]: e.target.value })}
+                aria-label={f.label(name)}
+              />
+              <code className={css.since}>{seeds[f.key]}</code>
+            </span>
+          </div>
+          {picking === f.key && <ColorGrid value={seeds[f.key]} label={f.label(name)} onPick={(hex) => setSeedsLocal({ ...seeds, [f.key]: hex })} />}
+        </div>
       ))}
       <h3 className={css.heading}>READABLE? {derived.ok ? 'YES' : `NOT YET · ${failing.length}`}</h3>
       <ul className={css.list}>
@@ -102,6 +117,29 @@ export function ThemeSheet() {
       )}
       {save.isSuccess && <p className={css.note}>Kept.</p>}
       {save.error && <p className={css.note}>{(save.error as Error).message}</p>}
+    </div>
+  );
+}
+
+const GRID = grid();
+
+/** Twice the system grid each way (2026-11-23), dense at the dark end, where grounds live. */
+function ColorGrid({ value, label, onPick }: { value: string; label: string; onPick: (hex: string) => void }) {
+  return (
+    <div className={css.colorGrid} role="group" aria-label={`${label}: a grid of colours`}>
+      {GRID.flatMap((row, r) =>
+        row.map((hex, c) => (
+          <button
+            key={`${r}-${c}`}
+            type="button"
+            className={css.colorCell}
+            style={{ background: hex }}
+            aria-label={hex}
+            aria-pressed={hex.toLowerCase() === value.toLowerCase()}
+            onClick={() => onPick(hex)}
+          />
+        )),
+      )}
     </div>
   );
 }

@@ -10,8 +10,8 @@ export const reduced = () => window.matchMedia('(prefers-reduced-motion: reduce)
 
 const EASE = 'cubic-bezier(0.2, 0, 0, 1)';
 
-/** Out to the ground, then in. */
-const TIMING = { out: 110, in: 150 };
+/** Out to the ground, then in: doubled 2026-11-23 (the witness: "so it actually registers"). */
+const TIMING = { out: 220, in: 300 };
 
 /**
  * Tab switches fade out to the ground, then in. Returns the tab that is leaving (kept visible,
