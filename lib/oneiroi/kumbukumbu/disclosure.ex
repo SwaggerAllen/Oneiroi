@@ -11,11 +11,12 @@ defmodule Oneiroi.Kumbukumbu.Disclosure do
   unclassified. An explicit deny, or an audience not resolved, is refused
   as before, unreviewed: the judge may refuse, never grant past a deny.
 
-  **What the judge sees.** The exact candidate and the held-back inputs'
-  words, sufficient rather than trimmed (`Ledger.fragments/3`: a message
-  brings its turn, a bookmark its line, summary and anchor turn). An
-  input whose words cannot be found leaves the ledger unproven, and the
-  delivery fails closed.
+  **What the judge sees.** The exact candidate and what tripped the
+  review, never the discussion around it (kumbukumbu#105,
+  `Ledger.fragments/3`: a message as itself, a bookmark its line and
+  summary, the lanes' bookmarks in a domain). An input whose words
+  cannot be found leaves the ledger unproven, and the delivery fails
+  closed.
 
   **The judge** is her configured judge model, Eunomia's (the witness's
   ruling, 2026-11-20), through the port `KUMBUKUMBU_DISCLOSURE_JUDGE`
