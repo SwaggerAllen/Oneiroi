@@ -395,9 +395,9 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
 
   @doc """
   The words behind each held-back input (kumbukumbu#82), for the
-  disclosure judge: sufficient, never trimmed below what a candidate
-  could disclose, so a message brings its whole turn and a bookmark its
-  line, summary and anchor turn. `{:ok, [%{ref, text}]}`, or `:unproven`
+  disclosure judge: what tripped the review, never the discussion around
+  it (kumbukumbu#105): a message is itself, a bookmark its line and
+  summary, the lanes only the bookmarks in them of the held domain. `{:ok, [%{ref, text}]}`, or `:unproven`
   when any input's words cannot be found: what cannot be shown cannot be
   judged, and the delivery fails closed.
   """
@@ -408,6 +408,8 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
       inputs
       |> Enum.map(&fragment(resident_id, sections, &1))
       |> Enum.uniq_by(&(&1 && &1.ref))
+      # A piece with nothing of the held domain in it is no piece.
+      |> Enum.reject(&(is_map(&1) and String.trim(&1.text) == ""))
 
     if Enum.any?(found, &is_nil/1), do: :unproven, else: {:ok, found}
   end
@@ -415,30 +417,44 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
   defp fragment(_resident_id, _sections, %{text: text, ref: ref}) when is_binary(text),
     do: %{ref: ref, text: text}
 
-  defp fragment(resident_id, _sections, %{id: "message/" <> _, turn_ref: ref})
+  # A held message is itself, never its whole turn (kumbukumbu#105, the
+  # witness, 2026-11-23: the judge sees what tripped the review, not the
+  # discussion around it). Its turn stands in only where the message
+  # cannot be singled out.
+  defp fragment(resident_id, _sections, %{id: "message/" <> _ = id, turn_ref: ref} = input)
        when is_binary(ref),
-       do: turn_fragment(resident_id, ref)
+       do: message_fragment(resident_id, id, ref, input) || turn_fragment(resident_id, ref)
 
+  # A held bookmark is its line and summary, never its anchor turn
+  # (kumbukumbu#105).
   defp fragment(resident_id, _sections, %{id: "bookmark/" <> n}) do
     with {number, ""} <- Integer.parse(n),
          %{} = b <- Scope.resident(resident_id, fn -> Store.bookmark(number) end) do
-      turn = turn_fragment(resident_id, b.anchor_ref)
-
-      %{
-        ref: "bookmark/#{number}",
-        text:
-          "#{b.line}\n#{b.summary}" <>
-            if(turn, do: "\n\nIts anchor turn:\n" <> turn.text, else: "")
-      }
+      %{ref: "bookmark/#{number}", text: "#{b.line}\n#{b.summary}"}
     else
       _absent -> nil
     end
   end
 
-  defp fragment(_resident_id, sections, %{id: "lanes"}) do
-    case for(name <- @lane_sections, text = sections[name], is_binary(text), do: text) do
-      [] -> nil
-      texts -> %{ref: "the turn's memory lanes", text: Enum.join(texts, "\n\n")}
+  # The lanes are shown only for what in them is some domain's
+  # (kumbukumbu#105): of the bookmark index and the pins, the bookmarks
+  # in a domain, never the common room's; the other lanes whole.
+  defp fragment(resident_id, sections, %{id: "lanes"} = input) do
+    case for(name <- @lane_sections, text = sections[name], is_binary(text), do: {name, text}) do
+      [] ->
+        nil
+
+      texts ->
+        held = held_pairs(Map.get(input, :labels))
+
+        %{
+          ref: "the turn's memory lanes",
+          text:
+            texts
+            |> Enum.map(&lane_text(resident_id, &1, held))
+            |> Enum.reject(&(String.trim(&1) == ""))
+            |> Enum.join("\n\n")
+        }
     end
   end
 
@@ -460,6 +476,73 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
       {^name, content} -> content
       _other -> nil
     end)
+  end
+
+  defp held_pairs(labels) when is_list(labels),
+    do: for(%{person: _, domain: _} = p <- labels, do: p)
+
+  defp held_pairs(_labels), do: nil
+
+  defp lane_text(resident_id, {name, text}, [_ | _]) when name in ~w(pins index) do
+    lines = String.split(text, "\n")
+
+    numbers =
+      for line <- lines, [_, n] <- [Regex.run(~r/^#(\d+)\s/, line)], do: String.to_integer(n)
+
+    domains =
+      Scope.resident(resident_id, fn -> numbers |> Enum.map(&Store.bookmark/1) end)
+      |> Enum.reject(&is_nil/1)
+      |> then(&Domains.attach(resident_id, &1))
+      |> Map.new(&{&1.number, &1.domain_key})
+
+    lines
+    |> Enum.filter(fn line ->
+      case Regex.run(~r/^#(\d+)\s/, line) do
+        # The common room's bookmarks reach every audience the lanes
+        # could be held from, so they are no piece; any domain's is
+        # shown, and so is one that cannot be found: unknown is not clean.
+        [_, n] -> Map.get(domains, String.to_integer(n), :unknown) != nil
+        nil -> false
+      end
+    end)
+    |> Enum.join("\n")
+  end
+
+  defp lane_text(_resident_id, {_name, text}, _held), do: text
+
+  defp message_fragment(resident_id, id, turn_ref, input) do
+    wanted = message_position(id, Map.get(input, :ref))
+    messages = Scope.resident(resident_id, fn -> Store.turn_messages(turn_ref) end)
+
+    case wanted && Enum.filter(messages, &wanted.(&1)) do
+      [_ | _] = mine ->
+        %{ref: id, text: Enum.map_join(mine, "\n", &"#{&1.role}: #{&1.content}")}
+
+      _none ->
+        nil
+    end
+  end
+
+  # `message/<session>/<sequence>/<position>` names one message; an
+  # assembled window's `message/<i>` names its sequence in its ref,
+  # `transcript/<session>/<sequence>`.
+  defp message_position(id, ref) do
+    case {String.split(id, "/"), ref && String.split(ref, "/")} do
+      {["message", _session, seq, pos], _ref} ->
+        with {s, ""} <- Integer.parse(seq),
+             {p, ""} <- Integer.parse(pos),
+             do: &(&1.sequence == s and &1.position == p),
+             else: (_ -> nil)
+
+      {["message", _i], ["transcript", _session, seq]} ->
+        case Integer.parse(seq) do
+          {s, ""} -> &(&1.sequence == s)
+          _other -> nil
+        end
+
+      _other ->
+        nil
+    end
   end
 
   defp turn_fragment(_resident_id, nil), do: nil

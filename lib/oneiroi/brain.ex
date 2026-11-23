@@ -454,6 +454,10 @@ defmodule Oneiroi.Brain do
   @spec stop(String.t(), String.t(), atom()) :: :ok | {:error, term()}
   defexport(stop(resident_id, session_key, by), do: Session.stop(resident_id, session_key, by))
 
+  @doc "What a session is generating now (brain#114): the running turn's ref and those queued behind it."
+  @spec working(String.t(), String.t()) :: %{running: String.t() | nil, queued: [String.t()]}
+  defexport(working(resident_id, session_key), do: Session.working(resident_id, session_key))
+
   @doc "Runs one turn of a session: the witness's text in, the resident's reply captured and streamed."
   @spec turn(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, map()} | {:error, term()}

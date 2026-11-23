@@ -76,6 +76,25 @@ defmodule Oneiroi.Brain.Session do
     end
   end
 
+  @doc """
+  What the session is generating now (brain#114): the running turn's ref
+  and the refs queued behind it; nothing when no process runs. Read when
+  a client joins the session, so a view that comes back mid-turn shows it
+  working instead of losing it.
+  """
+  @spec working(String.t(), String.t()) :: %{running: String.t() | nil, queued: [String.t()]}
+  def working(resident_id, session_key) do
+    case Registry.lookup(@registry, {resident_id, session_key}) do
+      [{pid, _}] -> GenServer.call(pid, :working)
+      [] -> %{running: nil, queued: []}
+    end
+  catch
+    # The process ended between the lookup and the call: nothing runs.
+    :exit, gone ->
+      _ = Error.caught(:brain_session_unavailable, :brain_session_working_gone, gone)
+      %{running: nil, queued: []}
+  end
+
   @doc "Runs a wake on the session's process: the core's note, answered under its purpose."
   @spec wake(String.t(), String.t(), String.t(), atom(), keyword()) ::
           {:ok, map()} | {:error, term()}
@@ -129,6 +148,12 @@ defmodule Oneiroi.Brain.Session do
   def handle_call({:run, item}, from, state) do
     item = %{item | ref: item.ref || Kumbukumbu.turn_ref()}
     {:noreply, enqueue(state, Map.put(item, :from, from))}
+  end
+
+  def handle_call(:working, _from, state) do
+    running = state.running && state.running.ref
+    queued = for item <- :queue.to_list(state.queue), do: item.ref
+    {:reply, %{running: running, queued: queued}, state}
   end
 
   def handle_call({:stop, by}, _from, %{running: %{task: %Task{pid: pid}}} = state) do

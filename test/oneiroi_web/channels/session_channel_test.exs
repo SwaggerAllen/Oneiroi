@@ -4,6 +4,7 @@ defmodule OneiroiWeb.SessionChannelTest do
 
   alias Ecto.Adapters.SQL.Sandbox
   alias Oneiroi.Actor
+  alias Oneiroi.Brain.Session
   alias Oneiroi.Fixtures
   alias Oneiroi.Nisaba.Provider.Fake
   alias OneiroiWeb.UserSocket
@@ -41,7 +42,8 @@ defmodule OneiroiWeb.SessionChannelTest do
     {:ok, socket} =
       connect(UserSocket, %{"token" => UserSocket.token(OneiroiWeb.Endpoint, ctx.witness.id)})
 
-    {:ok, _reply, socket} =
+    # The join says what is generating (brain#114): nothing yet.
+    {:ok, %{running: nil, queued: []}, socket} =
       subscribe_and_join(
         socket,
         OneiroiWeb.SessionChannel,
@@ -103,5 +105,17 @@ defmodule OneiroiWeb.SessionChannelTest do
                OneiroiWeb.SessionChannel,
                "session:#{ctx.resident.id}:#{private}"
              )
+  end
+
+  test "the session says what it is generating: the running turn and those queued behind it (brain#114)" do
+    state = %{
+      running: %{ref: "t-running"},
+      queue: :queue.from_list([%{ref: "t-next"}, %{ref: "t-after"}])
+    }
+
+    assert {:reply, %{running: "t-running", queued: ["t-next", "t-after"]}, ^state} =
+             Session.handle_call(:working, self(), state)
+
+    assert %{running: nil, queued: []} = Oneiroi.Brain.working("nobody", "no-session")
   end
 end

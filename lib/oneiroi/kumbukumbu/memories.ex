@@ -1042,6 +1042,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
       l.from_name == household_sender() ->
         {"house", "the household (a thread you watch, or a turn of yours)"}
 
+      l.from_name == threads_sender() ->
+        {"witness", "your witness, in your own threads"}
+
       is_binary(Map.get(l, :from_session)) ->
         {"own", "your own conversation “#{l.from_name}”"}
 
@@ -1065,6 +1068,9 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
   @doc "The sender a household watch's letter carries (seshat#62), which the tick wakes the chat for (sunna#49)."
   def household_sender, do: "the household"
+
+  @doc "The sender of a letter saying her witness wrote in her own threads (seshat#108), which the tick wakes the chat for."
+  def threads_sender, do: "your threads"
 
   @doc "A house letter from the oracle to the conversation `session_key` (brain#49); nothing when that conversation has no name."
   def letter_to_session(resident_id, session_key, text, %Actor{kind: :platform} = actor) do
@@ -1236,6 +1242,11 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   # the house tells her so, and the tick wakes the chat for it.
   defp sender(_resident_id, nil, %Actor{kind: :job, id: "household_rounds"}),
     do: {:ok, household_sender()}
+
+  # Her witness wrote in her own threads (seshat#108): the poke names the
+  # thread and the reply, and the tick wakes the chat for it.
+  defp sender(_resident_id, nil, %Actor{kind: :job, id: "resident_threads"}),
+    do: {:ok, threads_sender()}
 
   defp sender(resident_id, session_key, %Actor{}) do
     case name_of(resident_id, session_key) do

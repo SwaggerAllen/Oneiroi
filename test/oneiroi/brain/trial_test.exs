@@ -355,7 +355,7 @@ defmodule Oneiroi.Brain.TrialTest do
     {"bookmark_decline", %{ref: "nope", note: "no"}},
     {"tag_propose", %{slug: "birds", note: "for the herons"}},
     {"tag_apply", %{slug: "birds", target_kind: "bookmark", target_id: "1"}},
-    {"soul_edit", %{file: "SOUL.md", content: "# Soul\n\nWatches herons."}},
+    {"soul_edit", %{file: "SOUL.md", op: "add", text: "Watches herons."}},
     {"wash_resolve", %{ref: "nope", decision: "keep", note: "mine"}},
     {"soul_edit_accept", %{ref: "nope", note: "yes"}},
     {"soul_edit_decline", %{ref: "nope", note: "no"}},

@@ -354,6 +354,20 @@ defmodule Oneiroi.AgathosDaimon.Store do
   def soul_lines,
     do: Repo.all(from(l in SoulLine, where: l.state == "live", order_by: [l.position, l.number]))
 
+  @doc "When her soul last changed: the latest line written, reworded or retired, or nil (agathos-daimon#61)."
+  @spec soul_lines_changed_at() :: DateTime.t() | nil
+  def soul_lines_changed_at do
+    Repo.one(
+      from(l in SoulLine,
+        select:
+          type(
+            max(fragment("greatest(?, ?, ?)", l.written_at, l.reworded_at, l.retired_at)),
+            :utc_datetime_usec
+          )
+      )
+    )
+  end
+
   @doc "One file's gift reads, newest first."
   @spec gift_reads(String.t()) :: [GiftRead.t()]
   def gift_reads(file),

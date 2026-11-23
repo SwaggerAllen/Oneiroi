@@ -4,7 +4,6 @@ import type { ReactNode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { api } from '../../api/client';
 import type { Message, Session, Transcript } from '../../api/types';
-import type { Live } from '../live/live';
 import { useChat } from './useChat';
 
 // kumbukumbu#96 (the witness, 2026-11-21): "I can go to a bookmark but I
@@ -37,10 +36,9 @@ describe('reading on past a jump', () => {
       .mockResolvedValueOnce({ ...transcript([13, 14]), more: true })
       .mockResolvedValueOnce({ ...transcript([15]), more: false });
 
-    const live = { session: () => () => undefined } as unknown as Live;
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
     const wrapper = ({ children }: { children: ReactNode }) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-    const { result } = renderHook(() => useChat('r', live), { wrapper });
+    const { result } = renderHook(() => useChat('r'), { wrapper });
 
     await waitFor(() => expect(result.current.key).toBe('k'));
     await act(() => result.current.jumpTo('t-11'));

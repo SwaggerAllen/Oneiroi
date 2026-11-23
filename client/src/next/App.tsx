@@ -1,5 +1,5 @@
 import { isFailure } from './shell/failures';
-import { QueryClient, QueryClientProvider, useQuery } from '@tanstack/react-query';
+import { QueryClientProvider, useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { api, RequestFailed } from '../api/client';
 import { Live } from './live/live';
@@ -13,7 +13,8 @@ import { Shell } from './shell/Shell';
 import * as css from './shell/shell.css';
 import { HOUSE_SUBJECT, SubjectContext } from './state/resident';
 import { HouseHome } from './house/HouseHome';
-import { LiveContext } from './live/context';
+import { LiveContext, useLive } from './live/context';
+import { useGenerationWatcher } from './live/generations';
 import { Theme } from './theme/Theme';
 import { Auth } from './onboarding/Auth';
 import { Creation } from './onboarding/Creation';
@@ -24,10 +25,8 @@ import { useOperatorQueue } from './shell/operatorQueue';
 import { useShell } from './state/store';
 import { useResidentTheme } from './theme/useResidentTheme';
 import { useSubjectChoice } from './state/subject';
+import { queries } from './state/queries';
 
-const queries = new QueryClient({
-  defaultOptions: { queries: { staleTime: 60_000, refetchOnWindowFocus: false, retry: 1 } },
-});
 
 export function App() {
   return (
@@ -85,57 +84,79 @@ function Boot() {
   // A resident still forming (agathos-daimon#46) is not a house yet: the
   // creation flow picks up where it was left.
   const awake = list.filter((r) => r.state !== 'forming');
+  const ids = awake.map((r) => r.id);
   const resident = list.find((r) => r.id === chosen) ?? awake[0] ?? list[0];
   const forming = resident?.state === 'forming' && !waking ? resident : undefined;
   // The house (screen:next-house) is chosen from the same dropdown, once
   // someone lives in it.
   if (chosen === HOUSE_SUBJECT && awake.length > 0 && !waking) {
     return (
-      <SubjectContext.Provider value={{ id: HOUSE_SUBJECT, slug: HOUSE_SUBJECT, name: 'The house', kind: 'house' }}>
-        <OperatorOr>
-          <HouseHome />
-        </OperatorOr>
-      </SubjectContext.Provider>
+      <SignedIn ids={ids}>
+        <SubjectContext.Provider value={{ id: HOUSE_SUBJECT, slug: HOUSE_SUBJECT, name: 'The house', kind: 'house' }}>
+          <OperatorOr>
+            <HouseHome />
+          </OperatorOr>
+        </SubjectContext.Provider>
+      </SignedIn>
     );
   }
   if (!resident || waking || forming) {
     const elsewhere = awake.find((r) => r.id !== forming?.id);
     return (
-      <Creation
-        key={forming?.id ?? 'new'}
-        resume={forming}
-        onWoken={(id) => {
-          void residents.refetch().then(() => {
-            setWaking(false);
-            if (id) choose(id);
-          });
-        }}
-        onCancel={waking && awake.length > 0 ? () => setWaking(false) : undefined}
-        onLeave={
-          elsewhere
-            ? () => {
-                setWaking(false);
-                choose(elsewhere.id);
-              }
-            : undefined
-        }
-      />
+      <SignedIn ids={ids}>
+        <Creation
+          key={forming?.id ?? 'new'}
+          resume={forming}
+          onWoken={(id) => {
+            void residents.refetch().then(() => {
+              setWaking(false);
+              if (id) choose(id);
+            });
+          }}
+          onCancel={waking && awake.length > 0 ? () => setWaking(false) : undefined}
+          onLeave={
+            elsewhere
+              ? () => {
+                  setWaking(false);
+                  choose(elsewhere.id);
+                }
+              : undefined
+          }
+        />
+      </SignedIn>
     );
   }
   return (
-    <SubjectContext.Provider value={{ id: resident.id, slug: resident.slug, name: resident.name }}>
-      <OperatorOr>
-        <Home key={resident.id} residentId={resident.id} residentName={resident.name} />
-      </OperatorOr>
-    </SubjectContext.Provider>
+    <SignedIn ids={ids}>
+      <SubjectContext.Provider value={{ id: resident.id, slug: resident.slug, name: resident.name }}>
+        <OperatorOr>
+          <Home key={resident.id} residentId={resident.id} residentName={resident.name} />
+        </OperatorOr>
+      </SubjectContext.Provider>
+    </SignedIn>
   );
 }
 
-function Home({ residentId, residentName }: { residentId: string; residentName: string }) {
+/**
+ * The signed-in app's one socket (2026-11-23), above every workspace, so
+ * switching workspaces never closes it: the resident's notices move with
+ * the subject, and the watcher keeps every resident's main chat joined,
+ * so what is generating goes on updating wherever you are.
+ */
+function SignedIn({ ids, children }: { ids: string[]; children: React.ReactNode }) {
   const live = useMemo(() => new Live(queries), []);
   useEffect(() => {
-    void live.start().then(() => live.watch(residentId));
+    void live.start();
     return () => live.stop();
+  }, [live]);
+  useGenerationWatcher(live, ids);
+  return <LiveContext.Provider value={live}>{children}</LiveContext.Provider>;
+}
+
+function Home({ residentId, residentName }: { residentId: string; residentName: string }) {
+  const live = useLive() as Live;
+  useEffect(() => {
+    void live.ready.then(() => live.watch(residentId));
   }, [live, residentId]);
 
   useResidentTheme(residentId);
@@ -148,8 +169,7 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
   const operatorItems = useOperatorQueue();
 
   return (
-    <LiveContext.Provider value={live}>
-      <Shell
+    <Shell
         residentId={residentId}
         residentName={residentName}
         waiting={(bell.data ?? []).filter((e) => e.kind !== 'notifications').length + (notifications.ask ? 1 : 0) + operatorItems.length}
@@ -157,7 +177,7 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
         onReconnect={() => void live.reconnect()}
         renderTab={(tab, path) =>
           tab === 'chat' ? (
-            <ChatTab residentId={residentId} residentName={residentName} live={live} path={path} />
+            <ChatTab residentId={residentId} residentName={residentName} path={path} />
           ) : tab === 'records' ? (
             <RecordsTab residentId={residentId} path={path} />
           ) : tab === 'soul' ? (
@@ -167,7 +187,6 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
           )
         }
       />
-    </LiveContext.Provider>
   );
 }
 

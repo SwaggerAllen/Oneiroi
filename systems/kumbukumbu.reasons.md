@@ -819,3 +819,12 @@ A refusal is a claim about the words; one that cannot point at them is
 a claim about something else. The quote costs the judge one line and
 turns its most damaging error, a finding about words that are not
 there, into a mechanical check the platform runs itself.
+
+## #105
+A whole turn, an anchor turn and the whole bookmark index put every
+nearby conversation in front of the judge, and a judge told to say
+DISCLOSES when unsure found related talk everywhere: deliveries were
+refused for what the context discussed, not for what the words carried.
+Showing only what tripped the review keeps the judge on the one question
+it is for.
+

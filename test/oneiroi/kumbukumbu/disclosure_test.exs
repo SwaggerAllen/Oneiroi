@@ -144,6 +144,36 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
     for %{data: %Kumbukumbu.Events.DisclosureJudged{} = e} <- events, do: e
   end
 
+  test "the judge sees what tripped the review, not the discussion around it", ctx do
+    judge(FakeJudge)
+
+    {:ok, held} =
+      Kumbukumbu.add_bookmark(
+        ctx.id,
+        %{
+          session_key: ctx.key,
+          anchor_ref: "t-1",
+          line: "the noon meeting",
+          summary: "ninety days"
+        },
+        ctx.lily
+      )
+
+    :ok =
+      Kumbukumbu.note_sections(ctx.id, "t-now", %{
+        "index" => "Bookmarks, newest first:\n##{held} the noon meeting"
+      })
+
+    assert post(ctx, "A good day.") =~ "Posted"
+    asked = :persistent_term.get({FakeJudge, :asked})
+
+    # The bookmark is its line in the index, never its anchor turn, and
+    # the index's own furniture is no piece (kumbukumbu#105).
+    assert Enum.any?(asked.fragments, &(&1.text == "##{held} the noon meeting"))
+    refute Enum.any?(asked.fragments, &(&1.text =~ "Bookmarks, newest first"))
+    refute Enum.any?(asked.fragments, &(&1.text =~ "Its anchor turn"))
+  end
+
   test "no judge in this deployment: held back as before, and she is told why", ctx do
     judge(:none)
     said = post(ctx, "A good day.")
@@ -162,7 +192,8 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
     asked = :persistent_term.get({FakeJudge, :asked})
     assert asked.candidate =~ "A good day in the garden."
     shown = Enum.map_join(asked.fragments, "\n", & &1.text)
-    # The message's whole turn, and the lanes the turn was given.
+    # Each held message as itself, and of the lanes the turn was given,
+    # what is the held domain's or cannot be placed (kumbukumbu#105).
     assert shown =~ "about The meeting at noon, ninety days."
     assert shown =~ "#7 the meeting at noon"
     assert asked.audience == "household:#{ctx.household}"

@@ -5,6 +5,7 @@ defmodule Oneiroi.Brain.IdentityTest do
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Turn
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
@@ -90,7 +91,6 @@ defmodule Oneiroi.Brain.IdentityTest do
 
     brain = Actor.new(:resident, id, "fake/model")
     {:ok, 1} = Oneiroi.Ethos.plant_seed(id, "I might be becoming kinder.", brain)
-    soul = "# Soul\n\n[soul/1] Bolder.\n\nAnd kinder."
 
     Fake.calls(
       [
@@ -100,8 +100,9 @@ defmodule Oneiroi.Brain.IdentityTest do
           name: "soul_edit",
           arguments: %{file: "GOALS.md", content: "# Goals\n\nTo keep going."}
         },
-        %{name: "soul_edit", arguments: %{file: "SOUL.md", content: soul, cites: [9]}},
-        %{name: "soul_edit", arguments: %{file: "SOUL.md", content: soul, cites: [1]}}
+        # Too soon after the accepted line: the guard spaces soul changes
+        # (agathos-daimon#61), and nothing is written.
+        %{name: "soul_edit", arguments: %{file: "SOUL.md", op: "add", text: "And kinder."}}
       ],
       "Done, and thank you.",
       for: id
@@ -111,14 +112,26 @@ defmodule Oneiroi.Brain.IdentityTest do
              Oneiroi.Brain.turn(id, ctx.key, "see my proposal?", ctx.actor)
 
     # His proposal is told her once, ahead of the turn (brain#110).
-    [told, _, list, accept, edit, unknown, cited, _reply] = messages
+    [told, _, list, accept, edit, soon, _reply] = messages
     assert told.content =~ "An edit to SOUL.md (soul_edit_accept or soul_edit_decline)"
     assert list.content =~ ref and list.content =~ "you have grown"
     assert accept.content =~ "Done."
     assert edit.content =~ "Done."
-    # A line cites seeds that exist; the tool checks, the aggregate cannot.
-    assert unknown.content =~ "No seed numbered 9"
-    assert cited.content =~ "Done."
+    assert soon.content =~ "spaced"
+
+    # An hour on, a line at a time; it cites seeds that exist, which the
+    # tool checks and the aggregate cannot. (Called from this process,
+    # whose fake clock the hour moves.)
+    Clock.Fake.advance(3_600)
+    turn = %{resident_id: id, session_key: ctx.key, turn_ref: "t", resident: brain}
+    run = &Tools.run("soul_edit", Jason.encode!(&1), turn)
+
+    assert run.(%{file: "SOUL.md", content: "# Soul\n\nRewritten."}) =~ "add, reword or retire"
+
+    assert run.(%{file: "SOUL.md", op: "add", text: "And kinder.", cites: [9]}) =~
+             "No seed numbered 9"
+
+    assert run.(%{file: "SOUL.md", op: "add", text: "And kinder.", cites: [1]}) =~ "Added a line"
 
     assert {:ok,
             %{

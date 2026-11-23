@@ -24,6 +24,8 @@ interface ShellState {
   offlineSince: number | null;
   cursor: number | null; // the last notice position seen (apsu#24)
   presence: Presence;
+  /** Each resident's own indicator, kept while you are elsewhere (2026-11-23). */
+  presences: Record<string, Presence>;
   searchOpen: boolean;
   overlay: Overlay;
   /** A settings page open over the tabs (`#/settings/<section>`), or none. */
@@ -57,6 +59,7 @@ export const useShell = create<ShellState>((set) => ({
   offlineSince: null,
   cursor: null,
   presence: { state: 'idle' },
+  presences: {},
   searchOpen: false,
   overlay: null,
   page: null,
@@ -93,7 +96,8 @@ export const useShell = create<ShellState>((set) => ({
       offlineSince: connection === 'connected' ? null : (s.offlineSince ?? now),
     })),
   setCursor: (cursor) => set((s) => ({ cursor: Math.max(cursor, s.cursor ?? 0) })),
-  setPresence: (presence) => set({ presence }),
+  setPresence: (presence) =>
+    set((s) => (presence.residentId ? { presence, presences: { ...s.presences, [presence.residentId]: presence } } : { presence })),
   setSearchOpen: (searchOpen) => set({ searchOpen }),
 }));
 

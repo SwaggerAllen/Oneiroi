@@ -978,3 +978,8 @@ Her queue is the same queue his screen reads, so her tools are thin
 over it. The head has to be read where the repositories are visible,
 which is here and not in the queue below them; reading it at every move
 is what makes "this revision" mean the revision.
+
+## #114
+A view that comes back mid-turn knew nothing of the turn until its next
+event, which might be the end; asking the session what runs, at the
+moment of joining, costs one call and closes the gap.

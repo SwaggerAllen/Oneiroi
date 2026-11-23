@@ -459,3 +459,12 @@ A decision event carries its note, so an answer without one could never
 be recorded; refused by the bus it read as a fault in the platform, not
 as a missing note. Saying so by name, and asking for it on the screen,
 puts the requirement where the person answering can meet it.
+
+## #61
+A whole-file write let one misfiring call carry garbled words into her
+soul, and only a malformed cite stopped it. A line at a time keeps every
+change small enough to read and keeps the rest of the file out of
+reach; checking the words before they are written catches the shape of
+a garble; spacing her changes means a turn that loops cannot rewrite her
+in a loop. None of it decides what she may say about herself.
+

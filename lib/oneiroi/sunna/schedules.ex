@@ -1314,7 +1314,8 @@ defmodule Oneiroi.Sunna.Schedules do
   end
 
   # A letter another conversation sent wakes the chat (#24), and so does a
-  # household watch's poke (sunna#49): the resident asked for it, for a
+  # household watch's poke (sunna#49), and her witness's words in her own
+  # threads (seshat#108): the resident asked for it, for a
   # term it set, so a reply in that thread reaches her as one from her
   # own conversations does. A sibling's letter wakes it too (sunna#50):
   # waking is what a letter is for, where a thread mostly does not. And so
@@ -1331,7 +1332,8 @@ defmodule Oneiroi.Sunna.Schedules do
   defp wakes?(letter),
     do:
       is_binary(letter.from_session) or is_binary(letter.to_session) or
-        letter.from_name == Kumbukumbu.household_sender() or Kumbukumbu.from_sibling?(letter)
+        letter.from_name in [Kumbukumbu.household_sender(), Kumbukumbu.threads_sender()] or
+        Kumbukumbu.from_sibling?(letter)
 
   defp letter_causes(numbers), do: for(n <- numbers, do: %{kind: "letter", number: n})
 
