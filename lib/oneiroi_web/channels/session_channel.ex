@@ -22,7 +22,10 @@ defmodule OneiroiWeb.SessionChannel do
          {:ok, _session, _messages, _total} <-
            Oneiroi.Kumbukumbu.transcript_range({:account, account_id}, key, 0, 0) do
       :ok = PubSub.subscribe(:brain, :session)
-      {:ok, assign(socket, resident_id: resident_id, session_key: key)}
+      # What is generating now (brain#114), so a client joining mid-turn
+      # shows it working and hears its end.
+      {:ok, Oneiroi.Brain.working(resident_id, key),
+       assign(socket, resident_id: resident_id, session_key: key)}
     else
       _ -> {:error, %{reason: "not witnessed"}}
     end

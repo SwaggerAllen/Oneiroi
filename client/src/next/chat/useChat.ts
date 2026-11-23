@@ -1,28 +1,24 @@
 // The conversation's state (P1): the newest page from the query cache,
-// so a change notice refreshes it; older pages paged in on demand; the
-// turn streaming in; and the outbox, which holds every message the
-// witness sends under its own ref until its turn lands (brain#45). The
-// outbox and page helpers are the current client's, pure and tested.
+// so a change notice refreshes it; older pages paged in on demand. What
+// is generating (the turn under way, the outbox holding every message the
+// witness sends under its own ref until its turn lands, brain#45) lives
+// outside the view, in the generations store, kept by the app-wide
+// watcher (`live/generations.ts`) whichever workspace is on screen.
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../api/client';
 import type { Message } from '../../api/types';
-import { batched, failedFrom, loadOutbox, newRef, remove, saveOutbox, settle, stuck, update, underWay, type Outgoing } from './outbox';
+import { failedFrom, loadOutbox, newRef, remove, settle, stuck, update, underWay, type Outgoing } from './outbox';
 import { compareCursor, mergeNewest, newestCursor } from './page';
-import type { Live } from '../live/live';
-import { useShell } from '../state/store';
+import { useGeneration, useGenerations, type Stream } from '../state/generations';
 
 const PAGE = 40;
 
-/** The turn under way: which it is, never its words (her reply lands whole). */
-export interface Stream {
-  turnRef: string;
-}
+export type { Stream };
 
-export function useChat(residentId: string, live: Live) {
+export function useChat(residentId: string) {
   const queries = useQueryClient();
-  const setPresence = useShell((s) => s.setPresence);
 
   const main = useQuery({
     queryKey: ['resident', residentId, 'chat', 'main'],
@@ -41,8 +37,14 @@ export function useChat(residentId: string, live: Live) {
   const [messages, setMessages] = useState<Message[]>([]);
   const [more, setMore] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
-  const [stream, setStream] = useState<Stream | null>(null);
-  const [outbox, setOutbox] = useState<Outgoing[]>([]);
+  // What is generating: the store's, kept while this view is away.
+  const generation = useGeneration(residentId);
+  const stream = generation.stream;
+  const outbox = generation.outbox;
+  const setOutbox = useCallback(
+    (change: (o: Outgoing[]) => Outgoing[]) => useGenerations.getState().patch(residentId, (g) => ({ outbox: change(g.outbox) })),
+    [residentId],
+  );
   const outboxRef = useRef<Outgoing[]>([]);
   useEffect(() => {
     outboxRef.current = outbox;
@@ -61,59 +63,15 @@ export function useChat(residentId: string, live: Live) {
     // A turn's messages landing settle its outbox entries.
     const answered = new Set(newest.data.messages.map((m) => m.turn_ref));
     setOutbox((items) => settle(items, answered));
-  }, [newest.data, windowed]);
+  }, [newest.data, windowed, setOutbox]);
 
-  // The outbox survives a reload of this browser.
+  // Her main chat's key in the store, its outbox read back from this
+  // browser, when the watcher has not set it yet (it persists from there).
   useEffect(() => {
-    if (key) setOutbox(loadOutbox(key));
-  }, [key]);
-  useEffect(() => {
-    if (key) saveOutbox(key, outbox);
-  }, [key, outbox]);
+    if (key && useGenerations.getState().by[residentId]?.key !== key) useGenerations.getState().patch(residentId, () => ({ key, outbox: loadOutbox(key) }));
+  }, [residentId, key]);
 
   const refreshNewest = useCallback(() => queries.invalidateQueries({ queryKey: newestKey }), [queries, newestKey]);
-
-  // The live stream: presence for the header, the reply as it streams,
-  // the outbox's states, and a re-read when a turn lands. Leaving her
-  // chat closes it, and her indicator with it: nothing would end it
-  // after (2026-11-17, Lily's "Thinking…" over Scarlett's screen).
-  useEffect(() => {
-    if (!key) return;
-    const close = live.session(residentId, key, {
-      joined: () => void refreshNewest(),
-      started: (ref) => {
-        // Her reply is not streamed (the witness, 2026-11-21): the turn shows
-        // as working, its step and time, and lands whole.
-        setStream({ turnRef: ref });
-        setOutbox((o) => update(o, ref, { state: 'running' }));
-        setPresence({ residentId, state: 'thinking', since: Date.now() });
-      },
-      status: (ref, state, detail) => {
-        if (state === 'queued') setOutbox((o) => update(o, ref, { state: 'queued' }));
-        if (detail?.into) setOutbox((o) => batched(o, ref, detail.into as string));
-        if (state === 'thinking' || state === 'tool') {
-          setOutbox((o) => update(o, ref, { state, detail: detail?.name }));
-          const current = useShell.getState().presence;
-          const sameStep = current.state === state && current.detail === detail?.name;
-          setPresence({ residentId, state, detail: detail?.name, since: sameStep ? current.since : Date.now() });
-        }
-      },
-      turn: () => {
-        void refreshNewest().then(() => setStream(null));
-        setPresence({ residentId, state: 'idle', lastReply: new Date().toISOString() });
-      },
-      failed: (ref, reason) => {
-        void queries.invalidateQueries({ queryKey: ['resident', residentId, 'capture-failures'] });
-        setStream(null);
-        setOutbox((o) => update(o, ref, { state: 'failed', error: reason }));
-        setPresence({ residentId, state: 'idle' });
-      },
-    });
-    return () => {
-      close?.();
-      if (useShell.getState().presence.residentId === residentId) setPresence({ residentId, state: 'idle' });
-    };
-  }, [live, residentId, key, refreshNewest, setPresence, queries]);
 
   const send = useCallback(
     async (text: string, ref = newRef(), domain?: string | null) => {
@@ -151,7 +109,7 @@ export function useChat(residentId: string, live: Live) {
     return () => clearInterval(tick);
   }, [key, send]);
 
-  const discard = useCallback((ref: string) => setOutbox((o) => remove(o, ref)), []);
+  const discard = useCallback((ref: string) => setOutbox((o) => remove(o, ref)), [setOutbox]);
 
   // The conversation's current domain (kumbukumbu#72), as the newest page
   // reads it, and a turn renamed after the fact.
@@ -173,7 +131,7 @@ export function useChat(residentId: string, live: Live) {
   const failures = useQuery({ queryKey: failuresKey, queryFn: () => api.captureFailures(residentId), enabled: !!key, refetchInterval: 60_000 });
   useEffect(() => {
     if (failures.data) setOutbox((o) => failedFrom(o, failures.data));
-  }, [failures.data]);
+  }, [failures.data, setOutbox]);
   const unanswered = (failures.data ?? []).filter(
     (f) => f.session_key === key && !outbox.some((i) => i.ref === f.turn_ref || i.into === f.turn_ref) && !messages.some((m) => m.turn_ref === f.turn_ref && m.role === 'assistant'),
   );

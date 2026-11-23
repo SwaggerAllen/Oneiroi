@@ -11,7 +11,8 @@ import { fresh, keysFor, type Notice } from './notices';
 const CURSOR_KEY = 'oneiroi.next.cursor';
 
 export interface SessionEvents {
-  joined: () => void;
+  /** Joined (or joined again): what the session is generating now (brain#114). */
+  joined: (working: { running: string | null; queued: string[] }) => void;
   started: (turnRef: string) => void;
   status: (turnRef: string, state: string, detail: { name?: string; ahead?: number; into?: string } | null) => void;
   turn: (turnRef: string) => void;
@@ -174,7 +175,7 @@ export class Live {
     channel.on('turn', (p: { turn_ref: string }) => on.turn(p.turn_ref));
     channel.on('failed', (p: { turn_ref: string; reason: string }) => on.failed(p.turn_ref, p.reason));
     // A rejoin after an outage: what landed meanwhile is read again.
-    channel.join().receive('ok', () => on.joined());
+    channel.join().receive('ok', (working?: { running?: string | null; queued?: string[] }) => on.joined({ running: working?.running ?? null, queued: working?.queued ?? [] }));
     return channel;
   }
 

@@ -52,8 +52,10 @@ export function useNow(active: boolean): number {
  * belongs on another's screen (2026-11-17).
  */
 export function usePresence(): Presence {
-  const presence = useShell((s) => s.presence);
   const { id } = useSubject();
+  const presence = useShell((s) => s.presence);
+  const hers = useShell((s) => s.presences[id]);
+  if (hers) return hers;
   return presence.residentId === undefined || presence.residentId === id ? presence : IDLE;
 }
 

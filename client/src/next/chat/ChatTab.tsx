@@ -1,6 +1,5 @@
 import { useEffect, useState } from 'react';
 import { ToggleButton, ToggleButtonGroup } from 'react-aria-components';
-import type { Live } from '../live/live';
 import { useShell } from '../state/store';
 import { Mail } from '../inbox/Mail';
 import { Chat } from './Chat';
@@ -10,7 +9,7 @@ import { Peek } from './Peek';
 import { Sessions } from './Sessions';
 
 /** The Chat tab (ui-structures.md D): Conversation | Sessions | Mail, and the peek. */
-export function ChatTab({ residentId, residentName, live, path }: { residentId: string; residentName: string; live: Live; path: string }) {
+export function ChatTab({ residentId, residentName, path }: { residentId: string; residentName: string; path: string }) {
   const [view, setView] = useState<'conversation' | 'sessions' | 'mail'>(() => (path === 'mail' ? 'mail' : 'conversation'));
   const [peek, setPeek] = useState<Citation | null>(null);
   const setTab = useShell((s) => s.setTab);
@@ -53,7 +52,7 @@ export function ChatTab({ residentId, residentName, live, path }: { residentId: 
       <div className={css.body}>
         {/* Both stay mounted: the conversation keeps its place and its draft. */}
         <div className={css.pane} hidden={view !== 'conversation'}>
-          <Chat residentId={residentId} residentName={residentName} live={live} onCite={setPeek} jump={jump} />
+          <Chat residentId={residentId} residentName={residentName} onCite={setPeek} jump={jump} />
           <Peek residentId={residentId} citation={peek} onClose={() => setPeek(null)} onOpenFully={openFully} onCite={setPeek} />
         </div>
         <div className={css.pane} hidden={view !== 'sessions'}>

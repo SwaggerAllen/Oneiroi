@@ -41,7 +41,9 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
     tabs stay mounted underneath, and Back, a tab, or the browser's back
     returns to the tab as it was.
 - **Live.**
-  - One socket. It joins `resident:<id>` (apsu#24), applies notices as
+  - One socket for the signed-in app, above every workspace, so a
+    switch never closes it (2026-11-23). It joins `resident:<id>` for the
+    subject on screen (apsu#24), applies notices as
     query invalidations by stream, coalesces repeats on `position`, and
     keeps the cursor per device to replay from on the next visit. A
     burst of notices is gathered for 750 ms and invalidates each key it
@@ -52,6 +54,16 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
     read for a notice at all: the server pushes it whole as `needs_you`
     once a burst (brain#94) and the client sets it as the bell's data; a
     `bell` notice invalidates only what waits on her (`bell/hers`).
+  - What is generating lives outside any view (the witness, 2026-11-23:
+    "keep updating even if you aren't in that workspace"): a watcher
+    keeps every awake resident's main chat joined on the socket for as
+    long as the app is signed in (`live/generations.ts`), and its events
+    write a store of each resident's turn under way and outbox
+    (`state/generations.ts`) and her own indicator. A reply that lands
+    while you are in another workspace re-reads her newest page, so it is
+    there when you come back; the join says what is running or queued
+    (brain#114), so a turn still under way shows as working. Never her
+    whole conversation, only what is in progress.
   - The socket token is re-minted before reconnecting.
 - **Offline.** After two seconds disconnected, a bar reads "Offline" or
   "Reconnecting…", says what time the data on screen is from, and
@@ -113,7 +125,8 @@ to now.
 Choosing another fades the house out to the ground, swaps her theme,
 records and connection, waits under the ground until the new view's
 reads have settled (nothing fetching for three frames, at most four
-seconds; the witness, 2026-11-23), and fades in (decided: a subject
+seconds; the witness, 2026-11-23), and fades in, at the tab dissolve's
+lengths (220 ms out, 300 ms in) (decided: a subject
 switch carries the theme, so it gets the pause); every tab returns to its root, since
 the old paths were the other resident's. The choice is kept on this
 device. "Wake someone new" opens creation over the house, with Back to

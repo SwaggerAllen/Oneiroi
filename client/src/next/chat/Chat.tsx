@@ -6,7 +6,6 @@ import { mailThreads, wokeFor } from '../inbox/mailThreads';
 import { useSubject } from '../state/resident';
 import type { Message } from '../../api/types';
 import { toolSummary } from './page';
-import type { Live } from '../live/live';
 import { ScrollArea, type Edges } from '../shell/ScrollArea';
 import { elapsed, useNow, usePresence } from '../shell/presence';
 import type { Citation } from './cite';
@@ -48,18 +47,16 @@ function hhmm(iso: string): string {
 export function Chat({
   residentId,
   residentName,
-  live,
   onCite,
   jump: searchJump,
 }: {
   residentId: string;
   residentName: string;
-  live: Live;
   onCite: (c: Citation) => void;
   /** A turn to open at, from search: taken when it is this conversation's. */
   jump?: { session: string; turn: string } | null;
 }) {
-  const chat = useChat(residentId, live);
+  const chat = useChat(residentId);
   const reacts = useReacts(residentId, chat.key);
   const presence = usePresence();
   const scroller = useRef<HTMLDivElement>(null);

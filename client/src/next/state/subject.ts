@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { TIMING } from '../shell/motion';
 import { queries } from './queries';
 
 // Which resident the house is showing (ui-structures.md D: the subject
@@ -53,12 +54,12 @@ const LONGEST_WAIT_MS = 4000;
 export function switchSubject(change: () => void) {
   const root = document.getElementById('root');
   if (!root || reduced()) return change();
-  const out = root.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 160, easing: EASE, fill: 'forwards' });
+  const out = root.animate([{ opacity: 1 }, { opacity: 0 }], { duration: TIMING.out, easing: EASE, fill: 'forwards' });
   out.onfinish = () => {
     change();
     settled(() => {
       out.cancel();
-      root.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 240, easing: EASE });
+      root.animate([{ opacity: 0 }, { opacity: 1 }], { duration: TIMING.in, easing: EASE });
     });
   };
 }
