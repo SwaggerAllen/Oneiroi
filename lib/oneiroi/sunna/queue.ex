@@ -29,8 +29,8 @@ defmodule Oneiroi.Sunna.Queue do
   import Kernel, except: [apply: 2]
 
   alias Oneiroi.Sunna.Error
+  alias Oneiroi.Sunna.Events.Queue, as: E
   alias Oneiroi.Sunna.QueueCommands, as: C
-  alias Oneiroi.Sunna.QueueEvents, as: E
   alias Oneiroi.Sunna.QueueGraph, as: G
 
   defstruct projects: %{},
@@ -127,8 +127,8 @@ defmodule Oneiroi.Sunna.Queue do
   end
 
   def execute(%__MODULE__{} = s, %C.DropTask{} = c) do
-    with {:ok, task} <- open_task(s, c.task, :sunna_queue_drop_unknown),
-         :ok <- owner_or_witness(task, c.actor, :sunna_queue_drop_not_yours) do
+    with {:ok, task} <- open_task(s, c.task),
+         :ok <- owner_or_witness(task, c.actor) do
       dropped = %E.TaskDropped{actor: c.actor, at: c.at, id: c.id, task: c.task, note: c.note}
       [dropped | releases(follow(s, [dropped]), c.task, "dropped", c)]
     end
@@ -137,60 +137,27 @@ defmodule Oneiroi.Sunna.Queue do
   # ---- activities ----
 
   def execute(%__MODULE__{} = s, %C.TakeActivity{} = c) do
-    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_take_unknown),
-         :ok <- ready(s, task, act, :sunna_queue_take_not_ready),
-         :ok <- may_work(s, task, act, c.actor, :sunna_queue_take_not_yours) do
-      case lapsed(s, task, act, c.head, c) do
-        nil ->
-          assignee = if act.assignee == "unknown", do: me(c.actor), else: act.assignee
-
-          %E.ActivityTaken{
-            actor: c.actor,
-            at: c.at,
-            id: c.id,
-            task: c.task,
-            act: c.act,
-            assignee: assignee
-          }
-
-        lapse ->
-          lapse
-      end
+    with {:ok, task, act} <- activity(s, c.task, c.act),
+         :ok <- ready(s, task, act),
+         :ok <- may_work(s, task, act, c.actor) do
+      unless_lapsed(lapsed(s, task, act, c.head, c), fn -> taken(act, c) end)
     end
   end
 
   def execute(%__MODULE__{} = s, %C.FinishActivity{} = c) do
-    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_finish_unknown),
-         :ok <- live(s, task, act, :sunna_queue_finish_not_ready),
-         :ok <- not_review(act, :sunna_queue_finish_review),
-         :ok <- may_work(s, task, act, c.actor, :sunna_queue_finish_not_yours),
-         :ok <- optional_words(c.note, :sunna_queue_finish_invalid) do
-      case lapsed(s, task, act, c.head, c) do
-        nil ->
-          with :ok <- pin_ok(s, task, act, c.pin) do
-            done = %E.ActivityDone{
-              actor: c.actor,
-              at: c.at,
-              id: c.id,
-              task: c.task,
-              act: c.act,
-              pin: c.pin,
-              result: c.result,
-              note: c.note && String.trim(c.note)
-            }
-
-            completing(s, [done], c)
-          end
-
-        lapse ->
-          lapse
-      end
+    with {:ok, task, act} <- activity(s, c.task, c.act),
+         :ok <- live(s, task, act),
+         :ok <- not_review(act),
+         :ok <- promoted(act, c.promoted),
+         :ok <- may_work(s, task, act, c.actor),
+         :ok <- optional_words(c.note) do
+      unless_lapsed(lapsed(s, task, act, c.head, c), fn -> finished(s, task, act, c) end)
     end
   end
 
   def execute(%__MODULE__{} = s, %C.SkipActivity{} = c) do
-    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_skip_unknown),
-         :ok <- unfinished(act, :sunna_queue_skip_finished),
+    with {:ok, task, act} <- activity(s, c.task, c.act),
+         :ok <- unfinished(act),
          :ok <- may_skip(task, act, c.actor),
          :ok <- not_guarding(s, task, act) do
       skipped = %E.ActivitySkipped{
@@ -207,10 +174,10 @@ defmodule Oneiroi.Sunna.Queue do
   end
 
   def execute(%__MODULE__{} = s, %C.BlockActivity{} = c) do
-    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_block_unknown),
+    with {:ok, task, act} <- activity(s, c.task, c.act),
          :ok <- blockable(act),
-         :ok <- may_work(s, task, act, c.actor, :sunna_queue_block_not_yours),
-         :ok <- reason_ok(c.reason, :sunna_queue_block_invalid),
+         :ok <- may_work(s, task, act, c.actor),
+         :ok <- reason_ok(c.reason),
          :ok <- block_ok(s, task, c.waits_on) do
       blocked = %E.ActivityBlocked{
         actor: c.actor,
@@ -230,8 +197,8 @@ defmodule Oneiroi.Sunna.Queue do
   end
 
   def execute(%__MODULE__{} = s, %C.ReopenActivity{} = c) do
-    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_reopen_unknown),
-         :ok <- may_work(s, task, act, c.actor, :sunna_queue_reopen_not_yours) do
+    with {:ok, task, act} <- activity(s, c.task, c.act),
+         :ok <- may_work(s, task, act, c.actor) do
       if act.status in ~w(blocked failed),
         do: %E.ActivityReopened{
           actor: c.actor,
@@ -247,10 +214,10 @@ defmodule Oneiroi.Sunna.Queue do
   end
 
   def execute(%__MODULE__{} = s, %C.FailActivity{} = c) do
-    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_fail_unknown),
-         :ok <- live(s, task, act, :sunna_queue_fail_not_ready),
-         :ok <- may_work(s, task, act, c.actor, :sunna_queue_fail_not_yours),
-         :ok <- reason_ok(c.what, :sunna_queue_fail_invalid) do
+    with {:ok, task, act} <- activity(s, c.task, c.act),
+         :ok <- live(s, task, act),
+         :ok <- may_work(s, task, act, c.actor),
+         :ok <- reason_ok(c.what) do
       %E.ActivityFailed{
         actor: c.actor,
         at: c.at,
@@ -263,11 +230,11 @@ defmodule Oneiroi.Sunna.Queue do
   end
 
   def execute(%__MODULE__{} = s, %C.AssignActivity{} = c) do
-    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_assign_unknown),
-         :ok <- unfinished(act, :sunna_queue_assign_finished),
+    with {:ok, task, act} <- activity(s, c.task, c.act),
+         :ok <- unfinished(act),
          :ok <- may_assign(task, act, c.actor),
          :ok <- assignee_ok(s, task, act, c.assignee),
-         :ok <- optional_words(c.note, :sunna_queue_assign_invalid) do
+         :ok <- optional_words(c.note) do
       %E.ActivityAssigned{
         actor: c.actor,
         at: c.at,
@@ -281,9 +248,9 @@ defmodule Oneiroi.Sunna.Queue do
   end
 
   def execute(%__MODULE__{} = s, %C.DecideReview{} = c) do
-    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_decide_unknown),
+    with {:ok, task, act} <- activity(s, c.task, c.act),
          :ok <- review(act),
-         :ok <- live(s, task, act, :sunna_queue_decide_not_ready),
+         :ok <- live(s, task, act),
          :ok <- reviewer(act, c.actor),
          :ok <- outcome_ok(c.outcome),
          :ok <- seen_ok(act, c.pin, c.head) do
@@ -294,7 +261,7 @@ defmodule Oneiroi.Sunna.Queue do
   def execute(%__MODULE__{} = s, %C.FillSlot{} = c) do
     slot = "slot:#{c.slot}"
 
-    with {:ok, task} <- open_task(s, c.task, :sunna_queue_fill_unknown) do
+    with {:ok, task} <- open_task(s, c.task) do
       held = for layer <- task.layers, id <- layer, s.acts[id].artifact == slot, do: id
       mine = me(c.actor)
 
@@ -595,22 +562,56 @@ defmodule Oneiroi.Sunna.Queue do
     end
   end
 
-  # A gated activity is done on the revision its review approved, named.
-  defp pin_ok(s, task, act, pin) do
-    if act.type in G.gated_types() do
-      case review_of(s, task, act) do
-        %{approved_pin: approved} when is_binary(approved) ->
-          if is_binary(pin) and same_pin?(pin, approved),
-            do: :ok,
-            else: {:error, Error.new(:sunna_queue_pin_mismatch, :sunna_queue_finish_pin)}
+  # The move itself, unless the approval it rests on has lapsed: then the
+  # lapse is the event instead.
+  defp unless_lapsed(nil, move), do: move.()
+  defp unless_lapsed(lapse, _move), do: lapse
 
-        _unapproved ->
-          {:error, Error.new(:sunna_queue_review_required, :sunna_queue_finish_unreviewed)}
-      end
-    else
-      :ok
+  defp taken(act, c) do
+    assignee = if act.assignee == "unknown", do: me(c.actor), else: act.assignee
+
+    %E.ActivityTaken{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      task: c.task,
+      act: c.act,
+      assignee: assignee
+    }
+  end
+
+  defp finished(s, task, act, c) do
+    with :ok <- pin_ok(s, task, act, c.pin) do
+      done = %E.ActivityDone{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        task: c.task,
+        act: c.act,
+        pin: c.pin,
+        result: c.promoted || c.result,
+        note: c.note && String.trim(c.note)
+      }
+
+      completing(s, [done], c)
     end
   end
+
+  # A gated activity is done on the revision its review approved, named.
+  defp pin_ok(s, task, act, pin) do
+    if act.type in G.gated_types(),
+      do: approved_pin_ok(review_of(s, task, act), pin),
+      else: :ok
+  end
+
+  defp approved_pin_ok(%{approved_pin: approved}, pin) when is_binary(approved) do
+    if is_binary(pin) and same_pin?(pin, approved),
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_pin_mismatch, :sunna_queue_finish_pin)}
+  end
+
+  defp approved_pin_ok(_unapproved, _pin),
+    do: {:error, Error.new(:sunna_queue_review_required, :sunna_queue_finish_unreviewed)}
 
   # The reviewer approves what was in front of them: a head read now that
   # differs from the pin they saw means the artifact changed as they read.
@@ -671,8 +672,7 @@ defmodule Oneiroi.Sunna.Queue do
       not match?(%{status: "open"}, s.projects[c.project]) ->
         {:error, Error.new(:sunna_queue_no_such_project, :sunna_queue_task_project)}
 
-      not slug?(c.slug) or not words?(c.title, 200) or not words?(c.outcome, @words) or
-        not assignee?(c.owner) or c.owner in ["claude-code", "unknown"] ->
+      not task_head_valid?(c) ->
         {:error, Error.new(:sunna_queue_invalid, :sunna_queue_task_invalid)}
 
       Enum.any?(s.tasks, fn {_n, t} -> t.project == c.project and t.slug == c.slug end) ->
@@ -683,22 +683,22 @@ defmodule Oneiroi.Sunna.Queue do
     end
   end
 
+  defp task_head_valid?(c) do
+    slug?(c.slug) and words?(c.title, 200) and words?(c.outcome, @words) and
+      assignee?(c.owner) and c.owner not in ["claude-code", "unknown"]
+  end
+
   defp task_shape_ok(s, layers, start) do
-    specs = for layer <- layers, a <- layer, into: %{}, do: {a.id, a}
-    ids = Enum.map(layers, fn layer -> Enum.map(layer, & &1.id) end)
     start = start || 0
 
     cond do
-      not is_integer(start) or start < 0 or start >= length(layers) ->
+      not start_ok?(start, layers) ->
         {:error, Error.new(:sunna_queue_invalid, :sunna_queue_task_start)}
 
-      G.shape_errors(ids, specs) != [] or
-          Enum.any?(specs, fn {_id, a} -> a.type in G.gated_types() and is_nil(a.artifact) end) ->
+      shape_bad?(layers) ->
         {:error, Error.new(:sunna_queue_shape, :sunna_queue_task_shape)}
 
-      # Scarlett's third guard: an import carries no approvals, so a task
-      # cannot start where a gated activity's review would be imported.
-      start > 0 and Enum.any?(Enum.at(layers, start), &(&1.type in G.gated_types())) ->
+      import_gated?(layers, start) ->
         {:error, Error.new(:sunna_queue_import_gated, :sunna_queue_task_import_gated)}
 
       not routed?(s, layers) ->
@@ -708,6 +708,22 @@ defmodule Oneiroi.Sunna.Queue do
         :ok
     end
   end
+
+  defp start_ok?(start, layers),
+    do: is_integer(start) and start >= 0 and start < length(layers)
+
+  defp shape_bad?(layers) do
+    specs = for layer <- layers, a <- layer, into: %{}, do: {a.id, a}
+    ids = Enum.map(layers, fn layer -> Enum.map(layer, & &1.id) end)
+
+    G.shape_errors(ids, specs) != [] or
+      Enum.any?(specs, fn {_id, a} -> a.type in G.gated_types() and is_nil(a.artifact) end)
+  end
+
+  # Scarlett's third guard: an import carries no approvals, so a task
+  # cannot start where a gated activity's review would be imported.
+  defp import_gated?(layers, start),
+    do: start > 0 and Enum.any?(Enum.at(layers, start), &(&1.type in G.gated_types()))
 
   # No one reaches claude-code but through the reviewed deliver step (§3):
   # each claude-code activity has, in the layer before it, a deliver by
@@ -730,13 +746,7 @@ defmodule Oneiroi.Sunna.Queue do
     numbered =
       layers
       |> Enum.with_index()
-      |> Enum.map_reduce(1, fn {layer, _i}, k ->
-        if is_list(layer) and layer != [] do
-          Enum.map_reduce(layer, k, fn spec, k -> {spec_of(spec, "#{n}.#{k}"), k + 1} end)
-        else
-          {:error, k}
-        end
-      end)
+      |> Enum.map_reduce(1, fn {layer, _i}, k -> number_layer(n, layer, k) end)
       |> elem(0)
 
     positions =
@@ -755,21 +765,24 @@ defmodule Oneiroi.Sunna.Queue do
 
   defp task_layers(_n, _layers), do: invalid_layers()
 
+  defp number_layer(n, layer, k) when is_list(layer) and layer != [],
+    do: Enum.map_reduce(layer, k, fn spec, k -> {spec_of(spec, "#{n}.#{k}"), k + 1} end)
+
+  defp number_layer(_n, _layer, k), do: {:error, k}
+
   defp resolve_throwbacks(layers, positions) do
     resolved =
-      Enum.map(layers, fn layer ->
-        Enum.map(layer, fn a ->
-          case a.throwback do
-            nil -> a
-            pos -> %{a | throwback: Map.get(positions, pos, :bad)}
-          end
-        end)
-      end)
+      Enum.map(layers, fn layer -> Enum.map(layer, &resolve_throwback(&1, positions)) end)
 
     if Enum.any?(List.flatten(resolved), &(&1.throwback == :bad)),
       do: invalid_layers(),
       else: {:ok, resolved}
   end
+
+  defp resolve_throwback(%{throwback: nil} = a, _positions), do: a
+
+  defp resolve_throwback(%{throwback: pos} = a, positions),
+    do: %{a | throwback: Map.get(positions, pos, :bad)}
 
   defp invalid_layers, do: {:error, Error.new(:sunna_queue_invalid, :sunna_queue_task_layers)}
 
@@ -798,12 +811,7 @@ defmodule Oneiroi.Sunna.Queue do
   # checked with the slots standing in for artifacts.
   @roles ~w(author witness peer builder unknown)
   defp template_layers(layers) when is_list(layers) and layers != [] do
-    specs =
-      for {layer, i} <- Enum.with_index(layers) do
-        if is_list(layer) and layer != [],
-          do: layer |> Enum.with_index(1) |> Enum.map(fn {s, j} -> template_spec(s, i, j) end),
-          else: [nil]
-      end
+    specs = for {layer, i} <- Enum.with_index(layers), do: template_layer(layer, i)
 
     flat = List.flatten(specs)
 
@@ -820,6 +828,11 @@ defmodule Oneiroi.Sunna.Queue do
   end
 
   defp template_layers(_layers), do: :error
+
+  defp template_layer(layer, i) when is_list(layer) and layer != [],
+    do: layer |> Enum.with_index(1) |> Enum.map(fn {s, j} -> template_spec(s, i, j) end)
+
+  defp template_layer(_layer, _i), do: [nil]
 
   defp template_spec(spec, _i, j) when is_map(spec) do
     t = %{
@@ -873,44 +886,44 @@ defmodule Oneiroi.Sunna.Queue do
 
   defp put_act(s, id, kv), do: %{s | acts: Map.update!(s.acts, id, &Enum.into(kv, &1))}
 
-  defp open_task(s, n, site) do
+  defp open_task(s, n) do
     case s.tasks[n] do
       %{status: "open"} = task ->
         if G.complete?(task, s.acts),
-          do: {:error, Error.new(:sunna_queue_no_such_task, site)},
+          do: {:error, Error.new(:sunna_queue_no_such_task, :sunna_queue_task_complete)},
           else: {:ok, task}
 
       _none ->
-        {:error, Error.new(:sunna_queue_no_such_task, site)}
+        {:error, Error.new(:sunna_queue_no_such_task, :sunna_queue_task_absent)}
     end
   end
 
-  defp activity(s, n, id, site) do
-    with {:ok, task} <- open_task(s, n, site) do
+  defp activity(s, n, id) do
+    with {:ok, task} <- open_task(s, n) do
       case s.acts[id] do
         %{task: ^n} = act -> {:ok, task, act}
-        _none -> {:error, Error.new(:sunna_queue_no_such_activity, site)}
+        _none -> {:error, Error.new(:sunna_queue_no_such_activity, :sunna_queue_activity_absent)}
       end
     end
   end
 
   # Ready: pending in the open layer.
-  defp ready(s, task, act, site) do
+  defp ready(s, task, act) do
     if G.view(act, task, s.acts) == :ready,
       do: :ok,
-      else: {:error, Error.new(:sunna_queue_not_ready, site)}
+      else: {:error, Error.new(:sunna_queue_not_ready, :sunna_queue_activity_not_ready)}
   end
 
   # Live: ready or active.
-  defp live(s, task, act, site) do
+  defp live(s, task, act) do
     if G.view(act, task, s.acts) in [:ready, :active],
       do: :ok,
-      else: {:error, Error.new(:sunna_queue_not_ready, site)}
+      else: {:error, Error.new(:sunna_queue_not_ready, :sunna_queue_activity_not_live)}
   end
 
-  defp unfinished(act, site) do
+  defp unfinished(act) do
     if act.status in ~w(done skipped),
-      do: {:error, Error.new(:sunna_queue_not_ready, site)},
+      do: {:error, Error.new(:sunna_queue_not_ready, :sunna_queue_activity_finished)},
       else: :ok
   end
 
@@ -920,10 +933,20 @@ defmodule Oneiroi.Sunna.Queue do
       else: {:error, Error.new(:sunna_queue_not_ready, :sunna_queue_block_not_live)}
   end
 
-  defp not_review(%{type: "review"}, site),
-    do: {:error, Error.new(:sunna_queue_review_decides, site)}
+  defp not_review(%{type: "review"}),
+    do: {:error, Error.new(:sunna_queue_review_decides, :sunna_queue_finish_review)}
 
-  defp not_review(_act, _site), do: :ok
+  defp not_review(_act), do: :ok
+
+  # Scarlett's second guard: a promotion to the house is finished only by
+  # the promotion, which runs the library's audience check on its own.
+  defp promoted(%{type: "promote-to-house"}, copy) do
+    if words?(copy, 300),
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_promote_by_promotion, :sunna_queue_finish_promote)}
+  end
+
+  defp promoted(_act, _copy), do: :ok
 
   defp review(%{type: "review"}), do: :ok
 
@@ -941,16 +964,19 @@ defmodule Oneiroi.Sunna.Queue do
   defp outcome_ok(_other),
     do: {:error, Error.new(:sunna_queue_invalid, :sunna_queue_decide_outcome)}
 
-  defp may_work(s, task, act, actor, site) do
+  defp may_work(s, task, act, actor) do
     mine = me(actor)
 
-    cond do
-      actor.kind == :witness -> :ok
-      not is_nil(mine) and mine in [act.assignee, task.owner] -> :ok
-      act.assignee == "unknown" and not is_nil(mine) -> :ok
-      act.assignee == "claude-code" and not is_nil(mine) and mine == s.via -> :ok
-      true -> {:error, Error.new(:sunna_queue_not_yours, site)}
-    end
+    if actor.kind == :witness or member_may_work?(s, task, act, mine),
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_activity_not_yours)}
+  end
+
+  defp member_may_work?(_s, _task, _act, nil), do: false
+
+  defp member_may_work?(s, task, act, mine) do
+    mine in [act.assignee, task.owner] or act.assignee == "unknown" or
+      (act.assignee == "claude-code" and mine == s.via)
   end
 
   defp may_skip(task, act, actor) do
@@ -997,10 +1023,10 @@ defmodule Oneiroi.Sunna.Queue do
     end
   end
 
-  defp owner_or_witness(task, actor, site) do
+  defp owner_or_witness(task, actor) do
     if actor.kind == :witness or me(actor) == task.owner,
       do: :ok,
-      else: {:error, Error.new(:sunna_queue_not_yours, site)}
+      else: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_drop_not_yours)}
   end
 
   # A review standing in front of a gated activity still to run is never
@@ -1027,16 +1053,18 @@ defmodule Oneiroi.Sunna.Queue do
   defp block_ok(_s, _task, _other),
     do: {:error, Error.new(:sunna_queue_block_refused, :sunna_queue_block_not_a_task)}
 
-  defp reason_ok(text, site) do
-    if words?(text, 500), do: :ok, else: {:error, Error.new(:sunna_queue_invalid, site)}
+  defp reason_ok(text) do
+    if words?(text, 500),
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_invalid, :sunna_queue_reason_invalid)}
   end
 
-  defp optional_words(nil, _site), do: :ok
+  defp optional_words(nil), do: :ok
 
-  defp optional_words(text, site) do
+  defp optional_words(text) do
     if is_binary(text) and String.length(text) <= @words,
       do: :ok,
-      else: {:error, Error.new(:sunna_queue_invalid, site)}
+      else: {:error, Error.new(:sunna_queue_invalid, :sunna_queue_note_invalid)}
   end
 
   defp slot?(artifact), do: is_binary(artifact) and String.starts_with?(artifact, "slot:")

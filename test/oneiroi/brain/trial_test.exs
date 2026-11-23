@@ -301,6 +301,13 @@ defmodule Oneiroi.Brain.TrialTest do
   ]
 
   @done [
+    # The house queue's writes (sunna#80): answered, never run.
+    {"queue_project_open", %{slug: "q", name: "Q"}},
+    {"queue_task_open", %{project: "q", slug: "t", title: "T", outcome: "done"}},
+    {"queue_move", %{task: 1, act: "1.1", move: "take"}},
+    {"queue_decide", %{task: 1, act: "1.2", outcome: "approved", note: "yes"}},
+    {"queue_fill_slot", %{task: 1, slot: "pr", artifact: "github:pr/1"}},
+    {"queue_drop", %{task: 1, note: "no"}},
     {"free_time_plan", %{text: "watch the herons"}},
     # A trial's rounds are its own (brain#99): the extension is answered, never run.
     {"rounds_extend", %{to: 12, note: "the herons run deep"}},

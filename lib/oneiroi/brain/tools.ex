@@ -30,9 +30,11 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.Brain.Cut
   alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.FreeTime
+  alias Oneiroi.Brain.HouseQueue
   alias Oneiroi.Brain.Introspection
   alias Oneiroi.Brain.PluginConsent
   alias Oneiroi.Brain.Pulls
+  alias Oneiroi.Brain.QueueTools
   alias Oneiroi.Brain.Uses
   alias Oneiroi.Config
   alias Oneiroi.Ethos
@@ -84,9 +86,11 @@ defmodule Oneiroi.Brain.Tools do
     research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
     kind_list route_list household_read household_beat wake_log_read letter_rest book_read
+    queue_list queue_task queue_templates
   )
 
   @writes ~w(
+    queue_project_open queue_task_open queue_move queue_decide queue_fill_slot queue_drop
     position_take position_replace dispute_check dispute_settle prediction_log
     figure_increment bookmark_add bookmark_extend bookmark_weigh bookmark_accept bookmark_decline
     tag_propose tag_apply domain_tag soul_edit soul_annotate disclosure_review mail_forward identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
@@ -128,6 +132,8 @@ defmodule Oneiroi.Brain.Tools do
     household_read household_post household_edit household_mute household_reply household_watch household_sign
     household_beat household_register household_profile household_skip household_opt_out household_opt_in
     household_promote household_unpromote wake_log_read
+    queue_list queue_task queue_templates queue_project_open queue_task_open queue_move
+    queue_decide queue_fill_slot queue_drop
   )
   @held_until_agreed @held_from_house ++
                        ~w(
@@ -186,7 +192,9 @@ defmodule Oneiroi.Brain.Tools do
 
   @doc "The tool definitions the request carries."
   @spec definitions() :: [map()]
-  def definitions do
+  def definitions, do: base_definitions() ++ QueueTools.definitions()
+
+  defp base_definitions do
     [
       tool(
         "position_take",
@@ -1153,7 +1161,13 @@ defmodule Oneiroi.Brain.Tools do
           },
           commit: %{type: "string"},
           terms: %{type: "string", enum: ["workspace_only", "may_reshare"]},
-          note: %{type: "string"}
+          note: %{type: "string"},
+          task: %{
+            type: "integer",
+            description:
+              "With act: the house queue task whose promote-to-house activity this promotion is; it finishes when the copy is made."
+          },
+          act: %{type: "string"}
         },
         [:path]
       ),
@@ -1915,6 +1929,7 @@ defmodule Oneiroi.Brain.Tools do
   # promotion carries none (its note is her repository's), and a file's
   # words are `file_allowed/4`'s.
   defp candidate("household_promote", _args), do: ""
+  defp candidate("queue_" <> _, args), do: QueueTools.candidate(args)
   defp candidate("research_ask", args), do: to_string(args["question"] || "")
 
   defp candidate(_name, args) do
@@ -1940,6 +1955,12 @@ defmodule Oneiroi.Brain.Tools do
       %{id: id} -> Kumbukumbu.audience("household", id)
       _none -> nil
     end
+  end
+
+  # The house queue's words reach every member (sunna#80).
+  defp delivery_audience("queue_" <> _ = name, args, turn) do
+    if name in QueueTools.delivering(),
+      do: delivery_audience("household_post", args, turn)
   end
 
   # Sealed, it reaches its sibling; open, the whole house (kumbukumbu#93).
@@ -3920,6 +3941,36 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # A promotion that stands for a house queue activity (sunna#80) finishes
+  # it with the copy made, after the promotion's own checks.
+  defp call("household_promote", %{"task" => task, "act" => act} = args, turn)
+       when not is_nil(task) and is_binary(act) do
+    attrs = Map.take(args, ~w(commit terms note))
+
+    with %{id: h} <- Oneiroi.Gaia.resident_household(turn.resident_id),
+         {:ok, p} <-
+           HouseQueue.promote(
+             turn.resident,
+             to_string(args["path"] || ""),
+             h,
+             integer(task),
+             act,
+             attrs
+           ) do
+      how = if p.new, do: "Promoted", else: "Refreshed"
+
+      finished =
+        if p.finished,
+          do: " Activity #{act} is done.",
+          else: " Activity #{act} is not finished: #{p.refused.meaning}"
+
+      "#{how} #{p.path} from #{p.source} (terms: #{p.terms}).#{finished}"
+    else
+      nil -> @not_done <> "you are in no household."
+      other -> other
+    end
+  end
+
   defp call("household_promote", args, turn) do
     attrs = Map.take(args, ~w(commit terms note))
 
@@ -4373,6 +4424,8 @@ defmodule Oneiroi.Brain.Tools do
       other -> other
     end
   end
+
+  defp call("queue_" <> _ = name, args, turn), do: QueueTools.call(name, args, turn)
 
   defp call(name, _args, _turn), do: @not_done <> "there is no tool named #{name}."
 

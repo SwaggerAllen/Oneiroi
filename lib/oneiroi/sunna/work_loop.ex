@@ -35,6 +35,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   alias Oneiroi.Scope
   alias Oneiroi.Sunna.Commands
   alias Oneiroi.Sunna.Error
+  alias Oneiroi.Sunna.QueueState
   alias Oneiroi.Sunna.Schedules
   alias Oneiroi.Sunna.Store
   alias Oneiroi.Sunna.Wakes
@@ -54,6 +55,10 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
   @doc "Adds an item to the end of the queue; returns its number."
   def add(resident_id, what, done_when, %Actor{} = actor) do
+    with :ok <- open_for_work(resident_id), do: added(resident_id, what, done_when, actor)
+  end
+
+  defp added(resident_id, what, done_when, actor) do
     command = %Commands.AddWork{
       actor: actor,
       at: Clock.now(),
@@ -71,6 +76,11 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
   @doc "Moves an item's status (open, blocked with what blocks it, done, dropped), with a note; held is `hold/5`."
   def move(resident_id, number, status, blocked_on, note, %Actor{} = actor) do
+    with :ok <- open_for_work(resident_id),
+         do: moved(resident_id, number, status, blocked_on, note, actor)
+  end
+
+  defp moved(resident_id, number, status, blocked_on, note, actor) do
     command = %Commands.MoveWork{
       actor: actor,
       at: Clock.now(),
@@ -91,6 +101,10 @@ defmodule Oneiroi.Sunna.WorkLoop do
   the item is moved or started (sunna#55).
   """
   def hold(resident_id, number, ask, note, %Actor{} = actor) do
+    with :ok <- open_for_work(resident_id), do: held(resident_id, number, ask, note, actor)
+  end
+
+  defp held(resident_id, number, ask, note, actor) do
     command = %Commands.MoveWork{
       actor: actor,
       at: Clock.now(),
@@ -108,8 +122,30 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
   @doc "Puts the numbers given first, in that order; the rest keep theirs after."
   def order(resident_id, numbers, %Actor{} = actor) do
+    with :ok <- open_for_work(resident_id), do: ordered(resident_id, numbers, actor)
+  end
+
+  defp ordered(resident_id, numbers, actor) do
     command = %Commands.OrderWork{actor: actor, at: Clock.now(), id: resident_id, order: numbers}
     with {:ok, _} <- dispatch(command), do: checked(resident_id, :ok)
+  end
+
+  # After the cutover (sunna#80, lily:design/queue-ia §6.2) this queue is
+  # read-only: its rows and events stay, untouched, so the revert is one
+  # step; the house queue takes the work. A run in work still wraps.
+  defp open_for_work(resident_id) do
+    if cut_over?(resident_id),
+      do: {:error, Error.new(:sunna_work_frozen, :sunna_work_cut_over)},
+      else: :ok
+  end
+
+  @frozen "off: the house queue took the work at the cutover (sunna#80); this queue is read-only"
+
+  defp cut_over?(resident_id) do
+    case Oneiroi.Gaia.resident_household(resident_id) do
+      %{id: h} -> QueueState.cut_over?(h)
+      _none -> false
+    end
   end
 
   # A change to the queue asks the loop at once (sunna#76; Lily's letter
@@ -143,7 +179,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
   starting the next, until the queue clears and the line goes off.
   """
   def arm(resident_id, %Actor{} = actor) do
-    with {:ok, _} <- dispatch(%Commands.ArmWork{actor: actor, at: Clock.now(), id: resident_id}) do
+    with :ok <- open_for_work(resident_id),
+         {:ok, _} <- dispatch(%Commands.ArmWork{actor: actor, at: Clock.now(), id: resident_id}) do
       worker().enqueue_check(resident_id)
       :ok
     end
@@ -269,6 +306,10 @@ defmodule Oneiroi.Sunna.WorkLoop do
     cap = Config.fetch!(:sunna, :work_runs_a_day)
 
     cond do
+      cut_over?(resident_id) ->
+        disarm(resident_id)
+        rest(resident_id, @frozen)
+
       # The batch is over: the line goes off, and the loop rests.
       is_nil(open) ->
         disarm(resident_id)

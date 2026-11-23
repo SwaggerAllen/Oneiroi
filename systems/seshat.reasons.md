@@ -852,3 +852,9 @@ never reach the house, and a clean file born in a restricted room
 could not either. Her act, recorded with her note, is what makes "a
 document has its domain" true, and keeps the gate exactly as honest as
 the classification.
+
+## #104
+A task's rows are the queue's truth, but a record a person cannot read
+outside the client is not repo first. Rendering after the projection,
+not inside it, keeps the queue below the library; a render that changes
+nothing committing nothing keeps the history to real changes.

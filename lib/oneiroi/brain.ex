@@ -48,6 +48,7 @@ defmodule Oneiroi.Brain do
   alias Oneiroi.Brain.Drafting
   alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.FreeTime
+  alias Oneiroi.Brain.HouseQueue
   alias Oneiroi.Brain.LabelPropagation
   alias Oneiroi.Brain.NeedsYou
   alias Oneiroi.Brain.NightPasses
@@ -408,6 +409,38 @@ defmodule Oneiroi.Brain do
   @doc "Everything waiting on the witness's decision across the systems, oldest first (brain#65); it only shows."
   @spec needs_you(String.t()) :: [map()]
   defexport(needs_you(resident_id), do: NeedsYou.list(resident_id))
+
+  @doc """
+  The cutover's first step (sunna#80, lily:design/queue-ia §6.2): every
+  resident's old work queue committed to the household repository as
+  `records/work-queue-at-cutover.md` with its raw rows; a witness's.
+  Answers the commit, which the cutover then names.
+  """
+  @spec queue_snapshot(String.t(), Oneiroi.Actor.t()) :: {:ok, String.t()} | {:error, term()}
+  defexport(queue_snapshot(household_id, actor),
+    do: HouseQueue.snapshot(household_id, actor)
+  )
+
+  @doc "Takes a house queue activity (sunna#80), its artifact's head read now for the pin guard."
+  @spec queue_take(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_take(household_id, task, act, actor),
+    do: HouseQueue.take(household_id, task, act, actor)
+  )
+
+  @doc "Finishes a house queue activity, its artifact's head read now; `pin` defaults to it."
+  @spec queue_finish(String.t(), pos_integer(), String.t(), map(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_finish(household_id, task, act, attrs, actor),
+    do: HouseQueue.finish(household_id, task, act, attrs, actor)
+  )
+
+  @doc "Decides a house queue review on what the reviewer read, the head read now beside it."
+  @spec queue_decide(String.t(), pos_integer(), String.t(), map(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_decide(household_id, task, act, attrs, actor),
+    do: HouseQueue.decide(household_id, task, act, attrs, actor)
+  )
 
   @doc "Registers the calling process as watching the resident's bell (brain#94): its list is computed once a burst of notices and broadcast on the `needs_you` topic as `{resident_id, entries}`."
   @spec watch_needs_you(String.t()) :: :ok

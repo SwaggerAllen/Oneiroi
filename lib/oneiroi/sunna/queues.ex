@@ -24,12 +24,14 @@ defmodule Oneiroi.Sunna.Queues do
   alias Oneiroi.Repo
   alias Oneiroi.Scope
   alias Oneiroi.Sunna.Error
+  alias Oneiroi.Sunna.Events.Queue, as: E
   alias Oneiroi.Sunna.Queue
   alias Oneiroi.Sunna.QueueCommands, as: C
-  alias Oneiroi.Sunna.QueueEvents, as: E
   alias Oneiroi.Sunna.QueueGraph
   alias Oneiroi.Sunna.QueueRouter
+  alias Oneiroi.Sunna.QueueState
   alias Oneiroi.Sunna.QueueStore, as: S
+  alias Oneiroi.Sunna.WorkWorker
 
   # ---- the starter templates (§7) ----
 
@@ -226,7 +228,8 @@ defmodule Oneiroi.Sunna.Queues do
         pin: attrs[:pin],
         head: attrs[:head],
         result: attrs[:result],
-        note: attrs[:note]
+        note: attrs[:note],
+        promoted: attrs[:promoted]
       })
 
   @doc "Skips an activity explicitly, with a note (§7)."
@@ -347,15 +350,23 @@ defmodule Oneiroi.Sunna.Queues do
       })
 
   @doc "Turns the house queue on (§6.2), naming the commit that holds the old queue: a witness's."
-  def cut_over(household_id, commit, note, %Actor{} = actor),
-    do:
-      dispatch(household_id, actor, %C.CutOver{
-        actor: actor,
-        at: Clock.now(),
-        id: household_id,
-        commit: commit,
-        note: note
-      })
+  def cut_over(household_id, commit, note, %Actor{} = actor) do
+    with :ok <-
+           dispatch(household_id, actor, %C.CutOver{
+             actor: actor,
+             at: Clock.now(),
+             id: household_id,
+             commit: commit,
+             note: note
+           }) do
+      # Each resident's old loop checks once, finds the house queue on,
+      # turns its line off and rests saying why.
+      for %{kind: "resident", id: id} <- members(household_id),
+          do: WorkWorker.enqueue_check(id)
+
+      :ok
+    end
+  end
 
   @doc "The one-step revert (§6.2): the old queue's screens and loop back on over its untouched rows."
   def cut_back(household_id, note, %Actor{} = actor),
@@ -476,30 +487,32 @@ defmodule Oneiroi.Sunna.Queues do
     {out, shifts} =
       layers
       |> Enum.with_index(1)
-      |> Enum.reduce({[], %{}}, fn {layer, i}, {acc, shifts} ->
-        layer = Enum.map(layer, &Map.new(&1, fn {k, v} -> {atom(k), v} end))
-        shifts = Map.put(shifts, i, length(acc) + 1)
+      |> Enum.reduce({[], %{}}, &route_layer(&1, &2, via))
 
-        if Enum.any?(layer, &(&1[:assignee] == "claude-code")) do
-          deliver =
-            for a <- layer, a[:assignee] == "claude-code" do
-              %{type: "deliver", assignee: via, artifact: a[:artifact], inserted: true}
-            end
+    Enum.map(out, fn layer -> Enum.map(layer, &renumber_throwback(&1, shifts)) end)
+  end
 
-          {acc ++ [deliver, layer], Map.put(shifts, i, length(acc) + 2)}
-        else
-          {acc ++ [layer], shifts}
+  defp route_layer({layer, i}, {acc, shifts}, via) do
+    layer = Enum.map(layer, &Map.new(&1, fn {k, v} -> {atom(k), v} end))
+    shifts = Map.put(shifts, i, length(acc) + 1)
+
+    if Enum.any?(layer, &(&1[:assignee] == "claude-code")) do
+      deliver =
+        for a <- layer, a[:assignee] == "claude-code" do
+          %{type: "deliver", assignee: via, artifact: a[:artifact], inserted: true}
         end
-      end)
 
-    Enum.map(out, fn layer ->
-      Enum.map(layer, fn a ->
-        case a[:throwback] do
-          pos when is_binary(pos) -> %{a | throwback: renumber(pos, shifts)}
-          _none -> a
-        end
-      end)
-    end)
+      {acc ++ [deliver, layer], Map.put(shifts, i, length(acc) + 2)}
+    else
+      {acc ++ [layer], shifts}
+    end
+  end
+
+  defp renumber_throwback(a, shifts) do
+    case a[:throwback] do
+      pos when is_binary(pos) -> %{a | throwback: renumber(pos, shifts)}
+      _none -> a
+    end
   end
 
   defp renumber(pos, shifts) do
@@ -521,14 +534,10 @@ defmodule Oneiroi.Sunna.Queues do
   # ---- reads ----
 
   @doc "The queue's state: cut over or not, the commit that holds the old queue, who routes to claude-code."
-  def state(household_id) do
-    Scope.platform(fn -> Repo.get_by(S.State, household_id: household_id) end) ||
-      %S.State{household_id: household_id, cut_over: false}
-  end
+  def state(household_id), do: QueueState.get(household_id)
 
   @doc "Whether the household has cut over to the house queue (§6.2)."
-  def cut_over?(nil), do: false
-  def cut_over?(household_id), do: state(household_id).cut_over == true
+  def cut_over?(household_id), do: QueueState.cut_over?(household_id)
 
   @doc "The household's projects, open first, then by name."
   def projects(household_id) do
@@ -639,32 +648,28 @@ defmodule Oneiroi.Sunna.Queues do
         )
 
       query =
-        case filter[:who] do
-          nil -> query
-          "anyone" -> query
-          who -> from([a, _t] in query, where: a.assignee == ^who)
-        end
-
-      query =
-        case filter[:views] do
-          views when is_list(views) and views != [] ->
-            from([a, _t] in query, where: a.view in ^views)
-
-          _all ->
-            query
-        end
-
-      query =
-        case filter[:project] do
-          nil -> query
-          slug -> from([_a, t] in query, where: t.project == ^slug)
-        end
+        query
+        |> by_who(filter[:who])
+        |> by_views(filter[:views])
+        |> by_project(filter[:project])
 
       rows = Repo.all(query)
       blockers = blockers(household_id, rows)
       Enum.map(rows, fn {a, t} -> card(a, t, blockers) end)
     end)
   end
+
+  defp by_who(query, nil), do: query
+  defp by_who(query, "anyone"), do: query
+  defp by_who(query, who), do: from([a, _t] in query, where: a.assignee == ^who)
+
+  defp by_views(query, views) when is_list(views) and views != [],
+    do: from([a, _t] in query, where: a.view in ^views)
+
+  defp by_views(query, _all), do: query
+
+  defp by_project(query, nil), do: query
+  defp by_project(query, slug), do: from([_a, t] in query, where: t.project == ^slug)
 
   @doc """
   **Waiting on me** (§2.2): the viewer's ready activities, reviews among
@@ -752,10 +757,13 @@ defmodule Oneiroi.Sunna.Queues do
          title: t.title,
          project: t.project,
          status: t.status,
-         next: next_action(household_id, t)
+         next: plain(next_action(household_id, t))
        }}
     end
   end
+
+  defp plain(nil), do: nil
+  defp plain(row), do: row |> Map.from_struct() |> Map.delete(:__meta__)
 
   defp card(a, t, blockers) do
     %{

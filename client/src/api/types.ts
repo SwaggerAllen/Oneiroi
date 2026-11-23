@@ -554,10 +554,11 @@ export interface NeedsYouEntry {
     | 'provider_credits'
     | 'turn_failed'
     | 'contract_to_answer'
-    | 'remote_public';
+    | 'remote_public'
+    | 'activity';
   ref: number | string;
   since: string;
-  screen: 'inbox' | 'schedule' | 'agreement' | 'work' | 'kinds' | 'theme' | 'settings';
+  screen: 'inbox' | 'schedule' | 'agreement' | 'work' | 'queue' | 'kinds' | 'theme' | 'settings';
   long: boolean;
   about: { kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; held_by?: string | null; key?: string; change?: string; note?: string; approvable?: boolean; seeds?: { ground: string; resident: string; witness: string }; reason?: string; retry?: string; session_key?: string; conversation?: string | null; failures?: Array<{ session_key: string; turn_ref: string; failed_at: string }> };
 }
@@ -790,3 +791,128 @@ export interface KindDefinition {
   ask?: string;
   note?: string;
 }
+
+// ---- the house queue (sunna#80, lily:design/queue-ia rev 5) ----
+
+/** An activity's view as the screens read it: ready or waiting (pending, by its layer), or its own status. */
+export type QueueView = 'ready' | 'waiting' | 'active' | 'blocked' | 'failed' | 'done' | 'skipped';
+
+export interface QueueMember {
+  assignee: string;
+  kind: 'resident' | 'witness';
+  id: string;
+  name: string;
+}
+
+export interface QueueActivity {
+  act_id: string;
+  task: number;
+  layer: number;
+  position: number;
+  type: string;
+  assignee: string;
+  status: string;
+  view: QueueView;
+  artifact: string | null;
+  destination: string | null;
+  action: string | null;
+  optional: boolean;
+  throwback: string | null;
+  imported: boolean;
+  waits_on: number | null;
+  reason: string | null;
+  pin: string | null;
+  approved_pin: string | null;
+  result: string | null;
+  note: string | null;
+  ready_at: string | null;
+  updated_at: string;
+  gated: boolean;
+}
+
+/** An activity as a card: its own fields plus its task's, and its blocker named (Scarlett's guard). */
+export interface QueueCard {
+  act: string;
+  task: number;
+  layer: number;
+  type: string;
+  assignee: string;
+  status: string;
+  view: QueueView;
+  gated: boolean;
+  artifact: string | null;
+  destination: string | null;
+  action: string | null;
+  optional: boolean;
+  throwback: string | null;
+  waits_on: number | null;
+  blocker: { number: number; title: string; project: string; status: string; next: QueueActivity | null } | null;
+  reason: string | null;
+  pin: string | null;
+  approved_pin: string | null;
+  note: string | null;
+  ready_at: string | null;
+  updated_at: string;
+  task_title: string;
+  project: string;
+  owner: string;
+}
+
+export interface QueueTask {
+  number: number;
+  project: string;
+  slug: string;
+  title: string;
+  outcome: string;
+  owner: string;
+  index_doc: string;
+  template: string | null;
+  links: string[];
+  status: 'open' | 'complete' | 'dropped';
+  open_layer: number | null;
+  opened_by: string;
+  opened_at: string;
+  completed_at: string | null;
+  note: string | null;
+}
+
+export interface QueueSpec {
+  type: string;
+  role?: string;
+  assignee?: string;
+  artifact?: string | null;
+  destination?: string | null;
+  action?: string | null;
+  optional?: boolean;
+  throwback?: string | null;
+}
+
+export interface QueueOverview {
+  household_id: string;
+  me: string;
+  cut_over: boolean;
+  cut_at: string | null;
+  commit: string | null;
+  via: string | null;
+  members: QueueMember[];
+  projects: { slug: string; name: string; owner: string; status: 'open' | 'closed' }[];
+  templates: { name: string; title: string; layers: QueueSpec[][] }[];
+  starters: { name: string; title: string; layers: QueueSpec[][] }[];
+  tasks: QueueTask[];
+}
+
+export interface QueueWaiting {
+  who: string;
+  ready: QueueCard[];
+  later: QueueCard[];
+  owned: { task: QueueTask; next: QueueActivity | null }[];
+}
+
+export interface QueueTaskPage {
+  task: QueueTask;
+  layers: QueueActivity[][];
+  waiting: QueueActivity[];
+  history: { act_id: string | null; what: string; outcome: string | null; pin: string | null; note: string | null; actor_kind: string; actor_id: string | null; at: string }[];
+}
+
+export type QueueMove = 'take' | 'finish' | 'skip' | 'block' | 'reopen' | 'fail' | 'assign' | 'decide';

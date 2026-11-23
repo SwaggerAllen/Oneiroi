@@ -180,3 +180,47 @@ server.
 - In Records: a record's history, editing, reacts and what cites it,
   which the resident's records have and the house's repository does not
   yet serve.
+
+## Work (the house queue)
+
+Built 2026-11-22 (sunna#80 to #84, lily:design/queue-ia rev 5 §2), at
+`#/settings/queue`: a page over the tabs, opened from the subject menu's
+**Work** row under The household (one Work item, §2.1) and from a bell
+entry of kind `activity` (brain#112). It is the household's, whichever
+subject is open.
+
+- **Filters:** Who (me, the default; anyone; a member; Claude Code;
+  holder not known yet), Status (ready, active, waiting, blocked,
+  failed) and Project.
+- **Waiting on me** (the default view): the ready activities, reviews
+  among them, blocking-most first, then oldest ready; then, collapsed,
+  mine in a later layer or blocked, and the tasks I own with their next
+  action.
+- **A card reads as a sentence**: the verb (gated marked), the artifact
+  at its pin, the task › project, ready and for how long, and whose; a
+  blocked card's second line names the task it waits on, that task's
+  next action and whose it is (Scarlett's guard), a failed card's what
+  failed. One primary button: **Review** on a review, **Take** on a
+  ready activity. Tapping the sentence opens the moves: finish (a
+  promote-to-house says it finishes by promoting), failed, block
+  (waiting on a task, or on a person), reopen, skip (asks twice), assign.
+- **Review** opens the decision: the authorization line (this revision
+  at its head, this destination, this action), a note, keep-it-where-it-is
+  when it authorizes a gated step, the return target for a refusal (the
+  template's default named), Approve, Request changes, Decline.
+- **Task #n ›** opens the task: its outcome, owner, index document and
+  links, its layers with the open one marked, each activity as a chip,
+  what waits on it, the open slots to fill, its history, and Drop (its
+  owner or a witness, asks twice).
+- **New task:** project (or a new one), template, title, slug, done
+  when, the design's citation, and where the work stands (a later layer
+  imports the earlier ones done, with links).
+- **Setting up** (witnesses only): who Claude Code is reached through,
+  the starter templates to add, and the cutover: commit the old queue,
+  then turn the house queue on naming that commit (offered once a
+  template exists), or revert with a note.
+
+Not built: the per-resident Work card in Settings stays as it was (the
+design retires it at cutover for a link here); no mobile-specific card
+layout beyond the settings column; no live push (read every 30 seconds
+and after every move).

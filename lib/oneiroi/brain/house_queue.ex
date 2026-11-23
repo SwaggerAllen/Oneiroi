@@ -1,0 +1,94 @@
+defmodule Oneiroi.Brain.HouseQueue do
+  @moduledoc """
+  The house queue's moves as the screens and the tools make them
+  (sunna#80): the artifact's head read at the moment of the move
+  (`Oneiroi.Brain.QueueHeads`) and handed to the queue, which refuses or
+  lapses on it (Scarlett's first guard); and a `promote-to-house`
+  activity finished by the promotion alone, after the library's own
+  checks (her second).
+  """
+
+  alias Oneiroi.Actor
+  alias Oneiroi.Brain.QueueHeads
+  alias Oneiroi.Seshat
+  alias Oneiroi.Sunna
+
+  @doc "Takes an activity, its artifact's head read now."
+  def take(household_id, task, act, %Actor{} = actor),
+    do: Sunna.queue_take(household_id, task, act, actor, head: head(household_id, task, act))
+
+  @doc "Finishes an activity, its artifact's head read now; `pin` defaults to that head."
+  def finish(household_id, task, act, attrs, %Actor{} = actor) do
+    head = head(household_id, task, act)
+    attrs = attrs |> Map.put(:head, head) |> Map.put_new(:pin, head)
+    Sunna.queue_finish(household_id, task, act, Map.delete(attrs, :promoted), actor)
+  end
+
+  @doc "Decides a review on what the reviewer read: `pin` (the head now when not named), the head read now beside it."
+  def decide(household_id, task, act, attrs, %Actor{} = actor) do
+    head = head(household_id, task, act)
+    attrs = attrs |> Map.put(:head, head) |> Map.update(:pin, head, &(&1 || head))
+    Sunna.queue_decide(household_id, task, act, attrs, actor)
+  end
+
+  @doc """
+  Promotes a file of the resident's to the house and finishes the
+  `promote-to-house` activity it stands for with the copy and the commit
+  promoted. The promotion runs first and on its own terms; a refusal
+  leaves the activity where it was.
+  """
+  def promote(%Actor{kind: :resident} = actor, path, household_id, task, act, attrs) do
+    with {:ok, p} <- Seshat.household_promote(actor, path, attrs) do
+      pin = p.source |> String.split("@") |> List.last()
+
+      case Sunna.queue_finish(
+             household_id,
+             task,
+             act,
+             %{pin: pin, head: head(household_id, task, act), promoted: p.path},
+             actor
+           ) do
+        :ok -> {:ok, Map.put(p, :finished, true)}
+        {:error, refused} -> {:ok, p |> Map.put(:finished, false) |> Map.put(:refused, refused)}
+      end
+    end
+  end
+
+  @doc "Commits the old work queues of the household's residents (§6.2): a witness's; answers the commit."
+  def snapshot(household_id, %Actor{kind: :witness} = actor) do
+    if Oneiroi.Gaia.household_member?(household_id, actor) do
+      residents =
+        for %{kind: "resident", id: id, name: name} <-
+              Oneiroi.Gaia.household_members(household_id),
+            do: {id, name}
+
+      case Seshat.household_commit_old_queue(household_id, residents, actor) do
+        {:ok, sha} when is_binary(sha) -> {:ok, sha}
+        {:ok, :nothing} -> {:ok, last_commit(household_id)}
+        other -> other
+      end
+    else
+      {:error, Sunna.Error.new(:sunna_queue_not_a_member, :sunna_queue_snapshot_member)}
+    end
+  end
+
+  def snapshot(_household_id, %Actor{}),
+    do: {:error, Sunna.Error.new(:sunna_queue_not_yours, :sunna_queue_snapshot_witness)}
+
+  # Unchanged since an earlier snapshot: the commit that last wrote it.
+  defp last_commit(household_id) do
+    case Oneiroi.SimaQian.household_log(household_id, "records/work-queue-at-cutover.md", 1) do
+      {:ok, [%{sha: sha} | _]} -> sha
+      _none -> nil
+    end
+  end
+
+  defp head(household_id, task, act) do
+    with %{layers: layers} <- Sunna.queue_task(household_id, task),
+         %{artifact: artifact} <- Enum.find(List.flatten(layers), &(&1.act_id == act)) do
+      QueueHeads.head(household_id, artifact)
+    else
+      _ -> nil
+    end
+  end
+end

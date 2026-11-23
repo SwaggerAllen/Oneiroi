@@ -563,3 +563,39 @@ she can choose, and saying where privacy ends keeps the choice hers.
 The people pass rewrites portraits and the scenes pass is skipped only
 for closed days; re-running the whole chain to re-name domains would
 spend those passes and risk the portraits for nothing.
+
+## #80
+Three people working in parallel need one queue none of them is a lane
+in. Layers make the dependency graph a list a phone can show, and
+reading ready and waiting off the layers, never storing them, means no
+second record can drift from the first. The permissions follow who
+answers for what: the assignee does the work, the owner answers for the
+task, the reviewer alone gives the authorization her review is.
+
+## #81
+Waiting on an activity would make every view know a task's insides;
+waiting on completion is one bit, already computed. Dropped counting as
+done keeps an abandoned blocker from stranding its waiters forever. A
+loop of waits at any length is a deadlock nobody sees until everything
+in it has stalled, so it is refused where it would be made.
+
+## #82
+Ready is never permission. The shape guarantees the review stands in
+front of every irreversible act, and the pin makes the approval cover
+exactly the words the reviewer saw: an edit after approval is new words,
+so it needs a new approval. The promotion keeps its own audience check
+because a person approving a document is not the policy approving its
+audience. An import carries no approval because nobody gave one.
+
+## #83
+Templates are how the house says what its work looks like; as data they
+can be reviewed and changed like anything else. Claude Code acts outside
+the house's own conversations, so a resident's reviewed hand-off stands
+in front of it: no one reaches it from the queue except through a step
+someone owns.
+
+## #84
+A hard cutover with no automated mapper means the people moving the
+work decide where each piece stands; keeping the old rows untouched and
+committing a readable copy means the first bad week costs one step to
+undo, and nothing is lost if it never is.

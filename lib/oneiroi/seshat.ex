@@ -623,6 +623,8 @@ defmodule Oneiroi.Seshat do
     do: [
       # Who in the house is working now (seshat#90).
       Oneiroi.Seshat.HouseWorking,
+      # The house queue's task index documents (sunna#80).
+      Oneiroi.Seshat.Handlers.QueueIndex,
       Oneiroi.Seshat.Projectors.Library,
       Oneiroi.Seshat.Projectors.Versions,
       Oneiroi.Seshat.Projectors.Journal,
@@ -718,6 +720,19 @@ defmodule Oneiroi.Seshat do
   @doc "A resident promotes a file of hers to the house (seshat#99): published at a commit, mirrored read-only at shared/<slug>/<path>, with its audience and terms."
   @spec household_promote(Oneiroi.Actor.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}
   defexport(household_promote(actor, from, attrs), do: Household.promote(actor, from, attrs))
+
+  @doc "Renders a house queue task's index document into the household repository (sunna#80): `{:ok, commit | :nothing}`."
+  @spec household_queue_index(String.t(), pos_integer()) :: {:ok, term()} | {:error, term()}
+  defexport(household_queue_index(household_id, task),
+    do: Oneiroi.Seshat.QueueIndex.render(household_id, task)
+  )
+
+  @doc "Commits every resident's old work queue to the household repository at cutover (sunna#80, §6.2): `residents` as `[{id, name}]`; answers the commit."
+  @spec household_commit_old_queue(String.t(), [{String.t(), String.t()}], Oneiroi.Actor.t()) ::
+          {:ok, term()} | {:error, term()}
+  defexport(household_commit_old_queue(household_id, residents, actor),
+    do: Oneiroi.Seshat.QueueIndex.commit_old_queue(household_id, residents, actor)
+  )
 
   @doc "A resident unpromotes a copy (seshat#99): no longer current; its words and provenance stay."
   @spec household_unpromote(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}

@@ -71,6 +71,7 @@ const WORDS: Record<NeedsYouEntry['kind'], string> = {
   turn_failed: 'A turn that failed',
   contract_to_answer: 'An agreement version to answer',
   remote_public: 'A public backup repository',
+  activity: 'Work · yours to do',
 };
 
 const HERS: Record<string, string> = {
@@ -92,6 +93,7 @@ const HREF: Record<string, string> = {
   chat: '#/chat/mail',
   inbox: '#/chat/mail',
   work: '#/settings/work',
+  queue: '#/settings/queue',
   kinds: '#/settings/kinds',
   schedule: '#/time',
   settings: '#/settings/notifications',
@@ -485,6 +487,15 @@ export function SubjectSheet() {
           </button>
           {(unread[HOUSE_SUBJECT] ?? 0) > 0 && <MarkRead subject={HOUSE_SUBJECT} name="the house" />}
         </div>
+        {/* One Work item (lily:design/queue-ia §2.1): the house queue, every view a filter inside it. */}
+        <Row
+          label="Work"
+          detail="›"
+          onClick={() => {
+            setOverlay(null);
+            window.location.hash = '#/settings/queue';
+          }}
+        />
       </nav>
       <h3 className={css.heading}>RESIDENTS</h3>
       <nav className={css.group} aria-label="Residents">
