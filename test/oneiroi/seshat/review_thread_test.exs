@@ -9,6 +9,7 @@ defmodule Oneiroi.Seshat.ReviewThreadTest do
 
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Fixtures
   alias Oneiroi.Gaia
   alias Oneiroi.Seshat
@@ -50,7 +51,7 @@ defmodule Oneiroi.Seshat.ReviewThreadTest do
       })
 
     # The next beat (a member's once to a thread a beat), the same post.
-    Oneiroi.Apsu.Clock.Fake.advance(86_400)
+    Clock.Fake.advance(86_400)
 
     assert {:ok, %{path: ^thread, existing: true}} =
              Seshat.household_post(ctx.andrew, %{

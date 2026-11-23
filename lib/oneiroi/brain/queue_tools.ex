@@ -183,8 +183,15 @@ defmodule Oneiroi.Brain.QueueTools do
 
   defp run("queue_task", args, h, _actor, _me) do
     case Sunna.queue_task(h, integer(args["task"])) do
-      nil -> @not_done <> "no task ##{args["task"]}."
-      page -> task_text(page, names(h))
+      nil ->
+        @not_done <> "no task ##{args["task"]}."
+
+      page ->
+        task_text(
+          page,
+          names(h),
+          Map.get(Sunna.queue_documents(h, [page.task.number]), page.task.number, [])
+        )
     end
   end
 
@@ -235,7 +242,7 @@ defmodule Oneiroi.Brain.QueueTools do
     }
 
     with {:ok, n} <- Sunna.queue_open_task(h, attrs, actor) do
-      "Opened task ##{n}.\n\n" <> task_text(Sunna.queue_task(h, n), names(h))
+      "Opened task ##{n}.\n\n" <> page_text(h, n)
     end
   end
 
@@ -299,7 +306,7 @@ defmodule Oneiroi.Brain.QueueTools do
 
     with :ok <-
            Sunna.queue_edit_layers(h, task, args["layers"], to_string(args["note"] || ""), actor) do
-      "Task ##{task}'s layers edited.\n\n" <> task_text(Sunna.queue_task(h, task), names(h))
+      "Task ##{task}'s layers edited.\n\n" <> page_text(h, task)
     end
   end
 
@@ -379,10 +386,17 @@ defmodule Oneiroi.Brain.QueueTools do
       "#{inspect(other)} is not a move: take, finish, skip, block, reopen, fail or assign."
   end
 
-  defp task_text(%{task: t, layers: layers, history: history, waiting: waiting}, names) do
+  defp task_text(%{task: t, layers: layers, history: history, waiting: waiting}, names, docs) do
+    from =
+      cond do
+        is_nil(t.template) -> ""
+        t.forked -> " · forked from #{t.template}"
+        true -> " · from #{t.template}"
+      end
+
     head =
-      "##{t.number} #{t.title} · #{t.project} · #{t.status} · owner #{name_of(t.owner, names)}\nOutcome: #{t.outcome}\nIndex: #{t.index_doc}" <>
-        if(t.links != [], do: "\nLinks: #{Enum.join(t.links, ", ")}", else: "")
+      "##{t.number} #{t.title} · #{t.project} · #{t.status} · owner #{name_of(t.owner, names)}#{from}\nOutcome: #{t.outcome}\nIndex: #{t.index_doc}" <>
+        docs_line(docs)
 
     layer_lines =
       layers
@@ -403,6 +417,19 @@ defmodule Oneiroi.Brain.QueueTools do
     "#{head}\n#{layer_lines}#{waiting_line}\nHistory:\n#{history_lines}"
   end
 
+  defp page_text(h, n) do
+    page = Sunna.queue_task(h, n)
+    task_text(page, names(h), Map.get(Sunna.queue_documents(h, [n]), n, []))
+  end
+
+  # Its documents (sunna#91): each by its role, an unfilled slot said so.
+  defp docs_line([]), do: ""
+
+  defp docs_line(docs),
+    do:
+      "\nDocuments: " <>
+        Enum.map_join(docs, "; ", fn d -> "#{d.role} #{d.citation || "(not yet filled)"}" end)
+
   defp layer_line(layer, i, t, names) do
     open = if t.open_layer == i - 1, do: " (open)", else: ""
     "Layer #{i}#{open}: " <> Enum.map_join(layer, "; ", &act_line(&1, names))
@@ -410,7 +437,8 @@ defmodule Oneiroi.Brain.QueueTools do
 
   defp act_line(a, names) do
     art = if a.artifact, do: " on #{a.artifact}#{pin(a.approved_pin || a.pin)}", else: ""
-    "#{a.act_id} #{a.type}#{art} · #{name_of(a.assignee, names)} · #{a.view}#{extra(a)}"
+    named = if a.name, do: "#{a.name} (#{a.type})", else: a.type
+    "#{a.act_id} #{named}#{art} · #{name_of(a.assignee, names)} · #{a.view}#{extra(a)}"
   end
 
   defp history_line(h) do
@@ -441,7 +469,8 @@ defmodule Oneiroi.Brain.QueueTools do
   defp template_spec_text(s) do
     get = &(Map.get(s, &1) || Map.get(s, Atom.to_string(&1)))
     gated = if get.(:destination), do: " → #{get.(:destination)}", else: ""
-    "#{get.(:type)} (#{get.(:role)})#{gated}"
+    named = if get.(:name), do: "#{get.(:name)}: ", else: ""
+    "#{named}#{get.(:type)} (#{get.(:role)})#{gated}"
   end
 
   defp next_line(h, task) do
