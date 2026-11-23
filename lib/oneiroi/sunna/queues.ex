@@ -12,8 +12,8 @@ defmodule Oneiroi.Sunna.Queues do
   the task's owner, witness the household's first witness, peer the one
   other resident, builder claude-code, unknown as written), each artifact
   slot made the citation given or left as `slot:<name>` until it is
-  filled, and a deliver by the member routing to claude-code put in its
-  own layer in front of every claude-code activity (§3).
+  filled, and a deliver by the resident whose conversation Claude Code is
+  put in its own layer in front of every claude-code activity (§3).
   """
 
   import Ecto.Query, only: [from: 2]
@@ -21,6 +21,7 @@ defmodule Oneiroi.Sunna.Queues do
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Gaia
+  alias Oneiroi.Kumbukumbu
   alias Oneiroi.Repo
   alias Oneiroi.Scope
   alias Oneiroi.Sunna.Error
@@ -177,7 +178,8 @@ defmodule Oneiroi.Sunna.Queues do
         template: attrs[:template],
         layers: layers,
         start_layer: start(attrs[:start_layer], layers),
-        links: List.wrap(attrs[:links])
+        links: List.wrap(attrs[:links]),
+        carrier: carrier(household_id)
       }
 
       with {:ok, events} <- send_command(command) do
@@ -291,7 +293,8 @@ defmodule Oneiroi.Sunna.Queues do
         task: task,
         act: act,
         assignee: assignee,
-        note: note
+        note: note,
+        carrier: carrier(household_id)
       })
 
   @doc """
@@ -337,16 +340,6 @@ defmodule Oneiroi.Sunna.Queues do
         id: household_id,
         task: task,
         note: note
-      })
-
-  @doc "Sets the member who routes the household's work to claude-code (§3): a witness's call."
-  def route(household_id, via, %Actor{} = actor),
-    do:
-      dispatch(household_id, actor, %C.RouteClaudeCode{
-        actor: actor,
-        at: Clock.now(),
-        id: household_id,
-        via: via
       })
 
   @doc "Turns the house queue on (§6.2), naming the commit that holds the old queue: a witness's."
@@ -479,10 +472,11 @@ defmodule Oneiroi.Sunna.Queues do
     end
   end
 
-  # A deliver by the routing member in its own layer before every layer
-  # holding claude-code work (§3), throwbacks renumbered past it.
+  # A deliver by the resident whose conversation Claude Code is, in its
+  # own layer before every layer holding claude-code work (§3),
+  # throwbacks renumbered past it.
   defp route_claude_code(household_id, layers) do
-    via = state(household_id).via || "unknown"
+    via = carrier(household_id) || "unknown"
 
     {out, shifts} =
       layers
@@ -533,7 +527,32 @@ defmodule Oneiroi.Sunna.Queues do
 
   # ---- reads ----
 
-  @doc "The queue's state: cut over or not, the commit that holds the old queue, who routes to claude-code."
+  @doc """
+  The resident whose conversation Claude Code is (§3): the household's
+  resident with a session another runtime opened as `claude-code`. Read
+  from her sessions, never set by hand; nil when no resident has one, or
+  when more than one does and the house cannot say whose it is.
+  """
+  def carrier(household_id) do
+    found =
+      for %{kind: "resident", id: id} <- Gaia.household_members(household_id),
+          claude_code?(id),
+          do: "resident:#{id}"
+
+    case found do
+      [one] -> one
+      _none_or_many -> nil
+    end
+  end
+
+  defp claude_code?(resident_id),
+    do:
+      Enum.any?(
+        Kumbukumbu.sessions({:resident, resident_id}),
+        &(&1.runtime == "claude-code")
+      )
+
+  @doc "The queue's state: cut over or not, and the commit that holds the old queue."
   def state(household_id), do: QueueState.get(household_id)
 
   @doc "Whether the household has cut over to the house queue (§6.2)."

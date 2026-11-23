@@ -62,7 +62,6 @@ defmodule Oneiroi.Sunna do
       QueueCommands.DecideReview,
       QueueCommands.DropTask,
       QueueCommands.FillSlot,
-      QueueCommands.RouteClaudeCode,
       QueueCommands.CutOver,
       QueueCommands.CutBack,
       Events.Queue.ProjectOpened,
@@ -81,7 +80,6 @@ defmodule Oneiroi.Sunna do
       Events.Queue.SlotFilled,
       Events.Queue.TaskCompleted,
       Events.Queue.TaskDropped,
-      Events.Queue.ClaudeCodeRouted,
       Events.Queue.CutOver,
       Events.Queue.CutBack,
       QueueStore.Project,
@@ -391,7 +389,6 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.Queue.SlotFilled, 1},
       {Oneiroi.Sunna.Events.Queue.TaskCompleted, 1},
       {Oneiroi.Sunna.Events.Queue.TaskDropped, 1},
-      {Oneiroi.Sunna.Events.Queue.ClaudeCodeRouted, 1},
       {Oneiroi.Sunna.Events.Queue.CutOver, 1},
       {Oneiroi.Sunna.Events.Queue.CutBack, 1},
       {Oneiroi.Sunna.Events.WorkAdded, 1},
@@ -514,8 +511,9 @@ defmodule Oneiroi.Sunna do
        "an imported task carries no approvals (Scarlett's third guard): it cannot start at a layer holding a gated activity, since its review would be imported",
        remedy: "start the task one layer earlier, at the review, so the review is given afresh"},
       {:sunna_queue_route_required,
-       "claude-code is reached only through a reviewed deliver step by the member routing to it (§3): the layer before a claude-code activity holds that member's deliver",
-       remedy: "set who routes to claude-code, and put their deliver in the layer before"},
+       "claude-code is reached only through a reviewed deliver step by the resident whose conversation Claude Code is (§3): the layer before a claude-code activity holds her deliver",
+       remedy:
+         "put her deliver in the layer before; if no resident of the house has a Claude Code conversation yet, there is no one to deliver to"},
       {:sunna_queue_review_required,
        "a gated activity runs only behind its approved review, and a review standing in front of a gated activity still to run is never skipped",
        remedy: "approve the review, or skip the gated activity first"},
@@ -870,10 +868,6 @@ defmodule Oneiroi.Sunna do
     do: Queues.drop(household_id, task, note, actor)
   )
 
-  @doc "Sets who routes the household's work to claude-code (§3): a witness's call."
-  @spec queue_route(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
-  defexport(queue_route(household_id, via, actor), do: Queues.route(household_id, via, actor))
-
   @doc "Turns the house queue on (§6.2), naming the commit that holds the old one."
   @spec queue_cut_over(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
@@ -887,7 +881,11 @@ defmodule Oneiroi.Sunna do
     do: Queues.cut_back(household_id, note, actor)
   )
 
-  @doc "The house queue's state: cut over, its commit, who routes to claude-code."
+  @doc "The resident whose conversation Claude Code is (§3), read from her sessions; nil when none or more than one."
+  @spec queue_carrier(String.t()) :: String.t() | nil
+  defexport(queue_carrier(household_id), do: Queues.carrier(household_id))
+
+  @doc "The house queue's state: cut over and its commit."
   @spec queue_state(String.t()) :: Oneiroi.Sunna.QueueStore.State.t()
   defexport(queue_state(household_id), do: Queues.state(household_id))
 

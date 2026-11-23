@@ -102,7 +102,6 @@ defmodule Oneiroi.Repo.Migrations.SunnaQueue do
       add(:cut_over, :boolean, null: false, default: false)
       add(:cut_at, :utc_datetime_usec)
       add(:commit, :text)
-      add(:via, :text)
       add(:note, :text)
     end
   end

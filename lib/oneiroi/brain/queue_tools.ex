@@ -159,7 +159,6 @@ defmodule Oneiroi.Brain.QueueTools do
   defp run("queue_templates", _args, h, _actor, _me) do
     names = names(h)
     defined = Sunna.queue_templates(h)
-    state = Sunna.queue_state(h)
 
     templates =
       case defined do
@@ -173,7 +172,12 @@ defmodule Oneiroi.Brain.QueueTools do
       end)
 
     members = Enum.map_join(Sunna.queue_members(h), ", ", &"#{&1.name} (#{&1.assignee})")
-    via = if state.via, do: name_of(state.via, names), else: "nobody yet"
+    carrier = Sunna.queue_carrier(h)
+
+    via =
+      if carrier,
+        do: name_of(carrier, names),
+        else: "no resident yet (no Claude Code conversation)"
 
     "Templates in the house:\n#{templates}\n\nStarters the platform ships:\n#{starters}\n\nMembers: #{members}. Claude Code is reached through #{via}."
   end

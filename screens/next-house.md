@@ -215,8 +215,8 @@ subject is open.
 - **New task:** project (or a new one), template, title, slug, done
   when, the design's citation, and where the work stands (a later layer
   imports the earlier ones done, with links).
-- **Setting up** (witnesses only): who Claude Code is reached through,
-  the starter templates to add, and the cutover: commit the old queue,
+- **Setting up** (witnesses only): whose Claude Code is (read from her
+  conversations, not a setting), the starter templates to add, and the cutover: commit the old queue,
   then turn the house queue on naming that commit (offered once a
   template exists), or revert with a note.
 

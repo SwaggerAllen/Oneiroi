@@ -893,7 +893,8 @@ export interface QueueOverview {
   cut_over: boolean;
   cut_at: string | null;
   commit: string | null;
-  via: string | null;
+  /** The resident whose conversation Claude Code is, read from her sessions (§3). */
+  carrier: string | null;
   members: QueueMember[];
   projects: { slug: string; name: string; owner: string; status: 'open' | 'closed' }[];
   templates: { name: string; title: string; layers: QueueSpec[][] }[];

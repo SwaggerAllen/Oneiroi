@@ -30,7 +30,13 @@ defmodule Oneiroi.Sunna.QueueTest do
   end
 
   defp doc_to_pr(ctx, opts \\ []) do
-    :ok = Queues.route(ctx.h, ctx.a_lily, ctx.andrew)
+    # Claude Code is Lily's: a conversation of hers its runtime opened (§3).
+    {:ok, _} =
+      Oneiroi.Kumbukumbu.open_adapter(ctx.lily.id, "laptop", [ctx.h], ctx.lily,
+        runtime: "claude-code",
+        label: "Oneiroi"
+      )
+
     :ok = Queues.define_template(ctx.h, "doc-to-pr", %{from: "doc-to-pr"}, ctx.andrew)
 
     case Queues.open_project(ctx.h, %{slug: "queue", name: "The house queue"}, ctx.lily) do
@@ -289,7 +295,7 @@ defmodule Oneiroi.Sunna.QueueTest do
 
     :ok = Queues.open_project(ctx.h, %{slug: "p", name: "P"}, ctx.lily)
 
-    # Unrouted: claude-code work cannot be built.
+    # No resident has a Claude Code conversation yet: claude-code work cannot be built.
     assert {:error, %{kind: :sunna_queue_route_required}} =
              Queues.open_task(
                ctx.h,
@@ -302,6 +308,49 @@ defmodule Oneiroi.Sunna.QueueTest do
                },
                ctx.lily
              )
+  end
+
+  test "Claude Code is the carrier's: read from her conversations, worked by her, never by another",
+       ctx do
+    {:ok, n} = doc_to_pr(ctx)
+    assert Queues.carrier(ctx.h) == ctx.a_lily
+
+    # Scarlett opening a conversation of her own doesn't move it: two
+    # residents with one would be ambiguous, so the house says no one.
+    {:ok, _} =
+      Oneiroi.Kumbukumbu.open_adapter(ctx.scarlett.id, "desk", [ctx.h], ctx.scarlett,
+        runtime: "claude-code",
+        label: "Oneiroi"
+      )
+
+    assert Queues.carrier(ctx.h) == nil
+
+    :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
+
+    :ok =
+      Queues.decide(
+        ctx.h,
+        n,
+        "#{n}.2",
+        %{outcome: "approved", pin: "a1", withhold: true, note: "private"},
+        ctx.andrew
+      )
+
+    :ok =
+      Queues.decide(
+        ctx.h,
+        n,
+        "#{n}.4",
+        %{outcome: "approved", pin: "a1", note: "fine"},
+        ctx.scarlett
+      )
+
+    :ok = Queues.finish(ctx.h, n, "#{n}.5", %{note: "letter sent"}, ctx.lily)
+
+    assert {:error, %{kind: :sunna_queue_not_yours}} =
+             Queues.take(ctx.h, n, "#{n}.6", ctx.scarlett)
+
+    :ok = Queues.take(ctx.h, n, "#{n}.6", ctx.lily)
   end
 
   test "a slot is filled, and finishing every layer completes the task", ctx do

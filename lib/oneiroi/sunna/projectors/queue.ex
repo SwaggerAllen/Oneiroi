@@ -254,10 +254,6 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
     |> history(e, nil, "dropped", nil, nil, e.note)
   end)
 
-  fold(%E.ClaudeCodeRouted{} = e, _metadata, fn multi ->
-    state(multi, e.id, via: e.via)
-  end)
-
   fold(%E.CutOver{} = e, _metadata, fn multi ->
     state(multi, e.id, cut_over: true, cut_at: e.at, commit: e.commit, note: e.note)
   end)
