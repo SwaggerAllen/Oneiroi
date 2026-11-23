@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QueueCard } from '../../api/types';
-import { blockerLine, nameOf, sentence, since, slugify } from './queueText';
+import { blockerLine, nameOf, sentence, since, slugify, templateProblems } from './queueText';
 
 const names = { 'resident:l': 'Lily', 'witness:a': 'Andrew' };
 
@@ -56,5 +56,26 @@ describe('the house queue as words (lily:design/queue-ia §2.3)', () => {
   it('counts time and makes slugs', () => {
     expect(since(new Date(Date.now() - 3 * 86400 * 1000).toISOString())).toBe('3d');
     expect(slugify('The Queue IA: rev 5!')).toBe('the-queue-ia-rev-5');
+  });
+});
+
+describe('a template checked before it is saved (§6.1)', () => {
+  const draft = { type: 'draft', role: 'author', artifact: 'design' };
+  const review = { type: 'review', role: 'witness', artifact: 'design', destination: 'house', action: 'promote-to-house', throwback: '1.1' };
+  const promote = { type: 'promote-to-house', role: 'author', artifact: 'design', destination: 'house' };
+
+  it('holds when a gated activity sits right after its review', () => {
+    expect(templateProblems([[draft], [review], [promote]])).toEqual([]);
+  });
+
+  it('names a gated activity with no review in front of it, or none of its artifact', () => {
+    expect(templateProblems([[draft], [promote]])[0]).toMatch(/^2\.1 \(promote-to-house\) needs a review/);
+    expect(templateProblems([[draft], [review], [{ ...promote, artifact: 'other' }]]).some((p) => /^3\.1 \(promote-to-house\) needs a review/.test(p))).toBe(true);
+    expect(templateProblems([[draft], [review], [{ ...promote, artifact: null }]])).toContain('3.1 (promote-to-house) needs an artifact slot.');
+  });
+
+  it('names a throwback that is not earlier, and an empty layer', () => {
+    expect(templateProblems([[{ ...review, throwback: '2.1' }]])).toContain("1.1's throwback 2.1 is not an earlier activity.");
+    expect(templateProblems([[draft], []])).toContain('Layer 2 is empty.');
   });
 });

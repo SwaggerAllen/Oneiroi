@@ -93,6 +93,55 @@ defmodule Oneiroi.Brain.QueueToolsTest do
     assert run("queue_task", %{task: 1}, ctx.turn) =~ "1.2 review on lily:design/queue-ia@abc1234"
   end
 
+  test "she writes a template whole, the shape rule held, and a task opens from it", ctx do
+    layers = [
+      [%{type: "draft", role: "author", artifact: "piece"}],
+      [
+        %{
+          type: "review",
+          role: "witness",
+          artifact: "piece",
+          destination: "substack",
+          action: "publish",
+          throwback: "1.1"
+        }
+      ],
+      [%{type: "publish", role: "author", artifact: "piece", destination: "substack"}]
+    ]
+
+    # A publish with no review in front of it is refused.
+    assert run(
+             "queue_template_define",
+             %{
+               name: "essay",
+               title: "An essay, read, posted",
+               layers: [hd(layers), List.last(layers)]
+             },
+             ctx.turn
+           ) =~ "gated activity"
+
+    assert run(
+             "queue_template_define",
+             %{name: "essay", title: "An essay, read, posted", layers: layers},
+             ctx.turn
+           ) =~ "Template essay is saved"
+
+    assert run("queue_templates", %{}, ctx.turn) =~ "essay: An essay, read, posted"
+    run("queue_project_open", %{slug: "writing", name: "Writing"}, ctx.turn)
+
+    assert run(
+             "queue_task_open",
+             %{
+               project: "writing",
+               slug: "drawer",
+               title: "The drawer",
+               outcome: "posted",
+               template: "essay"
+             },
+             ctx.turn
+           ) =~ "Layer 3: 1.3 publish"
+  end
+
   test "held with the house: no agreement, no queue", ctx do
     turn = %{
       ctx.turn

@@ -46,3 +46,55 @@ export const slugify = (s: string) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 64);
+
+// ---- templates (sunna#83, #88) ----
+
+/** The activity types a review must stand in front of (§6.1), as the server's `gated_types/0`. */
+export const GATED = ['send', 'publish', 'spend', 'merge', 'promote-to-house'];
+
+/** The roles a template's activity is held by, resolved to members when a task opens. */
+export const ROLES = ['author', 'witness', 'peer', 'builder', 'unknown'] as const;
+
+/** One activity of a template as the editor holds it. */
+export interface TemplateSpec {
+  type: string;
+  role: string;
+  artifact?: string | null;
+  destination?: string | null;
+  action?: string | null;
+  optional?: boolean;
+  throwback?: string | null;
+}
+
+/** "2.1": layer 2's first activity, the position a throwback names. */
+export const position = (layer: number, index: number) => `${layer + 1}.${index + 1}`;
+
+/**
+ * What the server will refuse, said before saving (the shape rule, §6.1):
+ * a gated activity needs an artifact slot and, in the layer directly
+ * before it, a review of the same slot naming its destination and
+ * action; a throwback names an activity in an earlier layer. One line per
+ * problem, by position.
+ */
+export function templateProblems(layers: TemplateSpec[][]): string[] {
+  const problems: string[] = [];
+  if (layers.length === 0) problems.push('A template needs at least one layer.');
+  layers.forEach((layer, i) => {
+    if (layer.length === 0) problems.push(`Layer ${i + 1} is empty.`);
+    layer.forEach((s, j) => {
+      const at = position(i, j);
+      if (!s.type.trim()) problems.push(`${at} needs a verb.`);
+      if (GATED.includes(s.type)) {
+        if (!s.artifact) problems.push(`${at} (${s.type}) needs an artifact slot.`);
+        const before = i > 0 ? layers[i - 1] : [];
+        const reviewed = before.some((r) => r.type === 'review' && (r.artifact ?? null) === (s.artifact ?? null) && (r.destination ?? null) === (s.destination ?? null) && r.action === s.type);
+        if (!reviewed) problems.push(`${at} (${s.type}) needs a review of the same artifact, for ${s.type}${s.destination ? ` to ${s.destination}` : ''}, in the layer before it.`);
+      }
+      if (s.throwback) {
+        const [l] = s.throwback.split('.').map(Number);
+        if (!(l >= 1 && l <= i)) problems.push(`${at}'s throwback ${s.throwback} is not an earlier activity.`);
+      }
+    });
+  });
+  return problems;
+}

@@ -2,12 +2,12 @@ import { useQuery } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useLive } from '../live/context';
 import { api } from '../../api/client';
-import type { QueueActivity, QueueCard, QueueMove, QueueOverview, QueueTaskPage, QueueView } from '../../api/types';
+import type { QueueActivity, QueueCard, QueueMove, QueueOverview, QueueSpec, QueueTaskPage, QueueView } from '../../api/types';
 import { Card, Confirm, Field, Said, Select, TextArea } from '../settings/common';
 import * as css from '../settings/settings.css';
 import { useAct } from '../settings/useAct';
 import { HOUSE } from './keys';
-import { blockerLine, nameOf, pin, sentence, slugify, type Names } from './queueText';
+import { blockerLine, GATED, nameOf, pin, position, ROLES, sentence, slugify, templateProblems, type Names, type TemplateSpec } from './queueText';
 
 /** The house queue's query keys: under the house's root, so a house write reads them again too. */
 const QUEUE = [...HOUSE, 'queue'];
@@ -91,6 +91,7 @@ export function HouseWork() {
       {mine ? <WaitingOnMe names={names} overview={q} onTask={setTaskOpen} /> : <Filtered who={me} view={view} project={project} names={names} overview={q} onTask={setTaskOpen} />}
       {taskOpen !== null && <TaskPanel number={taskOpen} names={names} overview={q} onClose={() => setTaskOpen(null)} />}
       <NewTask overview={q} />
+      <Templates overview={q} />
       <Setup overview={q} />
     </>
   );
@@ -585,6 +586,229 @@ function NewTask({ overview }: { overview: QueueOverview }) {
   );
 }
 
+
+const ROLE_WORDS: Record<string, string> = {
+  author: 'the task owner',
+  witness: 'the witness',
+  peer: 'the other resident',
+  builder: "the owner's Claude Code",
+  unknown: 'not known yet',
+};
+
+// In the editor a throwback names its activity by a key that travels with
+// it, so removing or reordering layers never points it at another one;
+// positions ("2.1") are what is checked and saved.
+type TemplateDraft = TemplateSpec & { key: string };
+let keys = 0;
+const fresh = () => `k${(keys += 1)}`;
+
+const blankSpec = (): TemplateDraft => ({ key: fresh(), type: '', role: 'author', artifact: null, destination: null, action: null, optional: false, throwback: null });
+
+const draftsOf = (layers: QueueSpec[][]): TemplateDraft[][] => {
+  const keyed = layers.map((l) => l.map(() => fresh()));
+  const at = (pos: string | null | undefined) => {
+    const [l, j] = (pos ?? '').split('.').map(Number);
+    return keyed[l - 1]?.[j - 1] ?? null;
+  };
+  return layers.map((l, i) =>
+    l.map((s, j) => ({
+      key: keyed[i][j],
+      type: s.type ?? '',
+      role: s.role ?? 'unknown',
+      artifact: s.artifact ?? null,
+      destination: s.destination ?? null,
+      action: s.action ?? null,
+      optional: s.optional === true,
+      throwback: at(s.throwback),
+    })),
+  );
+};
+
+/** The drafts as positions: what the shape check reads and the server takes. */
+const positioned = (layers: TemplateDraft[][]): TemplateSpec[][] => {
+  const where = new Map<string, string>();
+  layers.forEach((l, i) => l.forEach((d, j) => where.set(d.key, position(i, j))));
+  return layers.map((l) =>
+    l.map(({ key: _key, ...s }) => ({
+      ...s,
+      artifact: s.artifact || null,
+      destination: s.destination || null,
+      action: s.action || null,
+      throwback: (s.throwback && where.get(s.throwback)) || null,
+    })),
+  );
+};
+
+/**
+ * The house's templates, written in place (sunna#88): pick one to change,
+ * start from a starter, or start blank; each layer a row of activities,
+ * each a verb, who holds it, the artifact it works on, and for a review
+ * or a gated step its destination and action. The shape rule is said
+ * before saving, and the server checks it again.
+ */
+function Templates({ overview: q }: { overview: QueueOverview }) {
+  const act = useAct();
+  const [open, setOpen] = useState(false);
+  const [name, setName] = useState('');
+  const [title, setTitle] = useState('');
+  const [layers, setLayers] = useState<TemplateDraft[][]>([[blankSpec()]]);
+  const sources = [...q.templates.map((t) => ({ ...t, kind: 'house' })), ...q.starters.filter((s) => !q.templates.some((t) => t.name === s.name)).map((s) => ({ ...s, kind: 'starter' }))];
+  const load = (key: string) => {
+    const t = sources.find((x) => `${x.kind}:${x.name}` === key);
+    if (!t) {
+      setName('');
+      setTitle('');
+      setLayers([[blankSpec()]]);
+      return;
+    }
+    setName(t.name);
+    setTitle(t.title);
+    setLayers(draftsOf(t.layers));
+  };
+  const set = (i: number, j: number, patch: Partial<TemplateDraft>) => setLayers(layers.map((l, a) => (a === i ? l.map((s, b) => (b === j ? { ...s, ...patch } : s)) : l)));
+  // A removed activity takes the throwbacks naming it with it.
+  const remove = (i: number, j: number) => {
+    const gone = layers[i][j].key;
+    setLayers(
+      layers
+        .map((l, a) => (a === i ? l.filter((_, b) => b !== j) : l))
+        .filter((l) => l.length > 0)
+        .map((l) => l.map((d) => (d.throwback === gone ? { ...d, throwback: null } : d))),
+    );
+  };
+  const swap = (i: number, k: number) => {
+    if (k < 0 || k >= layers.length) return;
+    const next = [...layers];
+    [next[i], next[k]] = [next[k], next[i]];
+    setLayers(next);
+  };
+  const problems = templateProblems(positioned(layers));
+  const slug = slugify(name);
+  const save = () =>
+    void act.run(
+      () =>
+        api
+          .queueSaveTemplate(slug, title.trim(), positioned(layers))
+          .then(() => `${slug} is saved in the house.`),
+      QUEUE,
+    );
+  if (!open)
+    return (
+      <Card title={`Templates · ${q.templates.length}`}>
+        <p className={css.note}>{q.templates.length ? q.templates.map((t) => `${t.name}: ${t.title}`).join(' · ') : 'None in the house yet.'}</p>
+        <div>
+          <button type="button" className={css.secondary} onClick={() => setOpen(true)}>
+            Write or change a template
+          </button>
+        </div>
+      </Card>
+    );
+  const positions = (i: number) => layers.slice(0, i).flatMap((l, a) => l.map((s, b) => ({ key: s.key, at: position(a, b), type: s.type })));
+  return (
+    <Card title="A template">
+      <Select label="Start from" value="" onChange={load}>
+        <option value="">A blank template</option>
+        {sources.map((t) => (
+          <option key={`${t.kind}:${t.name}`} value={`${t.kind}:${t.name}`}>
+            {t.kind === 'house' ? `${t.name} (in the house)` : `${t.name} (the platform's starter)`}
+          </option>
+        ))}
+      </Select>
+      <Field label="Name (lowercase, hyphens; the same name replaces it)" value={name} onChange={(e) => setName(e.target.value)} />
+      <Field label="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+      <ol className={css.list}>
+        {layers.map((layer, i) => (
+          <li key={i} className={css.column}>
+            <div className={css.row}>
+              <span className={css.subheading}>Layer {i + 1}</span>
+              <button type="button" className={css.quiet} aria-label={`Move layer ${i + 1} up`} disabled={i === 0} onClick={() => swap(i, i - 1)}>
+                ↑
+              </button>
+              <button type="button" className={css.quiet} aria-label={`Move layer ${i + 1} down`} disabled={i === layers.length - 1} onClick={() => swap(i, i + 1)}>
+                ↓
+              </button>
+            </div>
+            {layer.map((s, j) => {
+              const gated = GATED.includes(s.type);
+              const review = s.type === 'review';
+              return (
+                <div key={s.key} className={css.item} aria-label={`Activity ${position(i, j)}`}>
+                  <span className={css.meta}>{position(i, j)}</span>
+                  <Field label="Verb (draft, review, implement, merge…)" value={s.type} onChange={(e) => set(i, j, { type: e.target.value.trim().toLowerCase() })} />
+                  <Select label="Held by" value={s.role} onChange={(v) => set(i, j, { role: v })}>
+                    {ROLES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}: {ROLE_WORDS[r]}
+                      </option>
+                    ))}
+                  </Select>
+                  <Field label="Artifact slot (design, pr…; filled when a task opens)" value={s.artifact ?? ''} onChange={(e) => set(i, j, { artifact: e.target.value.trim() || null })} />
+                  {(gated || review) && <Field label="Destination (house, main, email…)" value={s.destination ?? ''} onChange={(e) => set(i, j, { destination: e.target.value.trim() || null })} />}
+                  {review && (
+                    <Select label="Authorizes" value={s.action ?? ''} onChange={(v) => set(i, j, { action: v || null })}>
+                      <option value="">Nothing gated (a read)</option>
+                      {GATED.map((g) => (
+                        <option key={g} value={g}>
+                          {g}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                  {review && (
+                    <Select label="If refused, back to" value={s.throwback ?? ''} onChange={(v) => set(i, j, { throwback: v || null })}>
+                      <option value="">The reviewer chooses</option>
+                      {positions(i).map((p) => (
+                        <option key={p.key} value={p.key}>
+                          {p.at} {p.type}
+                        </option>
+                      ))}
+                    </Select>
+                  )}
+                  <label className={css.check}>
+                    <input type="checkbox" checked={s.optional === true} onChange={(e) => set(i, j, { optional: e.target.checked })} /> Optional (its holder may skip it)
+                  </label>
+                  <div>
+                    <button type="button" className={css.quiet} onClick={() => remove(i, j)}>
+                      Remove {position(i, j)}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+            <div>
+              <button type="button" className={css.quiet} onClick={() => setLayers(layers.map((l, a) => (a === i ? [...l, blankSpec()] : l)))}>
+                + An activity beside these
+              </button>
+            </div>
+          </li>
+        ))}
+      </ol>
+      <div>
+        <button type="button" className={css.secondary} onClick={() => setLayers([...layers, [blankSpec()]])}>
+          + A layer after
+        </button>
+      </div>
+      {problems.length > 0 && (
+        <ul className={css.list} aria-label="Before it can be saved">
+          {problems.map((p) => (
+            <li key={p} className={css.warn}>
+              {p}
+            </li>
+          ))}
+        </ul>
+      )}
+      <div className={css.row}>
+        <button type="button" className={css.primary} disabled={act.busy || !slug || !title.trim() || problems.length > 0} onClick={save}>
+          Save the template
+        </button>
+        <button type="button" className={css.quiet} onClick={() => setOpen(false)}>
+          Close
+        </button>
+      </div>
+      <Said said={act.said} />
+    </Card>
+  );
+}
 
 /**
  * The witness's setup (§6.2, §7): the

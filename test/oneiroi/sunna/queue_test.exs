@@ -355,6 +355,23 @@ defmodule Oneiroi.Sunna.QueueTest do
     :ok = Queues.take(ctx.h, n, "#{n}.6", ctx.lily)
   end
 
+  test "a template written whole is checked: the shape rule and its throwbacks", ctx do
+    draft = %{type: "draft", role: "author", artifact: "design"}
+    review = %{type: "review", role: "witness", artifact: "design", throwback: "1.1"}
+
+    :ok = Queues.define_template(ctx.h, "t", %{title: "T", layers: [[draft], [review]]}, ctx.lily)
+
+    assert {:error, %{kind: :sunna_queue_shape}} =
+             Queues.define_template(
+               ctx.h,
+               "t",
+               %{title: "T", layers: [[%{review | throwback: "2.1"}], [draft]]},
+               ctx.lily
+             )
+
+    assert [%{name: "t"}] = Queues.templates(ctx.h)
+  end
+
   describe "editing a task's layers (sunna#85)" do
     setup ctx do
       :ok = Queues.open_project(ctx.h, %{slug: "e", name: "E"}, ctx.lily)
