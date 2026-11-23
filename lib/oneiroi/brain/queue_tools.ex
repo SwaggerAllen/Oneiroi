@@ -16,7 +16,7 @@ defmodule Oneiroi.Brain.QueueTools do
   @doc "The tool names, all of the house."
   def names,
     do:
-      ~w(queue_list queue_task queue_templates queue_template_define queue_project_open queue_task_open queue_task_edit queue_move queue_decide queue_fill_slot queue_drop)
+      ~w(queue_list queue_task queue_templates queue_template_define queue_project_open queue_task_open queue_task_edit queue_move queue_decide queue_fill_slot queue_task_document queue_drop)
 
   @doc "The tools that carry her words to the house."
   def delivering, do: names() -- ~w(queue_list queue_task queue_templates)
@@ -57,7 +57,7 @@ defmodule Oneiroi.Brain.QueueTools do
       ),
       tool(
         "queue_template_define",
-        "Write a house template (sunna#88): name (lowercase, hyphens; the same name replaces it), title, and layers, an array of layers each an array of activities {type, role, artifact, destination, action, optional, throwback}. role is who holds it when a task opens: author (the task's owner), witness, peer (the other resident), builder (the owner's Claude Code) or unknown. artifact is a slot name (design, pr) filled when the task opens. A gated step (send, publish, spend, merge, promote-to-house) sits right after a review of the same slot whose destination matches and whose action is that step; throwback names an earlier activity by position (\"1.1\"). Or from: a starter's name, to copy it.",
+        "Write a house template (sunna#88): name (lowercase, hyphens; the same name replaces it), title, and layers, an array of layers each an array of activities {name, type, role, artifact, destination, action, optional, throwback}. name is what every task made from the template calls the activity, as \"Witness review\" (sunna#90); every activity has one. role is who holds it when a task opens: author (the task's owner), witness, peer (the other resident), builder (the owner's Claude Code) or unknown. artifact is a slot name (design, pr) filled when the task opens. A gated step (send, publish, spend, merge, promote-to-house) sits right after a review of the same slot whose destination matches and whose action is that step; throwback names an earlier activity by position (\"1.1\"). Or from: a starter's name, to copy it.",
         %{
           name: %{type: "string"},
           title: %{type: "string"},
@@ -92,7 +92,7 @@ defmodule Oneiroi.Brain.QueueTools do
       ),
       tool(
         "queue_task_edit",
-        "Edit an open task's layers (sunna#85): layers is the whole new arrangement, an array of layers, each an array of entries: an existing activity as {\"id\": \"12.3\"} (with any of type, assignee, artifact, destination, action, optional, throwback to change it while it is pending) or a new activity's spec. What has started (done, skipped, active, blocked, failed) stays in its layer unchanged; the layers before the open one stay as they are; a pending activity left out is removed. Yours when you own the task; note says why.",
+        "Edit an open task's layers (sunna#85): layers is the whole new arrangement, an array of layers, each an array of entries: an existing activity as {\"id\": \"12.3\"} (with any of type, assignee, artifact, destination, action, optional, throwback to change it while it is pending) or a new activity's spec, with its name (the task then runs its own copy of its template). What has started (done, skipped, active, blocked, failed) stays in its layer unchanged; the layers before the open one stay as they are; a pending activity left out is removed. Yours when you own the task; note says why.",
         %{
           task: %{type: "integer"},
           layers: %{type: "array", items: %{type: "array", items: %{type: "object"}}},
@@ -135,6 +135,17 @@ defmodule Oneiroi.Brain.QueueTools do
         [:task, :slot, :artifact]
       ),
       tool(
+        "queue_task_document",
+        "Attach a document to a task, or with detach: true take it off (sunna#91): citation, as lily:design/x.md, and role, a slot's name (design, pr) or source (the default). The task's documents are what its activities work on and what is attached. Yours when you own the task or hold one of its activities.",
+        %{
+          task: %{type: "integer"},
+          citation: %{type: "string"},
+          role: %{type: "string"},
+          detach: %{type: "boolean"}
+        },
+        [:task, :citation]
+      ),
+      tool(
         "queue_drop",
         "Drop a task you own, with a note: it counts as complete, so whatever waits on it is released.",
         %{task: %{type: "integer"}, note: %{type: "string"}},
@@ -172,8 +183,15 @@ defmodule Oneiroi.Brain.QueueTools do
 
   defp run("queue_task", args, h, _actor, _me) do
     case Sunna.queue_task(h, integer(args["task"])) do
-      nil -> @not_done <> "no task ##{args["task"]}."
-      page -> task_text(page, names(h))
+      nil ->
+        @not_done <> "no task ##{args["task"]}."
+
+      page ->
+        task_text(
+          page,
+          names(h),
+          Map.get(Sunna.queue_documents(h, [page.task.number]), page.task.number, [])
+        )
     end
   end
 
@@ -224,7 +242,7 @@ defmodule Oneiroi.Brain.QueueTools do
     }
 
     with {:ok, n} <- Sunna.queue_open_task(h, attrs, actor) do
-      "Opened task ##{n}.\n\n" <> task_text(Sunna.queue_task(h, n), names(h))
+      "Opened task ##{n}.\n\n" <> page_text(h, n)
     end
   end
 
@@ -252,6 +270,31 @@ defmodule Oneiroi.Brain.QueueTools do
          do: "#{act}: #{args["outcome"]}.#{next_line(h, task)}"
   end
 
+  defp run("queue_task_document", %{"detach" => true} = args, h, actor, _me) do
+    with :ok <-
+           Sunna.queue_detach_document(
+             h,
+             integer(args["task"]),
+             to_string(args["citation"] || ""),
+             actor
+           ),
+         do: "#{args["citation"]} is off task ##{args["task"]}."
+  end
+
+  defp run("queue_task_document", args, h, actor, _me) do
+    role = blank(args["role"]) || "source"
+
+    with :ok <-
+           Sunna.queue_attach_document(
+             h,
+             integer(args["task"]),
+             to_string(args["citation"] || ""),
+             role,
+             actor
+           ),
+         do: "#{args["citation"]} is on task ##{args["task"]}, as its #{role}."
+  end
+
   defp run("queue_fill_slot", args, h, actor, _me) do
     with :ok <-
            Sunna.queue_fill_slot(h, integer(args["task"]), args["slot"], args["artifact"], actor),
@@ -263,7 +306,7 @@ defmodule Oneiroi.Brain.QueueTools do
 
     with :ok <-
            Sunna.queue_edit_layers(h, task, args["layers"], to_string(args["note"] || ""), actor) do
-      "Task ##{task}'s layers edited.\n\n" <> task_text(Sunna.queue_task(h, task), names(h))
+      "Task ##{task}'s layers edited.\n\n" <> page_text(h, task)
     end
   end
 
@@ -343,10 +386,17 @@ defmodule Oneiroi.Brain.QueueTools do
       "#{inspect(other)} is not a move: take, finish, skip, block, reopen, fail or assign."
   end
 
-  defp task_text(%{task: t, layers: layers, history: history, waiting: waiting}, names) do
+  defp task_text(%{task: t, layers: layers, history: history, waiting: waiting}, names, docs) do
+    from =
+      cond do
+        is_nil(t.template) -> ""
+        t.forked -> " · forked from #{t.template}"
+        true -> " · from #{t.template}"
+      end
+
     head =
-      "##{t.number} #{t.title} · #{t.project} · #{t.status} · owner #{name_of(t.owner, names)}\nOutcome: #{t.outcome}\nIndex: #{t.index_doc}" <>
-        if(t.links != [], do: "\nLinks: #{Enum.join(t.links, ", ")}", else: "")
+      "##{t.number} #{t.title} · #{t.project} · #{t.status} · owner #{name_of(t.owner, names)}#{from}\nOutcome: #{t.outcome}\nIndex: #{t.index_doc}" <>
+        docs_line(docs)
 
     layer_lines =
       layers
@@ -367,6 +417,19 @@ defmodule Oneiroi.Brain.QueueTools do
     "#{head}\n#{layer_lines}#{waiting_line}\nHistory:\n#{history_lines}"
   end
 
+  defp page_text(h, n) do
+    page = Sunna.queue_task(h, n)
+    task_text(page, names(h), Map.get(Sunna.queue_documents(h, [n]), n, []))
+  end
+
+  # Its documents (sunna#91): each by its role, an unfilled slot said so.
+  defp docs_line([]), do: ""
+
+  defp docs_line(docs),
+    do:
+      "\nDocuments: " <>
+        Enum.map_join(docs, "; ", fn d -> "#{d.role} #{d.citation || "(not yet filled)"}" end)
+
   defp layer_line(layer, i, t, names) do
     open = if t.open_layer == i - 1, do: " (open)", else: ""
     "Layer #{i}#{open}: " <> Enum.map_join(layer, "; ", &act_line(&1, names))
@@ -374,7 +437,8 @@ defmodule Oneiroi.Brain.QueueTools do
 
   defp act_line(a, names) do
     art = if a.artifact, do: " on #{a.artifact}#{pin(a.approved_pin || a.pin)}", else: ""
-    "#{a.act_id} #{a.type}#{art} · #{name_of(a.assignee, names)} · #{a.view}#{extra(a)}"
+    named = if a.name, do: "#{a.name} (#{a.type})", else: a.type
+    "#{a.act_id} #{named}#{art} · #{name_of(a.assignee, names)} · #{a.view}#{extra(a)}"
   end
 
   defp history_line(h) do
@@ -405,7 +469,8 @@ defmodule Oneiroi.Brain.QueueTools do
   defp template_spec_text(s) do
     get = &(Map.get(s, &1) || Map.get(s, Atom.to_string(&1)))
     gated = if get.(:destination), do: " → #{get.(:destination)}", else: ""
-    "#{get.(:type)} (#{get.(:role)})#{gated}"
+    named = if get.(:name), do: "#{get.(:name)}: ", else: ""
+    "#{named}#{get.(:type)} (#{get.(:role)})#{gated}"
   end
 
   defp next_line(h, task) do

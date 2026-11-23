@@ -89,7 +89,14 @@ defmodule Oneiroi.Sunna.Wake do
               to_day :: String.t()
             ) :: {:ok, non_neg_integer()} | {:error, term()}
 
+  @doc """
+  The conversations of `day` the backfill's domains pass has not yet named
+  (sunna#89): the pass carries on while any is left.
+  """
+  @callback backfill_left(resident_id :: String.t(), day :: String.t()) :: [String.t()]
+
   @optional_callbacks wake_for: 5,
+                      backfill_left: 2,
                       backfill_labels: 3,
                       checkin_part: 2,
                       digest_pending?: 1,

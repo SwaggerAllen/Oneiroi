@@ -102,6 +102,18 @@ defmodule Oneiroi.Sunna.QueueCommands do
     use Oneiroi.Command, fields: [:id, :task, :layers], decision: true
   end
 
+  # A document beside the task's activities' (sunna#91): a source, or a
+  # slot's document named before an activity takes it.
+  defmodule AttachDocument do
+    use Oneiroi.Command,
+      fields: [:id, :task, :citation, :role],
+      bounds: [citation: 300, role: 64]
+  end
+
+  defmodule DetachDocument do
+    use Oneiroi.Command, fields: [:id, :task, :citation], bounds: [citation: 300]
+  end
+
   defmodule DropTask do
     use Oneiroi.Command, fields: [:id, :task], decision: true
   end

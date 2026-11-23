@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import type { QueueCard } from '../../api/types';
-import { blockerLine, nameOf, sentence, since, slugify, templateProblems } from './queueText';
+import type { QueueActivity, QueueCard, QueueDocument } from '../../api/types';
+import { actName, blockedLine, blockerLine, documentRows, drawLayers, forkNote, fromLine, nameOf, placeOf, pinOf, postKind, rearranged, roleChoices, sentence, since, slugify, taskSummaries, templateProblems, unpinned, withMd } from './queueText';
 
 const names = { 'resident:l': 'Lily', 'witness:a': 'Andrew' };
 
@@ -8,6 +8,7 @@ const card = (over: Partial<QueueCard> = {}): QueueCard => ({
   act: '3.2',
   task: 3,
   layer: 1,
+  name: 'Witness review',
   type: 'review',
   assignee: 'witness:a',
   status: 'pending',
@@ -60,9 +61,9 @@ describe('the house queue as words (lily:design/queue-ia §2.3)', () => {
 });
 
 describe('a template checked before it is saved (§6.1)', () => {
-  const draft = { type: 'draft', role: 'author', artifact: 'design' };
-  const review = { type: 'review', role: 'witness', artifact: 'design', destination: 'house', action: 'promote-to-house', throwback: '1.1' };
-  const promote = { type: 'promote-to-house', role: 'author', artifact: 'design', destination: 'house' };
+  const draft = { name: 'Draft the design', type: 'draft', role: 'author', artifact: 'design' };
+  const review = { name: 'Witness review', type: 'review', role: 'witness', artifact: 'design', destination: 'house', action: 'promote-to-house', throwback: '1.1' };
+  const promote = { name: 'Share with the house', type: 'promote-to-house', role: 'author', artifact: 'design', destination: 'house' };
 
   it('holds when a gated activity sits right after its review', () => {
     expect(templateProblems([[draft], [review], [promote]])).toEqual([]);
@@ -77,5 +78,119 @@ describe('a template checked before it is saved (§6.1)', () => {
   it('names a throwback that is not earlier, and an empty layer', () => {
     expect(templateProblems([[{ ...review, throwback: '2.1' }]])).toContain("1.1's throwback 2.1 is not an earlier activity.");
     expect(templateProblems([[draft], []])).toContain('Layer 2 is empty.');
+  });
+
+  it('asks every activity for a name (sunna#90)', () => {
+    expect(templateProblems([[{ ...draft, name: ' ' }]])).toContain('1.1 needs a name.');
+  });
+});
+
+const act = (over: Partial<QueueActivity> = {}): QueueActivity =>
+  ({ act_id: '9.1', task: 9, layer: 0, position: 0, name: 'Draft the design', slot: 'design', type: 'draft', assignee: 'resident:l', status: 'done', view: 'done', artifact: 'lily:design/x.md', destination: null, action: null, optional: false, throwback: null, gated: false, ...over }) as QueueActivity;
+
+describe('a task drawn (the queue mocks)', () => {
+  const layers = [[act()], [act({ act_id: '9.2', layer: 1, name: 'Witness review', type: 'review', view: 'ready', assignee: 'witness:a' })], [act({ act_id: '9.3', layer: 2, name: null, type: 'merge', view: 'waiting', gated: true })], [act({ act_id: '9.4', layer: 3, view: 'waiting' })]];
+
+  it('numbers the layers, marks done, open and later, and says what the next one waits for', () => {
+    const d = drawLayers(layers, 1);
+    expect(d.map((l) => [l.n, l.state, l.label])).toEqual([
+      [1, 'done', 'done'],
+      [2, 'open', 'open now'],
+      [3, 'later', 'opens when layer 2 is done'],
+      [4, 'later', 'later'],
+    ]);
+    expect(d[1].acts[0]).toMatchObject({ id: '9.2', name: 'Witness review', glyph: '◉', view: 'ready' });
+  });
+
+  it("shows an activity by its template's name, and an old task's by its type", () => {
+    expect(drawLayers(layers, 1)[2].acts[0]).toMatchObject({ name: 'merge', gated: true, glyph: '⇢' });
+    expect(actName({ name: '  ', type: 'draft' })).toBe('draft');
+  });
+
+  it('draws a complete task as all done', () => {
+    expect(drawLayers(layers, null).every((l) => l.state === 'done')).toBe(true);
+  });
+
+  it('rearranges the whole task for one change: in place, moved, added or removed', () => {
+    const entry = { id: '9.3', type: 'merge', assignee: 'witness:a' };
+    expect(rearranged(layers, { id: '9.3', to: 2, entry })).toEqual([[{ id: '9.1' }], [{ id: '9.2' }], [entry], [{ id: '9.4' }]]);
+    expect(rearranged(layers, { id: '9.3', to: 3, entry })).toEqual([[{ id: '9.1' }], [{ id: '9.2' }], [{ id: '9.4' }, entry]]);
+    expect(rearranged(layers, { id: '9.3', to: null, entry: null })).toEqual([[{ id: '9.1' }], [{ id: '9.2' }], [{ id: '9.4' }]]);
+    const added = { name: 'Check the copy', type: 'review', assignee: 'resident:l', artifact: null, destination: null, action: null, optional: false, throwback: null };
+    expect(rearranged(layers, { id: null, to: 4, entry: added })).toHaveLength(5);
+  });
+});
+
+describe('the task list', () => {
+  const task = (number: number, open_layer: number | null) => ({ number, project: 'privacy', slug: 's', title: `T${number}`, outcome: '', owner: 'resident:l', index_doc: '', template: 'doc-to-pr', links: [], status: 'open' as const, open_layer, opened_by: '', opened_at: '', completed_at: null, note: null });
+
+  it('puts a task in Your move when its open layer has a ready activity of yours, with where it stands', () => {
+    const cards = [card({ task: 1, layer: 1, assignee: 'witness:a', view: 'ready' }), card({ task: 1, layer: 0, view: 'done' }), card({ task: 1, layer: 4, view: 'waiting' }), card({ task: 2, layer: 0, assignee: 'resident:l', view: 'active' })];
+    const { mine, others } = taskSummaries([task(1, 1), task(2, 0)], cards, 'witness:a');
+    expect(mine.map((s) => [s.task.number, s.at, s.of, s.now.length])).toEqual([[1, 2, 5, 1]]);
+    expect(others.map((s) => s.task.number)).toEqual([2]);
+  });
+
+  it("names a blocked task's blocker and its next action by name", () => {
+    const blocked = card({ view: 'blocked', blocker: { number: 12, title: 'Domain system rework', project: 'memory', status: 'open', next: act({ name: 'Draft the design', assignee: 'resident:l' }) } });
+    expect(blockedLine(blocked, names)).toBe('Blocked on #12 Domain system rework · next: Draft the design, Lily');
+  });
+});
+
+describe("a task's documents (sunna#91)", () => {
+  const docs: QueueDocument[] = [
+    { role: 'design', citation: 'lily:design/x.md', key: 'lily:design/x.md', attached: false },
+    { role: 'pr', citation: null, key: 'slot:pr', attached: false },
+    { role: 'source', citation: 'house/strut:doc/notes/a.md', key: 'house/strut:doc/notes/a.md', attached: true },
+  ];
+
+  it('lists each with its role, an empty slot as not yet', () => {
+    expect(documentRows(docs).map((d) => [d.role, d.shown])).toEqual([
+      ['design', 'lily:design/x.md'],
+      ['pr', 'not yet'],
+      ['source', 'house/strut:doc/notes/a.md'],
+    ]);
+  });
+
+  it('offers the empty slots to fill, then a source', () => {
+    expect(roleChoices(docs)).toEqual([
+      { role: 'pr', fills: true, label: 'its pr' },
+      { role: 'source', fills: false, label: 'a source' },
+    ]);
+    expect(roleChoices([])).toEqual([{ role: 'source', fills: false, label: 'a source' }]);
+  });
+
+  it('reads a citation: house or hers, its pin, its .md', () => {
+    expect(placeOf('lily:design/x.md@4e1c9a2b')).toEqual({ house: false, slug: 'lily', path: 'design/x.md' });
+    expect(placeOf('house/strut:doc/design/y.md')).toEqual({ house: true, slug: 'strut', path: 'design/y.md' });
+    expect(placeOf('house/strut:thread/42')).toEqual({ house: true, slug: 'strut', path: 'threads/42' });
+    expect(placeOf('slot:design')).toBeNull();
+    expect(pinOf('lily:design/x.md@4e1c9a2b')).toBe('4e1c9a2b');
+    expect(unpinned('lily:design/x.md@4e1c9a2b')).toBe('lily:design/x.md');
+    expect(withMd('design/x')).toBe('design/x.md');
+    expect(withMd('design/x.md')).toBe('design/x.md');
+  });
+});
+
+describe('forking a template (sunna#90)', () => {
+  it('warns that the first added activity forks the template, and says so once forked', () => {
+    expect(forkNote({ number: 9, template: 'doc-to-pr', forked: false })).toMatch(/^Adding an activity forks doc-to-pr for this task\. Task #9 then runs its own copy, named doc-to-pr · #9/);
+    expect(forkNote({ number: 9, template: 'doc-to-pr', forked: true })).toMatch(/already runs its own copy/);
+    expect(forkNote({ number: 9, template: null, forked: false })).toBeNull();
+  });
+
+  it('says where the task came from', () => {
+    expect(fromLine({ template: 'doc-to-pr', forked: false })).toBe('from the doc-to-pr template');
+    expect(fromLine({ template: 'doc-to-pr', forked: true })).toBe('forked from doc-to-pr');
+  });
+});
+
+describe("a thread's posts", () => {
+  it('sets the platform apart, yours as yours, and hers as hers', () => {
+    expect(postKind({ by_kind: 'platform' })).toBe('platform');
+    expect(postKind({ by_kind: 'job' })).toBe('platform');
+    expect(postKind({ by_kind: 'witness', by_id: 'a' }, 'a')).toBe('mine');
+    expect(postKind({ by_kind: 'witness', by_id: 'b' }, 'a')).toBe('theirs');
+    expect(postKind({ by_kind: 'resident' }, 'a')).toBe('theirs');
   });
 });

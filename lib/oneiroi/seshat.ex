@@ -716,6 +716,11 @@ defmodule Oneiroi.Seshat do
   @spec household_read_cited(Oneiroi.Actor.t(), map()) :: {:ok, map()} | {:error, term()}
   defexport(household_read_cited(actor, cite), do: Household.read_cited(actor, cite))
 
+  @doc "A household document's one thread (seshat#109), or nil."
+  @spec household_doc_thread(Oneiroi.Actor.t(), String.t()) ::
+          {:ok, map() | nil} | {:error, term()}
+  defexport(household_doc_thread(actor, path), do: Household.doc_thread(actor, path))
+
   @doc "A resident's own threads, the last active first (seshat#106): hers and her witness's alone."
   @spec threads(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}
   defexport(threads(actor, resident_id), do: Threads.list(actor, resident_id))

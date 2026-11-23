@@ -30,6 +30,8 @@ interface ShellState {
   overlay: Overlay;
   /** A settings page open over the tabs (`#/settings/<section>`), or none. */
   page: SettingsSection | null;
+  /** Where inside that page (`#/settings/queue/task/9` is `task/9`), '' at its top. */
+  pagePath: string;
   /** The seeds on screen now: a try-on, else this device's override, else hers (P8). */
   seeds: Seeds;
   /** Seeds worn for a moment, to judge a proposal or an edit before keeping it. */
@@ -39,7 +41,7 @@ interface ShellState {
   setOverlay: (o: Overlay) => void;
   /** A new subject: every tab back to its root, since the old paths were the other resident's. */
   resetStacks: () => void;
-  setPage: (p: SettingsSection | null) => void;
+  setPage: (p: SettingsSection | null, path?: string) => void;
   go: (to: Location) => void;
   push: (path: string) => void;
   back: () => void;
@@ -63,13 +65,14 @@ export const useShell = create<ShellState>((set) => ({
   searchOpen: false,
   overlay: null,
   page: null,
+  pagePath: '',
   seeds: DEFAULT_SEEDS,
   tryOn: null,
   setSeeds: (seeds) => set({ seeds }),
   setTryOn: (tryOn) => set({ tryOn }),
   setOverlay: (overlay) => set({ overlay }),
-  resetStacks: () => set({ stacks: roots(), tab: 'chat', page: null }),
-  setPage: (page) => set({ page }),
+  resetStacks: () => set({ stacks: roots(), tab: 'chat', page: null, pagePath: '' }),
+  setPage: (page, pagePath = '') => set({ page, pagePath }),
 
   // Arriving from the URL (load, back/forward): the tab becomes active and
   // its stack is cut back to the path if it is on it, or the path pushed.
@@ -78,7 +81,7 @@ export const useShell = create<ShellState>((set) => ({
       const stack = s.stacks[tab];
       const at = stack.lastIndexOf(path);
       const next = at >= 0 ? stack.slice(0, at + 1) : [...stack, path];
-      return { tab, page: null, stacks: { ...s.stacks, [tab]: next } };
+      return { tab, page: null, pagePath: '', stacks: { ...s.stacks, [tab]: next } };
     }),
   push: (path) =>
     set((s) => ({ stacks: { ...s.stacks, [s.tab]: [...s.stacks[s.tab], path] } })),
@@ -89,7 +92,7 @@ export const useShell = create<ShellState>((set) => ({
     }),
   // Switching tabs keeps every stack: the tab comes back where it was.
   // A tab tapped under a settings page closes the page.
-  setTab: (tab) => set({ tab, page: null }),
+  setTab: (tab) => set({ tab, page: null, pagePath: '' }),
   setConnection: (connection, now = Date.now()) =>
     set((s) => ({
       connection,

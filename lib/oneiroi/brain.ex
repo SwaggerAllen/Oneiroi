@@ -541,6 +541,10 @@ defmodule Oneiroi.Brain do
   )
 
   @impl Oneiroi.Sunna.Wake
+  @doc "The conversations of a past day the backfill's domains pass has not yet named (sunna#89)."
+  defexport(backfill_left(resident_id, day), do: BackfillNotes.left(resident_id, day))
+
+  @impl Oneiroi.Sunna.Wake
   @doc "The backfill's labels pass over a range of past days (kumbukumbu#101): its records labelled again from their turns and their citations, deterministically; `{:ok, changed}`."
   defexport(backfill_labels(resident_id, from_day, to_day),
     do: LabelPropagation.run(resident_id, from_day, to_day)

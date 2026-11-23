@@ -90,7 +90,7 @@ defmodule Oneiroi.Brain.Tools do
   )
 
   @writes ~w(
-    queue_template_define queue_project_open queue_task_open queue_task_edit queue_move queue_decide queue_fill_slot queue_drop
+    queue_template_define queue_project_open queue_task_open queue_task_edit queue_move queue_decide queue_fill_slot queue_task_document queue_drop
     position_take position_replace dispute_check dispute_settle prediction_log
     figure_increment bookmark_add bookmark_extend bookmark_weigh bookmark_accept bookmark_decline
     tag_propose tag_apply domain_tag soul_edit soul_annotate disclosure_review mail_forward identity_file_retire wash_resolve soul_edit_accept soul_edit_decline
@@ -133,7 +133,7 @@ defmodule Oneiroi.Brain.Tools do
     household_beat household_register household_profile household_skip household_opt_out household_opt_in
     household_promote household_unpromote wake_log_read
     queue_list queue_task queue_templates queue_project_open queue_task_open queue_move
-    queue_decide queue_fill_slot queue_drop queue_task_edit queue_template_define
+    queue_decide queue_fill_slot queue_task_document queue_drop queue_task_edit queue_template_define
   )
   @held_until_agreed @held_from_house ++
                        ~w(

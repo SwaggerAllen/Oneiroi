@@ -39,6 +39,14 @@ at `/client/#/records`. Built 2026-11-10.
 - **The viewer** (`doc/<path>`):
   - The citation the document is cited by, its version count, when it
     was written and by whom, and its title.
+  - The one document screen's parts (screen:next-house, 2026-11-23): under
+    the citation, **Part of task #N · title ›** for each house task it
+    belongs to, or **+ Start a task from this** and **Add to task ▾**;
+    at its foot a floating bar with its one thread (count and last post;
+    it opens the thread sheet: hers, and the house's once shared) and,
+    when a review of it is open for you, **Review** with Approve, Ask for
+    changes and Decline. The house's records show the same on a house
+    document.
   - Its markdown, with her citations as chips.
   - What it cites: resolved now, and struck through with the reason when
     unresolved.

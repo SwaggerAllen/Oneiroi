@@ -11,7 +11,7 @@ export interface Notice {
   position: number;
 }
 
-export type Area = 'chat' | 'sessions' | 'memory' | 'records' | 'time' | 'soul' | 'bell' | 'settings';
+export type Area = 'chat' | 'sessions' | 'memory' | 'records' | 'time' | 'soul' | 'bell' | 'settings' | 'threads';
 
 const BY_PREFIX: Record<string, Area[]> = {
   conversation: ['chat', 'sessions'],
@@ -34,7 +34,12 @@ const BY_PREFIX: Record<string, Area[]> = {
   pieces: ['bell'],
   work: ['sessions', 'bell', 'settings'],
   plugins: ['soul', 'bell'],
+  // Her own threads (seshat#106): a thread written reads its sheet again.
+  threads: ['threads'],
 };
+
+/** The document screen's context (its threads' counts, its tasks, its review), house-wide. */
+export const DOC_CONTEXT = ['household', 'queue', 'context'];
 
 /**
  * The query-key prefixes a notice should invalidate for this resident.
@@ -45,7 +50,19 @@ export function keysFor(residentId: string, notice: Notice): unknown[][] {
   const prefix = notice.stream.split('-')[0];
   const areas = BY_PREFIX[prefix];
   if (!areas) return [['resident', residentId]];
-  return areas.map((area) => (area === 'bell' ? ['resident', residentId, 'bell', 'hers'] : ['resident', residentId, area]));
+  const keys = areas.map((area) => (area === 'bell' ? ['resident', residentId, 'bell', 'hers'] : ['resident', residentId, area]));
+  // A thread of hers on a document changes what its document screen says.
+  return prefix === 'threads' ? [...keys, DOC_CONTEXT] : keys;
+}
+
+/**
+ * What a household notice reads again (sunna#80, seshat#109): a queue
+ * change, the queue's queries (the document screens' contexts among
+ * them); a thread written, the house's reads and the unread counts.
+ */
+export function houseKeys(notice: Notice): unknown[][] {
+  if (notice.stream.startsWith('threads')) return [['household'], ['unread']];
+  return [['household', 'queue']];
 }
 
 /** Notices arrive once per projector that folded the event: keep the first. */

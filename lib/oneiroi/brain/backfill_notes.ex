@@ -34,6 +34,37 @@ defmodule Oneiroi.Brain.BackfillNotes do
   @doc "The note for turn `n` of a backfill `pass` on `day`, or `:skip`."
   @spec note(String.t(), String.t(), String.t(), pos_integer(), map()) ::
           {:ok, String.t()} | :skip
+  # The domains pass reads the day again on every turn (sunna#89): what
+  # is named so far, and which conversations are not yet.
+  def note(resident_id, "domains", day, n, lists) do
+    case Enum.reject(sessions(resident_id, day), &(&1.kind in @untagged)) do
+      [] ->
+        :skip
+
+      rows ->
+        scenes = scenes(resident_id, day)
+        {from, to} = bounds(resident_id, day)
+
+        # Only declared domains (kumbukumbu#100): before the day's first
+        # turn, its tags of undeclared domains go back to the common room,
+        # so none carries past what she names now.
+        if n == 1, do: {:ok, _} = Kumbukumbu.clear_undeclared(resident_id, from, to, @actor)
+
+        points = Kumbukumbu.day_tag_points(resident_id, from, to)
+
+        {:ok,
+         Prompt.render!("backfill_domains", %{
+           day: day,
+           his: words(lists["his"]),
+           hers: words(lists["hers"]),
+           conversations: Enum.map_join(rows, "\n", &conversation_line(&1, scenes)),
+           named: named_words(points),
+           unnamed: unnamed_words(unnamed(rows, points)),
+           turns: Config.fetch!(:sunna, :backfill_domain_turns)
+         })}
+    end
+  end
+
   def note(_resident_id, pass, day, n, _lists) when n > 1,
     do:
       {:ok,
@@ -52,32 +83,6 @@ defmodule Oneiroi.Brain.BackfillNotes do
        })}
     else
       _closed_or_quiet -> :skip
-    end
-  end
-
-  def note(resident_id, "domains", day, n, lists) do
-    case Enum.reject(sessions(resident_id, day), &(&1.kind in @untagged)) do
-      [] ->
-        :skip
-
-      rows ->
-        scenes = scenes(resident_id, day)
-        {from, to} = bounds(resident_id, day)
-
-        # Only declared domains (kumbukumbu#100): before the day's first
-        # turn, its tags of undeclared domains go back to the common room,
-        # so none carries past what she names now.
-        if n == 1, do: {:ok, _} = Kumbukumbu.clear_undeclared(resident_id, from, to, @actor)
-
-        {:ok,
-         Prompt.render!("backfill_domains", %{
-           day: day,
-           his: words(lists["his"]),
-           hers: words(lists["hers"]),
-           conversations: Enum.map_join(rows, "\n", &conversation_line(&1, scenes)),
-           named: named_words(Kumbukumbu.day_tag_points(resident_id, from, to)),
-           turns: Config.fetch!(:sunna, :backfill_domain_turns)
-         })}
     end
   end
 
@@ -101,6 +106,32 @@ defmodule Oneiroi.Brain.BackfillNotes do
   end
 
   def note(_resident_id, _pass, _day, _n, _lists), do: :skip
+
+  @doc """
+  The day's conversations the domains pass has not yet named (sunna#89):
+  each with no tag point on the day. Empty when the day is done, or has
+  nothing to name.
+  """
+  @spec left(String.t(), String.t()) :: [String.t()]
+  def left(resident_id, day) do
+    {from, to} = bounds(resident_id, day)
+
+    resident_id
+    |> sessions(day)
+    |> Enum.reject(&(&1.kind in @untagged))
+    |> unnamed(Kumbukumbu.day_tag_points(resident_id, from, to))
+    |> Enum.map(& &1.key)
+  end
+
+  defp unnamed(rows, points) do
+    named = MapSet.new(points, & &1.session_key)
+    Enum.reject(rows, &(&1.key in named))
+  end
+
+  defp unnamed_words([]), do: "none: every conversation of the day has a name."
+
+  defp unnamed_words(rows),
+    do: Enum.map_join(rows, "; ", &"session #{&1.key} (from turn #{&1.first_turn})") <> "."
 
   defp named_words([]), do: "none yet."
 

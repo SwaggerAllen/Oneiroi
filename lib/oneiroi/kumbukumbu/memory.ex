@@ -500,6 +500,15 @@ defmodule Oneiroi.Kumbukumbu.Memory do
       }
   end
 
+  def execute(%__MODULE__{}, %Commands.ClearUndeclaredDomains{} = c),
+    do: %Events.UndeclaredDomainsCleared{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      declared: c.declared,
+      note: c.note
+    }
+
   # A derivation is recorded as given (kumbukumbu#101): the backfill
   # sends only the records whose labels changed.
   def execute(%__MODULE__{}, %Commands.DeriveLabels{records: []}), do: []
@@ -610,6 +619,7 @@ defmodule Oneiroi.Kumbukumbu.Memory do
     do: %{m | letter_reads: Enum.reduce(e.numbers, m.letter_reads, &MapSet.put(&2, {&1, e.by}))}
 
   def apply(%__MODULE__{} = m, %Events.LabelsDerived{} = e), do: %{m | id: e.id}
+  def apply(%__MODULE__{} = m, %Events.UndeclaredDomainsCleared{} = e), do: %{m | id: e.id}
 
   def apply(%__MODULE__{} = m, %Events.RevisionDeclined{} = e),
     do: %{m | revisions: Map.update!(m.revisions, e.number, &%{&1 | state: :declined})}

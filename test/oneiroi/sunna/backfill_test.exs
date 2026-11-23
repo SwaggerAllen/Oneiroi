@@ -143,6 +143,20 @@ defmodule Oneiroi.Sunna.BackfillTest do
     assert note =~ "Yours: writing."
     assert note =~ "the Oneiroi chat, session #{ctx.main}"
     assert note =~ "free time, session #{ctx.free}"
+    assert note =~ "Not yet named: session"
+    assert note =~ "session #{ctx.free} (from turn t-free)"
+    assert note =~ "session #{ctx.main} (from turn t-past)"
+
+    # Nothing named yet, so the pass carries on (sunna#89); named, it ends.
+    assert %{"pass" => "domains", "n" => 2} = run_next(ctx.id)
+    [again] = asked()
+    assert again =~ "session #{ctx.main} (from turn t-past)"
+    :ok = Kumbukumbu.tag_domain(ctx.id, ctx.main, "t-past", nil, nil, ctx.actor)
+    :ok = Kumbukumbu.tag_domain(ctx.id, ctx.free, "t-free", nil, nil, ctx.actor)
+    assert BackfillNotes.left(ctx.id, ctx.day) == []
+    assert %{"pass" => "domains", "n" => 3} = run_next(ctx.id)
+    [done] = asked()
+    assert done =~ "Not yet named: none"
 
     # People: no scene names anyone, so it is skipped.
     assert %{"pass" => "people"} = run_next(ctx.id)
@@ -184,6 +198,8 @@ defmodule Oneiroi.Sunna.BackfillTest do
     assert note =~ ~s[scene 1 "Noon" (turns t-past to t-past)]
 
     yesterday = ctx.day |> Date.from_iso8601!() |> Date.add(1) |> Date.to_iso8601()
+    :ok = Kumbukumbu.tag_domain(ctx.id, ctx.main, "t-past", nil, nil, ctx.actor)
+    :ok = Kumbukumbu.tag_domain(ctx.id, ctx.free, "t-free", nil, nil, ctx.actor)
     assert {:ok, 2} = Sunna.backfill_start(ctx.id, ctx.day, yesterday, %{}, ctx.actor)
 
     for pass <- ["scenes", "domains", "people", "labels"],
@@ -199,6 +215,7 @@ defmodule Oneiroi.Sunna.BackfillTest do
   # of pass at a time").
   test "the domains pass alone: undeclared tags return to the common room, day after day", ctx do
     :ok = Kumbukumbu.tag_domain(ctx.id, ctx.main, "t-past", nil, "business", ctx.actor)
+    :ok = Kumbukumbu.tag_domain(ctx.id, ctx.free, "t-free", nil, nil, ctx.actor)
     # business is no longer declared: the version in force names recovery alone.
     Fixtures.declare_domains!(ctx.id, ctx.actor.id, ~w(recovery))
 
@@ -226,6 +243,31 @@ defmodule Oneiroi.Sunna.BackfillTest do
 
     # The next day starts at the domains pass too: no scenes, no people.
     assert [%{"day" => ^yesterday, "pass" => "domains"}] = jobs(ctx.id)
+    :ok = Sunna.backfill_stop(ctx.id)
+  end
+
+  # kumbukumbu#106 (the witness, 2026-11-23: "clear all of those"): a
+  # domain the agreement no longer declares goes back to the common room
+  # everywhere it was kept, carried messages and classifications included.
+  test "a backfill naming domains clears every undeclared one first", ctx do
+    :ok = Kumbukumbu.tag_domain(ctx.id, ctx.main, "t-past", nil, "business", ctx.actor)
+    {:ok, _} = Seshat.write(ctx.id, "design/plan.md", "A plan.", ctx.brain)
+    person = "account:" <> ctx.actor.id
+
+    {:ok, _} =
+      Seshat.classify(ctx.id, "design/plan.md", person, "business", "his work", ctx.brain)
+
+    Fixtures.declare_domains!(ctx.id, ctx.actor.id, ~w(recovery))
+
+    lists = %{"his" => ["recovery"], "passes" => ["domains"]}
+    assert {:ok, 1} = Sunna.backfill_start(ctx.id, ctx.day, ctx.day, lists, ctx.actor)
+
+    {:ok, _s, messages} = Kumbukumbu.transcript({:resident, ctx.id}, ctx.main)
+    assert Enum.all?(messages, &is_nil(&1.domain))
+
+    assert {:ok, %{document: %{class_domain: nil, class_person: nil}}} =
+             Seshat.document(ctx.id, "design/plan.md")
+
     :ok = Sunna.backfill_stop(ctx.id)
   end
 

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { SettingsPage } from '../settings/SettingsPage';
-import { formatHash, formatSettings, isTabHash, parseHash, parseSettings, TABS, type Tab } from '../state/routes';
+import { formatHash, formatSettings, isTabHash, parseHash, parseSettings, parseSettingsPath, TABS, type Tab } from '../state/routes';
 import { topOf, useShell } from '../state/store';
 import { elsewhere, useUnread } from './unread';
 import { Header } from './Header';
@@ -38,11 +38,12 @@ function useHashSync() {
   const tab = useShell((s) => s.tab);
   const stacks = useShell((s) => s.stacks);
   const page = useShell((s) => s.page);
+  const pagePath = useShell((s) => s.pagePath);
 
   useEffect(() => {
     const read = () => {
       const section = parseSettings(window.location.hash);
-      if (section) setPage(section);
+      if (section) setPage(section, parseSettingsPath(window.location.hash));
       else if (isTabHash(window.location.hash)) go(parseHash(window.location.hash));
     };
     read();
@@ -53,9 +54,9 @@ function useHashSync() {
   useEffect(() => {
     const now = window.location.hash;
     if (!isTabHash(now) && !parseSettings(now)) return;
-    const hash = page ? formatSettings(page) : formatHash({ tab, path: topOf(stacks, tab) });
+    const hash = page ? formatSettings(page, pagePath) : formatHash({ tab, path: topOf(stacks, tab) });
     if (now !== hash) window.history.pushState(null, '', hash);
-  }, [tab, stacks, page]);
+  }, [tab, stacks, page, pagePath]);
 }
 
 export function Shell({ residentId, residentName, waiting, failing = false, onReconnect, renderTab, house = false }: ShellProps) {

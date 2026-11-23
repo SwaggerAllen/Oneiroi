@@ -44,9 +44,10 @@ defmodule Oneiroi.Sunna.Queues do
       "doc-to-pr" => %{
         title: "A design, reviewed, built",
         layers: [
-          [%{type: "draft", role: "author", artifact: "design"}],
+          [%{name: "Draft the design", type: "draft", role: "author", artifact: "design"}],
           [
             %{
+              name: "Witness review",
               type: "review",
               role: "witness",
               artifact: "design",
@@ -57,6 +58,7 @@ defmodule Oneiroi.Sunna.Queues do
           ],
           [
             %{
+              name: "Share with the house",
               type: "promote-to-house",
               role: "author",
               artifact: "design",
@@ -64,10 +66,19 @@ defmodule Oneiroi.Sunna.Queues do
               optional: true
             }
           ],
-          [%{type: "review", role: "peer", artifact: "design", throwback: "1.1"}],
-          [%{type: "implement", role: "builder", artifact: "design"}],
           [
             %{
+              name: "Peer review",
+              type: "review",
+              role: "peer",
+              artifact: "design",
+              throwback: "1.1"
+            }
+          ],
+          [%{name: "Build it", type: "implement", role: "builder", artifact: "design"}],
+          [
+            %{
+              name: "PR review",
               type: "review",
               role: "witness",
               artifact: "pr",
@@ -76,7 +87,7 @@ defmodule Oneiroi.Sunna.Queues do
               throwback: "5.1"
             }
           ],
-          [%{type: "merge", role: "witness", artifact: "pr", destination: "main"}]
+          [%{name: "Merge", type: "merge", role: "witness", artifact: "pr", destination: "main"}]
         ]
       }
     }
@@ -344,6 +355,115 @@ defmodule Oneiroi.Sunna.Queues do
         note: note
       })
 
+  @doc "Attaches a document to a task (sunna#91): `role` a slot name or `source` (the default)."
+  def attach_document(household_id, task, citation, role, %Actor{} = actor),
+    do:
+      dispatch(household_id, actor, %C.AttachDocument{
+        actor: actor,
+        at: Clock.now(),
+        id: household_id,
+        task: task,
+        citation: citation,
+        role: role
+      })
+
+  @doc "Detaches a document attached to a task (sunna#91)."
+  def detach_document(household_id, task, citation, %Actor{} = actor),
+    do:
+      dispatch(household_id, actor, %C.DetachDocument{
+        actor: actor,
+        at: Clock.now(),
+        id: household_id,
+        task: task,
+        citation: citation
+      })
+
+  @doc """
+  Each task's documents (sunna#91), by task number: the documents its
+  activities work on, each under its slot's name (an unfilled slot with
+  no citation), then those attached to it, one per document (its path
+  without the pin).
+  """
+  def documents(household_id, numbers) when is_list(numbers) do
+    Scope.platform(fn ->
+      acts =
+        Repo.all(
+          from(a in S.Activity,
+            where: a.household_id == ^household_id and a.task in ^numbers,
+            order_by: [a.task, a.layer, a.position],
+            select: {a.task, a.slot, a.artifact}
+          )
+        )
+
+      attached =
+        Repo.all(
+          from(d in S.Document,
+            where: d.household_id == ^household_id and d.task in ^numbers,
+            order_by: [d.task, d.attached_at],
+            select: {d.task, d.role, d.citation}
+          )
+        )
+
+      (Enum.map(acts, &worked_on/1) ++ Enum.map(attached, &attached_doc/1))
+      |> Enum.reject(&is_nil/1)
+      |> Enum.group_by(&elem(&1, 0), &elem(&1, 1))
+      |> Map.new(fn {n, docs} -> {n, Enum.uniq_by(docs, & &1.key)} end)
+    end)
+  end
+
+  defp worked_on({_task, _slot, nil}), do: nil
+
+  defp worked_on({task, slot, "slot:" <> name}),
+    do: {task, %{role: slot || name, citation: nil, key: "slot:" <> name, attached: false}}
+
+  defp worked_on({task, slot, artifact}),
+    do:
+      {task,
+       %{
+         role: slot || "worked on",
+         citation: artifact,
+         key: Queue.doc_key(artifact),
+         attached: false
+       }}
+
+  defp attached_doc({task, role, citation}),
+    do: {task, %{role: role, citation: citation, key: Queue.doc_key(citation), attached: true}}
+
+  @doc """
+  The open tasks a document belongs to (sunna#91), by its citation with
+  or without a pin: attached to it, or worked on by one of its
+  activities. Each `%{number, title, project}`.
+  """
+  def tasks_for_document(household_id, citation) do
+    key = Queue.doc_key(to_string(citation))
+
+    Scope.platform(fn ->
+      attached =
+        from(d in S.Document,
+          where: d.household_id == ^household_id and d.key == ^key,
+          select: d.task
+        )
+
+      worked =
+        from(a in S.Activity,
+          where:
+            a.household_id == ^household_id and
+              (a.artifact == ^key or like(a.artifact, ^(key <> "@%"))),
+          select: a.task
+        )
+
+      numbers = Repo.all(attached) ++ Repo.all(worked)
+
+      Repo.all(
+        from(t in S.Task,
+          where: t.household_id == ^household_id and t.number in ^Enum.uniq(numbers),
+          order_by: [desc: t.status == "open", desc: t.number],
+          select: %{number: t.number, title: t.title, project: t.project, status: t.status}
+        )
+      )
+    end)
+  end
+
   @doc "Drops a task, with a note: it counts as complete, releasing what waits on it (§1)."
   def drop(household_id, task, note, %Actor{} = actor),
     do:
@@ -466,6 +586,8 @@ defmodule Oneiroi.Sunna.Queues do
         slot = Queue.get(spec, :artifact)
 
         %{
+          name: Queue.get(spec, :name),
+          slot: slot,
           type: Queue.get(spec, :type),
           assignee: roles[Queue.get(spec, :role)] || "unknown",
           artifact: slot && (slots[slot] || "slot:#{slot}"),
@@ -517,7 +639,14 @@ defmodule Oneiroi.Sunna.Queues do
       theirs ->
         deliver =
           for {a, hers} <- theirs,
-              do: %{type: "deliver", assignee: hers, artifact: a[:artifact], inserted: true}
+              do: %{
+                name: "Hand to Claude Code",
+                type: "deliver",
+                assignee: hers,
+                artifact: a[:artifact],
+                slot: a[:slot],
+                inserted: true
+              }
 
         {acc ++ [deliver, layer], Map.put(shifts, i, length(acc) + 2)}
     end
@@ -786,6 +915,7 @@ defmodule Oneiroi.Sunna.Queues do
       task: a.task,
       layer: a.layer,
       position: a.position,
+      name: a.name,
       type: a.type,
       assignee: a.assignee,
       status: a.status,

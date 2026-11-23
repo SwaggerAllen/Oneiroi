@@ -57,7 +57,9 @@ defmodule Oneiroi.Brain.QueueToolsTest do
       )
 
     assert opened =~ "Opened task #1."
-    assert opened =~ "Layer 1 (open): 1.1 draft on lily:design/queue-ia"
+    assert opened =~ "Layer 1 (open): 1.1 Draft the design (draft) on lily:design/queue-ia"
+    assert opened =~ "from doc-to-pr"
+    assert opened =~ "Documents: design lily:design/queue-ia; pr (not yet filled)"
 
     listed = run("queue_list", %{}, ctx.turn)
     assert listed =~ "Waiting on you:\n1.1 draft"
@@ -90,14 +92,16 @@ defmodule Oneiroi.Brain.QueueToolsTest do
     assert run("queue_move", %{task: 1, act: "1.3", move: "finish"}, ctx.turn) =~
              "finished by promoting"
 
-    assert run("queue_task", %{task: 1}, ctx.turn) =~ "1.2 review on lily:design/queue-ia@abc1234"
+    assert run("queue_task", %{task: 1}, ctx.turn) =~
+             "1.2 Witness review (review) on lily:design/queue-ia@abc1234"
   end
 
   test "she writes a template whole, the shape rule held, and a task opens from it", ctx do
     layers = [
-      [%{type: "draft", role: "author", artifact: "piece"}],
+      [%{name: "Draft", type: "draft", role: "author", artifact: "piece"}],
       [
         %{
+          name: "Review",
           type: "review",
           role: "witness",
           artifact: "piece",
@@ -106,7 +110,15 @@ defmodule Oneiroi.Brain.QueueToolsTest do
           throwback: "1.1"
         }
       ],
-      [%{type: "publish", role: "author", artifact: "piece", destination: "substack"}]
+      [
+        %{
+          name: "Publish",
+          type: "publish",
+          role: "author",
+          artifact: "piece",
+          destination: "substack"
+        }
+      ]
     ]
 
     # A publish with no review in front of it is refused.
@@ -139,7 +151,7 @@ defmodule Oneiroi.Brain.QueueToolsTest do
                template: "essay"
              },
              ctx.turn
-           ) =~ "Layer 3: 1.3 publish"
+           ) =~ "Layer 3: 1.3 Publish (publish)"
   end
 
   test "held with the house: no agreement, no queue", ctx do

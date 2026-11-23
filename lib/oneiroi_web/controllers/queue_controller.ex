@@ -44,8 +44,13 @@ defmodule OneiroiWeb.QueueController do
           {name, t} <- Sunna.queue_starters(),
           do: %{name: name, title: t.title, layers: t.layers}
         ),
-      tasks: Enum.map(Sunna.queue_tasks(h), &task/1)
+      tasks: with_documents(h, Enum.map(Sunna.queue_tasks(h), &task/1))
     })
+  end
+
+  defp with_documents(h, tasks) do
+    docs = Sunna.queue_documents(h, Enum.map(tasks, & &1.number))
+    Enum.map(tasks, &Map.put(&1, :documents, Map.get(docs, &1.number, [])))
   end
 
   operation(:waiting,
@@ -110,7 +115,7 @@ defmodule OneiroiWeb.QueueController do
 
       page ->
         json(conn, %{
-          task: task(page.task),
+          task: hd(with_documents(conn.assigns.household_id, [task(page.task)])),
           layers: Enum.map(page.layers, fn l -> Enum.map(l, &activity/1) end),
           waiting: Enum.map(page.waiting, &activity/1),
           history: Enum.map(page.history, &history/1)
@@ -226,6 +231,59 @@ defmodule OneiroiWeb.QueueController do
       )
     )
   end
+
+  operation(:attach_document,
+    summary:
+      "Attaches a document to a task (sunna#91): citation, and role, a slot name or source (the default); its owner's, a witness's, or the holder of one of its activities",
+    parameters: [number: [in: :path, type: :integer]],
+    request_body: {"citation and role", "application/json", %Schema{type: :object}},
+    responses: [ok: {"done", "application/json", %Schema{type: :object}}]
+  )
+
+  def attach_document(conn, %{"number" => number} = p) do
+    done(
+      conn,
+      Sunna.queue_attach_document(
+        conn.assigns.household_id,
+        int(number),
+        p["citation"],
+        p["role"],
+        actor(conn)
+      )
+    )
+  end
+
+  operation(:detach_document,
+    summary: "Detaches a document attached to a task (sunna#91)",
+    parameters: [number: [in: :path, type: :integer]],
+    request_body: {"citation", "application/json", %Schema{type: :object}},
+    responses: [ok: {"done", "application/json", %Schema{type: :object}}]
+  )
+
+  def detach_document(conn, %{"number" => number} = p) do
+    done(
+      conn,
+      Sunna.queue_detach_document(
+        conn.assigns.household_id,
+        int(number),
+        p["citation"],
+        actor(conn)
+      )
+    )
+  end
+
+  operation(:document_tasks,
+    summary: "The tasks a document belongs to (sunna#91), by its citation, open first",
+    parameters: [citation: [in: :query, type: :string, required: true]],
+    responses: [ok: {"the tasks", "application/json", %Schema{type: :array}}]
+  )
+
+  def document_tasks(conn, p),
+    do:
+      json(
+        conn,
+        Sunna.queue_tasks_for_document(conn.assigns.household_id, to_string(p["citation"] || ""))
+      )
 
   operation(:edit_layers,
     summary:
@@ -367,6 +425,8 @@ defmodule OneiroiWeb.QueueController do
         :owner,
         :index_doc,
         :template,
+        :template_version,
+        :forked,
         :links,
         :status,
         :open_layer,
@@ -386,6 +446,8 @@ defmodule OneiroiWeb.QueueController do
         :task,
         :layer,
         :position,
+        :name,
+        :slot,
         :type,
         :assignee,
         :status,

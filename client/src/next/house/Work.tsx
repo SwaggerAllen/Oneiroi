@@ -1,49 +1,75 @@
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
-import { useLive } from '../live/context';
+import { useState } from 'react';
 import { api } from '../../api/client';
-import type { QueueActivity, QueueCard, QueueMove, QueueOverview, QueueSpec, QueueTaskPage, QueueView } from '../../api/types';
+import type { QueueCard, QueueOverview } from '../../api/types';
 import { Card, Confirm, Field, Said, Select, TextArea } from '../settings/common';
 import * as css from '../settings/settings.css';
 import { useAct } from '../settings/useAct';
+import { useShell } from '../state/store';
+import { DocumentScreen } from './DocumentScreen';
 import { HOUSE } from './keys';
-import { blockerLine, GATED, nameOf, pin, position, ROLES, sentence, slugify, templateProblems, type Names, type TemplateSpec } from './queueText';
+import { actName, blockedLine, slugify, taskSummaries, unpinned, type Names, type TaskSummary } from './queueText';
+import { ActivityPage, NewActivityPage, TaskPage, Who } from './TaskPage';
+import { TemplateActivity, TemplateEditor } from './TemplateEditor';
+import * as w from './work.css';
+import { parseWorkPath, useHouseLive, useWorkNav, workPath } from './workRoutes';
 
 /** The house queue's query keys: under the house's root, so a house write reads them again too. */
 const QUEUE = [...HOUSE, 'queue'];
 
-const VIEWS: QueueView[] = ['ready', 'active', 'waiting', 'blocked', 'failed'];
-
-
-
-
-
 /**
- * Work (screen:next-work, sunna#80, lily:design/queue-ia rev 5 §2): the
- * house queue, one screen at different filters. It opens on Waiting on
- * me; Who, Status and Project change the view. A card reads as a
- * sentence, and a blocked card names its blocker, that task's next
- * action and whose it is, on its second line (Scarlett's guard).
+ * Work (screen:next-house, sunna#80, #90, #91; the queue mocks of
+ * 2026-11-23): the house queue as its tasks, each page a path under
+ * `#/settings/queue/` the browser's back steps through: the task list,
+ * a task, an activity, a new activity, a new task, a template and its
+ * activities, and the one document screen. Live on the household's
+ * channel, never a timer (sunna#87).
  */
 export function HouseWork() {
   const overview = useQuery({ queryKey: QUEUE, queryFn: api.queue });
-  // Driven by the household's notices, never a timer (sunna#80).
-  const live = useLive();
-  const householdId = overview.data?.household_id;
-  useEffect(() => (live && householdId ? live.house(householdId) : undefined), [live, householdId]);
-  const [who, setWho] = useState('');
-  const [view, setView] = useState<QueueView | ''>('');
-  const [project, setProject] = useState('');
-  const [taskOpen, setTaskOpen] = useState<number | null>(null);
+  useHouseLive(overview.data?.household_id);
+  const path = useShell((s) => s.pagePath);
+  const nav = useWorkNav();
 
   if (overview.isPending) return <p className={css.note}>Reading…</p>;
   if (!overview.data) return <p className={css.refused}>The house queue could not be read.</p>;
   const q = overview.data;
   // The viewer's own are "you": the house's name for a witness is long.
   const names: Names = { ...Object.fromEntries(q.members.map((m) => [m.assignee, m.name])), [q.me]: 'you' };
-  const me = who || q.me;
-  const mine = me === q.me && !view && !project;
+  const route = parseWorkPath(path);
+  switch (route.page) {
+    case 'task':
+      return <TaskPage number={route.number} names={names} overview={q} />;
+    case 'activity':
+      return <ActivityPage number={route.number} actId={route.act} names={names} overview={q} />;
+    case 'new-activity':
+      return <NewActivityPage number={route.number} names={names} overview={q} />;
+    case 'new-task':
+      return <NewTask overview={q} citation={route.citation} onBack={() => (route.citation ? window.history.back() : nav(''))} />;
+    case 'template':
+      return <TemplateEditor key={route.name} name={route.name} overview={q} />;
+    case 'template-activity':
+      return <TemplateActivity key={`${route.name}/${route.at}`} name={route.name} at={route.at} overview={q} />;
+    case 'doc':
+      return <DocumentScreen citation={route.citation} onBack={() => window.history.back()} />;
+    default:
+      return <TaskList overview={q} names={names} />;
+  }
+}
 
+/**
+ * The task list (the queue mocks' Work): task cards only, activities
+ * live on their task's page. Waiting on me shows Your move (a ready or
+ * active activity of the open layer is yours); All open adds Under way
+ * elsewhere; Project narrows both.
+ */
+function TaskList({ overview: q, names }: { overview: QueueOverview; names: Names }) {
+  const nav = useWorkNav();
+  const cards = useQuery({ queryKey: [...QUEUE, 'activities', 'anyone'], queryFn: () => api.queueActivities({ who: 'anyone' }) });
+  const [all, setAll] = useState(false);
+  const [project, setProject] = useState('');
+  const tasks = q.tasks.filter((t) => !project || t.project === project);
+  const { mine, others } = taskSummaries(tasks, cards.data ?? [], q.me);
   return (
     <>
       {!q.cut_over && (
@@ -51,454 +77,139 @@ export function HouseWork() {
           The house queue is not on yet: the old work queues still run. Build the templates and move the work in progress, then turn it on below.
         </p>
       )}
-      <div className={css.chips} role="group" aria-label="Filters">
-        <Select label="Who" value={who} onChange={setWho}>
-          <option value="">Me</option>
-          <option value="anyone">Anyone</option>
-          {q.members
-            .filter((m) => m.assignee !== q.me)
-            .map((m) => (
-              <option key={m.assignee} value={m.assignee}>
-                {m.name}
-              </option>
-            ))}
-          {q.members
-            .filter((m) => m.kind === 'resident')
-            .map((m) => (
-              <option key={`cc-${m.id}`} value={`claude-code:${m.id}`}>
-                {m.name}'s Claude Code
-              </option>
-            ))}
-          <option value="unknown">Holder not known yet</option>
-        </Select>
-        <Select label="Status" value={view} onChange={(v) => setView(v as QueueView | '')}>
-          <option value="">Any</option>
-          {VIEWS.map((v) => (
-            <option key={v} value={v}>
-              {v}
-            </option>
-          ))}
-        </Select>
-        <Select label="Project" value={project} onChange={setProject}>
-          <option value="">All</option>
+      <div className={w.top}>
+        <h1 className={w.pageTitle}>Work</h1>
+        {q.templates.length > 0 && (
+          <button type="button" className={css.primary} onClick={() => nav(workPath.newTask())}>
+            New task
+          </button>
+        )}
+      </div>
+      <div className={w.segmented} role="group" aria-label="Filters">
+        <button type="button" className={w.segment} aria-pressed={!all} onClick={() => setAll(false)}>
+          Waiting on me · {mine.length}
+        </button>
+        <button type="button" className={w.segment} aria-pressed={all} onClick={() => setAll(true)}>
+          All open · {mine.length + others.length}
+        </button>
+        <select className={w.select} aria-label="Project" value={project} onChange={(e) => setProject(e.target.value)}>
+          <option value="">Project: all</option>
           {q.projects.map((p) => (
             <option key={p.slug} value={p.slug}>
               {p.name}
             </option>
           ))}
-        </Select>
+        </select>
       </div>
-      {mine ? <WaitingOnMe names={names} overview={q} onTask={setTaskOpen} /> : <Filtered who={me} view={view} project={project} names={names} overview={q} onTask={setTaskOpen} />}
-      {taskOpen !== null && <TaskPanel number={taskOpen} names={names} overview={q} onClose={() => setTaskOpen(null)} />}
-      <NewTask overview={q} />
+      {cards.isPending && <p className={css.note}>Reading…</p>}
+      {cards.data && (
+        <>
+          <h2 className={w.section}>Your move</h2>
+          {mine.length === 0 && <p className={css.note}>Nothing waits on you.</p>}
+          {mine.map((s) => (
+            <TaskCard key={s.task.number} s={s} names={names} me={q.me} mine />
+          ))}
+          {all && (
+            <>
+              <h2 className={w.section}>Under way elsewhere</h2>
+              {others.length === 0 && <p className={css.note}>Nothing else is open.</p>}
+              {others.map((s) => (
+                <TaskCard key={s.task.number} s={s} names={names} me={q.me} />
+              ))}
+            </>
+          )}
+        </>
+      )}
       <Templates overview={q} />
       <Setup overview={q} />
     </>
   );
 }
 
-function WaitingOnMe({ names, overview, onTask }: { names: Names; overview: QueueOverview; onTask: (n: number) => void }) {
-  const waiting = useQuery({ queryKey: [...QUEUE, 'waiting'], queryFn: () => api.queueWaiting() });
-  if (!waiting.data) return <p className={css.note}>Reading…</p>;
-  const w = waiting.data;
+/**
+ * A task's card: title and number, project and the layer it is at, its
+ * documents as chips (each opens the document screen), what is in
+ * progress now with whose it is, and a blocked task's blocker and that
+ * task's next action.
+ */
+function TaskCard({ s, names, me, mine = false }: { s: TaskSummary; names: Names; me: string; mine?: boolean }) {
+  const nav = useWorkNav();
+  const docs = (s.task.documents ?? []).filter((d) => d.citation);
+  const open = () => nav(workPath.task(s.task.number));
   return (
-    <>
-      <Card title={`Waiting on you · ${w.ready.length}`}>
-        {w.ready.length === 0 && <p className={css.note}>Nothing waits on you.</p>}
-        {w.ready.map((c) => (
-          <ActivityCard key={c.act} card={c} names={names} overview={overview} onTask={onTask} />
-        ))}
-      </Card>
-      <details className={css.card}>
-        <summary className={css.heading}>Yours in a later layer, or blocked · {w.later.length}</summary>
-        {w.later.map((c) => (
-          <ActivityCard key={c.act} card={c} names={names} overview={overview} onTask={onTask} />
-        ))}
-      </details>
-      <details className={css.card}>
-        <summary className={css.heading}>Tasks you own · {w.owned.length}</summary>
-        {w.owned.map(({ task, next }) => (
-          <button key={task.number} type="button" className={css.linkButton} onClick={() => onTask(task.number)}>
-            #{task.number} {task.title} · {task.project} · next: {next ? `${next.type}, ${nameOf(names, next.assignee)} (${next.view})` : 'nothing open'}
-          </button>
-        ))}
-      </details>
-    </>
-  );
-}
-
-function Filtered({ who, view, project, names, overview, onTask }: { who: string; view: QueueView | ''; project: string; names: Names; overview: QueueOverview; onTask: (n: number) => void }) {
-  const cards = useQuery({
-    queryKey: [...QUEUE, 'activities', who, view, project],
-    queryFn: () => api.queueActivities({ who, view: view ? [view] : [], project: project || undefined }),
-  });
-  if (!cards.data) return <p className={css.note}>Reading…</p>;
-  return (
-    <Card title={`Activities · ${cards.data.length}`}>
-      {cards.data.length === 0 && <p className={css.note}>Nothing matches.</p>}
-      {cards.data.map((c) => (
-        <ActivityCard key={c.act} card={c} names={names} overview={overview} onTask={onTask} />
-      ))}
-    </Card>
-  );
-}
-
-
-
-function ActivityCard({ card: c, names, overview, onTask }: { card: QueueCard; names: Names; overview: QueueOverview; onTask: (n: number) => void }) {
-  const act = useAct();
-  const [open, setOpen] = useState(false);
-  const blocked = blockerLine(c, names);
-  const move = (m: QueueMove, fields: Record<string, unknown> = {}, said = `${c.act}: ${m}.`) =>
-    void act.run(() => api.queueMove(c.task, c.act, m, fields).then(() => said), QUEUE);
-  const live = c.view === 'ready' || c.view === 'active';
-  return (
-    <div className={css.item}>
-      <button type="button" className={css.linkButton} onClick={() => setOpen(!open)} aria-expanded={open}>
-        {sentence(c, names)}
-      </button>
-      {blocked && <span className={css.warn}>{blocked}</span>}
-      {c.note && <span className={css.meta}>{c.note}</span>}
-      <div className={css.row}>
-        {c.type === 'review' && live ? (
-          <button type="button" className={css.primary} onClick={() => setOpen(true)}>
-            Review
-          </button>
-        ) : c.view === 'ready' ? (
-          <button type="button" className={css.primary} disabled={act.busy} onClick={() => move('take', {}, `${c.act} is yours, active.`)}>
-            Take
-          </button>
-        ) : null}
-        <button type="button" className={css.quiet} onClick={() => onTask(c.task)}>
-          Task #{c.task} ›
-        </button>
+    <div
+      role="link"
+      tabIndex={0}
+      className={mine ? w.cardMine : w.card}
+      aria-label={`Task #${s.task.number}: ${s.task.title}`}
+      onClick={open}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') open();
+      }}
+    >
+      <div className={w.cardHead}>
+        <span className={w.cardTitle}>{s.task.title}</span>
+        <span className={w.number}>#{s.task.number}</span>
       </div>
-      {open && (c.type === 'review' && live ? <Decide card={c} onDone={() => setOpen(false)} /> : <Moves card={c} names={names} overview={overview} move={move} busy={act.busy} />)}
-      <Said said={act.said} />
-    </div>
-  );
-}
-
-function Moves({ card: c, names, overview, move, busy }: { card: QueueCard; names: Names; overview: QueueOverview; move: (m: QueueMove, f?: Record<string, unknown>, said?: string) => void; busy: boolean }) {
-  const [note, setNote] = useState('');
-  const [waitsOn, setWaitsOn] = useState('');
-  const [assignee, setAssignee] = useState(c.assignee);
-  const live = c.view === 'ready' || c.view === 'active';
-  const stuck = c.view === 'blocked' || c.view === 'failed';
-  const finished = c.view === 'done' || c.view === 'skipped';
-  if (finished) return <p className={css.note}>{c.view}.</p>;
-  return (
-    <div className={css.column}>
-      <TextArea label="Note, or the reason" value={note} onChange={(e) => setNote(e.target.value)} />
-      {live && (
-        <div className={css.row}>
-          {c.type === 'promote-to-house' ? (
-            <span className={css.note}>A promotion finishes when it is promoted (household_promote with this task and activity).</span>
-          ) : (
-            <button type="button" className={css.primary} disabled={busy} onClick={() => move('finish', { note: note || undefined }, `${c.act} is done.`)}>
-              Finish
+      <span className={w.meta}>
+        {s.task.project} · layer {s.at} of {s.of}
+      </span>
+      {docs.length > 0 && (
+        <div className={w.chips}>
+          {docs.map((d) => (
+            <button
+              key={d.key}
+              type="button"
+              className={w.docChip}
+              title={`${d.role}: ${d.citation}`}
+              onClick={(e) => {
+                e.stopPropagation();
+                nav(workPath.doc(d.citation as string));
+              }}
+            >
+              {unpinned(d.citation as string)}
             </button>
-          )}
-          <button type="button" className={css.secondary} disabled={busy || !note.trim()} onClick={() => move('fail', { reason: note }, `${c.act} failed; it keeps its place.`)}>
-            Failed
-          </button>
-        </div>
-      )}
-      {!stuck && (
-        <div className={css.row}>
-          <Select label="Waits on task" value={waitsOn} onChange={setWaitsOn}>
-            <option value="">No task (a person clears it)</option>
-            {overview.tasks
-              .filter((t) => t.number !== c.task && t.status === 'open')
-              .map((t) => (
-                <option key={t.number} value={String(t.number)}>
-                  #{t.number} {t.title}
-                </option>
-              ))}
-          </Select>
-          <button type="button" className={css.secondary} disabled={busy || !note.trim()} onClick={() => move('block', { reason: note, waits_on: waitsOn ? Number(waitsOn) : null }, `${c.act} is blocked.`)}>
-            Block
-          </button>
-        </div>
-      )}
-      {stuck && (
-        <button type="button" className={css.secondary} disabled={busy || !note.trim()} onClick={() => move('reopen', { note }, `${c.act} is open again.`)}>
-          Reopen
-        </button>
-      )}
-      <div className={css.row}>
-        <Confirm label="Skip" confirm="Skip it, with the note?" disabled={busy || !note.trim()} onConfirm={() => move('skip', { note }, `${c.act} skipped.`)} />
-        <Select label="Assign to" value={assignee} onChange={setAssignee}>
-          {overview.members.map((m) => (
-            <option key={m.assignee} value={m.assignee}>
-              {m.name}
-            </option>
           ))}
-          {overview.members
-            .filter((m) => m.kind === 'resident')
-            .map((m) => (
-              <option key={`cc-${m.id}`} value={`claude-code:${m.id}`}>
-                {m.name}'s Claude Code
-              </option>
-            ))}
-          <option value="unknown">Holder not known yet</option>
-        </Select>
-        <button type="button" className={css.quiet} disabled={busy || assignee === c.assignee} onClick={() => move('assign', { assignee, note: note || undefined }, `${c.act} is ${nameOf(names, assignee)}'s.`)}>
-          Assign
-        </button>
-      </div>
+        </div>
+      )}
+      {s.now.map((c: QueueCard) => (
+        <div key={c.act} className={w.nowRow}>
+          <span className={`${w.dot} ${w.viewColor[c.view]}`} aria-hidden />
+          <span>{actName(c)}</span>
+          {c.name && <span className={w.typeWord}>{c.type}</span>}
+          <Who assignee={c.assignee} names={names} me={me} />
+        </div>
+      ))}
+      {s.blocked && <span className={w.blocked}>{blockedLine(s.blocked, names)}</span>}
     </div>
   );
 }
 
-/**
- * A review's decision (§7): approval authorizes this revision, this
- * destination, this action, and nothing else; a refusal carries a note
- * and the activity the work goes back to.
- */
-function Decide({ card: c, onDone }: { card: QueueCard; onDone: () => void }) {
-  const act = useAct();
-  const page = useQuery({ queryKey: [...QUEUE, 'task', c.task], queryFn: () => api.queueTask(c.task) });
-  const [note, setNote] = useState('');
-  const [returnTo, setReturnTo] = useState('');
-  const [withhold, setWithhold] = useState(false);
-  const earlier = (page.data?.layers ?? []).slice(0, c.layer).flat();
-  const decide = (outcome: 'approved' | 'changes' | 'declined') =>
-    void act.run(
-      () =>
-        api
-          .queueMove(c.task, c.act, 'decide', { outcome, note, return_to: outcome === 'approved' ? undefined : returnTo || undefined, withhold: outcome === 'approved' && withhold })
-          .then(() => {
-            onDone();
-            return `${c.act}: ${outcome}.`;
-          }),
-      QUEUE,
-    );
+/** The house's templates: each opens in the template editor; a starter not in the house yet opens to be saved there; or a blank one. */
+function Templates({ overview: q }: { overview: QueueOverview }) {
+  const nav = useWorkNav();
+  const starters = q.starters.filter((s) => !q.templates.some((t) => t.name === s.name));
   return (
-    <div className={css.column}>
-      {c.artifact && (
-        <p className={css.meta}>
-          Approving authorizes {c.artifact} at its head now{c.action ? `, for ${c.action}` : ''}
-          {c.destination ? ` to ${c.destination}` : ''}: this revision, this destination, this action. An edit after you approve opens the review again.
-        </p>
-      )}
-      <TextArea label="Your note (they read it)" value={note} onChange={(e) => setNote(e.target.value)} />
-      {c.action && (
-        <label className={css.check}>
-          <input type="checkbox" checked={withhold} onChange={(e) => setWithhold(e.target.checked)} /> Approve keeping it where it is (skips the {c.action})
-        </label>
-      )}
-      <Select label="If refused, the work goes back to" value={returnTo} onChange={setReturnTo}>
-        <option value="">{c.throwback ? `${c.throwback} (the template's default)` : 'Choose an earlier activity'}</option>
-        {earlier.map((a: QueueActivity) => (
-          <option key={a.act_id} value={a.act_id}>
-            {a.act_id} {a.type}
-          </option>
-        ))}
-      </Select>
-      <div className={css.row}>
-        <button type="button" className={css.primary} disabled={act.busy || !note.trim()} onClick={() => decide('approved')}>
-          Approve
-        </button>
-        <button type="button" className={css.secondary} disabled={act.busy || !note.trim()} onClick={() => decide('changes')}>
-          Request changes
-        </button>
-        <button type="button" className={css.quiet} disabled={act.busy || !note.trim()} onClick={() => decide('declined')}>
-          Decline
-        </button>
-      </div>
-      <Said said={act.said} />
-    </div>
-  );
-}
-
-/** A task's page (§2.4): its outcome, layers in order with the open one marked, what waits on it, its history. */
-function TaskPanel({ number, names, overview, onClose }: { number: number; names: Names; overview: QueueOverview; onClose: () => void }) {
-  const page = useQuery({ queryKey: [...QUEUE, 'task', number], queryFn: () => api.queueTask(number) });
-  const act = useAct();
-  const [note, setNote] = useState('');
-  const [slot, setSlot] = useState('');
-  const [artifact, setArtifact] = useState('');
-  if (!page.data) return <Card title={`Task #${number}`}>{page.isError ? <p className={css.refused}>Not found.</p> : <p className={css.note}>Reading…</p>}</Card>;
-  const { task, layers, waiting, history }: QueueTaskPage = page.data;
-  const slots = Array.from(new Set(layers.flat().flatMap((a) => (a.artifact?.startsWith('slot:') ? [a.artifact.slice(5)] : []))));
-  return (
-    <Card title={`Task #${task.number} · ${task.title}`}>
-      <button type="button" className={css.back} onClick={onClose}>
-        ‹ Close
-      </button>
-      <p className={css.text}>Done when: {task.outcome}</p>
-      <p className={css.meta}>
-        {task.project} · owner {nameOf(names, task.owner)} · {task.status} · index {task.index_doc}
-        {task.links.length > 0 ? ` · links ${task.links.join(', ')}` : ''}
-      </p>
-      <ol className={css.list}>
-        {layers.map((layer, i) => (
-          <li key={i}>
-            <span className={css.subheading}>
-              Layer {i + 1}
-              {task.open_layer === i ? ' · open' : ''}
-            </span>
-            <div className={css.chips}>
-              {layer.map((a) => (
-                <span key={a.act_id} className={css.chip} title={a.note ?? a.reason ?? ''}>
-                  {a.act_id} {a.type} · {nameOf(names, a.assignee)} · {a.view}
-                  {a.imported ? ' · imported' : ''}
-                  {a.artifact ? ` · ${a.artifact}${pin(a.approved_pin ?? a.pin)}` : ''}
-                  {a.view === 'blocked' && a.waits_on ? ` · waits on #${a.waits_on}` : ''}
-                </span>
-              ))}
-            </div>
-          </li>
-        ))}
-      </ol>
-      {waiting.length > 0 && <p className={css.meta}>Waiting on this task: {waiting.map((w) => `${w.act_id} ${w.type}`).join(', ')}</p>}
-      {task.status === 'open' && slots.length > 0 && (
-        <div className={css.row}>
-          <Select label="Open slot" value={slot} onChange={setSlot}>
-            <option value="">Choose</option>
-            {slots.map((s) => (
-              <option key={s} value={s}>
-                {s}
-              </option>
-            ))}
-          </Select>
-          <Field label="Its citation" value={artifact} onChange={(e) => setArtifact(e.target.value)} />
-          <button type="button" className={css.secondary} disabled={act.busy || !slot || !artifact.trim()} onClick={() => void act.run(() => api.queueFillSlot(task.number, slot, artifact.trim()).then(() => `slot:${slot} is ${artifact.trim()}.`), QUEUE)}>
-            Fill
+    <Card title={`Templates · ${q.templates.length}`}>
+      {q.templates.length === 0 && <p className={css.note}>None in the house yet.</p>}
+      <div className={css.column}>
+        {q.templates.map((t) => (
+          <button key={t.name} type="button" className={css.linkButton} onClick={() => nav(workPath.template(t.name))}>
+            {t.name}: {t.title} ›
           </button>
-        </div>
-      )}
-      <details>
-        <summary className={css.subheading}>History · {history.length}</summary>
-        <ul className={css.list}>
-          {history.map((h, i) => (
-            <li key={i} className={css.meta}>
-              {new Date(h.at).toLocaleString()} · {[h.act_id, h.what, h.outcome].filter(Boolean).join(' ')}
-              {h.pin ? ` ${pin(h.pin)}` : ''} · {h.actor_id ? nameOf(names, `${h.actor_kind}:${h.actor_id}`) : h.actor_kind}
-              {h.note ? `: ${h.note}` : ''}
-            </li>
-          ))}
-        </ul>
-      </details>
-      {task.status === 'open' && (task.owner === overview.me || overview.me.startsWith('witness:')) && (
-        <LayerEditor task={task} layers={layers} names={names} overview={overview} />
-      )}
-      {task.status === 'open' && (task.owner === overview.me || overview.me.startsWith('witness:')) && (
-        <div className={css.row}>
-          <Field label="Why it is dropped" value={note} onChange={(e) => setNote(e.target.value)} />
-          <Confirm label="Drop the task" confirm="Drop it? What waits on it is released." disabled={act.busy || !note.trim()} onConfirm={() => void act.run(() => api.queueDrop(task.number, note).then(() => `Task #${task.number} dropped.`), QUEUE)} />
-        </div>
-      )}
-      <Said said={act.said} />
-    </Card>
-  );
-}
-
-type Draft = { id?: string; type: string; assignee: string; locked: boolean };
-
-/**
- * A task's layers edited after it is open (sunna#85): what has started,
- * and every layer before the open one, is shown locked; pending
- * activities move between the open and later layers, or go; new ones and
- * new layers are added from the open layer on. Saved whole, with a note.
- */
-function LayerEditor({ task, layers, names, overview }: { task: QueueTaskPage['task']; layers: QueueActivity[][]; names: Names; overview: QueueOverview }) {
-  const act = useAct();
-  const open = task.open_layer ?? layers.length;
-  const initial = (): Draft[][] => layers.map((l, i) => l.map((a) => ({ id: a.act_id, type: a.type, assignee: a.assignee, locked: i < open || a.status !== 'pending' })));
-  const [draft, setDraft] = useState<Draft[][] | null>(null);
-  const [note, setNote] = useState('');
-  const [type, setType] = useState('');
-  const [assignee, setAssignee] = useState(overview.me);
-  if (!draft)
-    return (
+        ))}
+        {starters.map((t) => (
+          <button key={t.name} type="button" className={css.linkButton} onClick={() => nav(workPath.template(t.name))}>
+            {t.name}: {t.title} (the platform's starter) ›
+          </button>
+        ))}
+      </div>
       <div>
-        <button type="button" className={css.secondary} onClick={() => setDraft(initial())}>
-          Edit layers
+        <button type="button" className={css.secondary} onClick={() => nav(workPath.template('new'))}>
+          A new template
         </button>
       </div>
-    );
-  const move = (i: number, j: number, to: number) =>
-    setDraft(draft.map((l, k) => (k === i ? l.filter((_, x) => x !== j) : k === to ? [...l, draft[i][j]] : l)).filter((l, k) => l.length > 0 || k >= open));
-  const remove = (i: number, j: number) => setDraft(draft.map((l, k) => (k === i ? l.filter((_, x) => x !== j) : l)));
-  const add = (i: number) => {
-    if (!type.trim()) return;
-    const entry: Draft = { type: type.trim(), assignee, locked: false };
-    setDraft(i >= draft.length ? [...draft, [entry]] : draft.map((l, k) => (k === i ? [...l, entry] : l)));
-    setType('');
-  };
-  const save = () => {
-    const layersOut = draft.filter((l) => l.length > 0).map((l) => l.map((d) => (d.id ? { id: d.id } : { type: d.type, assignee: d.assignee })));
-    void act.run(
-      () =>
-        api.queueEditLayers(task.number, layersOut, note).then(() => {
-          setDraft(null);
-          setNote('');
-          return `Task #${task.number}'s layers saved.`;
-        }),
-      QUEUE,
-    );
-  };
-  return (
-    <div className={css.column}>
-      <span className={css.subheading}>Editing layers</span>
-      <ol className={css.list}>
-        {[...draft, []].map((layer, i) => (
-          <li key={i}>
-            <span className={css.meta}>{i < draft.length ? `Layer ${i + 1}${i < open ? ' · closed' : i === open ? ' · open' : ''}` : 'A new layer'}</span>
-            <div className={css.chips}>
-              {layer.map((d, j) => (
-                <span key={d.id ?? `new-${i}-${j}`} className={css.chip}>
-                  {d.id ?? 'new'} {d.type} · {nameOf(names, d.assignee)}
-                  {!d.locked && i > open && (
-                    <button type="button" className={css.quiet} aria-label={`Move ${d.type} up a layer`} onClick={() => move(i, j, i - 1)}>
-                      ↑
-                    </button>
-                  )}
-                  {!d.locked && (
-                    <button type="button" className={css.quiet} aria-label={`Move ${d.type} down a layer`} onClick={() => (i + 1 >= draft.length ? setDraft([...draft.map((l, k) => (k === i ? l.filter((_, x) => x !== j) : l)), [d]]) : move(i, j, i + 1))}>
-                      ↓
-                    </button>
-                  )}
-                  {!d.locked && (
-                    <button type="button" className={css.quiet} aria-label={`Remove ${d.type}`} onClick={() => remove(i, j)}>
-                      ×
-                    </button>
-                  )}
-                </span>
-              ))}
-              {i >= open && (
-                <button type="button" className={css.quiet} disabled={!type.trim()} onClick={() => add(i)}>
-                  + here
-                </button>
-              )}
-            </div>
-          </li>
-        ))}
-      </ol>
-      <div className={css.row}>
-        <Field label="A new activity's verb" value={type} onChange={(e) => setType(e.target.value)} />
-        <Select label="For" value={assignee} onChange={setAssignee}>
-          {overview.members.map((m) => (
-            <option key={m.assignee} value={m.assignee}>
-              {m.name}
-            </option>
-          ))}
-          <option value="unknown">Holder not known yet</option>
-        </Select>
-      </div>
-      <Field label="Why (the history keeps it)" value={note} onChange={(e) => setNote(e.target.value)} />
-      <div className={css.row}>
-        <button type="button" className={css.primary} disabled={act.busy || !note.trim()} onClick={save}>
-          Save the layers
-        </button>
-        <button type="button" className={css.quiet} onClick={() => setDraft(null)}>
-          Cancel
-        </button>
-      </div>
-      <Said said={act.said} />
-    </div>
+    </Card>
   );
 }
 
@@ -507,7 +218,8 @@ function LayerEditor({ task, layers, names, overview }: { task: QueueTaskPage['t
  * already under way starts at the layer it stands at, every earlier one
  * imported done with its links, and carrying no approvals.
  */
-function NewTask({ overview }: { overview: QueueOverview }) {
+function NewTask({ overview, citation, onBack }: { overview: QueueOverview; citation: string | null; onBack: () => void }) {
+  const nav = useWorkNav();
   const act = useAct();
   const [project, setProject] = useState(overview.projects[0]?.slug ?? '');
   const [newProject, setNewProject] = useState('');
@@ -515,7 +227,8 @@ function NewTask({ overview }: { overview: QueueOverview }) {
   const [title, setTitle] = useState('');
   const [slug, setSlug] = useState('');
   const [outcome, setOutcome] = useState('');
-  const [design, setDesign] = useState('');
+  const [design, setDesign] = useState(citation ?? '');
+  const [as, setAs] = useState<'design' | 'source'>('design');
   const [start, setStart] = useState('1');
   const [links, setLinks] = useState('');
   const chosen = overview.templates.find((t) => t.name === template);
@@ -532,20 +245,26 @@ function NewTask({ overview }: { overview: QueueOverview }) {
         title: title.trim(),
         outcome: outcome.trim(),
         template,
-        slots: design.trim() ? { design: design.trim() } : undefined,
+        slots: design.trim() && as === 'design' ? { design: design.trim() } : undefined,
         start_layer: Number(start) > 1 ? Number(start) : undefined,
-        links: links.trim() ? links.split(/[\s,]+/).filter(Boolean) : undefined,
+        links: [...(links.trim() ? links.split(/[\s,]+/).filter(Boolean) : []), ...(design.trim() && as === 'source' ? [design.trim()] : [])],
       });
       setTitle('');
       setSlug('');
       setOutcome('');
       setDesign('');
       setLinks('');
+      nav(workPath.task(number));
       return `Opened task #${number}.`;
     }, QUEUE);
-  if (overview.templates.length === 0) return null;
+  if (overview.templates.length === 0) return <p className={css.note}>The house has no template yet: a task opens from one.</p>;
   return (
-    <Card title="New task">
+    <>
+    <button type="button" className={css.back} onClick={onBack}>
+      ‹ Back
+    </button>
+    <h1 className={w.pageTitle}>New task</h1>
+    <Card title="The task">
       <Select label="Project" value={project} onChange={setProject}>
         {overview.projects
           .filter((p) => p.status === 'open')
@@ -566,7 +285,13 @@ function NewTask({ overview }: { overview: QueueOverview }) {
       <Field label="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
       <Field label="Slug (from the title if left empty)" value={slug} onChange={(e) => setSlug(e.target.value)} />
       <TextArea label="Done when" value={outcome} onChange={(e) => setOutcome(e.target.value)} />
-      <Field label="The design's citation (e.g. lily:design/queue-ia)" value={design} onChange={(e) => setDesign(e.target.value)} />
+      <Field label="A document's citation (e.g. lily:design/queue-ia)" value={design} onChange={(e) => setDesign(e.target.value)} />
+      {design.trim() && (
+        <Select label="As" value={as} onChange={(v) => setAs(v as 'design' | 'source')}>
+          <option value="design">its design (the design slot: the template's activities work on it)</option>
+          <option value="source">a source</option>
+        </Select>
+      )}
       <Select label="Where the work stands" value={start} onChange={setStart}>
         {(chosen?.layers ?? []).map((layer, i) => (
           <option key={i} value={String(i + 1)}>
@@ -583,232 +308,10 @@ function NewTask({ overview }: { overview: QueueOverview }) {
       </div>
       <Said said={act.said} />
     </Card>
+    </>
   );
 }
 
-
-const ROLE_WORDS: Record<string, string> = {
-  author: 'the task owner',
-  witness: 'the witness',
-  peer: 'the other resident',
-  builder: "the owner's Claude Code",
-  unknown: 'not known yet',
-};
-
-// In the editor a throwback names its activity by a key that travels with
-// it, so removing or reordering layers never points it at another one;
-// positions ("2.1") are what is checked and saved.
-type TemplateDraft = TemplateSpec & { key: string };
-let keys = 0;
-const fresh = () => `k${(keys += 1)}`;
-
-const blankSpec = (): TemplateDraft => ({ key: fresh(), type: '', role: 'author', artifact: null, destination: null, action: null, optional: false, throwback: null });
-
-const draftsOf = (layers: QueueSpec[][]): TemplateDraft[][] => {
-  const keyed = layers.map((l) => l.map(() => fresh()));
-  const at = (pos: string | null | undefined) => {
-    const [l, j] = (pos ?? '').split('.').map(Number);
-    return keyed[l - 1]?.[j - 1] ?? null;
-  };
-  return layers.map((l, i) =>
-    l.map((s, j) => ({
-      key: keyed[i][j],
-      type: s.type ?? '',
-      role: s.role ?? 'unknown',
-      artifact: s.artifact ?? null,
-      destination: s.destination ?? null,
-      action: s.action ?? null,
-      optional: s.optional === true,
-      throwback: at(s.throwback),
-    })),
-  );
-};
-
-/** The drafts as positions: what the shape check reads and the server takes. */
-const positioned = (layers: TemplateDraft[][]): TemplateSpec[][] => {
-  const where = new Map<string, string>();
-  layers.forEach((l, i) => l.forEach((d, j) => where.set(d.key, position(i, j))));
-  return layers.map((l) =>
-    l.map(({ key: _key, ...s }) => ({
-      ...s,
-      artifact: s.artifact || null,
-      destination: s.destination || null,
-      action: s.action || null,
-      throwback: (s.throwback && where.get(s.throwback)) || null,
-    })),
-  );
-};
-
-/**
- * The house's templates, written in place (sunna#88): pick one to change,
- * start from a starter, or start blank; each layer a row of activities,
- * each a verb, who holds it, the artifact it works on, and for a review
- * or a gated step its destination and action. The shape rule is said
- * before saving, and the server checks it again.
- */
-function Templates({ overview: q }: { overview: QueueOverview }) {
-  const act = useAct();
-  const [open, setOpen] = useState(false);
-  const [name, setName] = useState('');
-  const [title, setTitle] = useState('');
-  const [layers, setLayers] = useState<TemplateDraft[][]>([[blankSpec()]]);
-  const sources = [...q.templates.map((t) => ({ ...t, kind: 'house' })), ...q.starters.filter((s) => !q.templates.some((t) => t.name === s.name)).map((s) => ({ ...s, kind: 'starter' }))];
-  const load = (key: string) => {
-    const t = sources.find((x) => `${x.kind}:${x.name}` === key);
-    if (!t) {
-      setName('');
-      setTitle('');
-      setLayers([[blankSpec()]]);
-      return;
-    }
-    setName(t.name);
-    setTitle(t.title);
-    setLayers(draftsOf(t.layers));
-  };
-  const set = (i: number, j: number, patch: Partial<TemplateDraft>) => setLayers(layers.map((l, a) => (a === i ? l.map((s, b) => (b === j ? { ...s, ...patch } : s)) : l)));
-  // A removed activity takes the throwbacks naming it with it.
-  const remove = (i: number, j: number) => {
-    const gone = layers[i][j].key;
-    setLayers(
-      layers
-        .map((l, a) => (a === i ? l.filter((_, b) => b !== j) : l))
-        .filter((l) => l.length > 0)
-        .map((l) => l.map((d) => (d.throwback === gone ? { ...d, throwback: null } : d))),
-    );
-  };
-  const swap = (i: number, k: number) => {
-    if (k < 0 || k >= layers.length) return;
-    const next = [...layers];
-    [next[i], next[k]] = [next[k], next[i]];
-    setLayers(next);
-  };
-  const problems = templateProblems(positioned(layers));
-  const slug = slugify(name);
-  const save = () =>
-    void act.run(
-      () =>
-        api
-          .queueSaveTemplate(slug, title.trim(), positioned(layers))
-          .then(() => `${slug} is saved in the house.`),
-      QUEUE,
-    );
-  if (!open)
-    return (
-      <Card title={`Templates · ${q.templates.length}`}>
-        <p className={css.note}>{q.templates.length ? q.templates.map((t) => `${t.name}: ${t.title}`).join(' · ') : 'None in the house yet.'}</p>
-        <div>
-          <button type="button" className={css.secondary} onClick={() => setOpen(true)}>
-            Write or change a template
-          </button>
-        </div>
-      </Card>
-    );
-  const positions = (i: number) => layers.slice(0, i).flatMap((l, a) => l.map((s, b) => ({ key: s.key, at: position(a, b), type: s.type })));
-  return (
-    <Card title="A template">
-      <Select label="Start from" value="" onChange={load}>
-        <option value="">A blank template</option>
-        {sources.map((t) => (
-          <option key={`${t.kind}:${t.name}`} value={`${t.kind}:${t.name}`}>
-            {t.kind === 'house' ? `${t.name} (in the house)` : `${t.name} (the platform's starter)`}
-          </option>
-        ))}
-      </Select>
-      <Field label="Name (lowercase, hyphens; the same name replaces it)" value={name} onChange={(e) => setName(e.target.value)} />
-      <Field label="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
-      <ol className={css.list}>
-        {layers.map((layer, i) => (
-          <li key={i} className={css.column}>
-            <div className={css.row}>
-              <span className={css.subheading}>Layer {i + 1}</span>
-              <button type="button" className={css.quiet} aria-label={`Move layer ${i + 1} up`} disabled={i === 0} onClick={() => swap(i, i - 1)}>
-                ↑
-              </button>
-              <button type="button" className={css.quiet} aria-label={`Move layer ${i + 1} down`} disabled={i === layers.length - 1} onClick={() => swap(i, i + 1)}>
-                ↓
-              </button>
-            </div>
-            {layer.map((s, j) => {
-              const gated = GATED.includes(s.type);
-              const review = s.type === 'review';
-              return (
-                <div key={s.key} className={css.item} aria-label={`Activity ${position(i, j)}`}>
-                  <span className={css.meta}>{position(i, j)}</span>
-                  <Field label="Verb (draft, review, implement, merge…)" value={s.type} onChange={(e) => set(i, j, { type: e.target.value.trim().toLowerCase() })} />
-                  <Select label="Held by" value={s.role} onChange={(v) => set(i, j, { role: v })}>
-                    {ROLES.map((r) => (
-                      <option key={r} value={r}>
-                        {r}: {ROLE_WORDS[r]}
-                      </option>
-                    ))}
-                  </Select>
-                  <Field label="Artifact slot (design, pr…; filled when a task opens)" value={s.artifact ?? ''} onChange={(e) => set(i, j, { artifact: e.target.value.trim() || null })} />
-                  {(gated || review) && <Field label="Destination (house, main, email…)" value={s.destination ?? ''} onChange={(e) => set(i, j, { destination: e.target.value.trim() || null })} />}
-                  {review && (
-                    <Select label="Authorizes" value={s.action ?? ''} onChange={(v) => set(i, j, { action: v || null })}>
-                      <option value="">Nothing gated (a read)</option>
-                      {GATED.map((g) => (
-                        <option key={g} value={g}>
-                          {g}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                  {review && (
-                    <Select label="If refused, back to" value={s.throwback ?? ''} onChange={(v) => set(i, j, { throwback: v || null })}>
-                      <option value="">The reviewer chooses</option>
-                      {positions(i).map((p) => (
-                        <option key={p.key} value={p.key}>
-                          {p.at} {p.type}
-                        </option>
-                      ))}
-                    </Select>
-                  )}
-                  <label className={css.check}>
-                    <input type="checkbox" checked={s.optional === true} onChange={(e) => set(i, j, { optional: e.target.checked })} /> Optional (its holder may skip it)
-                  </label>
-                  <div>
-                    <button type="button" className={css.quiet} onClick={() => remove(i, j)}>
-                      Remove {position(i, j)}
-                    </button>
-                  </div>
-                </div>
-              );
-            })}
-            <div>
-              <button type="button" className={css.quiet} onClick={() => setLayers(layers.map((l, a) => (a === i ? [...l, blankSpec()] : l)))}>
-                + An activity beside these
-              </button>
-            </div>
-          </li>
-        ))}
-      </ol>
-      <div>
-        <button type="button" className={css.secondary} onClick={() => setLayers([...layers, [blankSpec()]])}>
-          + A layer after
-        </button>
-      </div>
-      {problems.length > 0 && (
-        <ul className={css.list} aria-label="Before it can be saved">
-          {problems.map((p) => (
-            <li key={p} className={css.warn}>
-              {p}
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className={css.row}>
-        <button type="button" className={css.primary} disabled={act.busy || !slug || !title.trim() || problems.length > 0} onClick={save}>
-          Save the template
-        </button>
-        <button type="button" className={css.quiet} onClick={() => setOpen(false)}>
-          Close
-        </button>
-      </div>
-      <Said said={act.said} />
-    </Card>
-  );
-}
 
 /**
  * The witness's setup (§6.2, §7): the

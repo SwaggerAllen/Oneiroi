@@ -11,6 +11,8 @@ defmodule Oneiroi.Seshat.Household.Files do
   """
 
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Apsu.Notices
+  alias Oneiroi.Apsu.PubSub
   alias Oneiroi.Seshat.Error
   alias Oneiroi.Seshat.Kinds
   alias Oneiroi.SimaQian.Repos
@@ -348,7 +350,31 @@ defmodule Oneiroi.Seshat.Household.Files do
   # One commit under the writer's name (sima-qian#52), every file created
   # where it was absent (seshat#59: written once, so two writers never
   # land on one file) or put where it was as read (sima-qian#57).
-  def commit(view, changes, message, by), do: Repos.write(view.repo, changes, message, by)
+  def commit(view, changes, message, by) do
+    with {:ok, _} = written <- Repos.write(view.repo, changes, message, by) do
+      announce(view.repo, changes)
+      written
+    end
+  end
+
+  # A thread written is announced to its owner's live channel (the house,
+  # or the resident whose own threads they are, seshat#108): the thread's
+  # path, never its words, so an open page reads it again and never polls.
+  defp announce({_kind, owner}, changes) do
+    changes
+    |> Enum.map(&elem(&1, 1))
+    |> Enum.flat_map(fn path ->
+      case is_binary(path) && Regex.run(~r{\Athreads/([^/]+)/}, path) do
+        [_, id] -> ["threads/" <> id]
+        _other -> []
+      end
+    end)
+    |> Enum.uniq()
+    |> Enum.each(fn thread ->
+      notice = %{kind: "ThreadWritten", stream: "threads", ref: thread, position: Notices.head()}
+      PubSub.broadcast(:apsu, :notices, {owner, notice})
+    end)
+  end
 
   @doc false
   # The gate and the write it allows are one step (seshat#67): two writes

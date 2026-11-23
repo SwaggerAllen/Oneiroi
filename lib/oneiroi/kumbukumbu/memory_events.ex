@@ -239,6 +239,15 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
     use Oneiroi.Event, version: 1, fields: [:id, :numbers, :by]
   end
 
+  defmodule UndeclaredDomainsCleared do
+    # Every domain the agreement in force does not declare goes back to
+    # the common room (kumbukumbu#106): on her messages, tagged or carried,
+    # on her conversations' current domain, and on her documents'
+    # classifications. `declared` is what the agreement declared then,
+    # each `%{"person", "domain"}`, so a replay clears exactly as this did.
+    use Oneiroi.Event, version: 1, fields: [:id, :declared, :note]
+  end
+
   defmodule LabelsDerived do
     # A day's records labelled again from what they came from
     # (kumbukumbu#101): each record's kind and id, its derived labels and

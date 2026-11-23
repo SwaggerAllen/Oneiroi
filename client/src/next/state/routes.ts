@@ -40,4 +40,14 @@ export function parseSettings(hash: string): SettingsSection | null {
   return first === 'settings' && (SETTINGS as readonly string[]).includes(second) ? (second as SettingsSection) : null;
 }
 
-export const formatSettings = (section: SettingsSection) => `#/settings/${section}`;
+/**
+ * Where inside a settings page the hash points (`#/settings/queue/task/9`):
+ * the segments after the section, decoded and joined, or '' at its top.
+ * The house queue's pages (screen:next-house) live here.
+ */
+export function parseSettingsPath(hash: string): string {
+  const parts = hash.replace(/^#\/?/, '').split('/');
+  return parts[0] === 'settings' ? parts.slice(2).map(decodeURIComponent).join('/') : '';
+}
+
+export const formatSettings = (section: SettingsSection, path = '') => `#/settings/${section}${path ? '/' + path.split('/').map(encodeURIComponent).join('/') : ''}`;

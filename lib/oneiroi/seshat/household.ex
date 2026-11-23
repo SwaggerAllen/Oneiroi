@@ -71,7 +71,9 @@ defmodule Oneiroi.Seshat.Household do
 
   alias Oneiroi.Seshat.Household.Contract
   alias Oneiroi.Seshat.Household.Core
+  alias Oneiroi.Seshat.Household.Documents
   alias Oneiroi.Seshat.Household.Edits
+  alias Oneiroi.Seshat.Household.Files
   alias Oneiroi.Seshat.Household.Gate
   alias Oneiroi.Seshat.Household.Housemates
   alias Oneiroi.Seshat.Household.Mentions
@@ -139,6 +141,13 @@ defmodule Oneiroi.Seshat.Household do
   thread's `trunk` and `replies` as data beside the text.
   """
   defdelegate read(actor, name, opts \\ []), to: Reading
+
+  @doc "A household document's one thread (seshat#109), or nil, for a member."
+  def doc_thread(%{} = actor, path) do
+    with {:ok, household_id} <- Core.household(actor),
+         {:ok, view} <- Files.view(household_id),
+         do: {:ok, Documents.doc_thread(view, path)}
+  end
 
   @doc """
   Who in the house is working now (seshat#90): each resident marked by a

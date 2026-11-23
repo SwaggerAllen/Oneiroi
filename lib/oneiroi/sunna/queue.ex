@@ -42,7 +42,18 @@ defmodule Oneiroi.Sunna.Queue do
             cut_over: false
 
   @outcomes ~w(approved changes declined)
-  @spec_fields [:type, :assignee, :artifact, :destination, :action, :optional, :throwback]
+  @spec_fields [
+    :name,
+    :slot,
+    :type,
+    :assignee,
+    :artifact,
+    :destination,
+    :action,
+    :optional,
+    :throwback
+  ]
+  @name 80
   @words 4_000
   @verb 40
 
@@ -278,6 +289,48 @@ defmodule Oneiroi.Sunna.Queue do
     end
   end
 
+  def execute(%__MODULE__{} = s, %C.AttachDocument{} = c) do
+    citation = blank_nil(c.citation)
+    role = blank_nil(c.role) || "source"
+
+    with {:ok, task} <- open_task(s, c.task),
+         :ok <- may_attach(task, s, c.actor) do
+      cond do
+        not words?(citation, 300) or not words?(role, 64) or
+            String.starts_with?(citation, "slot:") ->
+          {:error, Error.new(:sunna_queue_invalid, :sunna_queue_attach_invalid)}
+
+        Map.has_key?(Map.get(task, :documents, %{}), doc_key(citation)) ->
+          []
+
+        true ->
+          %E.DocumentAttached{
+            actor: c.actor,
+            at: c.at,
+            id: c.id,
+            task: c.task,
+            citation: citation,
+            role: role
+          }
+      end
+    end
+  end
+
+  def execute(%__MODULE__{} = s, %C.DetachDocument{} = c) do
+    with {:ok, task} <- open_task(s, c.task),
+         :ok <- may_attach(task, s, c.actor) do
+      if Map.has_key?(Map.get(task, :documents, %{}), doc_key(to_string(c.citation))),
+        do: %E.DocumentDetached{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          task: c.task,
+          citation: c.citation
+        },
+        else: {:error, Error.new(:sunna_queue_invalid, :sunna_queue_detach_absent)}
+    end
+  end
+
   def execute(%__MODULE__{} = s, %C.FillSlot{} = c) do
     slot = "slot:#{c.slot}"
 
@@ -434,6 +487,12 @@ defmodule Oneiroi.Sunna.Queue do
     |> put_act(e.act, status: "pending", approved_pin: nil)
     |> put_act(e.gated, status: "pending")
   end
+
+  def apply(%__MODULE__{} = s, %E.DocumentAttached{} = e),
+    do: update_docs(s, e.task, &Map.put(&1, doc_key(e.citation), e.role))
+
+  def apply(%__MODULE__{} = s, %E.DocumentDetached{} = e),
+    do: update_docs(s, e.task, &Map.delete(&1, doc_key(e.citation)))
 
   def apply(%__MODULE__{} = s, %E.SlotFilled{} = e),
     do: Enum.reduce(List.wrap(e.acts), s, &put_act(&2, &1, artifact: e.artifact))
@@ -843,6 +902,8 @@ defmodule Oneiroi.Sunna.Queue do
   defp spec_of(spec, id) when is_map(spec) do
     a = %{
       id: id,
+      name: blank_nil(get(spec, :name)),
+      slot: blank_nil(get(spec, :slot)),
       type: get(spec, :type),
       assignee: get(spec, :assignee) || "unknown",
       artifact: blank_nil(get(spec, :artifact)),
@@ -853,7 +914,8 @@ defmodule Oneiroi.Sunna.Queue do
     }
 
     if words?(a.type, @verb) and assignee?(a.assignee) and short?(a.artifact, 300) and
-         short?(a.destination, 120) and short?(a.action, @verb),
+         short?(a.destination, 120) and short?(a.action, @verb) and short?(a.name, @name) and
+         short?(a.slot, 64),
        do: a,
        else: nil
   end
@@ -891,6 +953,7 @@ defmodule Oneiroi.Sunna.Queue do
   defp template_spec(spec, _i, j) when is_map(spec) do
     t = %{
       pos: j,
+      name: blank_nil(get(spec, :name)),
       type: get(spec, :type),
       role: get(spec, :role) || "unknown",
       artifact: blank_nil(get(spec, :artifact)),
@@ -900,7 +963,10 @@ defmodule Oneiroi.Sunna.Queue do
       throwback: blank_nil(get(spec, :throwback))
     }
 
-    if words?(t.type, @verb) and t.role in @roles and short?(t.artifact, 64) and
+    # A template names every activity (sunna#90): the name every task
+    # made from it shows.
+    if words?(t.name, @name) and words?(t.type, @verb) and t.role in @roles and
+         short?(t.artifact, 64) and
          short?(t.destination, 120) and short?(t.action, @verb) and short?(t.throwback, 16),
        do: t,
        else: nil
@@ -933,6 +999,8 @@ defmodule Oneiroi.Sunna.Queue do
     %{
       id: get(spec, :id),
       task: task,
+      name: get(spec, :name),
+      slot: get(spec, :slot),
       type: get(spec, :type),
       assignee: get(spec, :assignee),
       artifact: get(spec, :artifact),
@@ -1090,6 +1158,32 @@ defmodule Oneiroi.Sunna.Queue do
 
   # ---- editing a task's layers ----
 
+  # A task's documents are changed by its owner, the witness, or anyone
+  # holding one of its activities (sunna#91).
+  defp may_attach(task, s, actor) do
+    mine = me(actor)
+
+    held? =
+      Enum.any?(List.flatten(task.layers), fn id ->
+        get(Map.get(s.acts, id, %{}), :assignee) == mine
+      end)
+
+    if actor.kind == :witness or mine == task.owner or held?,
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_attach_not_yours)}
+  end
+
+  defp update_docs(s, n, fun),
+    do: %{
+      s
+      | tasks:
+          Map.update!(s.tasks, n, &Map.put(&1, :documents, fun.(Map.get(&1, :documents, %{}))))
+    }
+
+  @doc "A document's key: its citation without the pin (`@<commit>`)."
+  def doc_key(citation) when is_binary(citation),
+    do: citation |> String.split("@", parts: 2) |> hd() |> String.trim()
+
   defp may_edit(task, actor) do
     if actor.kind == :witness or me(actor) == task.owner,
       do: :ok,
@@ -1149,8 +1243,11 @@ defmodule Oneiroi.Sunna.Queue do
           _other -> {nil, k}
         end
 
+      # One added to an open task is named by whoever adds it (sunna#90):
+      # the task's own copy of its template holds the name.
       _new ->
-        {spec_of(entry, "#{task.number}.#{k}"), k + 1}
+        spec = spec_of(entry, "#{task.number}.#{k}")
+        {spec && spec.name && spec, k + 1}
     end
   end
 

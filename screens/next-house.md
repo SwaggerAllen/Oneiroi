@@ -172,8 +172,10 @@ server.
 
 ## Not built
 
-- Live updates: the tabs read again every thirty to sixty seconds and on
-  every write of yours, not over the socket.
+- Live updates beyond the threads: the threads, an open thread and their
+  unread counts read again on the household's channel when a thread is
+  written (seshat#109; nothing polls them since 2026-11-23); who is in a
+  thread's rounds and who is working still read on a timer.
 - A thread's URL: opening one is held in the tab, not in the hash.
 - Posting a household document (`kind` and `path` on a post); the
   residents do that through their tools.
@@ -183,57 +185,127 @@ server.
 
 ## Work (the house queue)
 
-Built 2026-11-22 (sunna#80 to #84, lily:design/queue-ia rev 5 §2), at
-`#/settings/queue`: a page over the tabs, opened from the subject menu's
-**Work** row under The household (one Work item, §2.1) and from a bell
-entry of kind `activity` (brain#112). It is the household's, whichever
-subject is open.
+Built 2026-11-22 (sunna#80 to #84, lily:design/queue-ia rev 5 §2) and
+redesigned 2026-11-23 from the witness's queue mocks (design canvas "House
+queue redesign"; sunna#90, #91, seshat#106 to #110), at `#/settings/queue`:
+a page over the tabs, opened from the subject menu's **Work** row under The
+household and from a bell entry of kind `activity` (brain#112). It is the
+household's, whichever subject is open. Each page under it is a path the
+browser's back steps through: `task/<n>`, `task/<n>/act/<id>`,
+`task/<n>/new`, `new` (or `new/<citation>`), `template/<name>`,
+`template/<name>/act/<position>` and `doc/<citation>`.
 
-- **Filters:** Who (me, the default; anyone; a member; Claude Code;
-  holder not known yet), Status (ready, active, waiting, blocked,
-  failed) and Project.
-- **Waiting on me** (the default view): the ready activities, reviews
-  among them, blocking-most first, then oldest ready; then, collapsed,
-  mine in a later layer or blocked, and the tasks I own with their next
-  action.
-- **A card reads as a sentence**: the verb (gated marked), the artifact
-  at its pin, the task › project, ready and for how long, and whose; a
-  blocked card's second line names the task it waits on, that task's
-  next action and whose it is (Scarlett's guard), a failed card's what
-  failed. One primary button: **Review** on a review, **Take** on a
-  ready activity. Tapping the sentence opens the moves: finish (a
-  promote-to-house says it finishes by promoting), failed, block
-  (waiting on a task, or on a person), reopen, skip (asks twice), assign.
-- **Review** opens the decision: the authorization line (this revision
-  at its head, this destination, this action), a note, keep-it-where-it-is
-  when it authorizes a gated step, the return target for a refusal (the
-  template's default named), Approve, Request changes, Decline.
-- **Task #n ›** opens the task: its outcome, owner, index document and
-  links, its layers with the open one marked, each activity as a chip,
-  what waits on it, the open slots to fill, its history, and Drop (its
-  owner or a witness, asks twice).
-- **New task:** project (or a new one), template, title, slug, done
-  when, the design's citation, and where the work stands (a later layer
-  imports the earlier ones done, with links).
-- **Setting up** (witnesses only): the starter templates to add, and the cutover: commit the old queue,
-  then turn the house queue on naming that commit (offered once a
-  template exists), or revert with a note.
-
-- **Edit layers** (the task's owner or a witness): started work and
-  closed layers shown locked; pending activities move up or down a
-  layer, or go; new ones are added from the open layer on, or as a new
-  layer; saved whole with a note (sunna#85).
-- **Templates:** a card lists the house's templates; "Write or change a
-  template" opens the editor: start blank, from a house template or from
-  a platform starter; name and title; each layer a row of activities
-  (verb, held by a role, artifact slot, and for a review or gated step
-  its destination and what it authorizes, the review's throwback,
-  optional); layers added, reordered, activities removed. What the
-  shape rule would refuse is listed before saving (sunna#88).
-- **Live:** the page listens on the household's channel and reads again
-  when the queue changes (sunna#87); nothing polls.
+- **The task list.** Task cards only; activities show on a task's page.
+  **Waiting on me** (the default) shows *Your move*: tasks whose open
+  layer has a ready or active activity of yours; **All open** adds *Under
+  way elsewhere*; **Project** narrows both. A card: title and number,
+  project and "layer N of M", its documents as chips (each opens the
+  document screen), the open layer's activities not yet finished, each
+  with a state dot, its name (the template's; an old task's shows its
+  type) and whose it is ("you" in your colour), and a blocked task's line
+  naming its blocker task and that task's next action and whose
+  ("Blocked on #12 Domain system rework · next: Draft the design, Lily").
+  **New task** at the top; the templates and the witness's setup below.
+- **A task's page.** Number, project, title, done when, owner and where it
+  came from ("from the doc-to-pr template", or "forked from doc-to-pr"
+  once its layers were edited). **Documents** first: each with its role
+  (a slot's name, `source`, or `worked on`), an empty slot as "not yet",
+  an attached one with × to detach, and **+ Add a document** (a citation
+  and its role: an empty slot is filled, so its activities work on it;
+  otherwise it is attached as a source). Then the **layers drawn**: a
+  numbered rail with a connector and arrow down to the next layer, each
+  layer done, open now, "opens when layer N is done" or later, its
+  activities as boxes (glyph and type, its slot, gated, its name, who
+  holds it, its state, coloured by state); a box opens the activity.
+  **New activity** (the owner or a witness). What waits on the task, its
+  history, and Drop (asks twice).
+- **An activity.** Its id and layer, glyph and type, its name; where it
+  stands (Ready for you, since when, the authorization line on a review)
+  with **Review it** on a review of yours (it opens the document screen)
+  and the other moves under **More moves** (take, finish, failed, block,
+  reopen, skip, assign). **The activity**: its name read-only ("Named in
+  the template", with a link to the template), then type, held by, layer
+  (the open layer on, or a new layer), works on (the task's documents, or
+  another citation), and for a review what approving lets happen, its
+  destination and where a refusal goes back to, and optional. **Save
+  changes**, Cancel and **Remove** (asks twice, saying it forks the
+  template). Saved through the layer edit (sunna#85) with the whole task
+  as it stands; started work is shown but not editable. Its history.
+- **New activity.** The fork warning first ("Adding an activity forks
+  doc-to-pr for this task. Task #9 then runs its own copy, named
+  doc-to-pr · #9; the template itself doesn't change"; once forked, that
+  it already runs its own copy), then a name (required), type, held by,
+  layer, works on (optional) and the review's fields once a type is
+  chosen. **Add the activity** once it has a name, a type and a holder.
+- **New task.** Project (or a new one), template, title, slug, done
+  when, a document's citation **as its design** (the design slot) **or a
+  source**, and where the work stands. Opened from **+ Start a task from
+  this** on the document screen, the citation is filled in. It opens the
+  new task's page.
+- **Templates.** Listed under the tasks (the house's, then the
+  platform's starters not yet in the house, and **A new template**). The
+  **template editor** reads like a task's page: name and title, the
+  **documents it works on** (its slots, with how many activities use
+  each, and **+ a document slot**), the layers drawn with each
+  activity's name, type, slot and role ("the witness · lets it be shared
+  · back to 1"), and **New activity**. A box opens the **template
+  activity**: name (required; every task made from it shows it), type,
+  held by (a role), layer, works on (a slot or no document), approving
+  lets, destination, if refused back to, optional; Save, Cancel and
+  Remove write into the template's draft, which is kept while its pages
+  open and close. What the shape rule would refuse is listed before
+  **Save the template** (sunna#88); tasks already open keep their layers.
+- **Setting up** (witnesses only): the starter templates to add, and the
+  cutover: commit the old queue, then turn the house queue on naming that
+  commit, or revert with a note.
+- **Live:** every page here, the document screen and the house's Chat
+  join the household's channel (one channel shared, left when the last
+  page leaves): a queue notice reads the queue's queries again, a
+  threads notice the house's threads and the document screens; her own
+  threads arrive on her channel (`ThreadWritten` on `threads`). Nothing
+  polls (sunna#87).
 - **After the cutover** a resident's Work card in Settings keeps her
   line (arm, off, runs, care) and links here; her old items stay below,
   read-only (sunna#86).
 
-Not built: no mobile-specific card layout beyond the settings column.
+## The document screen
+
+One screen for a document (design/document-threads.md §5), reached from
+a task's documents and cards (`#/settings/queue/doc/<citation>`), from a
+review (**Review it**), and from Records: the resident's viewer and the
+house's records show the same task line and thread bar (their own tools,
+history and edit stay theirs).
+
+- **Head:** ‹ Back, the citation at its pin, and **Part of task #N ·
+  title ›** for each task it belongs to (sunna#91). Belonging to none:
+  **+ Start a task from this** (New task with it filled in) and **Add to
+  task ▾**: search the open tasks, pick one, choose its role (an empty
+  slot, which fills it, or a source), **Add to #N**.
+- **The document** in the voice's serif.
+- **The floating bar** at its foot: the thread's row (how many posts, the
+  last one and whose, "also in the house" when her document is shared
+  there; it opens the thread) and, when a review of this document is open
+  for you, "<name> is yours" with **Review**: what approving lets happen,
+  a note (it posts to the thread, seshat#110), **Approve**, **Ask for
+  changes**, **Decline**; a refusal goes back to the template's
+  throwback.
+- **The thread sheet:** the document's one thread as bubbles, yours on
+  the right, hers (or another member's) on the left, the platform's lines
+  (a review's decision) apart; a reply box. A resident's document has
+  her own thread, *Between you two* (her threads, space mine; the first
+  reply starts it); once it is shared to the house its house thread
+  too, *In the house*. A house document has its house thread (the first
+  reply posts on the document and starts it). A reply written anywhere
+  appears without a reload.
+
+Checked in a browser on the local server at 390 and 1280 px (no
+horizontal overflow): a doc-to-pr task's named layers, an activity's
+edit saved, a new activity added (the task then forked), a template
+activity renamed and the template saved, a document added to a task from
+Records, the document screen from Records and from a task, a review's
+Ask for changes posted into the thread, and replies from another tab
+appearing live in her thread and in a house thread.
+
+Not built: a published piece's reader comments (the mocks' Review ·
+published); a pin chosen to read at (the document is read at its head);
+detaching a slot's document; the deeper "…" back navigation.
