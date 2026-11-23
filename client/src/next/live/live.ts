@@ -6,7 +6,7 @@ import type { QueryClient } from '@tanstack/react-query';
 import { Socket, type Channel } from 'phoenix';
 import { api } from '../../api/client';
 import { useShell } from '../state/store';
-import { fresh, keysFor, type Notice } from './notices';
+import { fresh, houseKeys, keysFor, type Notice } from './notices';
 
 const CURSOR_KEY = 'oneiroi.next.cursor';
 
@@ -180,31 +180,65 @@ export class Live {
   }
 
   /**
-   * Joins the household's notices (sunna#80) on the same socket: each
-   * change to the house queue reads the house's queries again, coalesced
-   * as the resident's are. Returns a leave function.
+   * Joins the household's notices (sunna#80, seshat#109) on the same
+   * socket: a change to the house queue reads the queue's queries again,
+   * and a thread written reads the house's threads (and the document
+   * screens' contexts, which name them) again, coalesced as the
+   * resident's are. Every page that wants the house live calls this; the
+   * one channel is shared and left when the last of them leaves (Phoenix
+   * closes a channel joined twice on one socket). Returns a leave function.
    */
   house(householdId: string): () => void {
+    let entry = this.houses.get(householdId);
+    if (!entry) {
+      entry = this.joinHouse(householdId);
+      this.houses.set(householdId, entry);
+    }
+    entry.count += 1;
+    const held = entry;
+    let left = false;
+    return () => {
+      if (left) return;
+      left = true;
+      held.count -= 1;
+      if (held.count === 0) {
+        held.leave();
+        this.houses.delete(householdId);
+      }
+    };
+  }
+
+  private houses = new Map<string, { count: number; leave: () => void }>();
+
+  private joinHouse(householdId: string): { count: number; leave: () => void } {
     let channel: Channel | null = null;
     let left = false;
     let flush: ReturnType<typeof setTimeout> | null = null;
+    const pending = new Map<string, unknown[]>();
     const invalidate = () => {
       flush = null;
-      void this.queries.invalidateQueries({ queryKey: ['household', 'queue'] }, { cancelRefetch: false });
+      const keys = [...pending.values()];
+      pending.clear();
+      for (const queryKey of keys) void this.queries.invalidateQueries({ queryKey }, { cancelRefetch: false });
+    };
+    const want = (keys: unknown[][]) => {
+      for (const k of keys) pending.set(JSON.stringify(k), k);
+      if (flush === null) flush = setTimeout(invalidate, COALESCE_MS);
     };
     void this.ready.then(() => {
       if (left || !this.socket) return;
       channel = this.socket.channel(`house:${householdId}`);
-      channel.on('notice', () => {
-        if (flush === null) flush = setTimeout(invalidate, COALESCE_MS);
-      });
+      channel.on('notice', (n: Notice) => want(houseKeys(n)));
       // A rejoin after an outage: what moved meanwhile is read again.
-      channel.join().receive('ok', invalidate);
+      channel.join().receive('ok', () => want([['household'], ['unread']]));
     });
-    return () => {
-      left = true;
-      if (flush !== null) clearTimeout(flush);
-      channel?.leave();
+    return {
+      count: 0,
+      leave: () => {
+        left = true;
+        if (flush !== null) clearTimeout(flush);
+        channel?.leave();
+      },
     };
   }
 

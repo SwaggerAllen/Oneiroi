@@ -1,8 +1,11 @@
 import type { Gift } from '../next/onboarding/gift';
 import type {
   Adapter,
+  DocumentContext,
   QueueCard,
   QueueEditEntry,
+  QueueTaskRef,
+  ResidentThread,
   QueueMove,
   QueueOverview,
   QueueSpec,
@@ -790,6 +793,15 @@ export const api = {
   queueFillSlot: (task: number, slot: string, artifact: string) => call<{ ok: true }>('POST', `/v1/household/queue/tasks/${task}/slots`, { slot, artifact }),
   queueEditLayers: (task: number, layers: QueueEditEntry[][], note: string) =>
     call<{ ok: true }>('PUT', `/v1/household/queue/tasks/${task}/layers`, { layers, note }),
+  queueAttachDocument: (task: number, citation: string, role: string) => call<{ ok: true }>('POST', `/v1/household/queue/tasks/${task}/documents`, { citation, role }),
+  queueDetachDocument: (task: number, citation: string) => call<{ ok: true }>('POST', `/v1/household/queue/tasks/${task}/documents/detach`, { citation }),
+  queueDocumentTasks: (citation: string) => call<QueueTaskRef[]>('GET', `/v1/household/queue/documents/tasks?citation=${encodeURIComponent(citation)}`),
+  /** Around one document (the document screen): its threads, its tasks, and the review of it open for you. */
+  documentContext: (citation: string) => call<DocumentContext>('GET', `/v1/documents/context?citation=${encodeURIComponent(citation)}`),
+  // Her own threads (seshat#106, #107): the space she and her witness share.
+  residentThread: (residentId: string, path: string) => call<ResidentThread>('GET', `/v1/residents/${residentId}/threads/read?path=${encodeURIComponent(path)}`),
+  residentThreadPost: (residentId: string, post: { title?: string; content?: string; doc?: string }) => call<{ path: string }>('POST', `/v1/residents/${residentId}/threads`, post),
+  residentThreadReply: (residentId: string, thread: string, content: string) => call<unknown>('POST', `/v1/residents/${residentId}/threads/replies`, { thread, content }),
   queueDrop: (task: number, note: string) => call<{ ok: true }>('POST', `/v1/household/queue/tasks/${task}/drop`, { note }),
   queueSnapshot: () => call<{ commit: string }>('POST', '/v1/household/queue/snapshot'),
   queueCutOver: (commit: string, note: string) => call<{ ok: true }>('POST', '/v1/household/queue/cutover', { commit, note }),

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { fresh, keysFor, type Notice } from './notices';
+import { DOC_CONTEXT, fresh, houseKeys, keysFor, type Notice } from './notices';
 
 const n = (stream: string, position = 1): Notice => ({ kind: 'X', stream, ref: null, position });
 
@@ -29,5 +29,14 @@ describe('notices', () => {
     expect(fresh(seen, n('memory', 7))).toBe(true);
     expect(fresh(seen, n('memory', 7))).toBe(false);
     expect(fresh(seen, n('memory', 8))).toBe(true);
+  });
+
+  it('reads her threads and the document screens again when a thread of hers is written', () => {
+    expect(keysFor('r1', { kind: 'ThreadWritten', stream: 'threads', ref: 'threads/7', position: 3 })).toEqual([['resident', 'r1', 'threads'], DOC_CONTEXT]);
+  });
+
+  it('reads the queue again for a queue notice, and the house and unread for a thread', () => {
+    expect(houseKeys(n('queue'))).toEqual([['household', 'queue']]);
+    expect(houseKeys(n('threads'))).toEqual([['household'], ['unread']]);
   });
 });

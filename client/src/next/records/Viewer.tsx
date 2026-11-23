@@ -6,6 +6,7 @@ import { Markdown } from '../chat/Markdown';
 import { targetsFor, type Citation } from '../chat/cite';
 import { declaredDomains } from '../chat/domains';
 import type { LibraryDocument } from '../../api/types';
+import { DocumentTasks, ThreadBar } from '../house/DocumentScreen';
 import * as reactCss from '../chat/reacts.css';
 import { ScrollArea } from '../shell/ScrollArea';
 import { useSubject } from '../state/resident';
@@ -65,6 +66,8 @@ export function Viewer({
           {doc?.written_at ? ` · ${new Date(doc.written_at).toLocaleString()}` : ''}
           {doc?.written_by ? ` · by ${doc.written_by}` : ''}
         </div>
+        {/* The one document screen's task line and thread (screen:next-house, sunna#91, seshat#107). */}
+        <DocumentTasks citation={`${slug}:${path}`} />
         <h1 className={css.title}>{doc?.title ?? path.split('/').pop()?.replace(/\.md$/, '')}</h1>
         <div className={css.tools}>
           <button type="button" className={css.quiet} onClick={() => onOpen(`history/${path}`)}>
@@ -116,6 +119,7 @@ export function Viewer({
             ))}
           </div>
         )}
+        <ThreadBar citation={`${slug}:${path}`} />
       </div>
     </ScrollArea>
   );

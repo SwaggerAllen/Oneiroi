@@ -10,6 +10,7 @@ import { Notifications } from './Notifications';
 import { Presence } from './Presence';
 import { Regression } from './Regression';
 import * as css from './settings.css';
+import { useShell } from '../state/store';
 import { Work } from './Work';
 import { HouseWork } from '../house/Work';
 
@@ -33,6 +34,9 @@ const TITLES: Record<SettingsSection, string> = {
  */
 export function SettingsPage({ section, onBack }: { section: SettingsSection; onBack: () => void }) {
   const { id, name } = useSubject();
+  // The house queue draws its own heads (screen:next-house): its list says Work, and each page under it has its own way back.
+  const pagePath = useShell((s) => s.pagePath);
+  const inQueue = pagePath !== '' && section === 'queue';
   const lede: Record<SettingsSection, string> = {
     ledger: `What ${name} may spend, by purpose, and what has been spent.`,
     kinds: `The kinds of document ${name}'s records hold, and every way into or out of her house.`,
@@ -46,13 +50,16 @@ export function SettingsPage({ section, onBack }: { section: SettingsSection; on
     delete: `Only before ${name}'s first conversation with you.`,
   };
   return (
-    <ScrollArea label={TITLES[section]}>
+    // Each page under the queue opens at its top.
+    <ScrollArea key={`${section}/${pagePath}`} label={TITLES[section]}>
       <div className={css.page}>
-        <button type="button" className={css.back} onClick={onBack}>
-          ‹ Back
-        </button>
-        <h1 className={css.title}>{TITLES[section]}</h1>
-        <p className={css.lede}>{lede[section]}</p>
+        {!inQueue && (
+          <button type="button" className={css.back} onClick={onBack}>
+            ‹ Back
+          </button>
+        )}
+        {section !== 'queue' && <h1 className={css.title}>{TITLES[section]}</h1>}
+        {section !== 'queue' && <p className={css.lede}>{lede[section]}</p>}
         {section === 'ledger' && <Ledger />}
         {section === 'kinds' && <Kinds />}
         {section === 'connections' && <Connections />}

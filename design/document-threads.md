@@ -3,7 +3,8 @@
 The witness's plan of 2026-11-23, settled in conversation while mocking the
 queue redesign (design canvas "House queue redesign"). It is the server
 half; the screens come after it and are built on it. Built: steps 1 to 3 (seshat#106 to #109), step 4 (sunna#90, #91,
-seshat#110) and step 5 (`GET /v1/documents/context`).
+seshat#110) and step 5 (`GET /v1/documents/context`); the screens after it
+(screens/next-house.md, Work; screens/next-records.md, the viewer).
 
 ## What the screens need
 

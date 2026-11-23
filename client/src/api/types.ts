@@ -814,6 +814,10 @@ export interface QueueActivity {
   task: number;
   layer: number;
   position: number;
+  /** Its name, from the template or the task's fork (sunna#90); null on a task opened before names. */
+  name: string | null;
+  /** The template slot it works on (design, pr), or null. */
+  slot: string | null;
   type: string;
   assignee: string;
   status: string;
@@ -840,6 +844,9 @@ export interface QueueCard {
   act: string;
   task: number;
   layer: number;
+  position?: number;
+  /** The template's name for it (sunna#90), or null on an old task. */
+  name: string | null;
   type: string;
   assignee: string;
   status: string;
@@ -872,8 +879,13 @@ export interface QueueTask {
   owner: string;
   index_doc: string;
   template: string | null;
+  template_version?: number | null;
+  /** Its layers edited since it opened: it runs its own copy of the template (sunna#90). */
+  forked?: boolean;
   links: string[];
   status: 'open' | 'complete' | 'dropped';
+  /** What it works on and what is attached (sunna#91): an unfilled slot has no citation. */
+  documents?: QueueDocument[];
   open_layer: number | null;
   opened_by: string;
   opened_at: string;
@@ -881,7 +893,16 @@ export interface QueueTask {
   note: string | null;
 }
 
+/** One of a task's documents (sunna#91): its role is a slot's name, `source`, or `worked on`. */
+export interface QueueDocument {
+  role: string;
+  citation: string | null;
+  key: string;
+  attached: boolean;
+}
+
 export interface QueueSpec {
+  name?: string | null;
   type: string;
   role?: string;
   assignee?: string;
@@ -920,6 +941,55 @@ export interface QueueTaskPage {
 }
 
 /** An entry of a layer edit (sunna#85): an existing activity by id, or a new one's spec. */
-export type QueueEditEntry = { id: string } | { type: string; assignee: string };
+export type QueueEditEntry = { id: string } | (Partial<QueueEditFields> & { id: string }) | (QueueEditFields & { name: string });
+
+/** What a pending activity's entry may change, and what a new one carries. */
+export interface QueueEditFields {
+  type: string;
+  assignee: string;
+  artifact: string | null;
+  destination: string | null;
+  action: string | null;
+  optional: boolean;
+  throwback: string | null;
+}
+
+/** A document's place, for the one document screen (seshat#109, sunna#91). */
+export interface DocThreadSummary {
+  path: string;
+  title: string | null;
+  doc: string | null;
+  replies: number;
+}
+
+export interface DocumentContext {
+  citation: string;
+  resident_id: string | null;
+  mine: DocThreadSummary | null;
+  house: DocThreadSummary | null;
+  tasks: QueueTaskRef[];
+  review: QueueCard | null;
+}
+
+export interface QueueTaskRef {
+  number: number;
+  title: string;
+  project: string;
+  status: string;
+}
+
+/** One post of a resident's own thread (seshat#106): `by_kind` is witness, resident, platform or job. */
+export interface ThreadPost {
+  meta: Record<string, string>;
+  body: string;
+}
+
+export interface ResidentThread {
+  path: string;
+  title: string;
+  trunk: ThreadPost | null;
+  replies: ThreadPost[];
+  doc: { path: string; commit: string | null; present: boolean } | null;
+}
 
 export type QueueMove = 'take' | 'finish' | 'skip' | 'block' | 'reopen' | 'fail' | 'assign' | 'decide';

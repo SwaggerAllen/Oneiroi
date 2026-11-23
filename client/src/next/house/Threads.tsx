@@ -7,6 +7,7 @@ import { Markdown } from '../chat/Markdown';
 import { ScrollArea } from '../shell/ScrollArea';
 import { BEATS, HOUSE, SHELF, WORKING, thread as threadKey, when } from './keys';
 import * as css from './threads.css';
+import { useHouseLive } from './workRoutes';
 
 /**
  * The house's Chat (screen:next-house; the witness, 2026-11-16: "more like
@@ -29,14 +30,16 @@ export function Threads() {
     queryFn: ({ pageParam }) => api.householdShelf(pageParam),
     initialPageParam: 0,
     getNextPageParam: (last) => last.next ?? undefined,
-    refetchInterval: 60_000,
   });
+  // Live on the household's channel (seshat#109): a thread written reads
+  // the shelf, the open thread and the unread counts again; nothing polls them.
+  useHouseLive(shelf.data?.pages[0]?.household_id);
   const working = useWorking();
   // Unread by thread (seshat#96, #97): a count on each card, and a line
   // for any thread the list has not loaded yet (the witness, 2026-11-20:
   // "I've got 2 messages in the household that are unread and I can't
   // seem to find them").
-  const unread = useQuery({ queryKey: ['unread'], queryFn: api.unread, refetchInterval: 30_000 }).data?.house?.threads ?? {};
+  const unread = useQuery({ queryKey: ['unread'], queryFn: api.unread }).data?.house?.threads ?? {};
   // Who is in each thread's rounds (the witness, 2026-11-20: "an indicator
   // of who's still opted in to a thread"); nothing under the beats.
   const rounds = useQuery({ queryKey: BEATS, queryFn: api.householdBeats, refetchInterval: 60_000 }).data?.round_threads ?? [];
@@ -211,7 +214,7 @@ function InRounds({ rounds }: { rounds: HouseRoundThread }) {
 
 /** One thread, in place: its trunk, each reply as a message, a ballot's vote. */
 function Opened({ path, accountId }: { path: string; accountId?: string }) {
-  const doc = useQuery({ queryKey: threadKey(path), queryFn: () => api.householdRead(path), refetchInterval: 30_000 });
+  const doc = useQuery({ queryKey: threadKey(path), queryFn: () => api.householdRead(path) });
   if (doc.isError) return <p className={chat.system}>The thread could not be read.</p>;
   if (!doc.data) return <p className={chat.system}>Reading the thread…</p>;
   return <Body doc={doc.data} path={path} accountId={accountId} />;

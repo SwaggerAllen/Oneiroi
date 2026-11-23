@@ -8,6 +8,7 @@ import { Tree } from '../records/Tree';
 import { ScrollArea } from '../shell/ScrollArea';
 import { useWide } from '../shell/useWide';
 import { useShell } from '../state/store';
+import { DocumentTasks, ThreadBar } from './DocumentScreen';
 import { HOUSE, thread as docKey } from './keys';
 
 const FILES = [...HOUSE, 'files'];
@@ -50,6 +51,10 @@ function HouseDoc({ path, onBack }: { path: string; onBack: () => void }) {
     retry: (n, e) => n < 2 && !(e instanceof RequestFailed && e.status === 404),
   });
   const folder = path.includes('/') ? path.split('/')[0] : 'the house';
+  // Its citation, for the one document screen's task line and thread (sunna#91, seshat#109); a thread is its own.
+  // The same read, under the same key, as the charter's naming of the house.
+  const slug = useQuery({ queryKey: [...HOUSE, 'name'], queryFn: () => api.householdShelf(0) }).data?.slug;
+  const citation = slug && !path.startsWith('threads/') ? `house/${slug}:doc/${path}` : null;
   return (
     <ScrollArea label={path}>
       <div className={css.viewer}>
@@ -57,11 +62,13 @@ function HouseDoc({ path, onBack }: { path: string; onBack: () => void }) {
           ‹ {folder}
         </button>
         <div className={css.meta}>{path}</div>
+        {citation && <DocumentTasks citation={citation} />}
         <h1 className={css.title}>{read.data?.title ?? path.split('/').pop()?.replace(/\.md$/, '')}</h1>
         {read.isPending && <p className={css.note}>Reading…</p>}
         {read.error && <p className={css.note}>This record couldn't be read.</p>}
         {read.data?.sharing && <Sharing path={path} doc={read.data} />}
         {read.data && !read.data.sharing && <Markdown text={strip(read.data.content)} onCite={() => undefined} breaks={path.startsWith('threads/')} />}
+        {citation && <ThreadBar citation={citation} />}
       </div>
     </ScrollArea>
   );

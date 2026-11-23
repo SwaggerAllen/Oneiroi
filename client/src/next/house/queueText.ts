@@ -1,4 +1,4 @@
-import type { QueueCard } from '../../api/types';
+import type { QueueActivity, QueueCard, QueueDocument, QueueEditEntry, QueueTask } from '../../api/types';
 
 /** Assignee to the house's name for it. */
 export type Names = Record<string, string>;
@@ -57,6 +57,8 @@ export const ROLES = ['author', 'witness', 'peer', 'builder', 'unknown'] as cons
 
 /** One activity of a template as the editor holds it. */
 export interface TemplateSpec {
+  /** What every task made from the template calls it (sunna#90). */
+  name: string;
   type: string;
   role: string;
   artifact?: string | null;
@@ -83,6 +85,7 @@ export function templateProblems(layers: TemplateSpec[][]): string[] {
     if (layer.length === 0) problems.push(`Layer ${i + 1} is empty.`);
     layer.forEach((s, j) => {
       const at = position(i, j);
+      if (!s.name.trim()) problems.push(`${at} needs a name.`);
       if (!s.type.trim()) problems.push(`${at} needs a verb.`);
       if (GATED.includes(s.type)) {
         if (!s.artifact) problems.push(`${at} (${s.type}) needs an artifact slot.`);
@@ -97,4 +100,197 @@ export function templateProblems(layers: TemplateSpec[][]): string[] {
     });
   });
   return problems;
+}
+
+// ---- the redesign (sunna#90, #91; design/document-threads.md) ----
+
+/** An activity's name is its template's (sunna#90); an old task's activity, opened before names, shows its type. */
+export const actName = (a: { name?: string | null; type: string }) => a.name?.trim() || a.type;
+
+/** Each type's glyph in the drawn layers. */
+const GLYPHS: Record<string, string> = {
+  draft: '✎',
+  review: '◉',
+  'promote-to-house': '↥',
+  promote: '↥',
+  deliver: '→',
+  implement: '⌘',
+  merge: '⇢',
+  send: '✉',
+  publish: '⇪',
+  spend: '¤',
+};
+export const glyph = (type: string) => GLYPHS[type] ?? '•';
+
+/** What approving a review lets happen, by the gated action it names. */
+export const LETS: Record<string, string> = { 'promote-to-house': 'it be shared', merge: 'it be merged', send: 'it be sent', publish: 'it be published', spend: 'it be spent' };
+
+/** A template's roles in words, as the editor offers them. */
+export const ROLE_WORDS: Record<string, string> = {
+  author: 'the task owner',
+  witness: 'the witness',
+  peer: 'the other resident',
+  builder: "the owner's Claude Code",
+  unknown: 'not known yet',
+};
+
+/** The types offered when an activity is written; whatever else a task holds stays as it is. */
+export const TYPES = ['draft', 'review', 'implement', 'deliver', 'promote-to-house', 'merge', 'send', 'publish'];
+
+export type LayerState = 'done' | 'open' | 'later';
+
+export interface DrawnActivity {
+  id: string;
+  name: string;
+  type: string;
+  glyph: string;
+  assignee: string;
+  view: string;
+  gated: boolean;
+  slot: string | null;
+}
+
+export interface DrawnLayer {
+  n: number;
+  state: LayerState;
+  label: string;
+  acts: DrawnActivity[];
+}
+
+/**
+ * A task's layers as the page draws them: numbered from 1, each done,
+ * open or later, the one after the open layer saying what it waits for,
+ * and each activity by its name, glyph, holder and state.
+ */
+export function drawLayers(layers: QueueActivity[][], open: number | null): DrawnLayer[] {
+  return layers.map((layer, i) => {
+    const state: LayerState = open === null || i < open ? 'done' : i === open ? 'open' : 'later';
+    const label = state === 'done' ? 'done' : state === 'open' ? 'open now' : i === (open ?? -2) + 1 ? `opens when layer ${i} is done` : 'later';
+    return {
+      n: i + 1,
+      state,
+      label,
+      acts: layer.map((a) => ({ id: a.act_id, name: actName(a), type: a.type, glyph: glyph(a.type), assignee: a.assignee, view: a.view, gated: a.gated, slot: a.slot })),
+    };
+  });
+}
+
+export interface TaskSummary {
+  task: QueueTask;
+  /** The layer open now, from 1, and how many there are. */
+  at: number;
+  of: number;
+  /** What is in progress now: the open layer's activities not finished. */
+  now: QueueCard[];
+  /** The first blocked card in the open layer, naming its blocker. */
+  blocked: QueueCard | null;
+}
+
+const FINISHED = new Set(['done', 'skipped']);
+
+/**
+ * The task list (lily's queue mocks, "Work · the task list"): each open
+ * task with where it stands and what is in progress, in two sections:
+ * Your move (a ready or active activity of the open layer is yours) and
+ * Under way elsewhere.
+ */
+export function taskSummaries(tasks: QueueTask[], cards: QueueCard[], me: string): { mine: TaskSummary[]; others: TaskSummary[] } {
+  const mine: TaskSummary[] = [];
+  const others: TaskSummary[] = [];
+  for (const task of tasks) {
+    if (task.status !== 'open') continue;
+    const own = cards.filter((c) => c.task === task.number);
+    const of = Math.max(task.open_layer === null ? 0 : task.open_layer + 1, ...own.map((c) => c.layer + 1));
+    const now = task.open_layer === null ? [] : own.filter((c) => c.layer === task.open_layer && !FINISHED.has(c.view));
+    const s: TaskSummary = { task, at: (task.open_layer ?? of - 1) + 1, of, now, blocked: now.find((c) => c.view === 'blocked') ?? null };
+    (now.some((c) => c.assignee === me && (c.view === 'ready' || c.view === 'active')) ? mine : others).push(s);
+  }
+  return { mine, others };
+}
+
+/** A blocked task's line: "Blocked on #12 Domain system rework · next: Draft the design, Lily". */
+export function blockedLine(c: QueueCard, names: Names): string {
+  if (!c.blocker) return `Blocked: ${c.reason ?? ''}`;
+  const next = c.blocker.next ? `${actName(c.blocker.next)}, ${nameOf(names, c.blocker.next.assignee)}` : 'nothing open';
+  return `Blocked on #${c.blocker.number} ${c.blocker.title} · next: ${next}`;
+}
+
+/** A citation's pin, if it has one: `lily:design/x.md@4e1c9a2` is pinned at 4e1c9a2. */
+export const pinOf = (citation: string) => (citation.includes('@') ? citation.slice(citation.lastIndexOf('@') + 1) : null);
+export const unpinned = (citation: string) => (citation.includes('@') ? citation.slice(0, citation.lastIndexOf('@')) : citation);
+
+/** Where a citation's words are read: the house's repository, or a resident's library by her slug. */
+export type Place = { house: true; slug: string; path: string } | { house: false; slug: string; path: string };
+
+export function placeOf(citation: string): Place | null {
+  const bare = unpinned(citation.trim());
+  const house = /^house\/([a-z][a-z0-9-]*):(doc|thread)\/(.+)$/.exec(bare);
+  if (house) return { house: true, slug: house[1], path: house[2] === 'thread' ? `threads/${house[3]}` : house[3] };
+  const at = bare.indexOf(':');
+  if (at <= 0 || bare.startsWith('slot:')) return null;
+  return { house: false, slug: bare.slice(0, at), path: bare.slice(at + 1) };
+}
+
+/** A resident's file is cited with or without its `.md`; the library reads it with. */
+export const withMd = (path: string) => (/\.[a-z0-9]+$/i.test(path.split('/').pop() ?? '') ? path : `${path}.md`);
+
+/** A task's documents as its page lists them: each with its role, an unfilled slot saying "not yet". */
+export function documentRows(docs: QueueDocument[]): { key: string; role: string; citation: string | null; shown: string; attached: boolean }[] {
+  return docs.map((d) => ({ key: d.key, role: d.key.startsWith('slot:') && !d.citation ? d.key.slice(5) : d.role, citation: d.citation, shown: d.citation ?? 'not yet', attached: d.attached }));
+}
+
+/**
+ * The roles a document can take on a task: each slot still empty (filling
+ * it gives its activities this document to work on), then a source.
+ */
+export function roleChoices(docs: QueueDocument[]): { role: string; fills: boolean; label: string }[] {
+  const empty = docs.filter((d) => d.key.startsWith('slot:') && !d.citation).map((d) => d.key.slice(5));
+  return [...new Set(empty)].map((role) => ({ role, fills: true, label: `its ${role}` })).concat([{ role: 'source', fills: false, label: 'a source' }]);
+}
+
+/**
+ * What adding (or removing) an activity does to the task's template
+ * (sunna#90): the first change forks it for this task; a task already
+ * forked runs its own copy; a task with no template has none to fork.
+ */
+export function forkNote(task: Pick<QueueTask, 'number' | 'template' | 'forked'>): string | null {
+  if (!task.template) return null;
+  if (task.forked) return `Task #${task.number} already runs its own copy, ${task.template} · #${task.number}; the change stays in it.`;
+  return `Adding an activity forks ${task.template} for this task. Task #${task.number} then runs its own copy, named ${task.template} · #${task.number}; the template itself doesn't change.`;
+}
+
+/** "from the doc-to-pr template", or "forked from doc-to-pr" once its layers were edited. */
+export const fromLine = (task: Pick<QueueTask, 'template' | 'forked'>) => (task.template ? (task.forked ? `forked from ${task.template}` : `from the ${task.template} template`) : 'written for this task');
+
+export type PostKind = 'mine' | 'theirs' | 'platform';
+
+/**
+ * Whose a thread's post is, for its bubble: a platform or job line (a
+ * review's decision is one, seshat#110) stands apart; a witness's is
+ * yours unless it names another witness; a resident's is hers.
+ */
+export function postKind(meta: Record<string, string | undefined>, accountId?: string): PostKind {
+  const kind = meta.by_kind;
+  if (kind === 'platform' || kind === 'job') return 'platform';
+  if (kind === 'witness') return accountId && meta.by_id && meta.by_id !== accountId ? 'theirs' : 'mine';
+  return 'theirs';
+}
+
+/**
+ * A task's whole arrangement after one change, as the layer edit takes
+ * it (sunna#85): every activity by its id where it stands, the changed
+ * one taken out and, unless it is removed (`to` null), put back at layer
+ * `to` (0-based; past the last, a new layer) as `entry`. A layer left
+ * empty goes.
+ */
+export function rearranged(layers: { act_id: string }[][], change: { id: string | null; to: number | null; entry: QueueEditEntry | null }): QueueEditEntry[][] {
+  const from = change.id === null ? -1 : layers.findIndex((l) => l.some((a) => a.act_id === change.id));
+  const out: QueueEditEntry[][] = layers.map((l, i) =>
+    l.flatMap((a) => (a.act_id !== change.id ? [{ id: a.act_id }] : i === change.to && change.entry ? [change.entry] : [])),
+  );
+  if (change.to !== null && change.entry && change.to !== from) {
+    if (change.to >= out.length) out.push([change.entry]);
+    else out[change.to] = [...out[change.to], change.entry];
+  }
+  return out.filter((l) => l.length > 0);
 }

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { formatHash, formatSettings, isTabHash, parseHash, parseSettings } from './routes';
+import { parseWorkPath } from '../house/workRoutes';
+import { formatHash, formatSettings, isTabHash, parseHash, parseSettings, parseSettingsPath } from './routes';
 import { topOf, useShell } from './store';
 
 describe('routes', () => {
@@ -90,5 +91,23 @@ describe('settings pages', () => {
     useShell.getState().setPage('ledger');
     useShell.getState().go({ tab: 'records', path: 'folder/notes' });
     expect(useShell.getState().page).toBeNull();
+  });
+
+  it("keeps the place inside a page: the house queue's task, activity and document", () => {
+    const hash = formatSettings('queue', 'doc/lily:design/x.md@4e1c9a2');
+    expect(parseSettings(hash)).toBe('queue');
+    expect(parseSettingsPath(hash)).toBe('doc/lily:design/x.md@4e1c9a2');
+    expect(parseSettingsPath('#/settings/queue')).toBe('');
+    expect(parseWorkPath(parseSettingsPath(hash))).toEqual({ page: 'doc', citation: 'lily:design/x.md@4e1c9a2' });
+    expect(parseWorkPath('task/9')).toEqual({ page: 'task', number: 9 });
+    expect(parseWorkPath('task/9/act/9.2')).toEqual({ page: 'activity', number: 9, act: '9.2' });
+    expect(parseWorkPath('task/9/new')).toEqual({ page: 'new-activity', number: 9 });
+    expect(parseWorkPath('new/house/strut:doc/a.md')).toEqual({ page: 'new-task', citation: 'house/strut:doc/a.md' });
+    expect(parseWorkPath('template/doc-to-pr/act/2.1')).toEqual({ page: 'template-activity', name: 'doc-to-pr', at: '2.1' });
+    expect(parseWorkPath('task/zero')).toEqual({ page: 'list' });
+    useShell.getState().setPage('queue', 'task/9');
+    expect(useShell.getState().pagePath).toBe('task/9');
+    useShell.getState().setTab('records');
+    expect(useShell.getState().pagePath).toBe('');
   });
 });
