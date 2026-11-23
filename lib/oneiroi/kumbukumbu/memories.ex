@@ -17,6 +17,7 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon
   alias Oneiroi.AgathosDaimon.Local
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Config
@@ -1121,6 +1122,29 @@ defmodule Oneiroi.Kumbukumbu.Memories do
       day: day,
       records: records,
       note: "labels derived again from the records' sources for #{day} (kumbukumbu#101)"
+    }
+
+    with {:ok, _} <- dispatch(command), do: :ok
+  end
+
+  @doc """
+  Every domain her agreement in force does not declare back to the common
+  room (kumbukumbu#106): messages tagged or carried, conversations'
+  current domain, documents' classifications. One event, carrying what
+  was declared. `:ok`.
+  """
+  def clear_undeclared_domains(resident_id, %Actor{} = actor) do
+    declared =
+      for %{person: p, domain: d} <- AgathosDaimon.declared_domains(resident_id),
+          do: %{"person" => p, "domain" => d}
+
+    command = %Commands.ClearUndeclaredDomains{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      declared: declared,
+      note:
+        "every domain the agreement in force does not declare goes back to the common room (kumbukumbu#106)"
     }
 
     with {:ok, _} <- dispatch(command), do: :ok

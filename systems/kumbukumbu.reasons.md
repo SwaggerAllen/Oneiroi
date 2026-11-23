@@ -828,3 +828,5 @@ refused for what the context discussed, not for what the words carried.
 Showing only what tripped the review keeps the judge on the one question
 it is for.
 
+## #106
+A tag that named a domain and was later retagged left its carry on the messages captured meanwhile, and nothing named them again; a classification in a domain the agreement dropped stayed in force. One clear over everything she keeps, carrying what was declared at the time, leaves no undeclared domain anywhere for the pass that follows to step around.

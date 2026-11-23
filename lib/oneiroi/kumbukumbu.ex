@@ -95,6 +95,7 @@ defmodule Oneiroi.Kumbukumbu do
       Events.Memory.HouseLetterSent,
       Events.Memory.HouseLettersRead,
       Events.Memory.LabelsDerived,
+      Events.Memory.UndeclaredDomainsCleared,
       Store.DerivedLabel,
       Store.Revision,
       Store.HouseLetter,
@@ -381,6 +382,7 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.HouseLetterSent, 6},
       {Oneiroi.Kumbukumbu.Events.Memory.HouseLettersRead, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.LabelsDerived, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.UndeclaredDomainsCleared, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagApproved, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagRejected, 1},
@@ -1457,6 +1459,12 @@ defmodule Oneiroi.Kumbukumbu do
   @doc "Inputs' labels as kept labels (kumbukumbu#101): `Ledger.label_set/1`."
   @spec input_labels([map()]) :: [map()]
   defexport(input_labels(inputs), do: Ledger.label_set(inputs))
+
+  @doc "Every domain her agreement does not declare back to the common room (kumbukumbu#106): messages, conversations, classifications."
+  @spec clear_undeclared_domains(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(clear_undeclared_domains(resident_id, actor),
+    do: Memories.clear_undeclared_domains(resident_id, actor)
+  )
 
   @doc ~s[Records a day's derived labels (kumbukumbu#101): each `%{"kind", "record_id", "labels", "edges"}`.]
   @spec derive_labels(String.t(), String.t(), [map()], Oneiroi.Actor.t()) ::

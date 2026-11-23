@@ -124,6 +124,10 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
     use Oneiroi.Command, fields: [:id, :numbers, :by]
   end
 
+  defmodule ClearUndeclaredDomains do
+    use Oneiroi.Command, fields: [:id, :declared, :note]
+  end
+
   defmodule DeriveLabels do
     use Oneiroi.Command, fields: [:id, :day, :records, :note]
   end

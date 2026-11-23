@@ -17,6 +17,55 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
     Session
   }
 
+  # Undeclared domains back to the common room (kumbukumbu#106): every
+  # message of hers, tagged or carried, and every conversation's current
+  # domain whose pair the agreement then in force did not declare.
+  fold(%Events.Memory.UndeclaredDomainsCleared{} = e, _metadata, fn multi ->
+    declared = MapSet.new(e.declared || [], &{&1["person"], &1["domain"]})
+
+    Multi.run(multi, :undeclared, fn repo, _changes ->
+      pairs =
+        repo.all(
+          from(m in Message,
+            where: m.resident_id == ^e.id and not is_nil(m.domain),
+            distinct: true,
+            select: {m.domain_person, m.domain}
+          )
+        )
+
+      current =
+        repo.all(
+          from(s in Session,
+            where: s.resident_id == ^e.id and not is_nil(s.current_domain),
+            distinct: true,
+            select: {s.current_person, s.current_domain}
+          )
+        )
+
+      for {person, domain} <- pairs, {person, domain} not in declared do
+        repo.update_all(
+          from(m in Message,
+            where: m.resident_id == ^e.id and m.domain_person == ^person and m.domain == ^domain
+          ),
+          set: [domain_person: nil, domain: nil]
+        )
+      end
+
+      for {person, domain} <- current, {person, domain} not in declared do
+        repo.update_all(
+          from(s in Session,
+            where:
+              s.resident_id == ^e.id and s.current_person == ^person and
+                s.current_domain == ^domain
+          ),
+          set: [current_person: nil, current_domain: nil]
+        )
+      end
+
+      {:ok, :cleared}
+    end)
+  end)
+
   fold(%Events.SessionOpened{} = e, _metadata, fn multi ->
     Multi.insert(
       multi,

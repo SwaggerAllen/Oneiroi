@@ -626,3 +626,6 @@ as good as the people who know the workflow can make it; that is the
 witness and the residents, not whoever can write JSON. Saying the shape
 rule's refusal before saving keeps the editor from becoming a guessing
 game against the server.
+
+## #89
+A domains turn that ended early, with rounds to spare, was taken as the day named, and whole conversations went untagged; the only measure of a day being done is that each of its conversations has a name. Clearing first means nothing the agreement no longer declares carries past the names the pass gives.

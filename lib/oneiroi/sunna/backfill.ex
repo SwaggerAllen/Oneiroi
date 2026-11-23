@@ -70,7 +70,8 @@ defmodule Oneiroi.Sunna.Backfill do
          {:ok, passes} <- passes(lists["passes"]),
          # Only declared domains (agathos-daimon#57): his life's, then hers.
          :ok <- declared(resident_id, :witness, his),
-         :ok <- declared(resident_id, :resident, hers) do
+         :ok <- declared(resident_id, :resident, hers),
+         :ok <- cleared(resident_id, passes) do
       stop(resident_id)
 
       # The labels pass alone runs once, on the last day (kumbukumbu#101).
@@ -173,7 +174,7 @@ defmodule Oneiroi.Sunna.Backfill do
          {:ok, note} <- port.backfill_note(id, pass, day, n, Map.take(args, ["his", "hers"])),
          {:ok, key} <- session(id, args["session_key"]),
          {:ok, result} <- port.wake(id, key, note, :chat) do
-      if Map.get(result, :rounds_spent) && n < turns(pass),
+      if (Map.get(result, :rounds_spent) || left?(port, id, pass, day)) && n < turns(pass),
         do: enqueue(%{args | "n" => n + 1, "session_key" => key}),
         else: next(args)
     else
@@ -217,6 +218,25 @@ defmodule Oneiroi.Sunna.Backfill do
           {:ok, :done}
         end
     end
+  end
+
+  # The domains pass is done when every conversation of the day has a
+  # name (sunna#89), not when a turn ends with rounds to spare: a turn
+  # that stopped early left whole conversations untagged.
+  defp left?(port, id, "domains", day) do
+    function_exported?(port, :backfill_left, 2) and port.backfill_left(id, day) != []
+  end
+
+  defp left?(_port, _id, _pass, _day), do: false
+
+  # A backfill that names domains starts from none undeclared
+  # (kumbukumbu#106, sunna#89): every message, conversation and
+  # classification of hers in a domain her agreement does not declare
+  # goes back to the common room before the first day.
+  defp cleared(resident_id, passes) do
+    if "domains" in passes,
+      do: Kumbukumbu.clear_undeclared_domains(resident_id, @actor),
+      else: :ok
   end
 
   defp turns("scenes"), do: Config.fetch!(:sunna, :backfill_scene_turns)

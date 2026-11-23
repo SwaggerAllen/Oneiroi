@@ -5,6 +5,7 @@ defmodule Oneiroi.Seshat.Projectors.Library do
   import Ecto.Query, only: [from: 2]
 
   alias Ecto.Multi
+  alias Oneiroi.Kumbukumbu.Events.Memory.UndeclaredDomainsCleared
   alias Oneiroi.Seshat.Events
   alias Oneiroi.Seshat.Kinds
 
@@ -29,6 +30,56 @@ defmodule Oneiroi.Seshat.Projectors.Library do
   # the first version set it here, so a rewrite's run found the row's
   # hash already equal to the file's and embedded nothing, and the suite
   # read a stale status off a file it had just changed.
+  # A classification in a domain the agreement does not declare goes back
+  # to the common room (kumbukumbu#106), and so does a proposal of one.
+  fold(%UndeclaredDomainsCleared{} = e, _metadata, fn multi ->
+    declared = MapSet.new(e.declared || [], &{&1["person"], &1["domain"]})
+
+    Multi.run(multi, :undeclared, fn repo, _changes ->
+      classified =
+        repo.all(
+          from(d in Document,
+            where: d.resident_id == ^e.id and not is_nil(d.class_domain),
+            distinct: true,
+            select: {d.class_person, d.class_domain}
+          )
+        )
+
+      proposed =
+        repo.all(
+          from(d in Document,
+            where: d.resident_id == ^e.id and not is_nil(d.proposed_domain),
+            distinct: true,
+            select: {d.proposed_person, d.proposed_domain}
+          )
+        )
+
+      for {person, domain} <- classified, {person, domain} not in declared do
+        repo.update_all(
+          from(d in Document,
+            where:
+              d.resident_id == ^e.id and d.class_person == ^person and
+                d.class_domain == ^domain
+          ),
+          set: [class_person: nil, class_domain: nil]
+        )
+      end
+
+      for {person, domain} <- proposed, {person, domain} not in declared do
+        repo.update_all(
+          from(d in Document,
+            where:
+              d.resident_id == ^e.id and d.proposed_person == ^person and
+                d.proposed_domain == ^domain
+          ),
+          set: [proposed_person: nil, proposed_domain: nil, proposed_note: nil, proposed_at: nil]
+        )
+      end
+
+      {:ok, :cleared}
+    end)
+  end)
+
   fold(%Events.DocumentWritten{} = e, _metadata, fn multi ->
     Multi.insert(
       multi,
