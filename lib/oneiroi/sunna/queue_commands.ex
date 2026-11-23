@@ -96,6 +96,14 @@ defmodule Oneiroi.Sunna.QueueCommands do
     use Oneiroi.Command, fields: [:id, :task, :slot, :artifact], bounds: [slot: 64, artifact: 300]
   end
 
+  # A task's layers edited after it is open (the witness, 2026-11-22):
+  # `layers` is the whole new arrangement, each entry an existing
+  # activity by `id` (with any fields to change while it is pending) or a
+  # new activity's spec. `carrier` as `OpenTask`'s, read by the service.
+  defmodule EditLayers do
+    use Oneiroi.Command, fields: [:id, :task, :layers, :carrier], decision: true
+  end
+
   defmodule DropTask do
     use Oneiroi.Command, fields: [:id, :task], decision: true
   end

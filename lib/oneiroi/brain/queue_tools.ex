@@ -16,7 +16,7 @@ defmodule Oneiroi.Brain.QueueTools do
   @doc "The tool names, all of the house."
   def names,
     do:
-      ~w(queue_list queue_task queue_templates queue_project_open queue_task_open queue_move queue_decide queue_fill_slot queue_drop)
+      ~w(queue_list queue_task queue_templates queue_project_open queue_task_open queue_task_edit queue_move queue_decide queue_fill_slot queue_drop)
 
   @doc "The tools that carry her words to the house."
   def delivering, do: names() -- ~w(queue_list queue_task queue_templates)
@@ -78,6 +78,16 @@ defmodule Oneiroi.Brain.QueueTools do
           links: %{type: "array", items: %{type: "string"}}
         },
         [:project, :slug, :title, :outcome]
+      ),
+      tool(
+        "queue_task_edit",
+        "Edit an open task's layers (sunna#85): layers is the whole new arrangement, an array of layers, each an array of entries: an existing activity as {\"id\": \"12.3\"} (with any of type, assignee, artifact, destination, action, optional, throwback to change it while it is pending) or a new activity's spec. What has started (done, skipped, active, blocked, failed) stays in its layer unchanged; the layers before the open one stay as they are; a pending activity left out is removed. Yours when you own the task; note says why.",
+        %{
+          task: %{type: "integer"},
+          layers: %{type: "array", items: %{type: "array", items: %{type: "object"}}},
+          note: %{type: "string"}
+        },
+        [:task, :layers, :note]
       ),
       tool(
         "queue_move",
@@ -235,6 +245,15 @@ defmodule Oneiroi.Brain.QueueTools do
     with :ok <-
            Sunna.queue_fill_slot(h, integer(args["task"]), args["slot"], args["artifact"], actor),
          do: "slot:#{args["slot"]} is #{args["artifact"]} now."
+  end
+
+  defp run("queue_task_edit", args, h, actor, _me) do
+    task = integer(args["task"])
+
+    with :ok <-
+           Sunna.queue_edit_layers(h, task, args["layers"], to_string(args["note"] || ""), actor) do
+      "Task ##{task}'s layers edited.\n\n" <> task_text(Sunna.queue_task(h, task), names(h))
+    end
   end
 
   defp run("queue_drop", args, h, actor, _me) do

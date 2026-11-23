@@ -115,7 +115,20 @@ export function Work() {
         <Said said={act.said} />
       </Card>
 
-      <Card title={`In order · ${live.length}`}>
+      {q.house_queue ? (
+        // At the cutover (lily:design/queue-ia §2.1) her items give way to
+        // the house queue: the line above still runs it, and her work is
+        // read in Work with her as the holder.
+        <Card title="Her work">
+          <p className={css.note}>Since the cutover {name}'s work is in the house queue, and this line runs it. Her items stay below, read-only.</p>
+          <div>
+            <a className={css.link} href="#/settings/queue">
+              Open Work ›
+            </a>
+          </div>
+        </Card>
+      ) : null}
+      <Card title={q.house_queue ? `Before the cutover · ${live.length}` : `In order · ${live.length}`}>
         {live.length === 0 && <p className={css.note}>Nothing open.</p>}
         <ol className={css.list} aria-label="Work items">
           {live.map((item, i) => (
@@ -140,29 +153,31 @@ export function Work() {
         </ol>
       </Card>
 
-      <Card title="Add work">
-        <form
-          aria-label="Add work"
-          className={css.column}
-          onSubmit={(e) => {
-            e.preventDefault();
-            const w = what.trim();
-            const d = doneWhen.trim();
-            if (!w || !d) return;
-            setWhat('');
-            setDoneWhen('');
-            run(() => api.addWork(id, w, d).then((r) => `Added as #${r.number}.`));
-          }}
-        >
-          <Field label="What (one line)" value={what} onChange={(e) => setWhat(e.target.value)} />
-          <Field label="Done when" value={doneWhen} onChange={(e) => setDoneWhen(e.target.value)} />
-          <div>
-            <button type="submit" className={css.primary} disabled={what.trim() === '' || doneWhen.trim() === '' || act.busy}>
-              Add to the queue
-            </button>
-          </div>
-        </form>
-      </Card>
+      {!q.house_queue && (
+        <Card title="Add work">
+          <form
+            aria-label="Add work"
+            className={css.column}
+            onSubmit={(e) => {
+              e.preventDefault();
+              const w = what.trim();
+              const d = doneWhen.trim();
+              if (!w || !d) return;
+              setWhat('');
+              setDoneWhen('');
+              run(() => api.addWork(id, w, d).then((r) => `Added as #${r.number}.`));
+            }}
+          >
+            <Field label="What (one line)" value={what} onChange={(e) => setWhat(e.target.value)} />
+            <Field label="Done when" value={doneWhen} onChange={(e) => setDoneWhen(e.target.value)} />
+            <div>
+              <button type="submit" className={css.primary} disabled={what.trim() === '' || doneWhen.trim() === '' || act.busy}>
+                Add to the queue
+              </button>
+            </div>
+          </form>
+        </Card>
+      )}
 
       {finished.length > 0 && (
         <Card title="Lately finished">

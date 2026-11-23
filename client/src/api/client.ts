@@ -2,6 +2,7 @@ import type { Gift } from '../next/onboarding/gift';
 import type {
   Adapter,
   QueueCard,
+  QueueEditEntry,
   QueueMove,
   QueueOverview,
   QueueTaskPage,
@@ -784,6 +785,8 @@ export const api = {
   queueMove: (task: number, act: string, move: QueueMove, fields: Record<string, unknown> = {}) =>
     call<{ ok: true }>('POST', `/v1/household/queue/tasks/${task}/activities/${encodeURIComponent(act)}/${move}`, fields),
   queueFillSlot: (task: number, slot: string, artifact: string) => call<{ ok: true }>('POST', `/v1/household/queue/tasks/${task}/slots`, { slot, artifact }),
+  queueEditLayers: (task: number, layers: QueueEditEntry[][], note: string) =>
+    call<{ ok: true }>('PUT', `/v1/household/queue/tasks/${task}/layers`, { layers, note }),
   queueDrop: (task: number, note: string) => call<{ ok: true }>('POST', `/v1/household/queue/tasks/${task}/drop`, { note }),
   queueSnapshot: () => call<{ commit: string }>('POST', '/v1/household/queue/snapshot'),
   queueCutOver: (commit: string, note: string) => call<{ ok: true }>('POST', '/v1/household/queue/cutover', { commit, note }),

@@ -64,7 +64,21 @@ defmodule Oneiroi.Seshat.QueueIndexTest do
     assert read(h) =~ "drafted"
     assert {:ok, [%{sha: short} | _]} = SimaQian.household_log(h, "tasks/queue/ia.md", 1)
     assert String.starts_with?(sha2, short)
-    _ = andrew
+    # In Records as any house document: listed under Tasks, read, never edited by hand.
+    {:ok, files} = Seshat.household_files(andrew)
+
+    assert %{kind: "task", title: "The queue IA"} =
+             Enum.find(files.documents, &(&1.path == "tasks/queue/ia.md"))
+
+    assert Enum.any?(files.kinds, &(&1.kind == "task" and &1.label == "Tasks"))
+
+    assert {:ok, %{kind: "task", content: content}} =
+             Seshat.household_read(andrew, "tasks/queue/ia.md")
+
+    assert content =~ "**Done when:** built"
+
+    assert {:error, %{site: :seshat_household_edit_rendered}} =
+             Seshat.household_edit(andrew, "tasks/queue/ia.md", %{content: "mine now"})
   end
 
   defp read(h), do: File.read!(Path.join(Household.dir(h), "tasks/queue/ia.md"))

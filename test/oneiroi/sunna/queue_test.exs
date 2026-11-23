@@ -353,6 +353,209 @@ defmodule Oneiroi.Sunna.QueueTest do
     :ok = Queues.take(ctx.h, n, "#{n}.6", ctx.lily)
   end
 
+  describe "editing a task's layers (sunna#85)" do
+    setup ctx do
+      :ok = Queues.open_project(ctx.h, %{slug: "e", name: "E"}, ctx.lily)
+
+      {:ok, n} =
+        Queues.open_task(
+          ctx.h,
+          %{
+            project: "e",
+            slug: "t",
+            title: "T",
+            outcome: "done",
+            layers: [
+              [%{type: "draft", assignee: ctx.a_lily}],
+              [
+                %{type: "research", assignee: ctx.a_lily},
+                %{type: "notes", assignee: ctx.a_scarlett}
+              ],
+              [%{type: "review", assignee: ctx.a_andrew}]
+            ]
+          },
+          ctx.lily
+        )
+
+      :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
+      %{n: n}
+    end
+
+    defp ids(ctx),
+      do: Enum.map(Queues.task(ctx.h, ctx.n).layers, fn l -> Enum.map(l, & &1.act_id) end)
+
+    test "pending work is changed, moved, removed and added to; new ids continue", ctx do
+      n = ctx.n
+
+      :ok =
+        Queues.edit_layers(
+          ctx.h,
+          n,
+          [
+            [%{id: "#{n}.1"}],
+            [%{id: "#{n}.2", type: "deep research"}, %{type: "outline", assignee: ctx.a_lily}],
+            [%{type: "fact-check", assignee: ctx.a_scarlett}],
+            [%{id: "#{n}.4"}]
+          ],
+          "notes folded into research; a fact-check before review",
+          ctx.lily
+        )
+
+      assert ids(ctx) == [["#{n}.1"], ["#{n}.2", "#{n}.5"], ["#{n}.6"], ["#{n}.4"]]
+      assert %{type: "deep research", view: "ready"} = act(ctx, n, "#{n}.2")
+      assert act(ctx, n, "#{n}.6").view == "waiting"
+      assert Enum.any?(Queues.task(ctx.h, n).history, &(&1.what == "layers edited"))
+
+      # A removed id is never given again.
+      :ok =
+        Queues.edit_layers(
+          ctx.h,
+          n,
+          [[%{id: "#{n}.1"}], [%{id: "#{n}.2"}], [%{id: "#{n}.4"}]],
+          "trim",
+          ctx.lily
+        )
+
+      :ok =
+        Queues.edit_layers(
+          ctx.h,
+          n,
+          [
+            [%{id: "#{n}.1"}],
+            [%{id: "#{n}.2"}, %{type: "x", assignee: ctx.a_lily}],
+            [%{id: "#{n}.4"}]
+          ],
+          "add",
+          ctx.lily
+        )
+
+      assert ids(ctx) == [["#{n}.1"], ["#{n}.2", "#{n}.7"], ["#{n}.4"]]
+    end
+
+    test "what started stays put, the closed layers stay, and only the owner or a witness edits",
+         ctx do
+      n = ctx.n
+      refused = &match?({:error, %{kind: :sunna_queue_edit_refused}}, &1)
+
+      # The done draft removed, moved, or changed.
+      assert refused.(
+               Queues.edit_layers(
+                 ctx.h,
+                 n,
+                 [[%{id: "#{n}.2"}, %{id: "#{n}.3"}], [%{id: "#{n}.4"}]],
+                 "x",
+                 ctx.lily
+               )
+             )
+
+      assert refused.(
+               Queues.edit_layers(
+                 ctx.h,
+                 n,
+                 [[%{id: "#{n}.2"}], [%{id: "#{n}.1"}, %{id: "#{n}.3"}], [%{id: "#{n}.4"}]],
+                 "x",
+                 ctx.lily
+               )
+             )
+
+      assert refused.(
+               Queues.edit_layers(
+                 ctx.h,
+                 n,
+                 [
+                   [%{id: "#{n}.1", type: "rewrite"}],
+                   [%{id: "#{n}.2"}, %{id: "#{n}.3"}],
+                   [%{id: "#{n}.4"}]
+                 ],
+                 "x",
+                 ctx.lily
+               )
+             )
+
+      # Something new in a closed layer.
+      assert refused.(
+               Queues.edit_layers(
+                 ctx.h,
+                 n,
+                 [
+                   [%{id: "#{n}.1"}, %{type: "late", assignee: ctx.a_lily}],
+                   [%{id: "#{n}.2"}, %{id: "#{n}.3"}],
+                   [%{id: "#{n}.4"}]
+                 ],
+                 "x",
+                 ctx.lily
+               )
+             )
+
+      # An active one moved.
+      :ok = Queues.take(ctx.h, n, "#{n}.2", ctx.lily)
+
+      assert refused.(
+               Queues.edit_layers(
+                 ctx.h,
+                 n,
+                 [[%{id: "#{n}.1"}], [%{id: "#{n}.3"}], [%{id: "#{n}.2"}, %{id: "#{n}.4"}]],
+                 "x",
+                 ctx.lily
+               )
+             )
+
+      assert {:error, %{kind: :sunna_queue_not_yours}} =
+               Queues.edit_layers(
+                 ctx.h,
+                 n,
+                 [[%{id: "#{n}.1"}], [%{id: "#{n}.2"}, %{id: "#{n}.3"}], [%{id: "#{n}.4"}]],
+                 "x",
+                 ctx.scarlett
+               )
+
+      :ok =
+        Queues.edit_layers(
+          ctx.h,
+          n,
+          [[%{id: "#{n}.1"}], [%{id: "#{n}.2"}, %{id: "#{n}.3"}], [%{id: "#{n}.4"}]],
+          "as was",
+          ctx.andrew
+        )
+    end
+
+    test "the shape rule holds after an edit, and removing the last pending work completes the task",
+         ctx do
+      n = ctx.n
+
+      assert {:error, %{kind: :sunna_queue_shape}} =
+               Queues.edit_layers(
+                 ctx.h,
+                 n,
+                 [
+                   [%{id: "#{n}.1"}],
+                   [%{id: "#{n}.2"}, %{id: "#{n}.3"}],
+                   [
+                     %{
+                       type: "send",
+                       assignee: ctx.a_lily,
+                       artifact: "lily:writing/x",
+                       destination: "email"
+                     }
+                   ]
+                 ],
+                 "send it straight",
+                 ctx.lily
+               )
+
+      :ok =
+        Queues.edit_layers(
+          ctx.h,
+          n,
+          [[%{id: "#{n}.1"}]],
+          "the draft was the whole of it",
+          ctx.lily
+        )
+
+      assert %{task: %{status: "complete"}} = Queues.task(ctx.h, n)
+    end
+  end
+
   test "a slot is filled, and finishing every layer completes the task", ctx do
     {:ok, n} = doc_to_pr(ctx)
     :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)

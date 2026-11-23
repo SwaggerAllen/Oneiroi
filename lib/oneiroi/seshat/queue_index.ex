@@ -14,6 +14,7 @@ defmodule Oneiroi.Seshat.QueueIndex do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.Seshat.Household.Files
   alias Oneiroi.Seshat.Household.Records
   alias Oneiroi.Sunna
 
@@ -44,6 +45,9 @@ defmodule Oneiroi.Seshat.QueueIndex do
     task: #{t.number}
     project: #{t.project}
     owner: #{yaml(name(t.owner, names))}
+    by: #{yaml(name(t.owner, names))}
+    posted_at: #{DateTime.to_iso8601(t.opened_at)}
+    edited_at: #{edited(history, t)}
     status: #{t.status}
     template: #{t.template || "none"}
     rendered: from the house queue's rows; edits here are overwritten
@@ -64,6 +68,11 @@ defmodule Oneiroi.Seshat.QueueIndex do
     #{Enum.map_join(history, "\n", &history_line(&1, names))}
     """
   end
+
+  # The last change the task's history records: what the Records list
+  # reads as written.
+  defp edited([], t), do: DateTime.to_iso8601(t.opened_at)
+  defp edited(history, _t), do: history |> List.last() |> Map.fetch!(:at) |> DateTime.to_iso8601()
 
   defp open(%{status: "open", open_layer: i}) when is_integer(i), do: ", layer #{i + 1} open"
   defp open(_t), do: ""
@@ -171,5 +180,6 @@ defmodule Oneiroi.Seshat.QueueIndex do
 
   defp name(a, names), do: Map.get(names, a, a)
   defp short(pin), do: String.slice(pin, 0, 7)
-  defp yaml(text), do: inspect(to_string(text))
+  # One line of the house's front matter, as `Files.render/2` writes it.
+  defp yaml(text), do: Files.one_line(to_string(text))
 end

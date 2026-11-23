@@ -139,6 +139,16 @@ defmodule Oneiroi.Sunna.Commands do
       bounds: [status: 16, blocked_on: 300]
   end
 
+  # A run of a house queue activity on her work line (sunna#86): the
+  # household, the task and the activity, in its conversation, on her day.
+  defmodule StartActivityRun do
+    use Oneiroi.Command, fields: [:id, :household, :task, :act, :session_key, :day]
+  end
+
+  defmodule EndActivityRun do
+    use Oneiroi.Command, fields: [:id, :act, :stopped]
+  end
+
   defmodule StartWork do
     use Oneiroi.Command, fields: [:id, :number, :session_key, :day]
   end

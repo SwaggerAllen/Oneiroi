@@ -230,6 +230,24 @@ defmodule Oneiroi.Seshat.Kinds do
       access: :household,
       household: true
     },
+    # The house queue's task index documents (sunna#80, seshat#104):
+    # tasks/<project>/<task>.md, rendered by the platform from the queue's
+    # rows on every change; read and cited like any house document, never
+    # written by a post or an edit, since the queue is where a task changes.
+    %{
+      kind: "task",
+      folder: "tasks",
+      # Cited as a house document (`house/<slug>:doc/tasks/...`), never
+      # minting a resident's own citations.
+      cites: false,
+      has_status: false,
+      layout:
+        "tasks/<project>/<task>.md: a house queue task's index document, its outcome, layers, links and history, rendered from the queue",
+      sidecar: nil,
+      adoption: :none,
+      access: :core,
+      household: true
+    },
     %{
       kind: "mail",
       folder: "mail",
@@ -656,6 +674,7 @@ defmodule Oneiroi.Seshat.Kinds do
     {"wiki", "Wiki"},
     {"posts", "Posts"},
     {"thread", "Threads"},
+    {"task", "Tasks"},
     {"scratch", "Scratch"},
     {"journal", "Journal"},
     {"scenes", "Scenes"},

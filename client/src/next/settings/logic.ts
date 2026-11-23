@@ -158,6 +158,7 @@ export function loopLine(name: string, q: WorkQueue, nowMs: number = Date.now())
   const blocked = q.items.filter((i) => i.status === 'blocked').map((i) => `#${i.number}`);
   const held = q.items.filter((i) => i.status === 'held').map((i) => `#${i.number}`);
   const skips = (blocked.length > 0 ? ` Stepping over blocked ${blocked.join(', ')}.` : '') + (held.length > 0 ? ` Stepping over ${held.join(', ')}, held for you.` : '');
+  if (q.running_act) return `Running activity ${q.running_act} of task #${q.running_task} now.${skips} ${runs} ${line}`;
   if (q.running !== null) {
     const run = runSeconds(q, q.running, nowMs);
     return `Running item #${q.running} now${run === null ? '' : `, for ${span(run)}`}.${skips} ${runs} ${line}`;

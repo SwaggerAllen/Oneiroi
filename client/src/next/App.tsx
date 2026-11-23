@@ -13,6 +13,7 @@ import { Shell } from './shell/Shell';
 import * as css from './shell/shell.css';
 import { HOUSE_SUBJECT, SubjectContext } from './state/resident';
 import { HouseHome } from './house/HouseHome';
+import { LiveContext } from './live/context';
 import { Theme } from './theme/Theme';
 import { Auth } from './onboarding/Auth';
 import { Creation } from './onboarding/Creation';
@@ -147,24 +148,26 @@ function Home({ residentId, residentName }: { residentId: string; residentName: 
   const operatorItems = useOperatorQueue();
 
   return (
-    <Shell
-      residentId={residentId}
-      residentName={residentName}
-      waiting={(bell.data ?? []).filter((e) => e.kind !== 'notifications').length + (notifications.ask ? 1 : 0) + operatorItems.length}
-      failing={(bell.data ?? []).some(isFailure)}
-      onReconnect={() => void live.reconnect()}
-      renderTab={(tab, path) =>
-        tab === 'chat' ? (
-          <ChatTab residentId={residentId} residentName={residentName} live={live} path={path} />
-        ) : tab === 'records' ? (
-          <RecordsTab residentId={residentId} path={path} />
-        ) : tab === 'soul' ? (
-          <SoulTab path={path} />
-        ) : (
-          <TimeTab path={path} />
-        )
-      }
-    />
+    <LiveContext.Provider value={live}>
+      <Shell
+        residentId={residentId}
+        residentName={residentName}
+        waiting={(bell.data ?? []).filter((e) => e.kind !== 'notifications').length + (notifications.ask ? 1 : 0) + operatorItems.length}
+        failing={(bell.data ?? []).some(isFailure)}
+        onReconnect={() => void live.reconnect()}
+        renderTab={(tab, path) =>
+          tab === 'chat' ? (
+            <ChatTab residentId={residentId} residentName={residentName} live={live} path={path} />
+          ) : tab === 'records' ? (
+            <RecordsTab residentId={residentId} path={path} />
+          ) : tab === 'soul' ? (
+            <SoulTab path={path} />
+          ) : (
+            <TimeTab path={path} />
+          )
+        }
+      />
+    </LiveContext.Provider>
   );
 }
 

@@ -178,6 +178,35 @@ export class Live {
     return channel;
   }
 
+  /**
+   * Joins the household's notices (sunna#80) on the same socket: each
+   * change to the house queue reads the house's queries again, coalesced
+   * as the resident's are. Returns a leave function.
+   */
+  house(householdId: string): () => void {
+    let channel: Channel | null = null;
+    let left = false;
+    let flush: ReturnType<typeof setTimeout> | null = null;
+    const invalidate = () => {
+      flush = null;
+      void this.queries.invalidateQueries({ queryKey: ['household', 'queue'] }, { cancelRefetch: false });
+    };
+    void this.ready.then(() => {
+      if (left || !this.socket) return;
+      channel = this.socket.channel(`house:${householdId}`);
+      channel.on('notice', () => {
+        if (flush === null) flush = setTimeout(invalidate, COALESCE_MS);
+      });
+      // A rejoin after an outage: what moved meanwhile is read again.
+      channel.join().receive('ok', invalidate);
+    });
+    return () => {
+      left = true;
+      if (flush !== null) clearTimeout(flush);
+      channel?.leave();
+    };
+  }
+
   stop() {
     this.stopped = true;
     this.resident?.leave();

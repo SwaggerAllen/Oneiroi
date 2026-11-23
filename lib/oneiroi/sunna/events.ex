@@ -235,6 +235,18 @@ defmodule Oneiroi.Sunna.Events do
       fields: [:id, :number, :shipped, :slipped, :why, :status, :blocked_on]
   end
 
+  defmodule ActivityRunStarted do
+    # A house queue activity's run claimed on her work line (sunna#86).
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :household, :task, :act, :session_key, :day]
+  end
+
+  defmodule ActivityRunEnded do
+    # The activity's run over; `stopped` when a stop ended it (brain#61).
+    use Oneiroi.Event, version: 1, fields: [:id, :act, :stopped]
+  end
+
   defmodule WorkStarted do
     # A run of an item claimed, in its conversation, on the resident's day.
     use Oneiroi.Event, version: 1, fields: [:id, :number, :session_key, :day]

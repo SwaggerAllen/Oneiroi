@@ -127,6 +127,9 @@ defmodule Oneiroi.Seshat.Household.Files do
   # A promoted copy keeps her path under her folder (seshat#99).
   defp in_folder?(%{kind: "shared"}, path), do: length(Path.split(path)) >= 3
 
+  # A task's index document is one deeper, under its project (seshat#104).
+  defp in_folder?(%{kind: "task"}, path), do: length(Path.split(path)) == 3
+
   defp in_folder?(kind, path), do: Path.dirname(path) == kind.folder
 
   @doc false

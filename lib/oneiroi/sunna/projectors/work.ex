@@ -127,6 +127,43 @@ defmodule Oneiroi.Sunna.Projectors.Work do
     end)
   end)
 
+  # A house queue activity's run on her line (sunna#86): counted in the
+  # day's runs as an item's is, the loop's record naming the activity.
+  fold(%Events.ActivityRunStarted{} = e, _metadata, fn multi ->
+    multi
+    |> Multi.run(:day_runs, fn repo, _ ->
+      row = repo.one(from(q in WorkQueue, where: q.resident_id == ^e.id))
+      {:ok, if(row && row.run_day == e.day, do: row.runs_on_day + 1, else: 1)}
+    end)
+    |> Multi.run(:queue, fn repo, %{day_runs: runs} ->
+      upsert(repo, e.id,
+        running_act: e.act,
+        running_task: e.task,
+        running_household: e.household,
+        running_key: e.session_key,
+        running_since: e.at,
+        rested_reason: nil,
+        rested_at: nil,
+        run_day: e.day,
+        runs_on_day: runs
+      )
+    end)
+  end)
+
+  fold(%Events.ActivityRunEnded{} = e, _metadata, fn multi ->
+    queue(
+      multi,
+      e.id,
+      [
+        running_act: nil,
+        running_task: nil,
+        running_household: nil,
+        running_key: nil,
+        running_since: nil
+      ] ++ if(e.stopped, do: [rested_reason: Work.stopped_rest(), rested_at: e.at], else: [])
+    )
+  end)
+
   fold(%Events.WorkRunEnded{} = e, _metadata, fn multi ->
     multi
     |> Multi.run(:worked, fn repo, _ -> worked(repo, e) end)

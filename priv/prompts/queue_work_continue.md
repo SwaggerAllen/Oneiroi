@@ -1,0 +1,1 @@
+Your work on activity {{act}} (task #{{task}}) goes on: turn {{turn}} of at most {{turns}} in this run; the work line: {{left}}. You stopped because the turn's tool rounds ran out, not because you were done; carry on from where you were. When it is done or can go no further, record it with queue_move or queue_decide, and the run ends.

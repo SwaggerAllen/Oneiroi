@@ -32,7 +32,6 @@ defmodule Oneiroi.Sunna.Queues do
   alias Oneiroi.Sunna.QueueRouter
   alias Oneiroi.Sunna.QueueState
   alias Oneiroi.Sunna.QueueStore, as: S
-  alias Oneiroi.Sunna.WorkWorker
 
   # ---- the starter templates (§7) ----
 
@@ -331,6 +330,24 @@ defmodule Oneiroi.Sunna.Queues do
         artifact: artifact
       })
 
+  @doc """
+  Edits an open task's layers (sunna#85): `layers` the whole new
+  arrangement, each entry an existing activity by `id` (with fields to
+  change while it is pending) or a new activity's spec; the owner's or a
+  witness's, with a note.
+  """
+  def edit_layers(household_id, task, layers, note, %Actor{} = actor),
+    do:
+      dispatch(household_id, actor, %C.EditLayers{
+        actor: actor,
+        at: Clock.now(),
+        id: household_id,
+        task: task,
+        layers: layers,
+        note: note,
+        carrier: carrier(household_id)
+      })
+
   @doc "Drops a task, with a note: it counts as complete, releasing what waits on it (§1)."
   def drop(household_id, task, note, %Actor{} = actor),
     do:
@@ -355,7 +372,7 @@ defmodule Oneiroi.Sunna.Queues do
       # Each resident's old loop checks once, finds the house queue on,
       # turns its line off and rests saying why.
       for %{kind: "resident", id: id} <- members(household_id),
-          do: WorkWorker.enqueue_check(id)
+          do: work_worker().enqueue_check(id)
 
       :ok
     end
@@ -405,6 +422,10 @@ defmodule Oneiroi.Sunna.Queues do
         {:error, Error.caught(:sunna_queue_dispatch_failed, :sunna_queue_dispatch_failed, reason)}
     end
   end
+
+  # Named at the call, as the loop names it: the worker runs the loop,
+  # which reads this module, so an alias would be a cycle.
+  defp work_worker, do: Module.concat([Oneiroi, Sunna, WorkWorker])
 
   # ---- a template made a task's layers ----
 

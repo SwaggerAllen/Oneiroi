@@ -60,12 +60,21 @@ defmodule Oneiroi.Seshat.Household.Edits do
          :ok <- Core.may_post(actor, household_id),
          {:ok, path} <- Files.household_path(name),
          false <- Kinds.container?(Kinds.kind_of(path)),
+         :ok <- not_rendered(path),
          {:ok, _view} <- Core.provision(household_id) do
       Files.locked(household_id, fn view -> write_edit(actor, household_id, view, path, attrs) end)
     else
       true -> {:error, Error.new(:seshat_household_invalid, :seshat_household_edit_thread)}
       other -> other
     end
+  end
+
+  # A task's index document is the queue's rendering (seshat#104): edited
+  # through the queue, never here.
+  defp not_rendered(path) do
+    if Kinds.kind_of(path).access == :core,
+      do: {:error, Error.new(:seshat_household_invalid, :seshat_household_edit_rendered)},
+      else: :ok
   end
 
   defp write_edit(actor, household_id, view, path, attrs) do

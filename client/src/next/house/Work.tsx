@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useLive } from '../live/context';
 import { api } from '../../api/client';
 import type { QueueActivity, QueueCard, QueueMove, QueueOverview, QueueTaskPage, QueueView } from '../../api/types';
 import { Card, Confirm, Field, Said, Select, TextArea } from '../settings/common';
@@ -25,7 +26,11 @@ const VIEWS: QueueView[] = ['ready', 'active', 'waiting', 'blocked', 'failed'];
  * action and whose it is, on its second line (Scarlett's guard).
  */
 export function HouseWork() {
-  const overview = useQuery({ queryKey: QUEUE, queryFn: api.queue, refetchInterval: 30_000 });
+  const overview = useQuery({ queryKey: QUEUE, queryFn: api.queue });
+  // Driven by the household's notices, never a timer (sunna#80).
+  const live = useLive();
+  const householdId = overview.data?.household_id;
+  useEffect(() => (live && householdId ? live.house(householdId) : undefined), [live, householdId]);
   const [who, setWho] = useState('');
   const [view, setView] = useState<QueueView | ''>('');
   const [project, setProject] = useState('');
@@ -86,7 +91,7 @@ export function HouseWork() {
 }
 
 function WaitingOnMe({ names, overview, onTask }: { names: Names; overview: QueueOverview; onTask: (n: number) => void }) {
-  const waiting = useQuery({ queryKey: [...QUEUE, 'waiting'], queryFn: () => api.queueWaiting(), refetchInterval: 30_000 });
+  const waiting = useQuery({ queryKey: [...QUEUE, 'waiting'], queryFn: () => api.queueWaiting() });
   if (!waiting.data) return <p className={css.note}>Reading…</p>;
   const w = waiting.data;
   return (
@@ -364,6 +369,9 @@ function TaskPanel({ number, names, overview, onClose }: { number: number; names
         </ul>
       </details>
       {task.status === 'open' && (task.owner === overview.me || overview.me.startsWith('witness:')) && (
+        <LayerEditor task={task} layers={layers} names={names} overview={overview} />
+      )}
+      {task.status === 'open' && (task.owner === overview.me || overview.me.startsWith('witness:')) && (
         <div className={css.row}>
           <Field label="Why it is dropped" value={note} onChange={(e) => setNote(e.target.value)} />
           <Confirm label="Drop the task" confirm="Drop it? What waits on it is released." disabled={act.busy || !note.trim()} onConfirm={() => void act.run(() => api.queueDrop(task.number, note).then(() => `Task #${task.number} dropped.`), QUEUE)} />
@@ -371,6 +379,113 @@ function TaskPanel({ number, names, overview, onClose }: { number: number; names
       )}
       <Said said={act.said} />
     </Card>
+  );
+}
+
+type Draft = { id?: string; type: string; assignee: string; locked: boolean };
+
+/**
+ * A task's layers edited after it is open (sunna#85): what has started,
+ * and every layer before the open one, is shown locked; pending
+ * activities move between the open and later layers, or go; new ones and
+ * new layers are added from the open layer on. Saved whole, with a note.
+ */
+function LayerEditor({ task, layers, names, overview }: { task: QueueTaskPage['task']; layers: QueueActivity[][]; names: Names; overview: QueueOverview }) {
+  const act = useAct();
+  const open = task.open_layer ?? layers.length;
+  const initial = (): Draft[][] => layers.map((l, i) => l.map((a) => ({ id: a.act_id, type: a.type, assignee: a.assignee, locked: i < open || a.status !== 'pending' })));
+  const [draft, setDraft] = useState<Draft[][] | null>(null);
+  const [note, setNote] = useState('');
+  const [type, setType] = useState('');
+  const [assignee, setAssignee] = useState(overview.me);
+  if (!draft)
+    return (
+      <div>
+        <button type="button" className={css.secondary} onClick={() => setDraft(initial())}>
+          Edit layers
+        </button>
+      </div>
+    );
+  const move = (i: number, j: number, to: number) =>
+    setDraft(draft.map((l, k) => (k === i ? l.filter((_, x) => x !== j) : k === to ? [...l, draft[i][j]] : l)).filter((l, k) => l.length > 0 || k >= open));
+  const remove = (i: number, j: number) => setDraft(draft.map((l, k) => (k === i ? l.filter((_, x) => x !== j) : l)));
+  const add = (i: number) => {
+    if (!type.trim()) return;
+    const entry: Draft = { type: type.trim(), assignee, locked: false };
+    setDraft(i >= draft.length ? [...draft, [entry]] : draft.map((l, k) => (k === i ? [...l, entry] : l)));
+    setType('');
+  };
+  const save = () => {
+    const layersOut = draft.filter((l) => l.length > 0).map((l) => l.map((d) => (d.id ? { id: d.id } : { type: d.type, assignee: d.assignee })));
+    void act.run(
+      () =>
+        api.queueEditLayers(task.number, layersOut, note).then(() => {
+          setDraft(null);
+          setNote('');
+          return `Task #${task.number}'s layers saved.`;
+        }),
+      QUEUE,
+    );
+  };
+  return (
+    <div className={css.column}>
+      <span className={css.subheading}>Editing layers</span>
+      <ol className={css.list}>
+        {[...draft, []].map((layer, i) => (
+          <li key={i}>
+            <span className={css.meta}>{i < draft.length ? `Layer ${i + 1}${i < open ? ' · closed' : i === open ? ' · open' : ''}` : 'A new layer'}</span>
+            <div className={css.chips}>
+              {layer.map((d, j) => (
+                <span key={d.id ?? `new-${i}-${j}`} className={css.chip}>
+                  {d.id ?? 'new'} {d.type} · {nameOf(names, d.assignee)}
+                  {!d.locked && i > open && (
+                    <button type="button" className={css.quiet} aria-label={`Move ${d.type} up a layer`} onClick={() => move(i, j, i - 1)}>
+                      ↑
+                    </button>
+                  )}
+                  {!d.locked && (
+                    <button type="button" className={css.quiet} aria-label={`Move ${d.type} down a layer`} onClick={() => (i + 1 >= draft.length ? setDraft([...draft.map((l, k) => (k === i ? l.filter((_, x) => x !== j) : l)), [d]]) : move(i, j, i + 1))}>
+                      ↓
+                    </button>
+                  )}
+                  {!d.locked && (
+                    <button type="button" className={css.quiet} aria-label={`Remove ${d.type}`} onClick={() => remove(i, j)}>
+                      ×
+                    </button>
+                  )}
+                </span>
+              ))}
+              {i >= open && (
+                <button type="button" className={css.quiet} disabled={!type.trim()} onClick={() => add(i)}>
+                  + here
+                </button>
+              )}
+            </div>
+          </li>
+        ))}
+      </ol>
+      <div className={css.row}>
+        <Field label="A new activity's verb" value={type} onChange={(e) => setType(e.target.value)} />
+        <Select label="For" value={assignee} onChange={setAssignee}>
+          {overview.members.map((m) => (
+            <option key={m.assignee} value={m.assignee}>
+              {m.name}
+            </option>
+          ))}
+          <option value="unknown">Holder not known yet</option>
+        </Select>
+      </div>
+      <Field label="Why (the history keeps it)" value={note} onChange={(e) => setNote(e.target.value)} />
+      <div className={css.row}>
+        <button type="button" className={css.primary} disabled={act.busy || !note.trim()} onClick={save}>
+          Save the layers
+        </button>
+        <button type="button" className={css.quiet} onClick={() => setDraft(null)}>
+          Cancel
+        </button>
+      </div>
+      <Said said={act.said} />
+    </div>
   );
 }
 
