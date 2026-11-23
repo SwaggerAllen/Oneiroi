@@ -215,24 +215,35 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
     assert [%{verdict: "discloses"}] = verdicts(ctx)
   end
 
-  # The witness, 2026-11-21: "make the judge prove its finding". A
-  # finding quoting words that are not hers is no finding: asked twice,
-  # then a review with no verdict, never a refusal for what she wrote.
-  test "a finding must quote her own words; one that does not is asked again, then no verdict",
-       ctx do
+  # The witness, 2026-11-21: "make the judge prove its finding"; and
+  # 2026-11-23: "if the judge can't prove it then it's clean"
+  # (kumbukumbu#107). A finding quoting words that are not hers is asked
+  # again; unproven twice, it is no finding, and the words go.
+  test "a finding must quote her own words; one unproven twice is clean, said so", ctx do
     judge(FakeJudge)
     :persistent_term.put({FakeJudge, :times}, 0)
     said = post(ctx, "An invented case, about the house rules.")
     assert :persistent_term.get({FakeJudge, :times}) == 2
-    refute said =~ "found they carry it"
-    assert said =~ "quoted nothing that is in her words"
-    assert threads(ctx) == []
-    assert [%{verdict: "failed"}] = verdicts(ctx)
+    assert said =~ "Posted"
+    assert [_thread] = threads(ctx)
+
+    assert [%{verdict: "clean", reasons: "clean: a finding that quoted nothing" <> _}] =
+             verdicts(ctx)
   end
 
   test "a proven finding names the words it found", ctx do
     judge(FakeJudge)
     assert post(ctx, "Back from the meeting.") =~ "her words: «the meeting»"
+  end
+
+  test "a quote is matched as text: spacing, ellipses and one long word" do
+    candidate = "Opened project oneiroi-platform.\n\nThe succession   protocol, designed."
+    assert Kumbukumbu.Disclosure.quoted_for_test("succession protocol", candidate)
+    assert Kumbukumbu.Disclosure.quoted_for_test("Opened project … the succession", candidate)
+    assert Kumbukumbu.Disclosure.quoted_for_test("oneiroi-platform", candidate)
+    refute Kumbukumbu.Disclosure.quoted_for_test("the", candidate)
+    refute Kumbukumbu.Disclosure.quoted_for_test("ninety days", candidate)
+    assert Kumbukumbu.Disclosure.quoted_for_test("tea", "Tea")
   end
 
   test "the judge's quote is read from its answer; NONE is none" do
