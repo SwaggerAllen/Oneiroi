@@ -5,6 +5,7 @@ import type {
   QueueEditEntry,
   QueueMove,
   QueueOverview,
+  QueueSpec,
   QueueTaskPage,
   QueueWaiting,
   Ask,
@@ -771,6 +772,8 @@ export const api = {
   queueTask: (n: number) => call<QueueTaskPage>('GET', `/v1/household/queue/tasks/${n}`),
   queueOpenProject: (slug: string, name: string) => call<{ ok: true }>('POST', '/v1/household/queue/projects', { slug, name }),
   queueDefineTemplate: (name: string, from: string) => call<{ ok: true }>('POST', '/v1/household/queue/templates', { name, from }),
+  /** A template written whole (sunna#88): its name, title and layers of specs; a later one of the same name replaces it. */
+  queueSaveTemplate: (name: string, title: string, layers: QueueSpec[][]) => call<{ ok: true }>('POST', '/v1/household/queue/templates', { name, title, layers }),
   queueOpenTask: (task: {
     project: string;
     slug: string;

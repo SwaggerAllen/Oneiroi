@@ -619,3 +619,10 @@ means the queue, not the run, says what happened.
 A page that polls spends the server on reads that find nothing, and is
 late when something did change. The projection already says when it
 changed; the page only has to listen.
+
+## #88
+The cutover starts by building every template, and a template is only
+as good as the people who know the workflow can make it; that is the
+witness and the residents, not whoever can write JSON. Saying the shape
+rule's refusal before saving keeps the editor from becoming a guessing
+game against the server.

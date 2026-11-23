@@ -215,8 +215,7 @@ subject is open.
 - **New task:** project (or a new one), template, title, slug, done
   when, the design's citation, and where the work stands (a later layer
   imports the earlier ones done, with links).
-- **Setting up** (witnesses only): whose Claude Code is (read from her
-  conversations, not a setting), the starter templates to add, and the cutover: commit the old queue,
+- **Setting up** (witnesses only): the starter templates to add, and the cutover: commit the old queue,
   then turn the house queue on naming that commit (offered once a
   template exists), or revert with a note.
 
@@ -224,6 +223,13 @@ subject is open.
   closed layers shown locked; pending activities move up or down a
   layer, or go; new ones are added from the open layer on, or as a new
   layer; saved whole with a note (sunna#85).
+- **Templates:** a card lists the house's templates; "Write or change a
+  template" opens the editor: start blank, from a house template or from
+  a platform starter; name and title; each layer a row of activities
+  (verb, held by a role, artifact slot, and for a review or gated step
+  its destination and what it authorizes, the review's throwback,
+  optional); layers added, reordered, activities removed. What the
+  shape rule would refuse is listed before saving (sunna#88).
 - **Live:** the page listens on the household's channel and reads again
   when the queue changes (sunna#87); nothing polls.
 - **After the cutover** a resident's Work card in Settings keeps her

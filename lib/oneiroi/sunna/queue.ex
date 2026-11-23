@@ -917,7 +917,16 @@ defmodule Oneiroi.Sunna.Queue do
     ids = for {layer, i} <- Enum.with_index(specs), do: Enum.map(layer, &"#{i + 1}.#{&1.pos}")
 
     G.shape_errors(ids, keyed) == [] and
-      Enum.all?(keyed, fn {_k, t} -> t.type not in G.gated_types() or not is_nil(t.artifact) end)
+      Enum.all?(keyed, fn {_k, t} -> t.type not in G.gated_types() or not is_nil(t.artifact) end) and
+      Enum.all?(keyed, fn {k, t} -> throwback_earlier?(k, t.throwback, keyed) end)
+  end
+
+  # A template's throwback names an activity, by position, in an earlier layer.
+  defp throwback_earlier?(_at, nil, _keyed), do: true
+
+  defp throwback_earlier?(at, back, keyed) do
+    layer = fn pos -> pos |> String.split(".") |> hd() |> Integer.parse() end
+    Map.has_key?(keyed, back) and elem(layer.(back), 0) < elem(layer.(at), 0)
   end
 
   defp activity_from(spec, task, imported?) do

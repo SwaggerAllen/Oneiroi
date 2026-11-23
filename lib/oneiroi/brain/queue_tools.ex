@@ -16,7 +16,7 @@ defmodule Oneiroi.Brain.QueueTools do
   @doc "The tool names, all of the house."
   def names,
     do:
-      ~w(queue_list queue_task queue_templates queue_project_open queue_task_open queue_task_edit queue_move queue_decide queue_fill_slot queue_drop)
+      ~w(queue_list queue_task queue_templates queue_template_define queue_project_open queue_task_open queue_task_edit queue_move queue_decide queue_fill_slot queue_drop)
 
   @doc "The tools that carry her words to the house."
   def delivering, do: names() -- ~w(queue_list queue_task queue_templates)
@@ -54,6 +54,17 @@ defmodule Oneiroi.Brain.QueueTools do
         "The house's templates (each a title and its layers of activities, with roles) and the starters the platform ships; and the members, as assignees.",
         %{},
         []
+      ),
+      tool(
+        "queue_template_define",
+        "Write a house template (sunna#88): name (lowercase, hyphens; the same name replaces it), title, and layers, an array of layers each an array of activities {type, role, artifact, destination, action, optional, throwback}. role is who holds it when a task opens: author (the task's owner), witness, peer (the other resident), builder (the owner's Claude Code) or unknown. artifact is a slot name (design, pr) filled when the task opens. A gated step (send, publish, spend, merge, promote-to-house) sits right after a review of the same slot whose destination matches and whose action is that step; throwback names an earlier activity by position (\"1.1\"). Or from: a starter's name, to copy it.",
+        %{
+          name: %{type: "string"},
+          title: %{type: "string"},
+          layers: %{type: "array", items: %{type: "array", items: %{type: "object"}}},
+          from: %{type: "string"}
+        },
+        [:name]
       ),
       tool(
         "queue_project_open",
@@ -183,6 +194,13 @@ defmodule Oneiroi.Brain.QueueTools do
     members = Enum.map_join(Sunna.queue_members(h), ", ", &"#{&1.name} (#{&1.assignee})")
 
     "Templates in the house:\n#{templates}\n\nStarters the platform ships:\n#{starters}\n\nMembers: #{members}. A resident's Claude Code is claude-code:<her id>, reached through her own deliver step."
+  end
+
+  defp run("queue_template_define", args, h, actor, _me) do
+    attrs = %{from: blank(args["from"]), title: args["title"], layers: args["layers"]}
+
+    with :ok <- Sunna.queue_define_template(h, to_string(args["name"] || ""), attrs, actor),
+         do: "Template #{args["name"]} is saved in the house."
   end
 
   defp run("queue_project_open", args, h, actor, _me) do
