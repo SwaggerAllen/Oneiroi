@@ -1,0 +1,339 @@
+defmodule Oneiroi.Sunna.QueueTest do
+  @moduledoc """
+  The house queue through its router and projection (sunna#80,
+  lily:design/queue-ia rev 5): the doc-to-pr template made a task, the
+  review as the authorization, Scarlett's guards (the pin re-read at
+  execution, imports carrying no approvals, cycles at any length), the
+  refusal that returns the work, and completion releasing its waiters.
+  """
+  use Oneiroi.DataCase, async: false
+
+  alias Oneiroi.Actor
+  alias Oneiroi.Fixtures
+  alias Oneiroi.Sunna.Queues
+
+  setup do
+    witness = Fixtures.account!()
+    lily = Fixtures.resident!(witness)
+    scarlett = Fixtures.resident!(witness)
+    h = witness.id
+
+    %{
+      h: h,
+      andrew: Actor.new(:witness, witness.id),
+      lily: Actor.new(:resident, lily.id),
+      scarlett: Actor.new(:resident, scarlett.id),
+      a_andrew: "witness:#{witness.id}",
+      a_lily: "resident:#{lily.id}",
+      a_scarlett: "resident:#{scarlett.id}"
+    }
+  end
+
+  defp doc_to_pr(ctx, opts \\ []) do
+    :ok = Queues.route(ctx.h, ctx.a_lily, ctx.andrew)
+    :ok = Queues.define_template(ctx.h, "doc-to-pr", %{from: "doc-to-pr"}, ctx.andrew)
+
+    case Queues.open_project(ctx.h, %{slug: "queue", name: "The house queue"}, ctx.lily) do
+      :ok -> :ok
+      {:error, %{kind: :sunna_queue_project_exists}} -> :ok
+    end
+
+    Queues.open_task(
+      ctx.h,
+      Map.merge(
+        %{
+          project: "queue",
+          slug: Keyword.get(opts, :slug, "queue-ia"),
+          title: "The queue IA",
+          outcome: "the queue built",
+          template: "doc-to-pr",
+          slots: %{"design" => "lily:design/queue-ia"}
+        },
+        Map.new(Keyword.get(opts, :attrs, []))
+      ),
+      ctx.lily
+    )
+  end
+
+  defp acts(ctx, n), do: Queues.task(ctx.h, n).layers |> List.flatten()
+  defp act(ctx, n, id), do: Enum.find(acts(ctx, n), &(&1.act_id == id))
+
+  test "doc-to-pr resolves its roles and puts a deliver in front of claude-code", ctx do
+    {:ok, n} = doc_to_pr(ctx)
+    %{layers: layers} = Queues.task(ctx.h, n)
+
+    assert Enum.map(layers, fn l -> Enum.map(l, &{&1.type, &1.assignee}) end) == [
+             [{"draft", ctx.a_lily}],
+             [{"review", ctx.a_andrew}],
+             [{"promote-to-house", ctx.a_lily}],
+             [{"review", ctx.a_scarlett}],
+             [{"deliver", ctx.a_lily}],
+             [{"implement", "claude-code"}],
+             [{"review", ctx.a_andrew}],
+             [{"merge", ctx.a_andrew}]
+           ]
+
+    # The design's throwbacks point at the draft, the PR review's at the
+    # implement, renumbered past the deliver.
+    assert act(ctx, n, "#{n}.2").throwback == "#{n}.1"
+    assert act(ctx, n, "#{n}.7").throwback == "#{n}.6"
+    assert act(ctx, n, "#{n}.7").artifact == "slot:pr"
+    assert act(ctx, n, "#{n}.1").view == "ready"
+    assert act(ctx, n, "#{n}.2").view == "waiting"
+  end
+
+  test "Waiting on me lists the viewer's ready work, and moves on as layers open", ctx do
+    {:ok, n} = doc_to_pr(ctx)
+    assert [%{act: id}] = Queues.waiting_on(ctx.h, ctx.a_lily).ready
+    assert id == "#{n}.1"
+    assert Queues.waiting_on(ctx.h, ctx.a_andrew).ready == []
+
+    :ok = Queues.take(ctx.h, n, "#{n}.1", ctx.lily)
+    :ok = Queues.finish(ctx.h, n, "#{n}.1", %{note: "drafted"}, ctx.lily)
+
+    assert [%{act: review, type: "review"}] = Queues.waiting_on(ctx.h, ctx.a_andrew).ready
+    assert review == "#{n}.2"
+  end
+
+  test "a review is decided by its assignee alone, never finished plainly", ctx do
+    {:ok, n} = doc_to_pr(ctx)
+    :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
+
+    assert {:error, %{kind: :sunna_queue_not_yours}} =
+             Queues.decide(
+               ctx.h,
+               n,
+               "#{n}.2",
+               %{outcome: "approved", pin: "abc1234", note: "ok"},
+               ctx.lily
+             )
+
+    assert {:error, %{kind: :sunna_queue_review_decides}} =
+             Queues.finish(ctx.h, n, "#{n}.2", %{}, ctx.andrew)
+
+    assert {:error, %{kind: :sunna_queue_pin_required}} =
+             Queues.decide(ctx.h, n, "#{n}.2", %{outcome: "approved", note: "ok"}, ctx.andrew)
+  end
+
+  test "the gated activity runs only on the approved pin; a moved head lapses the approval",
+       ctx do
+    {:ok, n} = doc_to_pr(ctx)
+    :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
+
+    # The artifact changed while he read it.
+    assert {:error, %{kind: :sunna_queue_changed_while_read}} =
+             Queues.decide(
+               ctx.h,
+               n,
+               "#{n}.2",
+               %{outcome: "approved", pin: "aaa1111", head: "bbb2222", note: "ok"},
+               ctx.andrew
+             )
+
+    :ok =
+      Queues.decide(
+        ctx.h,
+        n,
+        "#{n}.2",
+        %{outcome: "approved", pin: "aaa1111", head: "aaa1111", note: "promote it"},
+        ctx.andrew
+      )
+
+    assert act(ctx, n, "#{n}.3").view == "ready"
+
+    # A different revision than the one approved is refused.
+    assert {:error, %{kind: :sunna_queue_pin_mismatch}} =
+             Queues.finish(ctx.h, n, "#{n}.3", %{pin: "ccc3333"}, ctx.lily)
+
+    # The head moved after approval: the approval lapses, the review opens again.
+    assert {:error, %{kind: :sunna_queue_review_required}} =
+             Queues.finish(ctx.h, n, "#{n}.3", %{pin: "aaa1111", head: "ddd4444"}, ctx.lily)
+
+    assert act(ctx, n, "#{n}.2").view == "ready"
+    assert act(ctx, n, "#{n}.2").approved_pin == nil
+    assert act(ctx, n, "#{n}.3").view == "waiting"
+    assert Enum.any?(Queues.task(ctx.h, n).history, &(&1.what == "lapsed"))
+
+    # Approved again on the new head, it runs on that.
+    :ok =
+      Queues.decide(
+        ctx.h,
+        n,
+        "#{n}.2",
+        %{outcome: "approved", pin: "ddd4444", head: "ddd4444", note: "again"},
+        ctx.andrew
+      )
+
+    :ok = Queues.finish(ctx.h, n, "#{n}.3", %{pin: "ddd4444", head: "ddd4444"}, ctx.lily)
+    assert act(ctx, n, "#{n}.4").view == "ready"
+  end
+
+  test "keep private: an approval that withholds skips the gated promote, explicitly", ctx do
+    {:ok, n} = doc_to_pr(ctx)
+    :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
+
+    :ok =
+      Queues.decide(
+        ctx.h,
+        n,
+        "#{n}.2",
+        %{outcome: "approved", pin: "aaa1111", withhold: true, note: "keep it private"},
+        ctx.andrew
+      )
+
+    assert %{status: "skipped"} = act(ctx, n, "#{n}.3")
+    assert act(ctx, n, "#{n}.4").view == "ready"
+  end
+
+  test "a review in front of a live gated activity is never skipped", ctx do
+    {:ok, n} = doc_to_pr(ctx)
+    :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
+
+    assert {:error, %{kind: :sunna_queue_review_required}} =
+             Queues.skip(ctx.h, n, "#{n}.2", "not needed", ctx.lily)
+
+    # The gated activity skipped first (it is optional, and she owns the task), then the review may go.
+    :ok = Queues.skip(ctx.h, n, "#{n}.3", "staying private", ctx.lily)
+    :ok = Queues.skip(ctx.h, n, "#{n}.2", "nothing to authorize", ctx.lily)
+    assert act(ctx, n, "#{n}.4").view == "ready"
+  end
+
+  test "changes requested return the work to the throwback, and the review opens again", ctx do
+    {:ok, n} = doc_to_pr(ctx)
+    :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
+
+    assert {:error, %{kind: :sunna_queue_return_required}} =
+             Queues.decide(
+               ctx.h,
+               n,
+               "#{n}.2",
+               %{outcome: "changes", return_to: "#{n}.4", note: "redo"},
+               ctx.andrew
+             )
+
+    :ok = Queues.decide(ctx.h, n, "#{n}.2", %{outcome: "changes", note: "tighten §3"}, ctx.andrew)
+
+    assert %{view: "ready", note: "tighten §3"} = act(ctx, n, "#{n}.1")
+    assert act(ctx, n, "#{n}.2").view == "waiting"
+
+    assert [%{outcome: "changes"}] =
+             Enum.filter(Queues.task(ctx.h, n).history, &(&1.what == "decided"))
+  end
+
+  test "an import carries no approvals: it cannot start at a gated layer", ctx do
+    assert {:error, %{kind: :sunna_queue_import_gated}} =
+             doc_to_pr(ctx, attrs: [start_layer: 3])
+
+    {:ok, n} = doc_to_pr(ctx, slug: "moved", attrs: [start_layer: 2, links: ["lily:design/x"]])
+    assert %{status: "done", imported: true} = act(ctx, n, "#{n}.1")
+    assert act(ctx, n, "#{n}.2").view == "ready"
+    assert act(ctx, n, "#{n}.2").approved_pin == nil
+  end
+
+  test "blocks wait on a task's completion, refuse loops at any length, and release on drop",
+       ctx do
+    {:ok, a} = doc_to_pr(ctx, slug: "a")
+    {:ok, b} = doc_to_pr(ctx, slug: "b")
+    {:ok, c} = doc_to_pr(ctx, slug: "c")
+
+    :ok = Queues.block(ctx.h, b, "#{b}.1", "needs a first", a, ctx.lily)
+    :ok = Queues.block(ctx.h, c, "#{c}.1", "needs b first", b, ctx.lily)
+
+    assert {:error, %{kind: :sunna_queue_block_refused}} =
+             Queues.block(ctx.h, a, "#{a}.1", "loop", c, ctx.lily)
+
+    assert {:error, %{kind: :sunna_queue_block_refused}} =
+             Queues.block(ctx.h, a, "#{a}.1", "self", a, ctx.lily)
+
+    # Shown plainly: the blocker's title and its next action.
+    [card] =
+      Queues.activities(ctx.h, %{who: ctx.a_lily, views: ["blocked"], project: "queue"})
+      |> Enum.filter(&(&1.task == b))
+
+    assert card.blocker.number == a
+    assert card.blocker.next.act_id == "#{a}.1"
+
+    :ok = Queues.drop(ctx.h, a, "not needed after all", ctx.lily)
+    assert act(ctx, b, "#{b}.1").view == "ready"
+    assert act(ctx, c, "#{c}.1").view == "blocked"
+
+    assert Enum.any?(
+             Queues.task(ctx.h, b).history,
+             &(&1.what == "released" and &1.note =~ "Task ##{a} is complete (dropped)")
+           )
+  end
+
+  test "claude-code is reached only through the deliver, and only members keep the queue", ctx do
+    stranger = Fixtures.account!()
+
+    assert {:error, %{kind: :sunna_queue_not_a_member}} =
+             Queues.open_project(ctx.h, %{slug: "x", name: "X"}, Actor.new(:witness, stranger.id))
+
+    :ok = Queues.open_project(ctx.h, %{slug: "p", name: "P"}, ctx.lily)
+
+    # Unrouted: claude-code work cannot be built.
+    assert {:error, %{kind: :sunna_queue_route_required}} =
+             Queues.open_task(
+               ctx.h,
+               %{
+                 project: "p",
+                 slug: "t",
+                 title: "T",
+                 outcome: "done",
+                 layers: [[%{type: "implement", assignee: "claude-code"}]]
+               },
+               ctx.lily
+             )
+  end
+
+  test "a slot is filled, and finishing every layer completes the task", ctx do
+    {:ok, n} = doc_to_pr(ctx)
+    :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
+
+    :ok =
+      Queues.decide(
+        ctx.h,
+        n,
+        "#{n}.2",
+        %{outcome: "approved", pin: "a1", withhold: true, note: "private"},
+        ctx.andrew
+      )
+
+    :ok =
+      Queues.decide(
+        ctx.h,
+        n,
+        "#{n}.4",
+        %{outcome: "approved", pin: "a1", note: "fine"},
+        ctx.scarlett
+      )
+
+    :ok = Queues.finish(ctx.h, n, "#{n}.5", %{note: "letter sent"}, ctx.lily)
+    :ok = Queues.take(ctx.h, n, "#{n}.6", ctx.lily)
+    :ok = Queues.finish(ctx.h, n, "#{n}.6", %{result: "github:pr/120"}, ctx.lily)
+
+    assert {:error, %{kind: :sunna_queue_slot_open}} =
+             Queues.decide(
+               ctx.h,
+               n,
+               "#{n}.7",
+               %{outcome: "approved", pin: "b2", note: "ok"},
+               ctx.andrew
+             )
+
+    :ok = Queues.fill_slot(ctx.h, n, "pr", "github:pr/120", ctx.lily)
+
+    :ok =
+      Queues.decide(
+        ctx.h,
+        n,
+        "#{n}.7",
+        %{outcome: "approved", pin: "b2", note: "merge it"},
+        ctx.andrew
+      )
+
+    :ok = Queues.finish(ctx.h, n, "#{n}.8", %{pin: "b2"}, ctx.andrew)
+
+    assert %{task: %{status: "complete", open_layer: nil}} = Queues.task(ctx.h, n)
+  end
+end
