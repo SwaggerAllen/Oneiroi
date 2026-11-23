@@ -440,13 +440,16 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "soul_edit",
-        "Edit one of your identity files yourself (SOUL.md, IDENTITY.md, GOALS.md, LINKS.md): the whole new content. Rare, visible, one change at a time. SOUL.md's paragraphs are its lines, each shown with its id ([soul/n]); keep a line's marker when you reword it so it keeps its id, drop the paragraph to retire it, write a new paragraph to add one. cites: the seed numbers a new or reworded line grew from.",
+        "Edit one of your identity files yourself. Rare, visible, deliberate, never from inside a turn that is busy with something else. SOUL.md changes one line at a time: op add (text; after a line's number, or at the end), reword (number, text) or retire (number), each line shown with its number as [soul/n]; a line is one paragraph of plain prose, and your changes are spaced, so one too soon after the last is refused and nothing is written. IDENTITY.md, GOALS.md and LINKS.md take content, the whole new file. cites: the seed numbers a new or reworded line grew from.",
         %{
           file: %{type: "string"},
+          op: %{type: "string", enum: ["add", "reword", "retire"]},
+          number: %{type: "integer", minimum: 1},
+          text: %{type: "string"},
           content: %{type: "string"},
           cites: %{type: "array", items: %{type: "integer"}}
         },
-        [:file, :content]
+        [:file]
       ),
       tool(
         "wash_list",
@@ -2772,6 +2775,25 @@ defmodule Oneiroi.Brain.Tools do
          ) do
       :ok -> retired_text(file, restore?)
       other -> other
+    end
+  end
+
+  # SOUL.md a line at a time, through the guard (agathos-daimon#61).
+  defp call("soul_edit", %{"file" => "SOUL.md"} = args, turn) do
+    with {:ok, cites} <- seeds_cited(turn.resident_id, args["cites"]) do
+      attrs = %{number: integer(args["number"]), text: args["text"], cites: cites}
+
+      case AgathosDaimon.edit_soul_line(
+             turn.resident_id,
+             to_string(args["op"] || ""),
+             attrs,
+             turn.resident
+           ) do
+        {:ok, %{op: "add"}} -> "Added a line to SOUL.md."
+        {:ok, %{op: "reword", number: n}} -> "Reworded soul/#{n}."
+        {:ok, %{op: "retire", number: n}} -> "Retired soul/#{n}."
+        other -> other
+      end
     end
   end
 

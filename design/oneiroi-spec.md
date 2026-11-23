@@ -747,7 +747,9 @@ templates.
   still settling and that proposals are presumed welcome unless they cross
   the seed's own boundaries, so acceptance is likelier early without ever
   being automatic. The resident's own edits stay rare, visible, one commit
-  each, and only those carry a revert.
+  each, and only those carry a revert. Her SOUL.md changes one line at a time
+  (add, reword, retire), each checked before it is written and spaced
+  from her last (agathos-daimon#61, the soul guard).
 - **Lifecycle**: created (before first contact), active, paused (hands
   suspended, brain cold, nothing scheduled; a wake resumes the beat),
   lapsed (the subscription lapsed; the insurance policy is in effect), in

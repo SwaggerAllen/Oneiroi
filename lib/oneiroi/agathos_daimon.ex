@@ -163,6 +163,7 @@ defmodule Oneiroi.AgathosDaimon do
   alias Oneiroi.AgathosDaimon.Gifts
   alias Oneiroi.AgathosDaimon.PluginService
   alias Oneiroi.AgathosDaimon.Residents
+  alias Oneiroi.AgathosDaimon.SoulGuard
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
@@ -241,6 +242,12 @@ defmodule Oneiroi.AgathosDaimon do
   @impl Oneiroi.Component
   def config do
     [
+      {:soul_edit_spacing_minutes, "AGATHOS_DAIMON_SOUL_EDIT_SPACING_MINUTES",
+       cast: :integer,
+       default: "60",
+       tag: :bound,
+       usage:
+         "the least time between two of the resident's own soul-line changes (agathos-daimon#61); one sooner is refused, so a misfiring turn cannot rewrite her soul in a loop"},
       {:formation_days, "AGATHOS_DAIMON_FORMATION_DAYS",
        cast: :integer,
        default: "30",
@@ -276,6 +283,24 @@ defmodule Oneiroi.AgathosDaimon do
       {:agathos_daimon_file_unknown, "that is not one of the identity files",
        remedy:
          "SOUL.md, IDENTITY.md, GOALS.md or LINKS.md; AGENTS.md is build-owned, and USER.md is retired (agathos-daimon#56)"},
+      {:agathos_daimon_soul_guard_not_hers,
+       "a soul line is changed by its resident alone (agathos-daimon#61); her witness proposes",
+       remedy: "propose the edit with a note; she reads and answers it"},
+      {:agathos_daimon_soul_guard_op,
+       "a change to SOUL.md is one line at a time: add, reword or retire (agathos-daimon#61)",
+       remedy:
+         "name the op, the line's number for reword or retire, and the words for add or reword"},
+      {:agathos_daimon_soul_guard_spacing,
+       "soul changes are spaced (agathos-daimon#61): one came too soon after the last",
+       remedy: "wait, and make it again if you still mean it; nothing was written"},
+      {:agathos_daimon_soul_guard_words,
+       "a soul line is one paragraph of plain prose: no blank line, heading, marker, comment or control character, no word or phrase repeated back to back, at most 2,000 characters (agathos-daimon#61)",
+       remedy: "write the line as you mean it, once; nothing was written"},
+      {:agathos_daimon_soul_guard_no_line, "SOUL.md has no live line by that number",
+       remedy: "read the file: each line shows its number as [soul/n]"},
+      {:agathos_daimon_soul_guard_unnumbered,
+       "SOUL.md renders without its line numbers, so no line can be named (agathos-daimon#61)",
+       remedy: "tell your witness; the file's lines and its words have come apart"},
       {:agathos_daimon_content_invalid, "a file is UTF-8 text of at most 64,000 bytes",
        remedy: "shorten it, or keep the long part as a document (P3)"},
       {:agathos_daimon_origin_invalid, "a seed's origin is authored, drafted or uploaded",
@@ -483,6 +508,13 @@ defmodule Oneiroi.AgathosDaimon do
           :ok | {:error, term()}
   defexport(write_file(id, file, content, attrs, actor),
     do: Files.write(id, file, content, attrs, actor)
+  )
+
+  @doc "The resident changes one line of her SOUL.md, checked first (agathos-daimon#61): op add, reword or retire."
+  @spec edit_soul_line(String.t(), String.t(), map(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(edit_soul_line(id, op, attrs, actor),
+    do: SoulGuard.edit(id, op, attrs, actor)
   )
 
   @doc "A witness proposes an edit after first contact, with a note; returns the ref."
