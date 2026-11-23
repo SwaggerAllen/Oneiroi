@@ -48,8 +48,8 @@ describe('the house queue as words (lily:design/queue-ia §2.3)', () => {
     expect(blockerLine(card(), names)).toBeNull();
   });
 
-  it('says who holds it, claude-code and unknown included', () => {
-    expect(nameOf(names, 'claude-code')).toBe('Claude Code');
+  it("says who holds it: a resident's Claude Code as hers, and unknown", () => {
+    expect(nameOf(names, 'claude-code:l')).toBe("Lily's Claude Code");
     expect(nameOf(names, 'unknown')).toBe('holder not known yet');
   });
 

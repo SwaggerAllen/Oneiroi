@@ -22,7 +22,7 @@ defmodule OneiroiWeb.QueueController do
 
   operation(:show,
     summary:
-      "The house queue's overview: whether the household has cut over and at which commit, the resident whose conversation Claude Code is, the members as the queue names them, the projects, the templates (and the starters the platform ships), and the tasks open first",
+      "The house queue's overview: whether the household has cut over and at which commit, the members as the queue names them, the projects, the templates (and the starters the platform ships), and the tasks open first",
     responses: [ok: {"the queue", "application/json", %Schema{type: :object}}]
   )
 
@@ -36,7 +36,6 @@ defmodule OneiroiWeb.QueueController do
       cut_over: state.cut_over,
       cut_at: state.cut_at,
       commit: state.commit,
-      carrier: Sunna.queue_carrier(h),
       members: Sunna.queue_members(h),
       projects: Enum.map(Sunna.queue_projects(h), &project/1),
       templates: Enum.map(Sunna.queue_templates(h), &template/1),

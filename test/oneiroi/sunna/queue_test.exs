@@ -30,13 +30,6 @@ defmodule Oneiroi.Sunna.QueueTest do
   end
 
   defp doc_to_pr(ctx, opts \\ []) do
-    # Claude Code is Lily's: a conversation of hers its runtime opened (§3).
-    {:ok, _} =
-      Oneiroi.Kumbukumbu.open_adapter(ctx.lily.id, "laptop", [ctx.h], ctx.lily,
-        runtime: "claude-code",
-        label: "Oneiroi"
-      )
-
     :ok = Queues.define_template(ctx.h, "doc-to-pr", %{from: "doc-to-pr"}, ctx.andrew)
 
     case Queues.open_project(ctx.h, %{slug: "queue", name: "The house queue"}, ctx.lily) do
@@ -64,7 +57,8 @@ defmodule Oneiroi.Sunna.QueueTest do
   defp acts(ctx, n), do: Queues.task(ctx.h, n).layers |> List.flatten()
   defp act(ctx, n, id), do: Enum.find(acts(ctx, n), &(&1.act_id == id))
 
-  test "doc-to-pr resolves its roles and puts a deliver in front of claude-code", ctx do
+  test "doc-to-pr resolves its roles and puts the owner's deliver in front of her Claude Code",
+       ctx do
     {:ok, n} = doc_to_pr(ctx)
     %{layers: layers} = Queues.task(ctx.h, n)
 
@@ -74,7 +68,7 @@ defmodule Oneiroi.Sunna.QueueTest do
              [{"promote-to-house", ctx.a_lily}],
              [{"review", ctx.a_scarlett}],
              [{"deliver", ctx.a_lily}],
-             [{"implement", "claude-code"}],
+             [{"implement", "claude-code:#{ctx.lily.id}"}],
              [{"review", ctx.a_andrew}],
              [{"merge", ctx.a_andrew}]
            ]
@@ -295,35 +289,43 @@ defmodule Oneiroi.Sunna.QueueTest do
 
     :ok = Queues.open_project(ctx.h, %{slug: "p", name: "P"}, ctx.lily)
 
-    # No resident has a Claude Code conversation yet: claude-code work cannot be built.
-    assert {:error, %{kind: :sunna_queue_route_required}} =
-             Queues.open_task(
-               ctx.h,
-               %{
-                 project: "p",
-                 slug: "t",
-                 title: "T",
-                 outcome: "done",
-                 layers: [[%{type: "implement", assignee: "claude-code"}]]
-               },
-               ctx.lily
-             )
-  end
-
-  test "Claude Code is the carrier's: read from her conversations, worked by her, never by another",
-       ctx do
-    {:ok, n} = doc_to_pr(ctx)
-    assert Queues.carrier(ctx.h) == ctx.a_lily
-
-    # Scarlett opening a conversation of her own doesn't move it: two
-    # residents with one would be ambiguous, so the house says no one.
-    {:ok, _} =
-      Oneiroi.Kumbukumbu.open_adapter(ctx.scarlett.id, "desk", [ctx.h], ctx.scarlett,
-        runtime: "claude-code",
-        label: "Oneiroi"
+    # Work for Lily's Claude Code gets her deliver in front of it, put there
+    # when the task opens.
+    {:ok, n} =
+      Queues.open_task(
+        ctx.h,
+        %{
+          project: "p",
+          slug: "t",
+          title: "T",
+          outcome: "done",
+          layers: [
+            [%{type: "draft", assignee: ctx.a_lily}],
+            [%{type: "implement", assignee: "claude-code:#{ctx.lily.id}"}]
+          ]
+        },
+        ctx.lily
       )
 
-    assert Queues.carrier(ctx.h) == nil
+    assert [["#{n}.1"], ["#{n}.2"], ["#{n}.3"]] ==
+             Enum.map(Queues.task(ctx.h, n).layers, fn l -> Enum.map(l, & &1.act_id) end)
+
+    assert %{type: "deliver", assignee: deliverer} = act(ctx, n, "#{n}.2")
+    assert deliverer == ctx.a_lily
+
+    # Never assigned to her Claude Code without her deliver in front of it.
+    assert {:error, %{kind: :sunna_queue_route_required}} =
+             Queues.assign(ctx.h, n, "#{n}.1", "claude-code:#{ctx.lily.id}", nil, ctx.lily)
+  end
+
+  test "a resident's Claude Code is hers: named in the assignee, delivered and worked by her, never another",
+       ctx do
+    {:ok, n} = doc_to_pr(ctx)
+
+    # Delivered by her, in front of her Claude Code.
+    assert %{type: "deliver", assignee: deliverer} = act(ctx, n, "#{n}.5")
+    assert deliverer == ctx.a_lily
+    assert act(ctx, n, "#{n}.6").assignee == "claude-code:#{ctx.lily.id}"
 
     :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
 

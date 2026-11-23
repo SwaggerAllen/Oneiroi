@@ -45,17 +45,6 @@ defmodule OneiroiWeb.QueueRoutesTest do
 
     assert length(members) == 3
 
-    # Claude Code is Lily's: her conversation its runtime opened, read, never set.
-    assert %{"carrier" => nil} = conn |> get("/v1/household/queue") |> json_response(200)
-
-    {:ok, _} =
-      Oneiroi.Kumbukumbu.open_adapter(ctx.lily.id, "laptop", [ctx.account.id], ctx.lily_actor,
-        runtime: "claude-code",
-        label: "Oneiroi"
-      )
-
-    assert %{"carrier" => ^lily} = conn |> get("/v1/household/queue") |> json_response(200)
-
     assert %{"ok" => true} =
              conn
              |> post("/v1/household/queue/templates", %{name: "doc-to-pr", from: "doc-to-pr"})
