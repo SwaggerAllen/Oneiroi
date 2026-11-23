@@ -119,7 +119,7 @@ defmodule Oneiroi.Sunna.QueueStore do
   end
 
   defmodule State do
-    @moduledoc "The queue's own state: whether the household has cut over (§6.2), at which commit, and who routes to claude-code."
+    @moduledoc "The queue's own state: whether the household has cut over (§6.2), and at which commit."
     use Ecto.Schema
     @primary_key false
     schema "sunna_queue_state" do
@@ -127,7 +127,6 @@ defmodule Oneiroi.Sunna.QueueStore do
       field(:cut_over, :boolean, default: false)
       field(:cut_at, :utc_datetime_usec)
       field(:commit, :string)
-      field(:via, :string)
       field(:note, :string)
     end
 

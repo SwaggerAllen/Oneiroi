@@ -785,7 +785,6 @@ export const api = {
     call<{ ok: true }>('POST', `/v1/household/queue/tasks/${task}/activities/${encodeURIComponent(act)}/${move}`, fields),
   queueFillSlot: (task: number, slot: string, artifact: string) => call<{ ok: true }>('POST', `/v1/household/queue/tasks/${task}/slots`, { slot, artifact }),
   queueDrop: (task: number, note: string) => call<{ ok: true }>('POST', `/v1/household/queue/tasks/${task}/drop`, { note }),
-  queueRoute: (via: string) => call<{ ok: true }>('PUT', '/v1/household/queue/route', { via }),
   queueSnapshot: () => call<{ commit: string }>('POST', '/v1/household/queue/snapshot'),
   queueCutOver: (commit: string, note: string) => call<{ ok: true }>('POST', '/v1/household/queue/cutover', { commit, note }),
   queueCutBack: (note: string) => call<{ ok: true }>('POST', '/v1/household/queue/cutback', { note }),

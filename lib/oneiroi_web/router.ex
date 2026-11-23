@@ -106,7 +106,6 @@ defmodule OneiroiWeb.Router do
       post("/household/queue/tasks/:number/drop", QueueController, :drop)
       post("/household/queue/tasks/:number/slots", QueueController, :fill_slot)
       post("/household/queue/tasks/:number/activities/:act/:move", QueueController, :move)
-      put("/household/queue/route", QueueController, :route)
       post("/household/queue/snapshot", QueueController, :snapshot)
       post("/household/queue/cutover", QueueController, :cut_over)
       post("/household/queue/cutback", QueueController, :cut_back)

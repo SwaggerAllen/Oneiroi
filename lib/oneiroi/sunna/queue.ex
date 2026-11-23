@@ -38,7 +38,6 @@ defmodule Oneiroi.Sunna.Queue do
             next_task: 1,
             tasks: %{},
             acts: %{},
-            via: nil,
             cut_over: false
 
   @outcomes ~w(approved changes declined)
@@ -106,7 +105,7 @@ defmodule Oneiroi.Sunna.Queue do
 
     with :ok <- task_head_ok(s, c),
          {:ok, layers} <- task_layers(n, c.layers),
-         :ok <- task_shape_ok(s, layers, c.start_layer) do
+         :ok <- task_shape_ok(layers, c.start_layer, c.carrier) do
       %E.TaskOpened{
         actor: c.actor,
         at: c.at,
@@ -233,7 +232,7 @@ defmodule Oneiroi.Sunna.Queue do
     with {:ok, task, act} <- activity(s, c.task, c.act),
          :ok <- unfinished(act),
          :ok <- may_assign(task, act, c.actor),
-         :ok <- assignee_ok(s, task, act, c.assignee),
+         :ok <- assignee_ok(s, task, act, c.assignee, c.carrier),
          :ok <- optional_words(c.note) do
       %E.ActivityAssigned{
         actor: c.actor,
@@ -290,16 +289,7 @@ defmodule Oneiroi.Sunna.Queue do
     end
   end
 
-  # ---- routing and the cutover ----
-
-  def execute(%__MODULE__{}, %C.RouteClaudeCode{actor: %{kind: :witness}} = c) do
-    if member?(c.via),
-      do: %E.ClaudeCodeRouted{actor: c.actor, at: c.at, id: c.id, via: c.via},
-      else: {:error, Error.new(:sunna_queue_invalid, :sunna_queue_route_invalid)}
-  end
-
-  def execute(%__MODULE__{}, %C.RouteClaudeCode{}),
-    do: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_route_witness_only)}
+  # ---- the cutover ----
 
   def execute(%__MODULE__{cut_over: false}, %C.CutOver{actor: %{kind: :witness}} = c) do
     if words?(c.commit, 64),
@@ -402,7 +392,6 @@ defmodule Oneiroi.Sunna.Queue do
   def apply(%__MODULE__{} = s, %E.TaskDropped{} = e),
     do: %{s | tasks: Map.update!(s.tasks, e.task, &%{&1 | status: "dropped"})}
 
-  def apply(%__MODULE__{} = s, %E.ClaudeCodeRouted{} = e), do: %{s | via: e.via}
   def apply(%__MODULE__{} = s, %E.CutOver{}), do: %{s | cut_over: true}
   def apply(%__MODULE__{} = s, %E.CutBack{}), do: %{s | cut_over: false}
 
@@ -688,7 +677,7 @@ defmodule Oneiroi.Sunna.Queue do
       assignee?(c.owner) and c.owner not in ["claude-code", "unknown"]
   end
 
-  defp task_shape_ok(s, layers, start) do
+  defp task_shape_ok(layers, start, carrier) do
     start = start || 0
 
     cond do
@@ -701,7 +690,7 @@ defmodule Oneiroi.Sunna.Queue do
       import_gated?(layers, start) ->
         {:error, Error.new(:sunna_queue_import_gated, :sunna_queue_task_import_gated)}
 
-      not routed?(s, layers) ->
+      not routed?(carrier, layers) ->
         {:error, Error.new(:sunna_queue_route_required, :sunna_queue_task_route)}
 
       true ->
@@ -727,15 +716,16 @@ defmodule Oneiroi.Sunna.Queue do
 
   # No one reaches claude-code but through the reviewed deliver step (§3):
   # each claude-code activity has, in the layer before it, a deliver by
-  # the member routing to it.
-  defp routed?(s, layers) do
+  # the resident whose conversation Claude Code is (`carrier`, read by the
+  # service from her sessions, never set by hand).
+  defp routed?(carrier, layers) do
     layers
     |> Enum.with_index()
     |> Enum.all?(fn {layer, i} ->
       Enum.all?(layer, fn a ->
         a.assignee != "claude-code" or
-          (i > 0 and not is_nil(s.via) and
-             Enum.any?(Enum.at(layers, i - 1), &(&1.type == "deliver" and &1.assignee == s.via)))
+          (i > 0 and not is_nil(carrier) and
+             Enum.any?(Enum.at(layers, i - 1), &(&1.type == "deliver" and &1.assignee == carrier)))
       end)
     end)
   end
@@ -976,7 +966,7 @@ defmodule Oneiroi.Sunna.Queue do
 
   defp member_may_work?(s, task, act, mine) do
     mine in [act.assignee, task.owner] or act.assignee == "unknown" or
-      (act.assignee == "claude-code" and mine == s.via)
+      (act.assignee == "claude-code" and mine == deliverer(s, task, act))
   end
 
   defp may_skip(task, act, actor) do
@@ -997,13 +987,13 @@ defmodule Oneiroi.Sunna.Queue do
       else: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_assign_not_yours)}
   end
 
-  defp assignee_ok(s, task, act, assignee) do
+  defp assignee_ok(s, task, act, assignee, carrier) do
     cond do
       not assignee?(assignee) ->
         {:error, Error.new(:sunna_queue_invalid, :sunna_queue_assign_assignee)}
 
       # claude-code only behind its deliver step (§3).
-      assignee == "claude-code" and not delivered_before?(s, task, act) ->
+      assignee == "claude-code" and (is_nil(carrier) or deliverer(s, task, act) != carrier) ->
         {:error, Error.new(:sunna_queue_route_required, :sunna_queue_assign_route)}
 
       true ->
@@ -1011,15 +1001,17 @@ defmodule Oneiroi.Sunna.Queue do
     end
   end
 
-  defp delivered_before?(s, task, act) do
+  # Who delivers to the claude-code activity: the deliver's assignee in
+  # the layer before it, or nil.
+  defp deliverer(s, task, act) do
     case G.layer_of(task, act.id) do
-      i when is_integer(i) and i > 0 and not is_nil(s.via) ->
+      i when is_integer(i) and i > 0 ->
         task.layers
         |> Enum.at(i - 1)
-        |> Enum.any?(&(s.acts[&1].type == "deliver" and s.acts[&1].assignee == s.via))
+        |> Enum.find_value(&(s.acts[&1].type == "deliver" && s.acts[&1].assignee))
 
       _first ->
-        false
+        nil
     end
   end
 

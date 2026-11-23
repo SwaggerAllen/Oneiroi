@@ -460,36 +460,20 @@ function NewTask({ overview }: { overview: QueueOverview }) {
 
 
 /**
- * The witness's setup (§3, §6.2, §7): who routes to claude-code, the
+ * The witness's setup (§6.2, §7): whose Claude Code is (read, not set), the
  * templates copied from the platform's starters, and the cutover: the
  * old queue committed first, then the house queue turned on naming that
  * commit, and the one-step revert.
  */
 function Setup({ overview: q, names }: { overview: QueueOverview; names: Names }) {
   const act = useAct();
-  const [via, setVia] = useState(q.via ?? '');
   const [commit, setCommit] = useState(q.commit ?? '');
   const [note, setNote] = useState('');
   if (!q.me.startsWith('witness:')) return null;
   const missing = q.starters.filter((s) => !q.templates.some((t) => t.name === s.name));
   return (
     <Card title="Setting up the house queue" witness>
-      <p className={css.note}>Claude Code is reached through {q.via ? nameOf(names, q.via) : 'nobody yet'}: a reviewed deliver step in their work, never directly.</p>
-      <div className={css.row}>
-        <Select label="Route Claude Code through" value={via} onChange={setVia}>
-          <option value="">Choose</option>
-          {q.members
-            .filter((m) => m.kind === 'resident')
-            .map((m) => (
-              <option key={m.assignee} value={m.assignee}>
-                {m.name}
-              </option>
-            ))}
-        </Select>
-        <button type="button" className={css.secondary} disabled={act.busy || !via || via === q.via} onClick={() => void act.run(() => api.queueRoute(via).then(() => 'Routed.'), QUEUE)}>
-          Set
-        </button>
-      </div>
+      <p className={css.note}>Claude Code is reached through {q.carrier ? nameOf(names, q.carrier) : 'nobody yet: no resident has a Claude Code conversation'}: a reviewed deliver step in her work, never directly.</p>
       <p className={css.note}>Templates: {q.templates.length ? q.templates.map((t) => t.name).join(', ') : 'none yet'}.</p>
       {missing.map((s) => (
         <button key={s.name} type="button" className={css.secondary} disabled={act.busy} onClick={() => void act.run(() => api.queueDefineTemplate(s.name, s.name).then(() => `${s.name} is in the house.`), QUEUE)}>

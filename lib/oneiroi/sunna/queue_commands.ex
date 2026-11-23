@@ -25,7 +25,8 @@ defmodule Oneiroi.Sunna.QueueCommands do
   # A task opened from layers already resolved (a template's roles made
   # members, its slots made citations): `start_layer` is where the work
   # stands, every layer before it imported as done (§6.2), `links` what
-  # already exists, by citation.
+  # already exists, by citation. `carrier`: the resident whose conversation
+  # Claude Code is, read by the service, never given by a caller (§3).
   defmodule OpenTask do
     use Oneiroi.Command,
       fields: [
@@ -39,7 +40,8 @@ defmodule Oneiroi.Sunna.QueueCommands do
         :template,
         :layers,
         :start_layer,
-        :links
+        :links,
+        :carrier
       ],
       bounds: [slug: 64, title: 200, template: 64]
   end
@@ -74,7 +76,7 @@ defmodule Oneiroi.Sunna.QueueCommands do
   end
 
   defmodule AssignActivity do
-    use Oneiroi.Command, fields: [:id, :task, :act, :assignee, :note]
+    use Oneiroi.Command, fields: [:id, :task, :act, :assignee, :note, :carrier]
   end
 
   # `outcome` approved, changes or declined (§1, §7); `pin` the revision
@@ -96,12 +98,6 @@ defmodule Oneiroi.Sunna.QueueCommands do
 
   defmodule DropTask do
     use Oneiroi.Command, fields: [:id, :task], decision: true
-  end
-
-  # Who carries claude-code's work (§3): the member whose reviewed
-  # deliver activity stands in front of each claude-code activity.
-  defmodule RouteClaudeCode do
-    use Oneiroi.Command, fields: [:id, :via]
   end
 
   # The cutover (§6.2): the old queue committed at `commit`, the new one

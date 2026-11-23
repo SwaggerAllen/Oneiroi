@@ -101,10 +101,6 @@ defmodule Oneiroi.Sunna.Events.Queue do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :task]
   end
 
-  defmodule ClaudeCodeRouted do
-    use Oneiroi.Event, version: 1, fields: [:id, :via]
-  end
-
   defmodule CutOver do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :commit]
   end

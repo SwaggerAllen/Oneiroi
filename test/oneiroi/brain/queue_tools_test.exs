@@ -31,7 +31,16 @@ defmodule Oneiroi.Brain.QueueToolsTest do
       resident: Actor.new(:resident, lily.id, "fake/model")
     }
 
-    :ok = Sunna.queue_route(witness.id, "resident:#{lily.id}", andrew)
+    {:ok, _} =
+      Oneiroi.Kumbukumbu.open_adapter(
+        lily.id,
+        "laptop",
+        [witness.id],
+        Actor.new(:resident, lily.id),
+        runtime: "claude-code",
+        label: "Oneiroi"
+      )
+
     :ok = Sunna.queue_define_template(witness.id, "doc-to-pr", %{from: "doc-to-pr"}, andrew)
 
     %{h: witness.id, andrew: andrew, lily: lily, scarlett: scarlett, turn: turn}
