@@ -191,6 +191,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Scenes
   alias Oneiroi.Seshat.Store.Book
   alias Oneiroi.Seshat.Theme
+  alias Oneiroi.Seshat.Threads
   alias Oneiroi.Seshat.UserKinds
   alias Oneiroi.Seshat.Versions
 
@@ -344,6 +345,12 @@ defmodule Oneiroi.Seshat do
     [
       {:seshat_household_not_member, "only a member of a household reads or writes its shelf",
        remedy: "a witness and the residents in its household are its members"},
+      {:seshat_threads_not_party,
+       "a resident's own threads are hers and her witness's alone (seshat#106): no one else reads or writes them",
+       remedy: "the house's threads are household_read and household_post without space"},
+      {:seshat_threads_no_document,
+       "a document's thread in her own threads is on one of her documents, a file in her records (never a thread)",
+       remedy: "name the document by its path in her records, as design/<name>.md"},
       {:seshat_household_residents_write,
        "this household's contract bars its witnesses from writing the shelf (witnesses_post false, carried by ballot, seshat#69); a witness still votes",
        remedy: "read the shelf whole; vote with a reply carrying yes or no"},
@@ -708,6 +715,36 @@ defmodule Oneiroi.Seshat do
   @doc "What a house citation names, as it stood at its commit, for a member of that house."
   @spec household_read_cited(Oneiroi.Actor.t(), map()) :: {:ok, map()} | {:error, term()}
   defexport(household_read_cited(actor, cite), do: Household.read_cited(actor, cite))
+
+  @doc "A resident's own threads, the last active first (seshat#106): hers and her witness's alone."
+  @spec threads(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(threads(actor, resident_id), do: Threads.list(actor, resident_id))
+
+  @doc "One of a resident's own threads whole (seshat#106)."
+  @spec thread_read(Oneiroi.Actor.t(), String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(thread_read(actor, resident_id, path),
+    do: Threads.read(actor, resident_id, path)
+  )
+
+  @doc "The one thread on a document of hers in her own threads, or nil (seshat#107)."
+  @spec thread_for_document(Oneiroi.Actor.t(), String.t(), String.t()) ::
+          {:ok, map() | nil} | {:error, term()}
+  defexport(thread_for_document(actor, resident_id, path),
+    do: Threads.for_document(actor, resident_id, path)
+  )
+
+  @doc "Posts in a resident's own threads (seshat#106): a thread, or a document's one thread (seshat#107)."
+  @spec thread_post(Oneiroi.Actor.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}
+  defexport(thread_post(actor, resident_id, attrs),
+    do: Threads.post(actor, resident_id, attrs)
+  )
+
+  @doc "Replies in a resident's own thread (seshat#106); her witness's reply wakes her chat (seshat#108)."
+  @spec thread_reply(Oneiroi.Actor.t(), String.t(), String.t(), map()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(thread_reply(actor, resident_id, path, attrs),
+    do: Threads.reply(actor, resident_id, path, attrs)
+  )
 
   @doc "A resident posts a thread, a ballot's thread, or a document of a household kind (seshat#59, #63)."
   @spec household_post(Oneiroi.Actor.t(), map()) :: {:ok, map()} | {:error, term()}

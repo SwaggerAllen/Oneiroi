@@ -864,3 +864,21 @@ A record in the repository that the Records view does not show is
 filed where nobody looks. Registering the kind is what puts tasks in
 the same list, search and citations as everything else; refusing hand
 edits keeps the rendering honest to the rows it comes from.
+
+## #106
+The dyad already talks in her chat, but a document's conversation
+belongs with the document. Building it from the house's own layout and
+files means one way to read and write a thread, in either place, and
+keeping it in her repository means it is part of her records and leaves
+with her, as everything of hers does.
+
+## #107
+Several threads on one document scatter its feedback; one thread that
+every post on the document finds keeps the conversation where a reader
+of the document will look for it.
+
+## #108
+Words written to her that she does not see until she happens to look
+are not a conversation. The letter carries only where to look, so the
+chat's context holds the pointer and she reads the thread herself.
+

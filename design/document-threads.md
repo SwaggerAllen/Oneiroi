@@ -2,8 +2,9 @@
 
 The witness's plan of 2026-11-23, settled in conversation while mocking the
 queue redesign (design canvas "House queue redesign"). It is the server
-half; the screens come after it and are built on it. Nothing here is built
-yet.
+half; the screens come after it and are built on it. Step 1 (her own
+threads, with step 2's one thread per document and step 3's wake, in her
+space) is built as seshat#106 to #108; the rest is not.
 
 ## What the screens need
 

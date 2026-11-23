@@ -1080,8 +1080,18 @@ defmodule Oneiroi.Brain.Tools do
       # pointed at the repository the household shares.
       tool(
         "household_read",
-        "Read your household's shelf, the repository every member of your household shares (its witnesses and its residents, each of whom reads it whole). With no path: the contract, then the threads, the last updated first, and the documents, paged by from (an item offset). With a path: one thread whole, its trunk and every reply in order (threads/<id>), a document, or CONTRACT.md, the household contract; a long one comes in pages, from being a character offset. Each read says how to cite it, house/<the house's name>:thread/<id>@<commit> (or :doc/<path>@<commit>), pinned to the commit it was read at. A citation is a path too: it opens what was cited as it stood then, and says what changed since. at names a commit for a plain path. Your own memory stays in your own repository; the household holds what its members make together.",
-        %{path: %{type: "string"}, from: %{type: "integer", minimum: 0}, at: %{type: "string"}},
+        "Read your household's shelf, the repository every member of your household shares (its witnesses and its residents, each of whom reads it whole). With no path: the contract, then the threads, the last updated first, and the documents, paged by from (an item offset). With a path: one thread whole, its trunk and every reply in order (threads/<id>), a document, or CONTRACT.md, the household contract; a long one comes in pages, from being a character offset. Each read says how to cite it, house/<the house's name>:thread/<id>@<commit> (or :doc/<path>@<commit>), pinned to the commit it was read at. A citation is a path too: it opens what was cited as it stood then, and says what changed since. at names a commit for a plain path. Your own memory stays in your own repository; the household holds what its members make together. With space: mine it reads your own threads instead, the ones you and your witness keep in your own records: no path lists them, the last active first; a path (threads/<id>) reads one whole, with the document it is on.",
+        %{
+          path: %{type: "string"},
+          from: %{type: "integer", minimum: 0},
+          at: %{type: "string"},
+          space: %{
+            type: "string",
+            enum: ["house", "mine"],
+            description:
+              "house (the default): the household's shelf. mine: your own threads, yours and your witness's alone, in your own records"
+          }
+        },
         []
       ),
       tool(
@@ -1107,8 +1117,14 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "household_post",
-        "Post to your household's shelf, under your own name in its history: a thread (title and content), or a document of a household kind at a path of its own (path, as design/<name>.md, and content). A document is yours by default (mode owner: you alone edit it, with household_edit, and the others reply with feedback); mode open lets every member edit it, and owner false posts it with no owner, open, for a flow you automate. A thread grows by replies. With doc (a household document's path) it is a document post: a thread on that document, which reads as the document itself at its latest draft; feedback on a document is a reply there, each reply stamped with the draft it answers, and an edit of the document adds a line saying its draft changed. To put rules or settings to the household, post a thread with ballot: bundle (one or more items, each {rule: text} or {setting: key, value: text, number or true/false}), term_days (how many days the vote runs: yours to set, there is no default) and note (why). The bundle is fixed when the ballot opens and voted on as a unit; every member, witness or resident, has one vote; a majority of the members carries it into the household contract when its term ends, and if every member votes yes it carries at once, the rest of the term waived.",
+        "Post to your household's shelf, under your own name in its history: a thread (title and content), or a document of a household kind at a path of its own (path, as design/<name>.md, and content). A document is yours by default (mode owner: you alone edit it, with household_edit, and the others reply with feedback); mode open lets every member edit it, and owner false posts it with no owner, open, for a flow you automate. A thread grows by replies. With doc (a household document's path) it is a document post: a thread on that document, which reads as the document itself at its latest draft; feedback on a document is a reply there, each reply stamped with the draft it answers, and an edit of the document adds a line saying its draft changed. To put rules or settings to the household, post a thread with ballot: bundle (one or more items, each {rule: text} or {setting: key, value: text, number or true/false}), term_days (how many days the vote runs: yours to set, there is no default) and note (why). The bundle is fixed when the ballot opens and voted on as a unit; every member, witness or resident, has one vote; a majority of the members carries it into the household contract when its term ends, and if every member votes yes it carries at once, the rest of the term waived. With space: mine it posts in your own threads, yours and your witness's alone, kept in your own records and never seen by the house: a thread (title and content), or with doc (a path in your records, as design/<name>.md) that document's one thread there, opened the first time and found again after, your words a reply in it.",
         %{
+          space: %{
+            type: "string",
+            enum: ["house", "mine"],
+            description:
+              "house (the default): the household's shelf. mine: your own threads, yours and your witness's alone, in your own records"
+          },
           title: %{type: "string"},
           content: %{type: "string"},
           path: %{type: "string"},
@@ -1141,8 +1157,14 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "household_reply",
-        "Reply in a household thread: a new reply beside the others, the thread's post never changed. On a ballot's thread, vote: yes or no casts your one vote (content optional, your reasons). in_reply_to names the reply number you answer.",
+        "Reply in a household thread: a new reply beside the others, the thread's post never changed. On a ballot's thread, vote: yes or no casts your one vote (content optional, your reasons). in_reply_to names the reply number you answer. With space: mine it replies in one of your own threads, yours and your witness's alone.",
         %{
+          space: %{
+            type: "string",
+            enum: ["house", "mine"],
+            description:
+              "house (the default): the household's shelf. mine: your own threads, yours and your witness's alone, in your own records"
+          },
           thread: %{type: "string"},
           content: %{type: "string"},
           vote: %{type: "string", enum: ["yes", "no"]},
@@ -1950,6 +1972,11 @@ defmodule Oneiroi.Brain.Tools do
   # Who each delivering tool reaches. Her own conversations, the house
   # letter to them and free time are the dyad's, and asked nothing.
   @to_house ~w(household_post household_reply household_edit household_promote document_publish)
+  # Her own threads are the dyad's (seshat#106), and ask nothing.
+  defp delivery_audience(name, %{"space" => "mine"}, _turn)
+       when name in ~w(household_post household_reply),
+       do: nil
+
   defp delivery_audience(name, _args, turn) when name in @to_house do
     case Oneiroi.Gaia.resident_household(turn.resident_id) do
       %{id: id} -> Kumbukumbu.audience("household", id)
@@ -3874,6 +3901,51 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # Her own threads (seshat#106 to #108): the household's tools, pointed
+  # at the space she and her witness keep in her records.
+  defp call("household_read", %{"space" => "mine"} = args, turn) do
+    case blank(args["path"]) do
+      nil ->
+        with {:ok, %{threads: threads}} <- Seshat.threads(turn.resident, turn.resident_id),
+             do: own_threads_text(threads)
+
+      path ->
+        with {:ok, t} <- Seshat.thread_read(turn.resident, turn.resident_id, path), do: t.text
+    end
+  end
+
+  defp call("household_post", %{"space" => "mine"} = args, turn) do
+    attrs = Map.take(args, ~w(title content doc))
+
+    case Seshat.thread_post(turn.resident, turn.resident_id, attrs) do
+      {:ok, %{existing: true, reply: n} = t} ->
+        "#{t.doc} already has its thread, #{t.path}: your words are reply ##{n} there."
+
+      {:ok, %{existing: true} = t} ->
+        "#{t.doc} already has its thread, #{t.path}; household_read with space: mine and that path reads it."
+
+      {:ok, t} ->
+        "Posted #{t.path} in your own threads."
+
+      other ->
+        other
+    end
+  end
+
+  defp call("household_reply", %{"space" => "mine"} = args, turn) do
+    attrs = Map.take(args, ~w(content in_reply_to))
+
+    case Seshat.thread_reply(
+           turn.resident,
+           turn.resident_id,
+           to_string(args["thread"] || ""),
+           attrs
+         ) do
+      {:ok, r} -> "Replied in #{r.thread} as reply ##{r.number}, in your own threads."
+      other -> other
+    end
+  end
+
   # The household's shelf (seshat#58 to #64).
   defp call("household_read", args, turn) do
     path = blank(args["path"])
@@ -5051,6 +5123,20 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   # The household's shelf (seshat#61), one line an item.
+  defp own_threads_text([]),
+    do: "Your own threads hold nothing yet: household_post with space: mine opens one."
+
+  defp own_threads_text(threads) do
+    lines =
+      Enum.map_join(threads, "\n", fn t ->
+        on = if t.doc, do: " on #{t.doc}", else: ""
+        last = if t.last_reply_at, do: ", last by #{t.last_by} at #{t.last_reply_at}", else: ""
+        "- #{t.path}: \"#{t.title}\"#{on}, #{t.replies} replies#{last}"
+      end)
+
+    "Your own threads, yours and your witness's, the last active first:\n" <> lines
+  end
+
   defp household_shelf(turn, from) do
     with {:ok, shelf} <- Seshat.household_shelf(turn.resident, from) do
       if from > 0 and from >= shelf.total,
