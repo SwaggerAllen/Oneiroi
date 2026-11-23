@@ -33,6 +33,10 @@ defmodule Oneiroi.Sunna.QueueStore do
       field(:owner, :string)
       field(:index_doc, :string)
       field(:template, :string)
+      # The template's version it was opened from, and whether its layers
+      # have been edited since (sunna#90).
+      field(:template_version, :integer)
+      field(:forked, :boolean, default: false)
       field(:links, {:array, :string}, default: [])
       field(:status, :string)
       field(:open_layer, :integer)
@@ -60,6 +64,10 @@ defmodule Oneiroi.Sunna.QueueStore do
       field(:layer, :integer)
       field(:position, :integer)
       field(:type, :string)
+      # Its template's name for it, and the template slot it works on
+      # (sunna#90): the name every task made from it shows.
+      field(:name, :string)
+      field(:slot, :string)
       field(:assignee, :string)
       field(:status, :string)
       field(:view, :string)
@@ -111,8 +119,27 @@ defmodule Oneiroi.Sunna.QueueStore do
       field(:name, :string, primary_key: true)
       field(:title, :string)
       field(:layers, :map)
+      # How many times it has been defined (sunna#90).
+      field(:version, :integer, default: 0)
       field(:defined_by, :string)
       field(:defined_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Document do
+    @moduledoc "A document attached to a task beside its activities' (sunna#91): its citation, its key (the path without its pin) and its role, a slot name or `source`."
+    use Ecto.Schema
+    @primary_key false
+    schema "sunna_queue_document" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:task, :integer, primary_key: true)
+      field(:key, :string, primary_key: true)
+      field(:citation, :string)
+      field(:role, :string)
+      field(:attached_by, :string)
+      field(:attached_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}

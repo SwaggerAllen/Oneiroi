@@ -36,6 +36,53 @@ defmodule OneiroiWeb.QueueRoutesTest do
     |> put_req_header("origin", OneiroiWeb.Endpoint.url())
   end
 
+  # design/document-threads.md §5, sunna#91: around one document, its
+  # tasks and the review of it open for the caller; a task's documents,
+  # attached by route.
+  test "a document's context: its tasks, the review open for him, its documents", ctx do
+    conn = ctx.conn
+    citation = "#{ctx.lily.slug}:design/plan.md"
+    post(conn, "/v1/household/queue/templates", %{name: "doc-to-pr", from: "doc-to-pr"})
+    post(conn, "/v1/household/queue/projects", %{slug: "p", name: "P"})
+
+    %{"number" => n} =
+      conn
+      |> post("/v1/household/queue/tasks", %{
+        project: "p",
+        slug: "plan",
+        title: "The plan",
+        outcome: "built",
+        owner: "resident:#{ctx.lily.id}",
+        template: "doc-to-pr",
+        slots: %{"design" => citation}
+      })
+      |> json_response(200)
+
+    assert %{
+             "tasks" => [%{"number" => ^n, "title" => "The plan"}],
+             "review" => nil,
+             "mine" => nil
+           } =
+             conn
+             |> get("/v1/documents/context", %{citation: citation <> "@abc123"})
+             |> json_response(200)
+
+    :ok = Oneiroi.Sunna.queue_finish(ctx.account.id, n, "#{n}.1", %{}, ctx.lily_actor)
+
+    assert %{"review" => %{"name" => "Witness review", "task" => ^n}} =
+             conn |> get("/v1/documents/context", %{citation: citation}) |> json_response(200)
+
+    assert %{"ok" => true} =
+             conn
+             |> post("/v1/household/queue/tasks/#{n}/documents", %{citation: "lily:notes/x.md"})
+             |> json_response(200)
+
+    assert %{"task" => %{"documents" => docs, "template_version" => 1, "forked" => false}} =
+             conn |> get("/v1/household/queue/tasks/#{n}") |> json_response(200)
+
+    assert Enum.map(docs, & &1["role"]) == ["design", "pr", "source"]
+  end
+
   test "set up, a task opened from doc-to-pr, its review decided, and the cutover", ctx do
     conn = ctx.conn
     lily = "resident:#{ctx.lily.id}"

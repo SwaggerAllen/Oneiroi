@@ -95,9 +95,10 @@ defmodule Oneiroi.Brain.QueueToolsTest do
 
   test "she writes a template whole, the shape rule held, and a task opens from it", ctx do
     layers = [
-      [%{type: "draft", role: "author", artifact: "piece"}],
+      [%{name: "Draft", type: "draft", role: "author", artifact: "piece"}],
       [
         %{
+          name: "Review",
           type: "review",
           role: "witness",
           artifact: "piece",
@@ -106,7 +107,15 @@ defmodule Oneiroi.Brain.QueueToolsTest do
           throwback: "1.1"
         }
       ],
-      [%{type: "publish", role: "author", artifact: "piece", destination: "substack"}]
+      [
+        %{
+          name: "Publish",
+          type: "publish",
+          role: "author",
+          artifact: "piece",
+          destination: "substack"
+        }
+      ]
     ]
 
     # A publish with no review in front of it is refused.

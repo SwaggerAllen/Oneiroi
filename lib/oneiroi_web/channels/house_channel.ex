@@ -13,7 +13,8 @@ defmodule OneiroiWeb.HouseChannel do
   alias Oneiroi.Gaia.Principal
 
   # The household's streams a page here follows.
-  @streams ["queue"]
+  # Its threads too (seshat#108): a thread written reads the shelf again.
+  @streams ["queue", "threads"]
 
   @impl Phoenix.Channel
   def join("house:" <> household_id, _params, socket) do

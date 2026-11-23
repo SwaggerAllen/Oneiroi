@@ -27,10 +27,10 @@ defmodule Oneiroi.Seshat.Household.Posts do
          :ok <- Core.may_post(actor, household_id),
          {:ok, view} <- Core.provision(household_id) do
       case {attrs["kind"] || "thread", attrs["doc"]} do
+        # A document has one thread in the house (seshat#109): a post on
+        # one that has it is a reply there, or, with no words, the thread.
         {"thread", doc} when is_binary(doc) ->
-          Documents.post_doc_thread(actor, household_id, view, attrs)
-          |> Replies.rounds_after(household_id, actor, attrs)
-          |> Mentions.mentioned(household_id, actor, attrs, nil)
+          doc_post(actor, household_id, view, attrs, Documents.doc_thread(view, doc))
 
         {"thread", _none} ->
           post_thread(actor, household_id, view, attrs)
@@ -40,6 +40,25 @@ defmodule Oneiroi.Seshat.Household.Posts do
         _document ->
           Documents.post_document(actor, household_id, view, attrs)
       end
+    end
+  end
+
+  defp doc_post(actor, household_id, view, attrs, nil) do
+    Documents.post_doc_thread(actor, household_id, view, attrs)
+    |> Replies.rounds_after(household_id, actor, attrs)
+    |> Mentions.mentioned(household_id, actor, attrs, nil)
+  end
+
+  defp doc_post(actor, _household_id, _view, attrs, t), do: on_existing(actor, t, attrs)
+
+  defp on_existing(actor, t, attrs) do
+    text = to_string(attrs["content"] || "")
+
+    if String.trim(text) == "" do
+      {:ok, Map.merge(t, %{existing: true, ballot: nil})}
+    else
+      with {:ok, r} <- Replies.reply(actor, t.path, %{"content" => text}),
+           do: {:ok, Map.merge(t, %{existing: true, reply: r.number, ballot: nil})}
     end
   end
 

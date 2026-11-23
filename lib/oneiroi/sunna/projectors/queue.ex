@@ -52,11 +52,13 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
       defined_at: e.at
     ]
 
+    # Its version counts its definitions (sunna#90): a task records the
+    # version it was opened from.
     Multi.insert(
       multi,
       :template,
-      struct(S.Template, [household_id: e.id, name: e.name] ++ set),
-      on_conflict: [set: set],
+      struct(S.Template, [household_id: e.id, name: e.name, version: 1] ++ set),
+      on_conflict: [set: set, inc: [version: 1]],
       conflict_target: [:household_id, :name]
     )
   end)
@@ -75,6 +77,8 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
           task: e.number,
           layer: i,
           position: j,
+          name: Queue.get(spec, :name),
+          slot: Queue.get(spec, :slot),
           type: Queue.get(spec, :type),
           assignee: Queue.get(spec, :assignee),
           status: if(imported, do: "done", else: "pending"),
@@ -113,6 +117,42 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
     |> Multi.insert_all(:acts, S.Activity, rows,
       on_conflict: :nothing,
       conflict_target: [:household_id, :act_id]
+    )
+    |> Multi.run(:template_version, fn repo, _ ->
+      version =
+        e.template &&
+          repo.one(
+            # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
+            from(t in S.Template,
+              where: t.household_id == ^e.id and t.name == ^e.template,
+              select: t.version
+            )
+          )
+
+      {:ok,
+       repo.update_all(
+         # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
+         from(t in S.Task, where: t.household_id == ^e.id and t.number == ^e.number),
+         set: [template_version: version]
+       )}
+    end)
+    # Its links are its first documents, sources (sunna#91).
+    |> Multi.insert_all(
+      :documents,
+      S.Document,
+      for link <- Enum.uniq_by(List.wrap(e.links), &Queue.doc_key/1) do
+        %{
+          household_id: e.id,
+          task: e.number,
+          key: Queue.doc_key(link),
+          citation: link,
+          role: "source",
+          attached_by: who(e.actor),
+          attached_at: e.at
+        }
+      end,
+      on_conflict: :nothing,
+      conflict_target: [:household_id, :task, :key]
     )
     |> history(e, nil, "opened", nil, nil, imported_note(start))
     |> refresh(e.id, e.number, e.at)
@@ -243,7 +283,49 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
 
       {:ok, length(placed)}
     end)
+    # Its own copy of its template from here on (sunna#90).
+    |> Multi.update_all(
+      :forked,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
+      from(t in S.Task, where: t.household_id == ^e.id and t.number == ^e.task),
+      set: [forked: true]
+    )
     |> history(e, nil, "layers edited", nil, nil, e.note)
+    |> refresh(e.id, e.task, e.at)
+  end)
+
+  fold(%E.DocumentAttached{} = e, _metadata, fn multi ->
+    multi
+    |> Multi.insert(
+      :document,
+      %S.Document{
+        household_id: e.id,
+        task: e.task,
+        key: Queue.doc_key(e.citation),
+        citation: e.citation,
+        role: e.role,
+        attached_by: who(e.actor),
+        attached_at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:household_id, :task, :key]
+    )
+    |> history(e, nil, "document attached", e.role, nil, e.citation)
+    |> refresh(e.id, e.task, e.at)
+  end)
+
+  fold(%E.DocumentDetached{} = e, _metadata, fn multi ->
+    key = Queue.doc_key(e.citation)
+
+    multi
+    |> Multi.delete_all(
+      :document,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
+      from(d in S.Document,
+        where: d.household_id == ^e.id and d.task == ^e.task and d.key == ^key
+      )
+    )
+    |> history(e, nil, "document detached", nil, nil, e.citation)
     |> refresh(e.id, e.task, e.at)
   end)
 
@@ -296,6 +378,8 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
     set = [
       layer: i,
       position: j,
+      name: Queue.get(spec, :name),
+      slot: Queue.get(spec, :slot),
       type: Queue.get(spec, :type),
       assignee: Queue.get(spec, :assignee),
       artifact: Queue.get(spec, :artifact),

@@ -882,3 +882,8 @@ Words written to her that she does not see until she happens to look
 are not a conversation. The letter carries only where to look, so the
 chat's context holds the pointer and she reads the thread herself.
 
+## #109
+Two threads on one document split its feedback in two; finding the thread a post means keeps the conversation on the document where its readers look. Announcing writes means an open page reads again when someone answers, never on a timer.
+
+## #110
+A review's decision is the conversation's next line: posted into the thread, it sits beside the talk that led to it, and the author reads it where she reads the rest.

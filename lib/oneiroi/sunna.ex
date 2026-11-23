@@ -62,6 +62,8 @@ defmodule Oneiroi.Sunna do
       QueueCommands.DecideReview,
       QueueCommands.DropTask,
       QueueCommands.FillSlot,
+      QueueCommands.AttachDocument,
+      QueueCommands.DetachDocument,
       QueueCommands.EditLayers,
       QueueCommands.CutOver,
       QueueCommands.CutBack,
@@ -79,6 +81,8 @@ defmodule Oneiroi.Sunna do
       Events.Queue.ReviewDecided,
       Events.Queue.ApprovalLapsed,
       Events.Queue.SlotFilled,
+      Events.Queue.DocumentAttached,
+      Events.Queue.DocumentDetached,
       Events.Queue.LayersEdited,
       Events.Queue.TaskCompleted,
       Events.Queue.TaskDropped,
@@ -393,6 +397,8 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.Queue.ReviewDecided, 1},
       {Oneiroi.Sunna.Events.Queue.ApprovalLapsed, 1},
       {Oneiroi.Sunna.Events.Queue.SlotFilled, 1},
+      {Oneiroi.Sunna.Events.Queue.DocumentAttached, 1},
+      {Oneiroi.Sunna.Events.Queue.DocumentDetached, 1},
       {Oneiroi.Sunna.Events.Queue.LayersEdited, 1},
       {Oneiroi.Sunna.Events.Queue.TaskCompleted, 1},
       {Oneiroi.Sunna.Events.Queue.TaskDropped, 1},
@@ -870,6 +876,36 @@ defmodule Oneiroi.Sunna do
           :ok | {:error, term()}
   defexport(queue_fill_slot(household_id, task, slot, artifact, actor),
     do: Queues.fill_slot(household_id, task, slot, artifact, actor)
+  )
+
+  @doc "Attaches a document to a task (sunna#91): role a slot name or source."
+  @spec queue_attach_document(
+          String.t(),
+          pos_integer(),
+          String.t(),
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) ::
+          :ok | {:error, term()}
+  defexport(queue_attach_document(household_id, task, citation, role, actor),
+    do: Queues.attach_document(household_id, task, citation, role, actor)
+  )
+
+  @doc "Detaches a document attached to a task (sunna#91)."
+  @spec queue_detach_document(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_detach_document(household_id, task, citation, actor),
+    do: Queues.detach_document(household_id, task, citation, actor)
+  )
+
+  @doc "Each task's documents by number (sunna#91): its activities' and those attached."
+  @spec queue_documents(String.t(), [pos_integer()]) :: %{pos_integer() => [map()]}
+  defexport(queue_documents(household_id, numbers), do: Queues.documents(household_id, numbers))
+
+  @doc "The tasks a document belongs to (sunna#91), by its citation."
+  @spec queue_tasks_for_document(String.t(), String.t()) :: [map()]
+  defexport(queue_tasks_for_document(household_id, citation),
+    do: Queues.tasks_for_document(household_id, citation)
   )
 
   @doc "Edits an open task's layers (sunna#85): existing activities by id, new ones as specs, with a note."

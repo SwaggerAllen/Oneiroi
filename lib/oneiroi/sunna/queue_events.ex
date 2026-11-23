@@ -93,6 +93,16 @@ defmodule Oneiroi.Sunna.Events.Queue do
     use Oneiroi.Event, version: 1, fields: [:id, :task, :slot, :artifact, :acts]
   end
 
+  defmodule DocumentAttached do
+    # A document attached to a task (sunna#91): its citation and its role,
+    # a slot name or `source`.
+    use Oneiroi.Event, version: 1, fields: [:id, :task, :citation, :role]
+  end
+
+  defmodule DocumentDetached do
+    use Oneiroi.Event, version: 1, fields: [:id, :task, :citation]
+  end
+
   defmodule LayersEdited do
     # The task's layers after the edit, each activity whole with its id
     # (new ones numbered on from the task's last); `removed`, the pending

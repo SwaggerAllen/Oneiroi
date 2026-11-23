@@ -307,6 +307,7 @@ defmodule Oneiroi.Brain.TrialTest do
     {"queue_move", %{task: 1, act: "1.1", move: "take"}},
     {"queue_decide", %{task: 1, act: "1.2", outcome: "approved", note: "yes"}},
     {"queue_fill_slot", %{task: 1, slot: "pr", artifact: "github:pr/1"}},
+    {"queue_task_document", %{task: 1, citation: "lily:design/x.md"}},
     {"queue_drop", %{task: 1, note: "no"}},
     {"queue_template_define", %{name: "t", from: "doc-to-pr"}},
     {"queue_task_edit", %{task: 1, layers: [[%{id: "1.1"}]], note: "tidy"}},

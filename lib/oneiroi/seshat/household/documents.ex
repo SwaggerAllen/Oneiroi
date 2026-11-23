@@ -72,6 +72,88 @@ defmodule Oneiroi.Seshat.Household.Documents do
   end
 
   @doc false
+  # A household document's one thread (seshat#109): the oldest posted on
+  # it, or nil.
+  def doc_thread(view, doc) do
+    case Files.household_path(doc) do
+      {:ok, path} ->
+        view
+        |> Files.thread_ids()
+        |> Enum.flat_map(&on_doc(view, "threads/" <> &1, path))
+        |> Enum.min_by(&{&1.posted_at, &1.path}, fn -> nil end)
+        |> then(&(&1 && Map.delete(&1, :posted_at)))
+
+      _not_a_path ->
+        nil
+    end
+  end
+
+  defp on_doc(view, thread, path) do
+    case Files.load_thread(view, thread) do
+      {:ok, %{trunk: %{meta: %{"doc" => ^path} = meta}}} ->
+        [%{path: thread, title: meta["title"], doc: path, posted_at: meta["posted_at"] || ""}]
+
+      _other ->
+        []
+    end
+  end
+
+  @doc false
+  # The platform's line in a household document's one thread (seshat#110,
+  # a review's decision), opening the thread under the platform's name
+  # when it has none: never gated, never a member's quota.
+  def platform_note(household_id, path, text) do
+    Files.locked(household_id, fn view ->
+      commit = Files.doc_commit(view, path)
+
+      case doc_thread(view, path) do
+        nil -> platform_thread(view, path, commit, text)
+        %{path: thread} -> platform_reply(view, {thread, path}, commit, text)
+      end
+    end)
+  end
+
+  defp platform_thread(view, path, commit, text) do
+    thread = "threads/" <> Files.fresh_id(view, "on-" <> Path.basename(path, ".md"))
+
+    meta =
+      [
+        {"title", "On #{Path.basename(path, ".md")}"},
+        {"by", @platform.name},
+        {"by_kind", "platform"},
+        {"posted_at", Files.iso(Clock.now())},
+        {"doc", path}
+      ] ++ Files.optional("doc_commit", commit)
+
+    body = "A document post on #{path}#{Files.draft_at(commit)}.\n\n" <> text
+
+    changes = [
+      {:create, Path.join(thread, @trunk), Files.render(meta, body)}
+      | Core.descriptor(view, Kinds.named("thread"))
+    ]
+
+    with {:ok, _} <- Files.commit(view, changes, "Post: on #{path}", @platform),
+         do: {:ok, %{path: thread}}
+  end
+
+  defp platform_reply(view, {thread, path}, commit, text) do
+    number = Files.next_reply(view, thread)
+
+    meta =
+      [
+        {"by", @platform.name},
+        {"by_kind", "platform"},
+        {"at", Files.iso(Clock.now())},
+        {"reply", Integer.to_string(number)}
+      ] ++ Files.optional("doc_commit", commit)
+
+    change = {:create, Files.reply_path(thread, number, "oneiroi"), Files.render(meta, text)}
+
+    with {:ok, _} <- Files.commit(view, [change], "Reply ##{number} on #{path}", @platform),
+         do: {:ok, %{path: thread, reply: number}}
+  end
+
+  @doc false
   # After an edit, a line in every thread on the document saying its
   # draft changed (seshat#83), so which draft is being talked about is
   # plain at every point and the latest draft's talk can be found. The

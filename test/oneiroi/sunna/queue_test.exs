@@ -300,8 +300,8 @@ defmodule Oneiroi.Sunna.QueueTest do
           title: "T",
           outcome: "done",
           layers: [
-            [%{type: "draft", assignee: ctx.a_lily}],
-            [%{type: "implement", assignee: "claude-code:#{ctx.lily.id}"}]
+            [%{name: "Draft", type: "draft", assignee: ctx.a_lily}],
+            [%{name: "Implement", type: "implement", assignee: "claude-code:#{ctx.lily.id}"}]
           ]
         },
         ctx.lily
@@ -355,9 +355,107 @@ defmodule Oneiroi.Sunna.QueueTest do
     :ok = Queues.take(ctx.h, n, "#{n}.6", ctx.lily)
   end
 
+  # sunna#90, #91 (design/document-threads.md §4, the witness's rulings of
+  # 2026-11-23): names are the template's, a task forks it when its
+  # layers are edited, and a task holds any number of documents.
+  test "a task carries its template's names and version, and forks when edited", ctx do
+    {:ok, n} = doc_to_pr(ctx)
+    %{task: task, layers: layers} = Queues.task(ctx.h, n)
+
+    assert Enum.map(List.flatten(layers), & &1.name) == [
+             "Draft the design",
+             "Witness review",
+             "Share with the house",
+             "Peer review",
+             "Hand to Claude Code",
+             "Build it",
+             "PR review",
+             "Merge"
+           ]
+
+    assert %{template: "doc-to-pr", template_version: 1, forked: false} = task
+    assert act(ctx, n, "#{n}.1").slot == "design"
+
+    # A template's activities are named, every one.
+    assert {:error, %{kind: :sunna_queue_invalid}} =
+             Queues.define_template(
+               ctx.h,
+               "bare",
+               %{title: "Bare", layers: [[%{type: "draft", role: "author"}]]},
+               ctx.lily
+             )
+
+    keep = Enum.map(layers, fn l -> Enum.map(l, &%{id: &1.act_id}) end)
+
+    # One added to the task needs a name of its own.
+    assert {:error, %{kind: :sunna_queue_invalid}} =
+             Queues.edit_layers(
+               ctx.h,
+               n,
+               keep ++ [[%{type: "x", assignee: ctx.a_lily}]],
+               "add",
+               ctx.lily
+             )
+
+    :ok =
+      Queues.edit_layers(
+        ctx.h,
+        n,
+        List.insert_at(keep, 3, [
+          %{name: "Write the tests", type: "draft", assignee: ctx.a_scarlett}
+        ]),
+        "tests first",
+        ctx.lily
+      )
+
+    assert %{forked: true} = Queues.task(ctx.h, n).task
+    # Redefining the template moves its version, never the open task.
+    :ok = Queues.define_template(ctx.h, "doc-to-pr", %{from: "doc-to-pr"}, ctx.andrew)
+    assert %{template_version: 1} = Queues.task(ctx.h, n).task
+    assert %{version: 2} = Queues.template(ctx.h, "doc-to-pr")
+  end
+
+  test "a task's documents: its slots', and those attached; a document finds its tasks", ctx do
+    {:ok, n} = doc_to_pr(ctx, attrs: [links: ["scarlett:design/emergency-access.md"]])
+
+    assert [
+             %{role: "design", citation: "lily:design/queue-ia"},
+             %{role: "pr", citation: nil, key: "slot:pr"},
+             %{role: "source", citation: "scarlett:design/emergency-access.md", attached: true}
+           ] = Queues.documents(ctx.h, [n])[n]
+
+    :ok = Queues.attach_document(ctx.h, n, "house/strut:thread/domain-gate@abc", nil, ctx.lily)
+    # Once only, by the path without its pin.
+    :ok = Queues.attach_document(ctx.h, n, "house/strut:thread/domain-gate", nil, ctx.lily)
+    assert length(Queues.documents(ctx.h, [n])[n]) == 4
+
+    # Not a member, not hers to change.
+    assert {:error, _} =
+             Queues.attach_document(
+               ctx.h,
+               n,
+               "lily:notes/x.md",
+               nil,
+               Actor.new(:resident, Ecto.UUID.generate())
+             )
+
+    assert [%{number: ^n}] = Queues.tasks_for_document(ctx.h, "lily:design/queue-ia@4e1c9a2")
+    assert [%{number: ^n}] = Queues.tasks_for_document(ctx.h, "house/strut:thread/domain-gate")
+
+    :ok = Queues.detach_document(ctx.h, n, "house/strut:thread/domain-gate", ctx.andrew)
+    assert Queues.tasks_for_document(ctx.h, "house/strut:thread/domain-gate") == []
+  end
+
   test "a template written whole is checked: the shape rule and its throwbacks", ctx do
-    draft = %{type: "draft", role: "author", artifact: "design"}
-    review = %{type: "review", role: "witness", artifact: "design", throwback: "1.1"}
+    draft = %{name: "Draft", type: "draft", role: "author", artifact: "design"}
+
+    review = %{
+      name: "Review",
+      type: "review",
+      role: "witness",
+      artifact: "design",
+      throwback: "1.1"
+    }
 
     :ok = Queues.define_template(ctx.h, "t", %{title: "T", layers: [[draft], [review]]}, ctx.lily)
 
@@ -385,12 +483,12 @@ defmodule Oneiroi.Sunna.QueueTest do
             title: "T",
             outcome: "done",
             layers: [
-              [%{type: "draft", assignee: ctx.a_lily}],
+              [%{name: "Draft", type: "draft", assignee: ctx.a_lily}],
               [
-                %{type: "research", assignee: ctx.a_lily},
-                %{type: "notes", assignee: ctx.a_scarlett}
+                %{name: "Research", type: "research", assignee: ctx.a_lily},
+                %{name: "Notes", type: "notes", assignee: ctx.a_scarlett}
               ],
-              [%{type: "review", assignee: ctx.a_andrew}]
+              [%{name: "Review", type: "review", assignee: ctx.a_andrew}]
             ]
           },
           ctx.lily
@@ -412,8 +510,11 @@ defmodule Oneiroi.Sunna.QueueTest do
           n,
           [
             [%{id: "#{n}.1"}],
-            [%{id: "#{n}.2", type: "deep research"}, %{type: "outline", assignee: ctx.a_lily}],
-            [%{type: "fact-check", assignee: ctx.a_scarlett}],
+            [
+              %{id: "#{n}.2", type: "deep research"},
+              %{name: "Outline", type: "outline", assignee: ctx.a_lily}
+            ],
+            [%{name: "Fact-check", type: "fact-check", assignee: ctx.a_scarlett}],
             [%{id: "#{n}.4"}]
           ],
           "notes folded into research; a fact-check before review",
@@ -421,7 +522,10 @@ defmodule Oneiroi.Sunna.QueueTest do
         )
 
       assert ids(ctx) == [["#{n}.1"], ["#{n}.2", "#{n}.5"], ["#{n}.6"], ["#{n}.4"]]
-      assert %{type: "deep research", view: "ready"} = act(ctx, n, "#{n}.2")
+
+      assert %{type: "deep research", view: "ready"} =
+               act(ctx, n, "#{n}.2")
+
       assert act(ctx, n, "#{n}.6").view == "waiting"
       assert Enum.any?(Queues.task(ctx.h, n).history, &(&1.what == "layers edited"))
 
@@ -441,7 +545,7 @@ defmodule Oneiroi.Sunna.QueueTest do
           n,
           [
             [%{id: "#{n}.1"}],
-            [%{id: "#{n}.2"}, %{type: "x", assignee: ctx.a_lily}],
+            [%{id: "#{n}.2"}, %{name: "X", type: "x", assignee: ctx.a_lily}],
             [%{id: "#{n}.4"}]
           ],
           "add",
@@ -497,7 +601,7 @@ defmodule Oneiroi.Sunna.QueueTest do
                  ctx.h,
                  n,
                  [
-                   [%{id: "#{n}.1"}, %{type: "late", assignee: ctx.a_lily}],
+                   [%{id: "#{n}.1"}, %{name: "Late", type: "late", assignee: ctx.a_lily}],
                    [%{id: "#{n}.2"}, %{id: "#{n}.3"}],
                    [%{id: "#{n}.4"}]
                  ],
@@ -551,6 +655,7 @@ defmodule Oneiroi.Sunna.QueueTest do
                    [%{id: "#{n}.2"}, %{id: "#{n}.3"}],
                    [
                      %{
+                       name: "Send",
                        type: "send",
                        assignee: ctx.a_lily,
                        artifact: "lily:writing/x",
