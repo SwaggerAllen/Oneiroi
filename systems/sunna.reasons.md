@@ -592,8 +592,9 @@ Templates are how the house says what its work looks like; as data they
 can be reviewed and changed like anything else. Claude Code acts outside
 the house's own conversations, so a resident's reviewed hand-off stands
 in front of it: no one reaches it from the queue except through a step
-someone owns. Whose Claude Code is is a fact about her conversations, so
-it is read from them; a setting could only disagree with the fact.
+someone owns. Claude Code runs on one resident's memories, so whose it is
+belongs in the name of the assignee: nothing to look up, nothing to
+configure, and two residents each with one are simply two.
 
 ## #84
 A hard cutover with no automated mapper means the people moving the

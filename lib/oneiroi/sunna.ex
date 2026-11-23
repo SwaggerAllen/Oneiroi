@@ -491,7 +491,7 @@ defmodule Oneiroi.Sunna do
       {:sunna_queue_not_a_member, "only the household's members keep its queue",
        remedy: "ask a member of the household"},
       {:sunna_queue_invalid,
-       "a queue entry is well formed: a slug of lowercase letters, digits and hyphens; a name, title or outcome in words; an assignee a member (resident:<id>, witness:<id>), claude-code or unknown; layers of activities, each a verb; a reason or note at most 500 or 4,000 characters",
+       "a queue entry is well formed: a slug of lowercase letters, digits and hyphens; a name, title or outcome in words; an assignee a member (resident:<id>, witness:<id>), a resident's Claude Code (claude-code:<id>) or unknown; layers of activities, each a verb; a reason or note at most 500 or 4,000 characters",
        remedy: "say each in words, and name assignees as the house's members list gives them"},
       {:sunna_queue_no_such_project, "no open project has that slug",
        remedy: "read the projects, or open one"},
@@ -520,9 +520,8 @@ defmodule Oneiroi.Sunna do
        "an imported task carries no approvals (Scarlett's third guard): it cannot start at a layer holding a gated activity, since its review would be imported",
        remedy: "start the task one layer earlier, at the review, so the review is given afresh"},
       {:sunna_queue_route_required,
-       "claude-code is reached only through a reviewed deliver step by the resident whose conversation Claude Code is (§3): the layer before a claude-code activity holds her deliver",
-       remedy:
-         "put her deliver in the layer before; if no resident of the house has a Claude Code conversation yet, there is no one to deliver to"},
+       "a resident's Claude Code (claude-code:<id>) is reached only through her reviewed deliver step (§3): the layer before its activity holds a deliver by that resident, whose memories it runs on",
+       remedy: "put her deliver in the layer before the Claude Code activity"},
       {:sunna_queue_review_required,
        "a gated activity runs only behind its approved review, and a review standing in front of a gated activity still to run is never skipped",
        remedy: "approve the review, or skip the gated activity first"},
@@ -899,10 +898,6 @@ defmodule Oneiroi.Sunna do
   defexport(queue_cut_back(household_id, note, actor),
     do: Queues.cut_back(household_id, note, actor)
   )
-
-  @doc "The resident whose conversation Claude Code is (§3), read from her sessions; nil when none or more than one."
-  @spec queue_carrier(String.t()) :: String.t() | nil
-  defexport(queue_carrier(household_id), do: Queues.carrier(household_id))
 
   @doc "The house queue's state: cut over and its commit."
   @spec queue_state(String.t()) :: Oneiroi.Sunna.QueueStore.State.t()

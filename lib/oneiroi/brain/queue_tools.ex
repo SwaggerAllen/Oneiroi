@@ -51,7 +51,7 @@ defmodule Oneiroi.Brain.QueueTools do
       ),
       tool(
         "queue_templates",
-        "The house's templates (each a title and its layers of activities, with roles) and the starters the platform ships; members, and who routes to claude-code.",
+        "The house's templates (each a title and its layers of activities, with roles) and the starters the platform ships; and the members, as assignees.",
         %{},
         []
       ),
@@ -91,7 +91,7 @@ defmodule Oneiroi.Brain.QueueTools do
       ),
       tool(
         "queue_move",
-        "Move an activity of the house queue (task and act, as 12 and \"12.3\"): take (you are on it), finish (with note; result a citation of what it made, a PR say), skip (explicitly, with note: an optional activity, or any in a task you own; never a review in front of a gated activity still to run), block (reason, and waits_on a task number when it waits on that task's completion: it clears by itself when that task is done or dropped), reopen (a blocked or failed one, with note), fail (reason says what failed; it keeps its place) or assign (assignee: a member, claude-code or unknown). A promote-to-house activity finishes by household_promote with its task and act, never here. Reviews are decided with queue_decide.",
+        "Move an activity of the house queue (task and act, as 12 and \"12.3\"): take (you are on it), finish (with note; result a citation of what it made, a PR say), skip (explicitly, with note: an optional activity, or any in a task you own; never a review in front of a gated activity still to run), block (reason, and waits_on a task number when it waits on that task's completion: it clears by itself when that task is done or dropped), reopen (a blocked or failed one, with note), fail (reason says what failed; it keeps its place) or assign (assignee: a member, a resident's Claude Code as claude-code:<her id>, or unknown). A promote-to-house activity finishes by household_promote with its task and act, never here. Reviews are decided with queue_decide.",
         Map.merge(act, %{
           move: %{
             type: "string",
@@ -167,7 +167,6 @@ defmodule Oneiroi.Brain.QueueTools do
   end
 
   defp run("queue_templates", _args, h, _actor, _me) do
-    names = names(h)
     defined = Sunna.queue_templates(h)
 
     templates =
@@ -182,14 +181,8 @@ defmodule Oneiroi.Brain.QueueTools do
       end)
 
     members = Enum.map_join(Sunna.queue_members(h), ", ", &"#{&1.name} (#{&1.assignee})")
-    carrier = Sunna.queue_carrier(h)
 
-    via =
-      if carrier,
-        do: name_of(carrier, names),
-        else: "no resident yet (no Claude Code conversation)"
-
-    "Templates in the house:\n#{templates}\n\nStarters the platform ships:\n#{starters}\n\nMembers: #{members}. Claude Code is reached through #{via}."
+    "Templates in the house:\n#{templates}\n\nStarters the platform ships:\n#{starters}\n\nMembers: #{members}. A resident's Claude Code is claude-code:<her id>, reached through her own deliver step."
   end
 
   defp run("queue_project_open", args, h, actor, _me) do
@@ -414,6 +407,14 @@ defmodule Oneiroi.Brain.QueueTools do
   end
 
   defp names(h), do: Map.new(Sunna.queue_members(h), &{&1.assignee, &1.name})
+
+  # A resident's Claude Code by her name (§3).
+  defp name_of("claude-code:" <> id = a, names) do
+    case names["resident:" <> id] do
+      nil -> a
+      hers -> "#{hers}'s Claude Code"
+    end
+  end
 
   defp name_of(a, names), do: Map.get(names, a, a)
 

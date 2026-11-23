@@ -10,10 +10,10 @@ defmodule Oneiroi.Sunna.Queues do
 
   A template becomes a task here (§7): each role made a member (author
   the task's owner, witness the household's first witness, peer the one
-  other resident, builder claude-code, unknown as written), each artifact
+  other resident, builder the owner's Claude Code, unknown as written), each artifact
   slot made the citation given or left as `slot:<name>` until it is
-  filled, and a deliver by the resident whose conversation Claude Code is
-  put in its own layer in front of every claude-code activity (§3).
+  filled, and a deliver by the resident whose Claude Code it is put in
+  its own layer in front of every Claude Code activity (§3).
   """
 
   import Ecto.Query, only: [from: 2]
@@ -21,7 +21,6 @@ defmodule Oneiroi.Sunna.Queues do
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Gaia
-  alias Oneiroi.Kumbukumbu
   alias Oneiroi.Repo
   alias Oneiroi.Scope
   alias Oneiroi.Sunna.Error
@@ -177,8 +176,7 @@ defmodule Oneiroi.Sunna.Queues do
         template: attrs[:template],
         layers: layers,
         start_layer: start(attrs[:start_layer], layers),
-        links: List.wrap(attrs[:links]),
-        carrier: carrier(household_id)
+        links: List.wrap(attrs[:links])
       }
 
       with {:ok, events} <- send_command(command) do
@@ -282,7 +280,7 @@ defmodule Oneiroi.Sunna.Queues do
         what: what
       })
 
-  @doc "Assigns an activity to a member, claude-code or unknown, with an optional note."
+  @doc "Assigns an activity to a member, a resident's Claude Code or unknown, with an optional note."
   def assign(household_id, task, act, assignee, note, %Actor{} = actor),
     do:
       dispatch(household_id, actor, %C.AssignActivity{
@@ -292,8 +290,7 @@ defmodule Oneiroi.Sunna.Queues do
         task: task,
         act: act,
         assignee: assignee,
-        note: note,
-        carrier: carrier(household_id)
+        note: note
       })
 
   @doc """
@@ -344,8 +341,7 @@ defmodule Oneiroi.Sunna.Queues do
         id: household_id,
         task: task,
         layers: layers,
-        note: note,
-        carrier: carrier(household_id)
+        note: note
       })
 
   @doc "Drops a task, with a note: it counts as complete, releasing what waits on it (§1)."
@@ -432,7 +428,7 @@ defmodule Oneiroi.Sunna.Queues do
   defp layers_for(household_id, attrs, owner) do
     case {attrs[:layers], attrs[:template]} do
       {layers, _} when is_list(layers) ->
-        {:ok, route_claude_code(household_id, layers)}
+        {:ok, route_claude_code(layers)}
 
       {nil, name} when is_binary(name) ->
         case template(household_id, name) do
@@ -442,7 +438,7 @@ defmodule Oneiroi.Sunna.Queues do
           t ->
             household_id
             |> resolve(t.layers["layers"], owner, attrs[:roles] || %{}, attrs[:slots] || %{})
-            |> then(&{:ok, route_claude_code(household_id, &1)})
+            |> then(&{:ok, route_claude_code(&1)})
         end
 
       _neither ->
@@ -458,7 +454,7 @@ defmodule Oneiroi.Sunna.Queues do
       "author" => owner,
       "witness" => first(members, "witness"),
       "peer" => peer(members, owner),
-      "builder" => "claude-code",
+      "builder" => claude_code(owner),
       "unknown" => "unknown"
     }
 
@@ -493,33 +489,37 @@ defmodule Oneiroi.Sunna.Queues do
     end
   end
 
-  # A deliver by the resident whose conversation Claude Code is, in its
-  # own layer before every layer holding claude-code work (§3),
-  # throwbacks renumbered past it.
-  defp route_claude_code(household_id, layers) do
-    via = carrier(household_id) || "unknown"
+  # The owner's Claude Code when the owner is a resident (§3): it runs on
+  # her memories. A witness-owned task names its builder in `roles`.
+  defp claude_code("resident:" <> id), do: "claude-code:" <> id
+  defp claude_code(_other), do: "unknown"
 
+  # A deliver by the resident whose Claude Code it is, in its own layer
+  # before every layer holding Claude Code work (§3), throwbacks
+  # renumbered past it.
+  defp route_claude_code(layers) do
     {out, shifts} =
       layers
       |> Enum.with_index(1)
-      |> Enum.reduce({[], %{}}, &route_layer(&1, &2, via))
+      |> Enum.reduce({[], %{}}, &route_layer/2)
 
     Enum.map(out, fn layer -> Enum.map(layer, &renumber_throwback(&1, shifts)) end)
   end
 
-  defp route_layer({layer, i}, {acc, shifts}, via) do
+  defp route_layer({layer, i}, {acc, shifts}) do
     layer = Enum.map(layer, &Map.new(&1, fn {k, v} -> {atom(k), v} end))
     shifts = Map.put(shifts, i, length(acc) + 1)
 
-    if Enum.any?(layer, &(&1[:assignee] == "claude-code")) do
-      deliver =
-        for a <- layer, a[:assignee] == "claude-code" do
-          %{type: "deliver", assignee: via, artifact: a[:artifact], inserted: true}
-        end
+    case for(a <- layer, hers = Queue.claude_code_of(a[:assignee]), do: {a, hers}) do
+      [] ->
+        {acc ++ [layer], shifts}
 
-      {acc ++ [deliver, layer], Map.put(shifts, i, length(acc) + 2)}
-    else
-      {acc ++ [layer], shifts}
+      theirs ->
+        deliver =
+          for {a, hers} <- theirs,
+              do: %{type: "deliver", assignee: hers, artifact: a[:artifact], inserted: true}
+
+        {acc ++ [deliver, layer], Map.put(shifts, i, length(acc) + 2)}
     end
   end
 
@@ -547,31 +547,6 @@ defmodule Oneiroi.Sunna.Queues do
     do: Enum.find(@known, k, &(Atom.to_string(&1) == k))
 
   # ---- reads ----
-
-  @doc """
-  The resident whose conversation Claude Code is (§3): the household's
-  resident with a session another runtime opened as `claude-code`. Read
-  from her sessions, never set by hand; nil when no resident has one, or
-  when more than one does and the house cannot say whose it is.
-  """
-  def carrier(household_id) do
-    found =
-      for %{kind: "resident", id: id} <- Gaia.household_members(household_id),
-          claude_code?(id),
-          do: "resident:#{id}"
-
-    case found do
-      [one] -> one
-      _none_or_many -> nil
-    end
-  end
-
-  defp claude_code?(resident_id),
-    do:
-      Enum.any?(
-        Kumbukumbu.sessions({:resident, resident_id}),
-        &(&1.runtime == "claude-code")
-      )
 
   @doc "The queue's state: cut over or not, and the commit that holds the old queue."
   def state(household_id), do: QueueState.get(household_id)

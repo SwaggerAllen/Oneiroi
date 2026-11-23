@@ -178,6 +178,13 @@ defmodule Oneiroi.Seshat.QueueIndex do
   defp plain(%{__struct__: _} = row), do: row |> Map.from_struct() |> Map.delete(:__meta__)
   defp plain(row), do: row
 
+  defp name("claude-code:" <> id = a, names) do
+    case names["resident:" <> id] do
+      nil -> a
+      hers -> "#{hers}'s Claude Code"
+    end
+  end
+
   defp name(a, names), do: Map.get(names, a, a)
   defp short(pin), do: String.slice(pin, 0, 7)
   # One line of the house's front matter, as `Files.render/2` writes it.

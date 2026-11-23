@@ -5,8 +5,15 @@ export type Names = Record<string, string>;
 
 export const pin = (p: string | null) => (p ? `@${p.slice(0, 7)}` : '');
 
-export const nameOf = (names: Names, a: string) =>
-  a === 'claude-code' ? 'Claude Code' : a === 'unknown' ? 'holder not known yet' : (names[a] ?? a);
+/** A resident's Claude Code (`claude-code:<id>`) runs on her memories, so it is named as hers (§3). */
+export const nameOf = (names: Names, a: string): string => {
+  if (a === 'unknown') return 'holder not known yet';
+  if (a.startsWith('claude-code:')) {
+    const hers = names[`resident:${a.slice('claude-code:'.length)}`];
+    return hers ? `${hers}'s Claude Code` : 'Claude Code';
+  }
+  return names[a] ?? a;
+};
 
 /** How long ago, in the card's few characters: "2h", "3d". */
 export function since(iso: string | null, now = Date.now()): string {

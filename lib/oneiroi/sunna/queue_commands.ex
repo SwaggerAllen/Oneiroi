@@ -25,8 +25,7 @@ defmodule Oneiroi.Sunna.QueueCommands do
   # A task opened from layers already resolved (a template's roles made
   # members, its slots made citations): `start_layer` is where the work
   # stands, every layer before it imported as done (§6.2), `links` what
-  # already exists, by citation. `carrier`: the resident whose conversation
-  # Claude Code is, read by the service, never given by a caller (§3).
+  # already exists, by citation.
   defmodule OpenTask do
     use Oneiroi.Command,
       fields: [
@@ -40,8 +39,7 @@ defmodule Oneiroi.Sunna.QueueCommands do
         :template,
         :layers,
         :start_layer,
-        :links,
-        :carrier
+        :links
       ],
       bounds: [slug: 64, title: 200, template: 64]
   end
@@ -76,7 +74,7 @@ defmodule Oneiroi.Sunna.QueueCommands do
   end
 
   defmodule AssignActivity do
-    use Oneiroi.Command, fields: [:id, :task, :act, :assignee, :note, :carrier]
+    use Oneiroi.Command, fields: [:id, :task, :act, :assignee, :note]
   end
 
   # `outcome` approved, changes or declined (§1, §7); `pin` the revision
@@ -99,9 +97,9 @@ defmodule Oneiroi.Sunna.QueueCommands do
   # A task's layers edited after it is open (the witness, 2026-11-22):
   # `layers` is the whole new arrangement, each entry an existing
   # activity by `id` (with any fields to change while it is pending) or a
-  # new activity's spec. `carrier` as `OpenTask`'s, read by the service.
+  # new activity's spec.
   defmodule EditLayers do
-    use Oneiroi.Command, fields: [:id, :task, :layers, :carrier], decision: true
+    use Oneiroi.Command, fields: [:id, :task, :layers], decision: true
   end
 
   defmodule DropTask do

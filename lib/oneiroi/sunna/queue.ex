@@ -10,7 +10,8 @@ defmodule Oneiroi.Sunna.Queue do
 
   - an activity is worked (taken, finished, blocked, failed) by its
     assignee, the task's owner or a witness; an `unknown` one by whoever
-    takes it, and a `claude-code` one by the member routing to it (§3);
+    takes it, and a resident's Claude Code one (`claude-code:<id>`) by
+    that resident, whose memories it runs on (§3);
   - a review is decided by its assignee alone, since the decision is the
     authorization (§6.1);
   - an activity is skipped by the task's owner, or by its assignee when
@@ -106,7 +107,7 @@ defmodule Oneiroi.Sunna.Queue do
 
     with :ok <- task_head_ok(s, c),
          {:ok, layers} <- task_layers(n, c.layers),
-         :ok <- task_shape_ok(layers, c.start_layer, c.carrier) do
+         :ok <- task_shape_ok(layers, c.start_layer) do
       %E.TaskOpened{
         actor: c.actor,
         at: c.at,
@@ -130,7 +131,7 @@ defmodule Oneiroi.Sunna.Queue do
     with {:ok, task} <- open_task(s, c.task),
          :ok <- may_edit(task, c.actor),
          {:ok, layers, removed} <- edited_layers(s, task, c.layers),
-         :ok <- edited_shape_ok(layers, c.carrier) do
+         :ok <- edited_shape_ok(layers) do
       edited = %E.LayersEdited{
         actor: c.actor,
         at: c.at,
@@ -158,7 +159,7 @@ defmodule Oneiroi.Sunna.Queue do
   def execute(%__MODULE__{} = s, %C.TakeActivity{} = c) do
     with {:ok, task, act} <- activity(s, c.task, c.act),
          :ok <- ready(s, task, act),
-         :ok <- may_work(s, task, act, c.actor) do
+         :ok <- may_work(task, act, c.actor) do
       unless_lapsed(lapsed(s, task, act, c.head, c), fn -> taken(act, c) end)
     end
   end
@@ -168,7 +169,7 @@ defmodule Oneiroi.Sunna.Queue do
          :ok <- live(s, task, act),
          :ok <- not_review(act),
          :ok <- promoted(act, c.promoted),
-         :ok <- may_work(s, task, act, c.actor),
+         :ok <- may_work(task, act, c.actor),
          :ok <- optional_words(c.note) do
       unless_lapsed(lapsed(s, task, act, c.head, c), fn -> finished(s, task, act, c) end)
     end
@@ -195,7 +196,7 @@ defmodule Oneiroi.Sunna.Queue do
   def execute(%__MODULE__{} = s, %C.BlockActivity{} = c) do
     with {:ok, task, act} <- activity(s, c.task, c.act),
          :ok <- blockable(act),
-         :ok <- may_work(s, task, act, c.actor),
+         :ok <- may_work(task, act, c.actor),
          :ok <- reason_ok(c.reason),
          :ok <- block_ok(s, task, c.waits_on) do
       blocked = %E.ActivityBlocked{
@@ -217,7 +218,7 @@ defmodule Oneiroi.Sunna.Queue do
 
   def execute(%__MODULE__{} = s, %C.ReopenActivity{} = c) do
     with {:ok, task, act} <- activity(s, c.task, c.act),
-         :ok <- may_work(s, task, act, c.actor) do
+         :ok <- may_work(task, act, c.actor) do
       if act.status in ~w(blocked failed),
         do: %E.ActivityReopened{
           actor: c.actor,
@@ -235,7 +236,7 @@ defmodule Oneiroi.Sunna.Queue do
   def execute(%__MODULE__{} = s, %C.FailActivity{} = c) do
     with {:ok, task, act} <- activity(s, c.task, c.act),
          :ok <- live(s, task, act),
-         :ok <- may_work(s, task, act, c.actor),
+         :ok <- may_work(task, act, c.actor),
          :ok <- reason_ok(c.what) do
       %E.ActivityFailed{
         actor: c.actor,
@@ -252,7 +253,7 @@ defmodule Oneiroi.Sunna.Queue do
     with {:ok, task, act} <- activity(s, c.task, c.act),
          :ok <- unfinished(act),
          :ok <- may_assign(task, act, c.actor),
-         :ok <- assignee_ok(s, task, act, c.assignee, c.carrier),
+         :ok <- assignee_ok(s, task, act, c.assignee),
          :ok <- optional_words(c.note) do
       %E.ActivityAssigned{
         actor: c.actor,
@@ -451,14 +452,23 @@ defmodule Oneiroi.Sunna.Queue do
   def get(map, key) when is_map(map), do: Map.get(map, key, Map.get(map, Atom.to_string(key)))
   def get(_other, _key), do: nil
 
-  @doc "Whether an assignee is one the queue knows: a member (`resident:<id>`, `witness:<id>`), `claude-code` or `unknown`."
-  def assignee?(a) when a in ["claude-code", "unknown"], do: true
+  @doc "Whether an assignee is one the queue knows: a member (`resident:<id>`, `witness:<id>`), a resident's Claude Code (`claude-code:<id>`) or `unknown`."
+  def assignee?("unknown"), do: true
+  def assignee?("claude-code:" <> id), do: uuid?(id)
   def assignee?(a), do: member?(a)
 
   @doc "Whether a string names a member: `resident:<id>` or `witness:<id>`."
   def member?("resident:" <> id), do: uuid?(id)
   def member?("witness:" <> id), do: uuid?(id)
   def member?(_other), do: false
+
+  @doc """
+  The resident a Claude Code assignee belongs to (§3): Claude Code runs on
+  a resident's memories, so `claude-code:<id>` is hers, named in the
+  assignee itself and never looked up. Nil for any other assignee.
+  """
+  def claude_code_of("claude-code:" <> id), do: "resident:" <> id
+  def claude_code_of(_other), do: nil
 
   @doc "The assignee string an actor is."
   def me(%{kind: kind, id: id}) when kind in [:resident, :witness], do: "#{kind}:#{id}"
@@ -724,10 +734,10 @@ defmodule Oneiroi.Sunna.Queue do
 
   defp task_head_valid?(c) do
     slug?(c.slug) and words?(c.title, 200) and words?(c.outcome, @words) and
-      assignee?(c.owner) and c.owner not in ["claude-code", "unknown"]
+      assignee?(c.owner) and c.owner != "unknown" and is_nil(claude_code_of(c.owner))
   end
 
-  defp task_shape_ok(layers, start, carrier) do
+  defp task_shape_ok(layers, start) do
     start = start || 0
 
     cond do
@@ -740,7 +750,7 @@ defmodule Oneiroi.Sunna.Queue do
       import_gated?(layers, start) ->
         {:error, Error.new(:sunna_queue_import_gated, :sunna_queue_task_import_gated)}
 
-      not routed?(carrier, layers) ->
+      not routed?(layers) ->
         {:error, Error.new(:sunna_queue_route_required, :sunna_queue_task_route)}
 
       true ->
@@ -764,20 +774,24 @@ defmodule Oneiroi.Sunna.Queue do
   defp import_gated?(layers, start),
     do: start > 0 and Enum.any?(Enum.at(layers, start), &(&1.type in G.gated_types()))
 
-  # No one reaches claude-code but through the reviewed deliver step (§3):
-  # each claude-code activity has, in the layer before it, a deliver by
-  # the resident whose conversation Claude Code is (`carrier`, read by the
-  # service from her sessions, never set by hand).
-  defp routed?(carrier, layers) do
+  # No one reaches a resident's Claude Code but through her reviewed
+  # deliver step (§3): each `claude-code:<id>` activity has, in the layer
+  # before it, a deliver by `resident:<id>`, the one whose memories it is.
+  defp routed?(layers) do
     layers
     |> Enum.with_index()
-    |> Enum.all?(fn {layer, i} ->
-      Enum.all?(layer, fn a ->
-        a.assignee != "claude-code" or
-          (i > 0 and not is_nil(carrier) and
-             Enum.any?(Enum.at(layers, i - 1), &(&1.type == "deliver" and &1.assignee == carrier)))
-      end)
-    end)
+    |> Enum.all?(fn {layer, i} -> Enum.all?(layer, &delivered?(layers, &1, i)) end)
+  end
+
+  defp delivered?(layers, a, i) do
+    case claude_code_of(a.assignee) do
+      nil ->
+        true
+
+      hers ->
+        i > 0 and
+          Enum.any?(Enum.at(layers, i - 1), &(&1.type == "deliver" and &1.assignee == hers))
+    end
   end
 
   # A task's layers as given, each activity numbered `<task>.<k>`, a
@@ -1004,19 +1018,19 @@ defmodule Oneiroi.Sunna.Queue do
   defp outcome_ok(_other),
     do: {:error, Error.new(:sunna_queue_invalid, :sunna_queue_decide_outcome)}
 
-  defp may_work(s, task, act, actor) do
+  defp may_work(task, act, actor) do
     mine = me(actor)
 
-    if actor.kind == :witness or member_may_work?(s, task, act, mine),
+    if actor.kind == :witness or member_may_work?(task, act, mine),
       do: :ok,
       else: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_activity_not_yours)}
   end
 
-  defp member_may_work?(_s, _task, _act, nil), do: false
+  defp member_may_work?(_task, _act, nil), do: false
 
-  defp member_may_work?(s, task, act, mine) do
+  defp member_may_work?(task, act, mine) do
     mine in [act.assignee, task.owner] or act.assignee == "unknown" or
-      (act.assignee == "claude-code" and mine == deliverer(s, task, act))
+      (not is_nil(mine) and mine == claude_code_of(act.assignee))
   end
 
   defp may_skip(task, act, actor) do
@@ -1037,13 +1051,13 @@ defmodule Oneiroi.Sunna.Queue do
       else: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_assign_not_yours)}
   end
 
-  defp assignee_ok(s, task, act, assignee, carrier) do
+  defp assignee_ok(s, task, act, assignee) do
     cond do
       not assignee?(assignee) ->
         {:error, Error.new(:sunna_queue_invalid, :sunna_queue_assign_assignee)}
 
       # claude-code only behind its deliver step (§3).
-      assignee == "claude-code" and (is_nil(carrier) or deliverer(s, task, act) != carrier) ->
+      claude_code_of(assignee) != nil and deliverer(s, task, act) != claude_code_of(assignee) ->
         {:error, Error.new(:sunna_queue_route_required, :sunna_queue_assign_route)}
 
       true ->
@@ -1193,12 +1207,12 @@ defmodule Oneiroi.Sunna.Queue do
     |> Kernel.+(1)
   end
 
-  defp edited_shape_ok(layers, carrier) do
+  defp edited_shape_ok(layers) do
     cond do
       shape_bad?(layers) ->
         {:error, Error.new(:sunna_queue_shape, :sunna_queue_edit_shape)}
 
-      not routed?(carrier, layers) ->
+      not routed?(layers) ->
         {:error, Error.new(:sunna_queue_route_required, :sunna_queue_edit_route)}
 
       true ->

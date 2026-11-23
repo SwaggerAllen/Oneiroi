@@ -62,7 +62,13 @@ export function HouseWork() {
                 {m.name}
               </option>
             ))}
-          <option value="claude-code">Claude Code</option>
+          {q.members
+            .filter((m) => m.kind === 'resident')
+            .map((m) => (
+              <option key={`cc-${m.id}`} value={`claude-code:${m.id}`}>
+                {m.name}'s Claude Code
+              </option>
+            ))}
           <option value="unknown">Holder not known yet</option>
         </Select>
         <Select label="Status" value={view} onChange={(v) => setView(v as QueueView | '')}>
@@ -85,7 +91,7 @@ export function HouseWork() {
       {mine ? <WaitingOnMe names={names} overview={q} onTask={setTaskOpen} /> : <Filtered who={me} view={view} project={project} names={names} overview={q} onTask={setTaskOpen} />}
       {taskOpen !== null && <TaskPanel number={taskOpen} names={names} overview={q} onClose={() => setTaskOpen(null)} />}
       <NewTask overview={q} />
-      <Setup overview={q} names={names} />
+      <Setup overview={q} />
     </>
   );
 }
@@ -227,7 +233,13 @@ function Moves({ card: c, names, overview, move, busy }: { card: QueueCard; name
               {m.name}
             </option>
           ))}
-          <option value="claude-code">Claude Code</option>
+          {overview.members
+            .filter((m) => m.kind === 'resident')
+            .map((m) => (
+              <option key={`cc-${m.id}`} value={`claude-code:${m.id}`}>
+                {m.name}'s Claude Code
+              </option>
+            ))}
           <option value="unknown">Holder not known yet</option>
         </Select>
         <button type="button" className={css.quiet} disabled={busy || assignee === c.assignee} onClick={() => move('assign', { assignee, note: note || undefined }, `${c.act} is ${nameOf(names, assignee)}'s.`)}>
@@ -575,12 +587,12 @@ function NewTask({ overview }: { overview: QueueOverview }) {
 
 
 /**
- * The witness's setup (§6.2, §7): whose Claude Code is (read, not set), the
+ * The witness's setup (§6.2, §7): the
  * templates copied from the platform's starters, and the cutover: the
  * old queue committed first, then the house queue turned on naming that
  * commit, and the one-step revert.
  */
-function Setup({ overview: q, names }: { overview: QueueOverview; names: Names }) {
+function Setup({ overview: q }: { overview: QueueOverview }) {
   const act = useAct();
   const [commit, setCommit] = useState(q.commit ?? '');
   const [note, setNote] = useState('');
@@ -588,7 +600,7 @@ function Setup({ overview: q, names }: { overview: QueueOverview; names: Names }
   const missing = q.starters.filter((s) => !q.templates.some((t) => t.name === s.name));
   return (
     <Card title="Setting up the house queue" witness>
-      <p className={css.note}>Claude Code is reached through {q.carrier ? nameOf(names, q.carrier) : 'nobody yet: no resident has a Claude Code conversation'}: a reviewed deliver step in her work, never directly.</p>
+      <p className={css.note}>A resident&apos;s Claude Code runs on her memories: work for it goes through her own reviewed deliver step, never directly.</p>
       <p className={css.note}>Templates: {q.templates.length ? q.templates.map((t) => t.name).join(', ') : 'none yet'}.</p>
       {missing.map((s) => (
         <button key={s.name} type="button" className={css.secondary} disabled={act.busy} onClick={() => void act.run(() => api.queueDefineTemplate(s.name, s.name).then(() => `${s.name} is in the house.`), QUEUE)}>
