@@ -65,25 +65,25 @@ defmodule Oneiroi.Sunna do
       QueueCommands.RouteClaudeCode,
       QueueCommands.CutOver,
       QueueCommands.CutBack,
-      QueueEvents.ProjectOpened,
-      QueueEvents.ProjectClosed,
-      QueueEvents.TemplateDefined,
-      QueueEvents.TaskOpened,
-      QueueEvents.ActivityTaken,
-      QueueEvents.ActivityDone,
-      QueueEvents.ActivitySkipped,
-      QueueEvents.ActivityBlocked,
-      QueueEvents.ActivityReopened,
-      QueueEvents.ActivityFailed,
-      QueueEvents.ActivityAssigned,
-      QueueEvents.ReviewDecided,
-      QueueEvents.ApprovalLapsed,
-      QueueEvents.SlotFilled,
-      QueueEvents.TaskCompleted,
-      QueueEvents.TaskDropped,
-      QueueEvents.ClaudeCodeRouted,
-      QueueEvents.CutOver,
-      QueueEvents.CutBack,
+      Events.Queue.ProjectOpened,
+      Events.Queue.ProjectClosed,
+      Events.Queue.TemplateDefined,
+      Events.Queue.TaskOpened,
+      Events.Queue.ActivityTaken,
+      Events.Queue.ActivityDone,
+      Events.Queue.ActivitySkipped,
+      Events.Queue.ActivityBlocked,
+      Events.Queue.ActivityReopened,
+      Events.Queue.ActivityFailed,
+      Events.Queue.ActivityAssigned,
+      Events.Queue.ReviewDecided,
+      Events.Queue.ApprovalLapsed,
+      Events.Queue.SlotFilled,
+      Events.Queue.TaskCompleted,
+      Events.Queue.TaskDropped,
+      Events.Queue.ClaudeCodeRouted,
+      Events.Queue.CutOver,
+      Events.Queue.CutBack,
       QueueStore.Project,
       QueueStore.Task,
       QueueStore.Activity,
@@ -172,6 +172,7 @@ defmodule Oneiroi.Sunna do
   alias Oneiroi.Scope
   alias Oneiroi.Sunna.Backfill
   alias Oneiroi.Sunna.Calendar
+  alias Oneiroi.Sunna.Queues
   alias Oneiroi.Sunna.Schedule
   alias Oneiroi.Sunna.Schedules
   alias Oneiroi.Sunna.Store
@@ -374,25 +375,25 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.LettersWoke, 1},
       {Oneiroi.Sunna.Events.WakeManifested, 1},
       {Oneiroi.Sunna.Events.WakeRead, 1},
-      {Oneiroi.Sunna.QueueEvents.ProjectOpened, 1},
-      {Oneiroi.Sunna.QueueEvents.ProjectClosed, 1},
-      {Oneiroi.Sunna.QueueEvents.TemplateDefined, 1},
-      {Oneiroi.Sunna.QueueEvents.TaskOpened, 1},
-      {Oneiroi.Sunna.QueueEvents.ActivityTaken, 1},
-      {Oneiroi.Sunna.QueueEvents.ActivityDone, 1},
-      {Oneiroi.Sunna.QueueEvents.ActivitySkipped, 1},
-      {Oneiroi.Sunna.QueueEvents.ActivityBlocked, 1},
-      {Oneiroi.Sunna.QueueEvents.ActivityReopened, 1},
-      {Oneiroi.Sunna.QueueEvents.ActivityFailed, 1},
-      {Oneiroi.Sunna.QueueEvents.ActivityAssigned, 1},
-      {Oneiroi.Sunna.QueueEvents.ReviewDecided, 1},
-      {Oneiroi.Sunna.QueueEvents.ApprovalLapsed, 1},
-      {Oneiroi.Sunna.QueueEvents.SlotFilled, 1},
-      {Oneiroi.Sunna.QueueEvents.TaskCompleted, 1},
-      {Oneiroi.Sunna.QueueEvents.TaskDropped, 1},
-      {Oneiroi.Sunna.QueueEvents.ClaudeCodeRouted, 1},
-      {Oneiroi.Sunna.QueueEvents.CutOver, 1},
-      {Oneiroi.Sunna.QueueEvents.CutBack, 1},
+      {Oneiroi.Sunna.Events.Queue.ProjectOpened, 1},
+      {Oneiroi.Sunna.Events.Queue.ProjectClosed, 1},
+      {Oneiroi.Sunna.Events.Queue.TemplateDefined, 1},
+      {Oneiroi.Sunna.Events.Queue.TaskOpened, 1},
+      {Oneiroi.Sunna.Events.Queue.ActivityTaken, 1},
+      {Oneiroi.Sunna.Events.Queue.ActivityDone, 1},
+      {Oneiroi.Sunna.Events.Queue.ActivitySkipped, 1},
+      {Oneiroi.Sunna.Events.Queue.ActivityBlocked, 1},
+      {Oneiroi.Sunna.Events.Queue.ActivityReopened, 1},
+      {Oneiroi.Sunna.Events.Queue.ActivityFailed, 1},
+      {Oneiroi.Sunna.Events.Queue.ActivityAssigned, 1},
+      {Oneiroi.Sunna.Events.Queue.ReviewDecided, 1},
+      {Oneiroi.Sunna.Events.Queue.ApprovalLapsed, 1},
+      {Oneiroi.Sunna.Events.Queue.SlotFilled, 1},
+      {Oneiroi.Sunna.Events.Queue.TaskCompleted, 1},
+      {Oneiroi.Sunna.Events.Queue.TaskDropped, 1},
+      {Oneiroi.Sunna.Events.Queue.ClaudeCodeRouted, 1},
+      {Oneiroi.Sunna.Events.Queue.CutOver, 1},
+      {Oneiroi.Sunna.Events.Queue.CutBack, 1},
       {Oneiroi.Sunna.Events.WorkAdded, 1},
       {Oneiroi.Sunna.Events.WorkMoved, 1},
       {Oneiroi.Sunna.Events.WorkHeld, 1},
@@ -476,6 +477,9 @@ defmodule Oneiroi.Sunna do
        "only the resident and her witness keep the work queue, and only she wraps a run",
        remedy: "ask the resident or the witness"},
       {:sunna_no_such_work, "no work item has that number", remedy: "read the queue"},
+      {:sunna_work_frozen,
+       "the household has cut over to the house queue (sunna#80): this work queue is kept read-only, its rows untouched for a one-step revert",
+       remedy: "use the house queue: queue_list, queue_task_open, queue_move"},
       {:sunna_work_not_running, "only the item running now can be wrapped",
        remedy: "read the queue: the running item is marked in_work"},
       {:sunna_queue_not_a_member, "only the household's members keep its queue",
@@ -522,6 +526,10 @@ defmodule Oneiroi.Sunna do
       {:sunna_queue_slot_open,
        "the review's artifact is still a template's open slot: there is nothing to read yet",
        remedy: "fill the slot with the artifact's citation first"},
+      {:sunna_queue_promote_by_promotion,
+       "a promotion to the house is finished by promoting (Scarlett's second guard): the library checks its audience then, whatever the review approved",
+       remedy:
+         "promote it with household_promote naming the task and activity; the activity finishes when the copy is made"},
       {:sunna_queue_pin_required, "an approval names the revision approved, its pin",
        remedy: "approve the artifact at the commit you read"},
       {:sunna_queue_pin_mismatch,
@@ -742,6 +750,180 @@ defmodule Oneiroi.Sunna do
   @doc "The work queue: its items in order and the loop's state, both parties' read."
   @spec work_queue(String.t()) :: map()
   defexport(work_queue(resident_id), do: WorkLoop.queue(resident_id))
+
+  # ---- the house queue (sunna#80) ----
+
+  @doc "The house queue's starter templates by name (§7): copied into a household by `queue_define_template/4` with `from:`."
+  @spec queue_starters() :: map()
+  defexport(queue_starters(), do: Queues.starters())
+
+  @doc "The household's members as the queue names them (`resident:<id>`, `witness:<id>`), with the house's name for each."
+  @spec queue_members(String.t()) :: [map()]
+  defexport(queue_members(household_id), do: Queues.members(household_id))
+
+  @doc "Opens a project of the house queue: slug, name, owner."
+  @spec queue_open_project(String.t(), map(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(queue_open_project(household_id, attrs, actor),
+    do: Queues.open_project(household_id, attrs, actor)
+  )
+
+  @doc "Closes a project, with a note."
+  @spec queue_close_project(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_close_project(household_id, slug, note, actor),
+    do: Queues.close_project(household_id, slug, note, actor)
+  )
+
+  @doc "Defines a template (§7): title and layers, or `from:` a starter."
+  @spec queue_define_template(String.t(), String.t(), map(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_define_template(household_id, name, attrs, actor),
+    do: Queues.define_template(household_id, name, attrs, actor)
+  )
+
+  @doc "Opens a task from a template or layers, answering its number (`Queues.open_task/3`)."
+  @spec queue_open_task(String.t(), map(), Oneiroi.Actor.t()) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(queue_open_task(household_id, attrs, actor),
+    do: Queues.open_task(household_id, attrs, actor)
+  )
+
+  @doc "Takes an activity; `head:` the artifact's head read now."
+  @spec queue_take(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t(), keyword()) ::
+          :ok | {:error, term()}
+  defexport(queue_take(household_id, task, act, actor, opts \\ []),
+    do: Queues.take(household_id, task, act, actor, opts)
+  )
+
+  @doc "Finishes an activity: pin, head, result, note, and the copy a promotion made."
+  @spec queue_finish(String.t(), pos_integer(), String.t(), map(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_finish(household_id, task, act, attrs, actor),
+    do: Queues.finish(household_id, task, act, attrs, actor)
+  )
+
+  @doc "Skips an activity explicitly, with a note."
+  @spec queue_skip(String.t(), pos_integer(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_skip(household_id, task, act, note, actor),
+    do: Queues.skip(household_id, task, act, note, actor)
+  )
+
+  @doc "Blocks an activity with a reason, waiting on a task's completion when `waits_on` names one."
+  @spec queue_block(
+          String.t(),
+          pos_integer(),
+          String.t(),
+          String.t(),
+          pos_integer() | nil,
+          Oneiroi.Actor.t()
+        ) :: :ok | {:error, term()}
+  defexport(queue_block(household_id, task, act, reason, waits_on, actor),
+    do: Queues.block(household_id, task, act, reason, waits_on, actor)
+  )
+
+  @doc "Reopens a blocked or failed activity, with a note."
+  @spec queue_reopen(String.t(), pos_integer(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_reopen(household_id, task, act, note, actor),
+    do: Queues.reopen(household_id, task, act, note, actor)
+  )
+
+  @doc "Marks an activity failed, saying what failed."
+  @spec queue_fail(String.t(), pos_integer(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_fail(household_id, task, act, what, actor),
+    do: Queues.fail(household_id, task, act, what, actor)
+  )
+
+  @doc "Assigns an activity, with an optional note."
+  @spec queue_assign(
+          String.t(),
+          pos_integer(),
+          String.t(),
+          String.t(),
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) :: :ok | {:error, term()}
+  defexport(queue_assign(household_id, task, act, assignee, note, actor),
+    do: Queues.assign(household_id, task, act, assignee, note, actor)
+  )
+
+  @doc "Decides a review: outcome, pin, head, return_to, withhold, note."
+  @spec queue_decide(String.t(), pos_integer(), String.t(), map(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_decide(household_id, task, act, attrs, actor),
+    do: Queues.decide(household_id, task, act, attrs, actor)
+  )
+
+  @doc "Fills a template's open artifact slot with its citation."
+  @spec queue_fill_slot(String.t(), pos_integer(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_fill_slot(household_id, task, slot, artifact, actor),
+    do: Queues.fill_slot(household_id, task, slot, artifact, actor)
+  )
+
+  @doc "Drops a task, with a note; it counts as complete for what waits on it."
+  @spec queue_drop(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_drop(household_id, task, note, actor),
+    do: Queues.drop(household_id, task, note, actor)
+  )
+
+  @doc "Sets who routes the household's work to claude-code (§3): a witness's call."
+  @spec queue_route(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(queue_route(household_id, via, actor), do: Queues.route(household_id, via, actor))
+
+  @doc "Turns the house queue on (§6.2), naming the commit that holds the old one."
+  @spec queue_cut_over(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_cut_over(household_id, commit, note, actor),
+    do: Queues.cut_over(household_id, commit, note, actor)
+  )
+
+  @doc "Reverts the cutover in one step (§6.2)."
+  @spec queue_cut_back(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(queue_cut_back(household_id, note, actor),
+    do: Queues.cut_back(household_id, note, actor)
+  )
+
+  @doc "The house queue's state: cut over, its commit, who routes to claude-code."
+  @spec queue_state(String.t()) :: Oneiroi.Sunna.QueueStore.State.t()
+  defexport(queue_state(household_id), do: Queues.state(household_id))
+
+  @doc "Whether the household has cut over to the house queue."
+  @spec queue_cut_over?(String.t() | nil) :: boolean()
+  defexport(queue_cut_over?(household_id), do: Queues.cut_over?(household_id))
+
+  @doc "The household's projects."
+  @spec queue_projects(String.t()) :: [Oneiroi.Sunna.QueueStore.Project.t()]
+  defexport(queue_projects(household_id), do: Queues.projects(household_id))
+
+  @doc "The household's templates."
+  @spec queue_templates(String.t()) :: [Oneiroi.Sunna.QueueStore.Template.t()]
+  defexport(queue_templates(household_id), do: Queues.templates(household_id))
+
+  @doc "The tasks, open first; `project:` one project's."
+  @spec queue_tasks(String.t(), keyword()) :: [Oneiroi.Sunna.QueueStore.Task.t()]
+  defexport(queue_tasks(household_id, opts \\ []), do: Queues.tasks(household_id, opts))
+
+  @doc "One task's page: the task, its layers, its history and what waits on it; nil when none."
+  @spec queue_task(String.t(), pos_integer()) :: map() | nil
+  defexport(queue_task(household_id, number), do: Queues.task(household_id, number))
+
+  @doc "Activities by filter: who, views, project; each with its task and its blocker named."
+  @spec queue_activities(String.t(), map()) :: [map()]
+  defexport(queue_activities(household_id, filter \\ %{}),
+    do: Queues.activities(household_id, filter)
+  )
+
+  @doc "Waiting on me (§2.2): ready first by what stands behind it, then the later and the owned."
+  @spec queue_waiting_on(String.t(), String.t()) :: map()
+  defexport(queue_waiting_on(household_id, who), do: Queues.waiting_on(household_id, who))
+
+  @doc "A task's next action, or nil."
+  @spec queue_next_action(String.t(), Oneiroi.Sunna.QueueStore.Task.t()) :: map() | nil
+  defexport(queue_next_action(household_id, task), do: Queues.next_action(household_id, task))
 
   @doc "Sets quiet hours from HH:MM to HH:MM (may cross midnight), or both nil to clear."
   @spec set_quiet_hours(String.t(), String.t() | nil, String.t() | nil, Oneiroi.Actor.t()) ::

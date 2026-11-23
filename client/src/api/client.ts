@@ -1,6 +1,11 @@
 import type { Gift } from '../next/onboarding/gift';
 import type {
   Adapter,
+  QueueCard,
+  QueueMove,
+  QueueOverview,
+  QueueTaskPage,
+  QueueWaiting,
   Ask,
   WorkQueue,
   NeedsYouEntry,
@@ -752,6 +757,38 @@ export const api = {
   /** The house's activity, envelopes only (seshat#92); one resident, or all. */
   householdActivity: (residentId?: string) =>
     call<{ activity: HouseActivity[] }>('GET', `/v1/household/activity${residentId ? `?resident_id=${encodeURIComponent(residentId)}` : ''}`),
+  // The house queue (sunna#80): one queue a household, every member's.
+  queue: () => call<QueueOverview>('GET', '/v1/household/queue'),
+  queueWaiting: (who?: string) => call<QueueWaiting>('GET', `/v1/household/queue/waiting${who ? `?who=${encodeURIComponent(who)}` : ''}`),
+  queueActivities: (filter: { who?: string; view?: string[]; project?: string }) => {
+    const q = new URLSearchParams();
+    if (filter.who) q.set('who', filter.who);
+    if (filter.view && filter.view.length) q.set('view', filter.view.join(','));
+    if (filter.project) q.set('project', filter.project);
+    return call<QueueCard[]>('GET', `/v1/household/queue/activities?${q.toString()}`);
+  },
+  queueTask: (n: number) => call<QueueTaskPage>('GET', `/v1/household/queue/tasks/${n}`),
+  queueOpenProject: (slug: string, name: string) => call<{ ok: true }>('POST', '/v1/household/queue/projects', { slug, name }),
+  queueDefineTemplate: (name: string, from: string) => call<{ ok: true }>('POST', '/v1/household/queue/templates', { name, from }),
+  queueOpenTask: (task: {
+    project: string;
+    slug: string;
+    title: string;
+    outcome: string;
+    template?: string;
+    owner?: string;
+    slots?: Record<string, string>;
+    start_layer?: number;
+    links?: string[];
+  }) => call<{ number: number }>('POST', '/v1/household/queue/tasks', task),
+  queueMove: (task: number, act: string, move: QueueMove, fields: Record<string, unknown> = {}) =>
+    call<{ ok: true }>('POST', `/v1/household/queue/tasks/${task}/activities/${encodeURIComponent(act)}/${move}`, fields),
+  queueFillSlot: (task: number, slot: string, artifact: string) => call<{ ok: true }>('POST', `/v1/household/queue/tasks/${task}/slots`, { slot, artifact }),
+  queueDrop: (task: number, note: string) => call<{ ok: true }>('POST', `/v1/household/queue/tasks/${task}/drop`, { note }),
+  queueRoute: (via: string) => call<{ ok: true }>('PUT', '/v1/household/queue/route', { via }),
+  queueSnapshot: () => call<{ commit: string }>('POST', '/v1/household/queue/snapshot'),
+  queueCutOver: (commit: string, note: string) => call<{ ok: true }>('POST', '/v1/household/queue/cutover', { commit, note }),
+  queueCutBack: (note: string) => call<{ ok: true }>('POST', '/v1/household/queue/cutback', { note }),
   householdPost: (post: { title?: string; content: string; kind?: string; path?: string; doc?: string; ballot?: { bundle: BallotItem[]; term_days: number; note: string } }) =>
     call<{ path: string }>('POST', '/v1/household/posts', post),
   householdVote: (thread: string, vote: 'yes' | 'no', content: string) => call<{ number: number }>('POST', '/v1/household/votes', { thread, vote, content }),

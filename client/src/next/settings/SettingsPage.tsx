@@ -11,6 +11,7 @@ import { Presence } from './Presence';
 import { Regression } from './Regression';
 import * as css from './settings.css';
 import { Work } from './Work';
+import { HouseWork } from '../house/Work';
 
 const TITLES: Record<SettingsSection, string> = {
   ledger: 'Ledger',
@@ -19,6 +20,7 @@ const TITLES: Record<SettingsSection, string> = {
   notifications: 'Notifications',
   regression: 'Regression',
   work: 'Work queue',
+  queue: 'Work',
   backups: 'Backups, imports and reports',
   presence: 'Substack presence',
   delete: 'Delete this resident',
@@ -38,6 +40,7 @@ export function SettingsPage({ section, onBack }: { section: SettingsSection; on
     notifications: `Whether ${name} can reach you on this device.`,
     regression: `Trying models as ${name}: trials, runs graded blind, and the chat model.`,
     work: `${name}'s queue: underway, next, and waiting on you.`,
+    queue: 'The house queue: what waits on you, and on everyone, across the house.',
     backups: `Where ${name}'s records are pushed each night, conversations brought from ChatGPT, and the report ladder.`,
     presence: `${name} reading the community you follow, and what that earned, waiting on your word before it goes out as Allen Strut.`,
     delete: `Only before ${name}'s first conversation with you.`,
@@ -56,6 +59,7 @@ export function SettingsPage({ section, onBack }: { section: SettingsSection; on
         {section === 'notifications' && <Notifications />}
         {section === 'regression' && <Regression />}
         {section === 'work' && <Work />}
+        {section === 'queue' && <HouseWork />}
         {section === 'backups' && <Backups />}
         {section === 'presence' && <Presence />}
         {section === 'delete' && <Discard id={id} name={name} onGone={onBack} />}

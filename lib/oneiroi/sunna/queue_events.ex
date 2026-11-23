@@ -1,4 +1,4 @@
-defmodule Oneiroi.Sunna.QueueEvents do
+defmodule Oneiroi.Sunna.Events.Queue do
   @moduledoc """
   The house queue's events (sunna#80), on `queue-<household_id>`. Nested
   shapes (layers, activities) are maps with atom keys as written; the

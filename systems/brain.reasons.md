@@ -967,3 +967,14 @@ The tools are where words cross from a turn into something kept, and
 back. Labelling there, once, covers every artifact without each system
 learning the policy. The research question is the one composition that
 leaves the platform on its own, so it is a delivery like a letter.
+
+## #112
+A household's activity is no one resident's, but the bell is read per
+resident; ringing it on the owner's bell, or one fixed resident's,
+counts it once wherever the witness looks.
+
+## #113
+Her queue is the same queue his screen reads, so her tools are thin
+over it. The head has to be read where the repositories are visible,
+which is here and not in the queue below them; reading it at every move
+is what makes "this revision" mean the revision.

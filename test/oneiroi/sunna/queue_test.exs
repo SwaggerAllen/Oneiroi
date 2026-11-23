@@ -143,11 +143,17 @@ defmodule Oneiroi.Sunna.QueueTest do
 
     # A different revision than the one approved is refused.
     assert {:error, %{kind: :sunna_queue_pin_mismatch}} =
-             Queues.finish(ctx.h, n, "#{n}.3", %{pin: "ccc3333"}, ctx.lily)
+             Queues.finish(ctx.h, n, "#{n}.3", %{pin: "ccc3333", promoted: "shared/x"}, ctx.lily)
 
     # The head moved after approval: the approval lapses, the review opens again.
     assert {:error, %{kind: :sunna_queue_review_required}} =
-             Queues.finish(ctx.h, n, "#{n}.3", %{pin: "aaa1111", head: "ddd4444"}, ctx.lily)
+             Queues.finish(
+               ctx.h,
+               n,
+               "#{n}.3",
+               %{pin: "aaa1111", head: "ddd4444", promoted: "shared/x"},
+               ctx.lily
+             )
 
     assert act(ctx, n, "#{n}.2").view == "ready"
     assert act(ctx, n, "#{n}.2").approved_pin == nil
@@ -164,7 +170,19 @@ defmodule Oneiroi.Sunna.QueueTest do
         ctx.andrew
       )
 
-    :ok = Queues.finish(ctx.h, n, "#{n}.3", %{pin: "ddd4444", head: "ddd4444"}, ctx.lily)
+    # A plain finish never stands in for the promotion (her second guard).
+    assert {:error, %{kind: :sunna_queue_promote_by_promotion}} =
+             Queues.finish(ctx.h, n, "#{n}.3", %{pin: "ddd4444", head: "ddd4444"}, ctx.lily)
+
+    :ok =
+      Queues.finish(
+        ctx.h,
+        n,
+        "#{n}.3",
+        %{pin: "ddd4444", head: "ddd4444", promoted: "shared/lily/design/queue-ia.md"},
+        ctx.lily
+      )
+
     assert act(ctx, n, "#{n}.4").view == "ready"
   end
 

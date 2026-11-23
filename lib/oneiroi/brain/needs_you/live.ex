@@ -44,6 +44,11 @@ defmodule Oneiroi.Brain.NeedsYou.Live do
   @impl GenServer
   def handle_info({:oneiroi, _topic, _payload, _trace} = envelope, state) do
     case PubSub.receive(envelope) do
+      # The house queue's stream is the household's (sunna#80): its
+      # change rings every resident's bell in the house.
+      {household_id, %{stream: "queue"}} when is_binary(household_id) ->
+        {:noreply, house(state, household_id)}
+
       {resident_id, _notice} when is_binary(resident_id) ->
         {:noreply, gather(state, resident_id)}
 
@@ -58,6 +63,19 @@ defmodule Oneiroi.Brain.NeedsYou.Live do
   end
 
   def handle_info(_other, state), do: {:noreply, state}
+
+  # Every resident of the house, read only while some bell is watched.
+  defp house(state, household_id) do
+    if Registry.count(:brain_needs_you_watchers) == 0 do
+      state
+    else
+      residents =
+        for %{kind: "resident", id: id} <- Oneiroi.Gaia.household_members(household_id),
+            do: id
+
+      Enum.reduce(residents, state, &gather(&2, &1))
+    end
+  end
 
   defp gather(state, resident_id) do
     cond do

@@ -50,9 +50,11 @@ defmodule Oneiroi.Sunna.QueueCommands do
 
   # `pin` is the revision acted on; `head` the artifact's head as the
   # platform resolved it at execution (Scarlett's first guard), nil when
-  # the artifact has no head the platform can read.
+  # the artifact has no head the platform can read. `promoted`: the house
+  # copy a promotion made, set only by the promotion itself (her second
+  # guard: the library's audience check runs there, never skipped here).
   defmodule FinishActivity do
-    use Oneiroi.Command, fields: [:id, :task, :act, :pin, :head, :result, :note]
+    use Oneiroi.Command, fields: [:id, :task, :act, :pin, :head, :result, :note, :promoted]
   end
 
   defmodule SkipActivity do

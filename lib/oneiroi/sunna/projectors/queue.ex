@@ -12,8 +12,8 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
   import Ecto.Query, only: [from: 2]
 
   alias Ecto.Multi
+  alias Oneiroi.Sunna.Events.Queue, as: E
   alias Oneiroi.Sunna.Queue
-  alias Oneiroi.Sunna.QueueEvents, as: E
   alias Oneiroi.Sunna.QueueGraph
   alias Oneiroi.Sunna.QueueStore, as: S
 
@@ -38,6 +38,7 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
     Multi.update_all(
       multi,
       :project,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
       from(p in S.Project, where: p.household_id == ^e.id and p.slug == ^e.slug),
       set: [status: "closed", closed_at: e.at, note: e.note]
     )
@@ -180,6 +181,7 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
     |> history(e, e.act, "decided", "approved", e.pin, e.note)
     |> Multi.update_all(
       :skipped,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
       from(a in S.Activity, where: a.household_id == ^e.id and a.act_id in ^skipped),
       set: [status: "skipped", note: "The review chose to keep it where it is.", updated_at: e.at]
     )
@@ -194,6 +196,7 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
     |> history(e, e.act, "decided", e.outcome, e.pin, e.note)
     |> Multi.update_all(
       :returned,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
       from(a in S.Activity, where: a.household_id == ^e.id and a.act_id in ^returned),
       set: [status: "pending", waits_on: nil, reason: nil, note: e.note, updated_at: e.at]
     )
@@ -208,6 +211,7 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
     |> act(e, status: "pending", approved_pin: nil, note: note)
     |> Multi.update_all(
       :gated,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
       from(a in S.Activity, where: a.household_id == ^e.id and a.act_id == ^e.gated),
       set: [status: "pending", updated_at: e.at]
     )
@@ -221,6 +225,7 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
     multi
     |> Multi.update_all(
       :filled,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
       from(a in S.Activity, where: a.household_id == ^e.id and a.act_id in ^acts),
       set: [artifact: e.artifact, updated_at: e.at]
     )
@@ -231,6 +236,7 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
     multi
     |> Multi.update_all(
       :task,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
       from(t in S.Task, where: t.household_id == ^e.id and t.number == ^e.task),
       set: [status: "complete", completed_at: e.at, open_layer: nil]
     )
@@ -241,6 +247,7 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
     multi
     |> Multi.update_all(
       :task,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
       from(t in S.Task, where: t.household_id == ^e.id and t.number == ^e.task),
       set: [status: "dropped", completed_at: e.at, open_layer: nil, note: e.note]
     )
@@ -264,6 +271,7 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
       Multi.update_all(
         multi,
         {:act, e.act},
+        # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
         from(a in S.Activity, where: a.household_id == ^e.id and a.act_id == ^e.act),
         set: set ++ [updated_at: e.at]
       )
@@ -287,54 +295,64 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
   # a newly ready one became ready, and the task's open layer.
   defp refresh(multi, household_id, number, at) do
     Multi.run(multi, {:refresh, number}, fn repo, _ ->
-      rows =
-        repo.all(
-          from(a in S.Activity,
-            where: a.household_id == ^household_id and a.task == ^number,
-            order_by: [a.layer, a.position]
-          )
+      {:ok, refresh_task(repo, household_id, number, at)}
+    end)
+  end
+
+  defp refresh_task(repo, household_id, number, at) do
+    rows =
+      repo.all(
+        # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
+        from(a in S.Activity,
+          where: a.household_id == ^household_id and a.task == ^number,
+          order_by: [a.layer, a.position]
         )
-
-      task = %{
-        number: number,
-        status: task_status(repo, household_id, number),
-        layers:
-          rows
-          |> Enum.group_by(& &1.layer, & &1.act_id)
-          |> Enum.sort()
-          |> Enum.map(&elem(&1, 1))
-      }
-
-      acts = Map.new(rows, &{&1.act_id, %{id: &1.act_id, status: &1.status}})
-      open = QueueGraph.open_layer(task, acts)
-
-      for row <- rows do
-        view = Atom.to_string(QueueGraph.view(acts[row.act_id], task, acts))
-        ready_at = if view == "ready", do: row.ready_at || at, else: nil
-
-        if view != row.view or ready_at != row.ready_at,
-          do:
-            repo.update_all(
-              from(a in S.Activity,
-                where: a.household_id == ^household_id and a.act_id == ^row.act_id
-              ),
-              set: [view: view, ready_at: ready_at]
-            )
-      end
-
-      repo.update_all(
-        from(t in S.Task,
-          where: t.household_id == ^household_id and t.number == ^number and t.status == "open"
-        ),
-        set: [open_layer: open]
       )
 
-      {:ok, open}
-    end)
+    task = %{
+      number: number,
+      status: task_status(repo, household_id, number),
+      layers:
+        rows
+        |> Enum.group_by(& &1.layer, & &1.act_id)
+        |> Enum.sort()
+        |> Enum.map(&elem(&1, 1))
+    }
+
+    acts = Map.new(rows, &{&1.act_id, %{id: &1.act_id, status: &1.status}})
+    open = QueueGraph.open_layer(task, acts)
+
+    for row <- rows, do: refresh_row(repo, household_id, row, task, acts, at)
+
+    repo.update_all(
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
+      from(t in S.Task,
+        where: t.household_id == ^household_id and t.number == ^number and t.status == "open"
+      ),
+      set: [open_layer: open]
+    )
+
+    open
+  end
+
+  defp refresh_row(repo, household_id, row, task, acts, at) do
+    view = Atom.to_string(QueueGraph.view(acts[row.act_id], task, acts))
+    ready_at = if view == "ready", do: row.ready_at || at, else: nil
+
+    if view != row.view or ready_at != row.ready_at,
+      do:
+        repo.update_all(
+          # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
+          from(a in S.Activity,
+            where: a.household_id == ^household_id and a.act_id == ^row.act_id
+          ),
+          set: [view: view, ready_at: ready_at]
+        )
   end
 
   defp task_status(repo, household_id, number) do
     case repo.one(
+           # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
            from(t in S.Task,
              where: t.household_id == ^household_id and t.number == ^number,
              select: t.status
@@ -359,10 +377,9 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
   defp imported_note(start), do: "Imported with layers 1–#{start} done, carrying no approvals."
 
   defp stringify(layers),
-    do:
-      Enum.map(layers, fn layer ->
-        Enum.map(layer, fn spec -> Map.new(spec, fn {k, v} -> {to_string(k), v} end) end)
-      end)
+    do: Enum.map(layers, fn layer -> Enum.map(layer, &stringify_spec/1) end)
+
+  defp stringify_spec(spec), do: Map.new(spec, fn {k, v} -> {to_string(k), v} end)
 
   defp who(actor), do: "#{kind(actor)}:#{actor_id(actor)}"
 

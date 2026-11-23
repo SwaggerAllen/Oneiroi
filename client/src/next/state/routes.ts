@@ -31,7 +31,7 @@ export function isTabHash(hash: string): boolean {
 // Settings sections are full pages inside the house (`#/settings/<section>`),
 // over the tabs rather than in one: the tabs stay mounted underneath and
 // come back as they were.
-export const SETTINGS = ['ledger', 'kinds', 'connections', 'notifications', 'regression', 'work', 'backups', 'presence', 'delete'] as const;
+export const SETTINGS = ['ledger', 'kinds', 'connections', 'notifications', 'regression', 'work', 'queue', 'backups', 'presence', 'delete'] as const;
 export type SettingsSection = (typeof SETTINGS)[number];
 
 /** The section a hash opens, or null when it is not a settings page. */
