@@ -1,0 +1,1056 @@
+defmodule Oneiroi.Sunna.Queue do
+  @moduledoc """
+  The house queue aggregate (sunna#80, lily:design/queue-ia rev 5), on
+  `queue-<household_id>`: projects → tasks → layered activities, one
+  queue a household, every member's.
+
+  The rules are `Oneiroi.Sunna.QueueGraph`'s (layers, completion, cycles,
+  the shape rule); this module holds the state they read and the
+  permissions:
+
+  - an activity is worked (taken, finished, blocked, failed) by its
+    assignee, the task's owner or a witness; an `unknown` one by whoever
+    takes it, and a `claude-code` one by the member routing to it (§3);
+  - a review is decided by its assignee alone, since the decision is the
+    authorization (§6.1);
+  - an activity is skipped by the task's owner, or by its assignee when
+    the template declared it optional (§7), and a review standing in front
+    of a live gated activity is never skipped;
+  - a task is dropped by its owner or a witness.
+
+  Scarlett's guards (her revision-3 review): a gated activity runs only on
+  the pin its review approved, re-read at execution, and a head that moved
+  lapses the approval (1); a task imported part-way carries no approval,
+  so it cannot start at a gated layer (3); blocks refuse cycles at any
+  length (4). Promotion's own audience check (2) is the library's, run by
+  the caller before it finishes a `promote-to-house`.
+  """
+
+  import Kernel, except: [apply: 2]
+
+  alias Oneiroi.Sunna.Error
+  alias Oneiroi.Sunna.QueueCommands, as: C
+  alias Oneiroi.Sunna.QueueEvents, as: E
+  alias Oneiroi.Sunna.QueueGraph, as: G
+
+  defstruct projects: %{},
+            templates: %{},
+            next_task: 1,
+            tasks: %{},
+            acts: %{},
+            via: nil,
+            cut_over: false
+
+  @outcomes ~w(approved changes declined)
+  @words 4_000
+  @verb 40
+
+  # ---- projects and templates ----
+
+  def execute(%__MODULE__{} = s, %C.OpenProject{} = c) do
+    cond do
+      not slug?(c.slug) or not words?(c.name, 120) or not assignee?(c.owner) ->
+        {:error, Error.new(:sunna_queue_invalid, :sunna_queue_project_invalid)}
+
+      Map.has_key?(s.projects, c.slug) ->
+        {:error, Error.new(:sunna_queue_project_exists, :sunna_queue_project_exists)}
+
+      true ->
+        %E.ProjectOpened{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          slug: c.slug,
+          name: String.trim(c.name),
+          owner: c.owner
+        }
+    end
+  end
+
+  def execute(%__MODULE__{} = s, %C.CloseProject{} = c) do
+    case s.projects[c.slug] do
+      %{status: "open"} ->
+        %E.ProjectClosed{actor: c.actor, at: c.at, id: c.id, slug: c.slug, note: c.note}
+
+      _none ->
+        {:error, Error.new(:sunna_queue_no_such_project, :sunna_queue_close_unknown)}
+    end
+  end
+
+  def execute(%__MODULE__{}, %C.DefineTemplate{} = c) do
+    case template_layers(c.layers) do
+      {:ok, layers} ->
+        if slug?(c.name) and words?(c.title, 120),
+          do: %E.TemplateDefined{
+            actor: c.actor,
+            at: c.at,
+            id: c.id,
+            name: c.name,
+            title: String.trim(c.title),
+            layers: layers
+          },
+          else: {:error, Error.new(:sunna_queue_invalid, :sunna_queue_template_invalid)}
+
+      :shape ->
+        {:error, Error.new(:sunna_queue_shape, :sunna_queue_template_shape)}
+
+      :error ->
+        {:error, Error.new(:sunna_queue_invalid, :sunna_queue_template_layers)}
+    end
+  end
+
+  # ---- tasks ----
+
+  def execute(%__MODULE__{} = s, %C.OpenTask{} = c) do
+    n = s.next_task
+
+    with :ok <- task_head_ok(s, c),
+         {:ok, layers} <- task_layers(n, c.layers),
+         :ok <- task_shape_ok(s, layers, c.start_layer) do
+      %E.TaskOpened{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        number: n,
+        project: c.project,
+        slug: c.slug,
+        title: String.trim(c.title),
+        outcome: String.trim(c.outcome),
+        owner: c.owner,
+        index: c.index || "tasks/#{c.project}/#{c.slug}.md",
+        template: c.template,
+        layers: layers,
+        start_layer: c.start_layer || 0,
+        links: List.wrap(c.links)
+      }
+    end
+  end
+
+  def execute(%__MODULE__{} = s, %C.DropTask{} = c) do
+    with {:ok, task} <- open_task(s, c.task, :sunna_queue_drop_unknown),
+         :ok <- owner_or_witness(task, c.actor, :sunna_queue_drop_not_yours) do
+      dropped = %E.TaskDropped{actor: c.actor, at: c.at, id: c.id, task: c.task, note: c.note}
+      [dropped | releases(follow(s, [dropped]), c.task, "dropped", c)]
+    end
+  end
+
+  # ---- activities ----
+
+  def execute(%__MODULE__{} = s, %C.TakeActivity{} = c) do
+    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_take_unknown),
+         :ok <- ready(s, task, act, :sunna_queue_take_not_ready),
+         :ok <- may_work(s, task, act, c.actor, :sunna_queue_take_not_yours) do
+      case lapsed(s, task, act, c.head, c) do
+        nil ->
+          assignee = if act.assignee == "unknown", do: me(c.actor), else: act.assignee
+
+          %E.ActivityTaken{
+            actor: c.actor,
+            at: c.at,
+            id: c.id,
+            task: c.task,
+            act: c.act,
+            assignee: assignee
+          }
+
+        lapse ->
+          lapse
+      end
+    end
+  end
+
+  def execute(%__MODULE__{} = s, %C.FinishActivity{} = c) do
+    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_finish_unknown),
+         :ok <- live(s, task, act, :sunna_queue_finish_not_ready),
+         :ok <- not_review(act, :sunna_queue_finish_review),
+         :ok <- may_work(s, task, act, c.actor, :sunna_queue_finish_not_yours),
+         :ok <- optional_words(c.note, :sunna_queue_finish_invalid) do
+      case lapsed(s, task, act, c.head, c) do
+        nil ->
+          with :ok <- pin_ok(s, task, act, c.pin) do
+            done = %E.ActivityDone{
+              actor: c.actor,
+              at: c.at,
+              id: c.id,
+              task: c.task,
+              act: c.act,
+              pin: c.pin,
+              result: c.result,
+              note: c.note && String.trim(c.note)
+            }
+
+            completing(s, [done], c)
+          end
+
+        lapse ->
+          lapse
+      end
+    end
+  end
+
+  def execute(%__MODULE__{} = s, %C.SkipActivity{} = c) do
+    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_skip_unknown),
+         :ok <- unfinished(act, :sunna_queue_skip_finished),
+         :ok <- may_skip(task, act, c.actor),
+         :ok <- not_guarding(s, task, act) do
+      skipped = %E.ActivitySkipped{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        task: c.task,
+        act: c.act,
+        note: c.note
+      }
+
+      completing(s, [skipped], c)
+    end
+  end
+
+  def execute(%__MODULE__{} = s, %C.BlockActivity{} = c) do
+    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_block_unknown),
+         :ok <- blockable(act),
+         :ok <- may_work(s, task, act, c.actor, :sunna_queue_block_not_yours),
+         :ok <- reason_ok(c.reason, :sunna_queue_block_invalid),
+         :ok <- block_ok(s, task, c.waits_on) do
+      blocked = %E.ActivityBlocked{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        task: c.task,
+        act: c.act,
+        reason: String.trim(c.reason),
+        waits_on: c.waits_on
+      }
+
+      # A target already complete clears the block at once (§1).
+      if is_integer(c.waits_on) and G.complete?(s.tasks[c.waits_on], s.acts),
+        do: [blocked, released(c, c.task, c.act, c.waits_on, status_of(s.tasks[c.waits_on]))],
+        else: blocked
+    end
+  end
+
+  def execute(%__MODULE__{} = s, %C.ReopenActivity{} = c) do
+    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_reopen_unknown),
+         :ok <- may_work(s, task, act, c.actor, :sunna_queue_reopen_not_yours) do
+      if act.status in ~w(blocked failed),
+        do: %E.ActivityReopened{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          task: c.task,
+          act: c.act,
+          released: false,
+          note: c.note
+        },
+        else: {:error, Error.new(:sunna_queue_not_ready, :sunna_queue_reopen_not_stuck)}
+    end
+  end
+
+  def execute(%__MODULE__{} = s, %C.FailActivity{} = c) do
+    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_fail_unknown),
+         :ok <- live(s, task, act, :sunna_queue_fail_not_ready),
+         :ok <- may_work(s, task, act, c.actor, :sunna_queue_fail_not_yours),
+         :ok <- reason_ok(c.what, :sunna_queue_fail_invalid) do
+      %E.ActivityFailed{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        task: c.task,
+        act: c.act,
+        what: String.trim(c.what)
+      }
+    end
+  end
+
+  def execute(%__MODULE__{} = s, %C.AssignActivity{} = c) do
+    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_assign_unknown),
+         :ok <- unfinished(act, :sunna_queue_assign_finished),
+         :ok <- may_assign(task, act, c.actor),
+         :ok <- assignee_ok(s, task, act, c.assignee),
+         :ok <- optional_words(c.note, :sunna_queue_assign_invalid) do
+      %E.ActivityAssigned{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        task: c.task,
+        act: c.act,
+        assignee: c.assignee,
+        note: c.note && String.trim(c.note)
+      }
+    end
+  end
+
+  def execute(%__MODULE__{} = s, %C.DecideReview{} = c) do
+    with {:ok, task, act} <- activity(s, c.task, c.act, :sunna_queue_decide_unknown),
+         :ok <- review(act),
+         :ok <- live(s, task, act, :sunna_queue_decide_not_ready),
+         :ok <- reviewer(act, c.actor),
+         :ok <- outcome_ok(c.outcome),
+         :ok <- seen_ok(act, c.pin, c.head) do
+      decide(s, task, act, c)
+    end
+  end
+
+  def execute(%__MODULE__{} = s, %C.FillSlot{} = c) do
+    slot = "slot:#{c.slot}"
+
+    with {:ok, task} <- open_task(s, c.task, :sunna_queue_fill_unknown) do
+      held = for layer <- task.layers, id <- layer, s.acts[id].artifact == slot, do: id
+      mine = me(c.actor)
+
+      cond do
+        held == [] ->
+          {:error, Error.new(:sunna_queue_no_such_activity, :sunna_queue_fill_no_slot)}
+
+        not words?(c.artifact, 300) or String.starts_with?(c.artifact, "slot:") ->
+          {:error, Error.new(:sunna_queue_invalid, :sunna_queue_fill_invalid)}
+
+        c.actor.kind != :witness and mine != task.owner and
+            not Enum.any?(held, &(s.acts[&1].assignee == mine)) ->
+          {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_fill_not_yours)}
+
+        true ->
+          %E.SlotFilled{
+            actor: c.actor,
+            at: c.at,
+            id: c.id,
+            task: c.task,
+            slot: c.slot,
+            artifact: String.trim(c.artifact),
+            acts: held
+          }
+      end
+    end
+  end
+
+  # ---- routing and the cutover ----
+
+  def execute(%__MODULE__{}, %C.RouteClaudeCode{actor: %{kind: :witness}} = c) do
+    if member?(c.via),
+      do: %E.ClaudeCodeRouted{actor: c.actor, at: c.at, id: c.id, via: c.via},
+      else: {:error, Error.new(:sunna_queue_invalid, :sunna_queue_route_invalid)}
+  end
+
+  def execute(%__MODULE__{}, %C.RouteClaudeCode{}),
+    do: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_route_witness_only)}
+
+  def execute(%__MODULE__{cut_over: false}, %C.CutOver{actor: %{kind: :witness}} = c) do
+    if words?(c.commit, 64),
+      do: %E.CutOver{actor: c.actor, at: c.at, id: c.id, commit: c.commit, note: c.note},
+      else: {:error, Error.new(:sunna_queue_invalid, :sunna_queue_cutover_commit)}
+  end
+
+  def execute(%__MODULE__{cut_over: true}, %C.CutOver{actor: %{kind: :witness}}),
+    do: {:error, Error.new(:sunna_queue_cutover, :sunna_queue_cutover_already)}
+
+  def execute(%__MODULE__{cut_over: true}, %C.CutBack{actor: %{kind: :witness}} = c),
+    do: %E.CutBack{actor: c.actor, at: c.at, id: c.id, note: c.note}
+
+  def execute(%__MODULE__{cut_over: false}, %C.CutBack{actor: %{kind: :witness}}),
+    do: {:error, Error.new(:sunna_queue_cutover, :sunna_queue_cutback_not_cut)}
+
+  def execute(%__MODULE__{}, %C.CutOver{}),
+    do: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_cutover_witness_only)}
+
+  def execute(%__MODULE__{}, %C.CutBack{}),
+    do: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_cutback_witness_only)}
+
+  # ---- apply ----
+
+  def apply(%__MODULE__{} = s, %E.ProjectOpened{} = e),
+    do: %{s | projects: Map.put(s.projects, e.slug, %{status: "open", owner: e.owner})}
+
+  def apply(%__MODULE__{} = s, %E.ProjectClosed{} = e),
+    do: %{s | projects: Map.update!(s.projects, e.slug, &%{&1 | status: "closed"})}
+
+  def apply(%__MODULE__{} = s, %E.TemplateDefined{} = e),
+    do: %{s | templates: Map.put(s.templates, e.name, e.layers)}
+
+  def apply(%__MODULE__{} = s, %E.TaskOpened{} = e) do
+    start = e.start_layer || 0
+
+    layers =
+      Enum.map(e.layers, fn layer -> Enum.map(layer, &get(&1, :id)) end)
+
+    acts =
+      for {layer, i} <- Enum.with_index(e.layers), spec <- layer, into: s.acts do
+        act = activity_from(spec, e.number, i < start)
+        {act.id, act}
+      end
+
+    task = %{
+      number: e.number,
+      status: "open",
+      layers: layers,
+      owner: e.owner,
+      project: e.project,
+      slug: e.slug
+    }
+
+    %{s | next_task: e.number + 1, tasks: Map.put(s.tasks, e.number, task), acts: acts}
+  end
+
+  def apply(%__MODULE__{} = s, %E.ActivityTaken{} = e),
+    do: put_act(s, e.act, status: "active", assignee: e.assignee)
+
+  def apply(%__MODULE__{} = s, %E.ActivityDone{} = e),
+    do: put_act(s, e.act, status: "done", waits_on: nil)
+
+  def apply(%__MODULE__{} = s, %E.ActivitySkipped{} = e),
+    do: put_act(s, e.act, status: "skipped", waits_on: nil)
+
+  def apply(%__MODULE__{} = s, %E.ActivityBlocked{} = e),
+    do: put_act(s, e.act, status: "blocked", waits_on: e.waits_on)
+
+  def apply(%__MODULE__{} = s, %E.ActivityReopened{} = e),
+    do: put_act(s, e.act, status: "pending", waits_on: nil)
+
+  def apply(%__MODULE__{} = s, %E.ActivityFailed{} = e),
+    do: put_act(s, e.act, status: "failed")
+
+  def apply(%__MODULE__{} = s, %E.ActivityAssigned{} = e),
+    do: put_act(s, e.act, assignee: e.assignee)
+
+  def apply(%__MODULE__{} = s, %E.ReviewDecided{outcome: "approved"} = e) do
+    s = put_act(s, e.act, status: "done", approved_pin: e.pin)
+    Enum.reduce(List.wrap(e.skipped), s, &put_act(&2, &1, status: "skipped"))
+  end
+
+  def apply(%__MODULE__{} = s, %E.ReviewDecided{} = e) do
+    s = put_act(s, e.act, status: "pending", approved_pin: nil)
+    Enum.reduce(List.wrap(e.returned), s, &put_act(&2, &1, status: "pending", waits_on: nil))
+  end
+
+  def apply(%__MODULE__{} = s, %E.ApprovalLapsed{} = e) do
+    s
+    |> put_act(e.act, status: "pending", approved_pin: nil)
+    |> put_act(e.gated, status: "pending")
+  end
+
+  def apply(%__MODULE__{} = s, %E.SlotFilled{} = e),
+    do: Enum.reduce(List.wrap(e.acts), s, &put_act(&2, &1, artifact: e.artifact))
+
+  def apply(%__MODULE__{} = s, %E.TaskCompleted{}), do: s
+
+  def apply(%__MODULE__{} = s, %E.TaskDropped{} = e),
+    do: %{s | tasks: Map.update!(s.tasks, e.task, &%{&1 | status: "dropped"})}
+
+  def apply(%__MODULE__{} = s, %E.ClaudeCodeRouted{} = e), do: %{s | via: e.via}
+  def apply(%__MODULE__{} = s, %E.CutOver{}), do: %{s | cut_over: true}
+  def apply(%__MODULE__{} = s, %E.CutBack{}), do: %{s | cut_over: false}
+
+  # ---- shared readers ----
+
+  @doc "A nested field read with an atom or a string key, as a fresh event and a decoded one differ."
+  def get(map, key) when is_map(map), do: Map.get(map, key, Map.get(map, Atom.to_string(key)))
+  def get(_other, _key), do: nil
+
+  @doc "Whether an assignee is one the queue knows: a member (`resident:<id>`, `witness:<id>`), `claude-code` or `unknown`."
+  def assignee?(a) when a in ["claude-code", "unknown"], do: true
+  def assignee?(a), do: member?(a)
+
+  @doc "Whether a string names a member: `resident:<id>` or `witness:<id>`."
+  def member?("resident:" <> id), do: uuid?(id)
+  def member?("witness:" <> id), do: uuid?(id)
+  def member?(_other), do: false
+
+  @doc "The assignee string an actor is."
+  def me(%{kind: kind, id: id}) when kind in [:resident, :witness], do: "#{kind}:#{id}"
+  def me(_actor), do: nil
+
+  # ---- the review's decision ----
+
+  defp decide(s, task, act, %{outcome: "approved"} = c) do
+    cond do
+      slot?(act.artifact) ->
+        {:error, Error.new(:sunna_queue_slot_open, :sunna_queue_decide_slot)}
+
+      act.artifact && not words?(c.pin, 64) ->
+        {:error, Error.new(:sunna_queue_pin_required, :sunna_queue_decide_pin)}
+
+      true ->
+        approve(s, task, act, c)
+    end
+  end
+
+  defp decide(s, task, act, c) do
+    target = c.return_to || act.throwback
+
+    case returned(s, task, act, target) do
+      {:ok, returned} ->
+        %E.ReviewDecided{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          task: c.task,
+          act: c.act,
+          outcome: c.outcome,
+          pin: c.pin,
+          return_to: target,
+          withhold: false,
+          returned: returned,
+          skipped: [],
+          note: c.note
+        }
+
+      :error ->
+        {:error, Error.new(:sunna_queue_return_required, :sunna_queue_decide_return)}
+    end
+  end
+
+  defp approve(s, task, act, c) do
+    skipped = if c.withhold == true, do: authorized(s, task, act), else: []
+
+    decided = %E.ReviewDecided{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      task: c.task,
+      act: c.act,
+      outcome: "approved",
+      pin: c.pin,
+      return_to: nil,
+      withhold: c.withhold == true,
+      returned: [],
+      skipped: skipped,
+      note: c.note
+    }
+
+    completing(s, [decided], c)
+  end
+
+  # What a refusal sends back (§7): the target, an earlier activity of
+  # the same task, ready again; everything finished between it and the
+  # review back to waiting. The review itself opens again (a new review,
+  # the refused one kept in history).
+  defp returned(_s, _task, _act, nil), do: :error
+
+  defp returned(s, task, act, target) do
+    from = G.layer_of(task, target)
+    to = G.layer_of(task, act.id)
+
+    if is_integer(from) and from < to do
+      between =
+        for i <- (from + 1)..(to - 1)//1,
+            id <- Enum.at(task.layers, i),
+            s.acts[id].status in ~w(done skipped),
+            do: id
+
+      {:ok, [target | between]}
+    else
+      :error
+    end
+  end
+
+  # The gated activities a review authorizes (§6.1): in the layer after
+  # it, of its artifact, destination and action, still standing.
+  defp authorized(s, task, review) do
+    i = G.layer_of(task, review.id)
+
+    for id <- Enum.at(task.layers, i + 1) || [],
+        a = s.acts[id],
+        a.type in G.gated_types(),
+        a.status not in ~w(done skipped),
+        guards?(review, a),
+        do: id
+  end
+
+  defp guards?(review, gated),
+    do:
+      review.artifact == gated.artifact and review.destination == gated.destination and
+        review.action == gated.type
+
+  # The approving review in front of a gated activity, or nil.
+  defp review_of(s, task, act) do
+    case G.layer_of(task, act.id) do
+      i when is_integer(i) and i > 0 ->
+        task.layers
+        |> Enum.at(i - 1)
+        |> Enum.map(&s.acts[&1])
+        |> Enum.find(&(&1.type == "review" and guards?(&1, act)))
+
+      _first ->
+        nil
+    end
+  end
+
+  # Scarlett's first guard: a head that moved past the approved pin
+  # lapses the approval, at the moment of execution.
+  defp lapsed(s, task, act, head, c) do
+    with true <- act.type in G.gated_types(),
+         %{approved_pin: approved} = review when is_binary(approved) <- review_of(s, task, act),
+         true <- is_binary(head) and not same_pin?(head, approved) do
+      %E.ApprovalLapsed{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        task: task.number,
+        act: review.id,
+        gated: act.id,
+        approved_pin: approved,
+        head: head
+      }
+    else
+      _ -> nil
+    end
+  end
+
+  # A gated activity is done on the revision its review approved, named.
+  defp pin_ok(s, task, act, pin) do
+    if act.type in G.gated_types() do
+      case review_of(s, task, act) do
+        %{approved_pin: approved} when is_binary(approved) ->
+          if is_binary(pin) and same_pin?(pin, approved),
+            do: :ok,
+            else: {:error, Error.new(:sunna_queue_pin_mismatch, :sunna_queue_finish_pin)}
+
+        _unapproved ->
+          {:error, Error.new(:sunna_queue_review_required, :sunna_queue_finish_unreviewed)}
+      end
+    else
+      :ok
+    end
+  end
+
+  # The reviewer approves what was in front of them: a head read now that
+  # differs from the pin they saw means the artifact changed as they read.
+  defp seen_ok(_act, _pin, nil), do: :ok
+  defp seen_ok(%{artifact: nil}, _pin, _head), do: :ok
+
+  defp seen_ok(_act, pin, head) do
+    if is_binary(pin) and same_pin?(pin, head),
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_changed_while_read, :sunna_queue_decide_moved)}
+  end
+
+  # A short sha and the full one are one revision.
+  defp same_pin?(a, b),
+    do: String.starts_with?(a, b) or String.starts_with?(b, a)
+
+  # ---- completion and release ----
+
+  # The events, then the task's completion and what it releases when the
+  # events complete it.
+  defp completing(s, events, c) do
+    after_s = follow(s, events)
+    task = after_s.tasks[c.task]
+
+    if task.status == "open" and G.complete?(task, after_s.acts) do
+      completed = %E.TaskCompleted{actor: c.actor, at: c.at, id: c.id, task: c.task}
+      events ++ [completed | releases(after_s, c.task, "done", c)]
+    else
+      events
+    end
+  end
+
+  defp releases(s, n, how, c) do
+    for id <- Enum.sort(G.releases(s.acts, n)),
+        do: released(c, s.acts[id].task, id, n, how)
+  end
+
+  defp released(c, task, act, n, how),
+    do: %E.ActivityReopened{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      task: task,
+      act: act,
+      released: true,
+      note: "Task ##{n} is complete (#{how}), so this is no longer blocked."
+    }
+
+  defp status_of(%{status: "dropped"}), do: "dropped"
+  defp status_of(_task), do: "done"
+
+  defp follow(s, events), do: Enum.reduce(events, s, &apply(&2, &1))
+
+  # ---- checks ----
+
+  defp task_head_ok(s, c) do
+    cond do
+      not match?(%{status: "open"}, s.projects[c.project]) ->
+        {:error, Error.new(:sunna_queue_no_such_project, :sunna_queue_task_project)}
+
+      not slug?(c.slug) or not words?(c.title, 200) or not words?(c.outcome, @words) or
+        not assignee?(c.owner) or c.owner in ["claude-code", "unknown"] ->
+        {:error, Error.new(:sunna_queue_invalid, :sunna_queue_task_invalid)}
+
+      Enum.any?(s.tasks, fn {_n, t} -> t.project == c.project and t.slug == c.slug end) ->
+        {:error, Error.new(:sunna_queue_task_exists, :sunna_queue_task_exists)}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp task_shape_ok(s, layers, start) do
+    specs = for layer <- layers, a <- layer, into: %{}, do: {a.id, a}
+    ids = Enum.map(layers, fn layer -> Enum.map(layer, & &1.id) end)
+    start = start || 0
+
+    cond do
+      not is_integer(start) or start < 0 or start >= length(layers) ->
+        {:error, Error.new(:sunna_queue_invalid, :sunna_queue_task_start)}
+
+      G.shape_errors(ids, specs) != [] or
+          Enum.any?(specs, fn {_id, a} -> a.type in G.gated_types() and is_nil(a.artifact) end) ->
+        {:error, Error.new(:sunna_queue_shape, :sunna_queue_task_shape)}
+
+      # Scarlett's third guard: an import carries no approvals, so a task
+      # cannot start where a gated activity's review would be imported.
+      start > 0 and Enum.any?(Enum.at(layers, start), &(&1.type in G.gated_types())) ->
+        {:error, Error.new(:sunna_queue_import_gated, :sunna_queue_task_import_gated)}
+
+      not routed?(s, layers) ->
+        {:error, Error.new(:sunna_queue_route_required, :sunna_queue_task_route)}
+
+      true ->
+        :ok
+    end
+  end
+
+  # No one reaches claude-code but through the reviewed deliver step (§3):
+  # each claude-code activity has, in the layer before it, a deliver by
+  # the member routing to it.
+  defp routed?(s, layers) do
+    layers
+    |> Enum.with_index()
+    |> Enum.all?(fn {layer, i} ->
+      Enum.all?(layer, fn a ->
+        a.assignee != "claude-code" or
+          (i > 0 and not is_nil(s.via) and
+             Enum.any?(Enum.at(layers, i - 1), &(&1.type == "deliver" and &1.assignee == s.via)))
+      end)
+    end)
+  end
+
+  # A task's layers as given, each activity numbered `<task>.<k>`, a
+  # throwback named by position ("2.1": layer 2's first) made an id.
+  defp task_layers(n, layers) when is_list(layers) and layers != [] do
+    numbered =
+      layers
+      |> Enum.with_index()
+      |> Enum.map_reduce(1, fn {layer, _i}, k ->
+        if is_list(layer) and layer != [] do
+          Enum.map_reduce(layer, k, fn spec, k -> {spec_of(spec, "#{n}.#{k}"), k + 1} end)
+        else
+          {:error, k}
+        end
+      end)
+      |> elem(0)
+
+    positions =
+      for {layer, i} <- Enum.with_index(numbered),
+          is_list(layer),
+          {a, j} <- Enum.with_index(layer, 1),
+          into: %{},
+          do: {"#{i + 1}.#{j}", a && a.id}
+
+    cond do
+      Enum.any?(numbered, &(not is_list(&1))) -> invalid_layers()
+      Enum.any?(List.flatten(numbered), &is_nil/1) -> invalid_layers()
+      true -> resolve_throwbacks(numbered, positions)
+    end
+  end
+
+  defp task_layers(_n, _layers), do: invalid_layers()
+
+  defp resolve_throwbacks(layers, positions) do
+    resolved =
+      Enum.map(layers, fn layer ->
+        Enum.map(layer, fn a ->
+          case a.throwback do
+            nil -> a
+            pos -> %{a | throwback: Map.get(positions, pos, :bad)}
+          end
+        end)
+      end)
+
+    if Enum.any?(List.flatten(resolved), &(&1.throwback == :bad)),
+      do: invalid_layers(),
+      else: {:ok, resolved}
+  end
+
+  defp invalid_layers, do: {:error, Error.new(:sunna_queue_invalid, :sunna_queue_task_layers)}
+
+  defp spec_of(spec, id) when is_map(spec) do
+    a = %{
+      id: id,
+      type: get(spec, :type),
+      assignee: get(spec, :assignee) || "unknown",
+      artifact: blank_nil(get(spec, :artifact)),
+      destination: blank_nil(get(spec, :destination)),
+      action: blank_nil(get(spec, :action)),
+      optional: get(spec, :optional) == true,
+      throwback: blank_nil(get(spec, :throwback))
+    }
+
+    if words?(a.type, @verb) and assignee?(a.assignee) and short?(a.artifact, 300) and
+         short?(a.destination, 120) and short?(a.action, @verb),
+       do: a,
+       else: nil
+  end
+
+  defp spec_of(_spec, _id), do: nil
+
+  # A template's layers (§7): each spec a type, a role, an artifact slot,
+  # and its destination, action, optional and throwback; the shape rule
+  # checked with the slots standing in for artifacts.
+  @roles ~w(author witness peer builder unknown)
+  defp template_layers(layers) when is_list(layers) and layers != [] do
+    specs =
+      for {layer, i} <- Enum.with_index(layers) do
+        if is_list(layer) and layer != [],
+          do: layer |> Enum.with_index(1) |> Enum.map(fn {s, j} -> template_spec(s, i, j) end),
+          else: [nil]
+      end
+
+    flat = List.flatten(specs)
+
+    cond do
+      Enum.any?(flat, &is_nil/1) ->
+        :error
+
+      template_shape?(specs) ->
+        {:ok, Enum.map(specs, fn layer -> Enum.map(layer, &Map.delete(&1, :pos)) end)}
+
+      true ->
+        :shape
+    end
+  end
+
+  defp template_layers(_layers), do: :error
+
+  defp template_spec(spec, _i, j) when is_map(spec) do
+    t = %{
+      pos: j,
+      type: get(spec, :type),
+      role: get(spec, :role) || "unknown",
+      artifact: blank_nil(get(spec, :artifact)),
+      destination: blank_nil(get(spec, :destination)),
+      action: blank_nil(get(spec, :action)),
+      optional: get(spec, :optional) == true,
+      throwback: blank_nil(get(spec, :throwback))
+    }
+
+    if words?(t.type, @verb) and t.role in @roles and short?(t.artifact, 64) and
+         short?(t.destination, 120) and short?(t.action, @verb) and short?(t.throwback, 16),
+       do: t,
+       else: nil
+  end
+
+  defp template_spec(_spec, _i, _j), do: nil
+
+  defp template_shape?(specs) do
+    keyed =
+      for {layer, i} <- Enum.with_index(specs), t <- layer, into: %{} do
+        {"#{i + 1}.#{t.pos}", t}
+      end
+
+    ids = for {layer, i} <- Enum.with_index(specs), do: Enum.map(layer, &"#{i + 1}.#{&1.pos}")
+
+    G.shape_errors(ids, keyed) == [] and
+      Enum.all?(keyed, fn {_k, t} -> t.type not in G.gated_types() or not is_nil(t.artifact) end)
+  end
+
+  defp activity_from(spec, task, imported?) do
+    %{
+      id: get(spec, :id),
+      task: task,
+      type: get(spec, :type),
+      assignee: get(spec, :assignee),
+      artifact: get(spec, :artifact),
+      destination: get(spec, :destination),
+      action: get(spec, :action),
+      optional: get(spec, :optional) == true,
+      throwback: get(spec, :throwback),
+      status: if(imported?, do: "done", else: "pending"),
+      imported: imported?,
+      waits_on: nil,
+      approved_pin: nil
+    }
+  end
+
+  defp put_act(s, id, kv), do: %{s | acts: Map.update!(s.acts, id, &Enum.into(kv, &1))}
+
+  defp open_task(s, n, site) do
+    case s.tasks[n] do
+      %{status: "open"} = task ->
+        if G.complete?(task, s.acts),
+          do: {:error, Error.new(:sunna_queue_no_such_task, site)},
+          else: {:ok, task}
+
+      _none ->
+        {:error, Error.new(:sunna_queue_no_such_task, site)}
+    end
+  end
+
+  defp activity(s, n, id, site) do
+    with {:ok, task} <- open_task(s, n, site) do
+      case s.acts[id] do
+        %{task: ^n} = act -> {:ok, task, act}
+        _none -> {:error, Error.new(:sunna_queue_no_such_activity, site)}
+      end
+    end
+  end
+
+  # Ready: pending in the open layer.
+  defp ready(s, task, act, site) do
+    if G.view(act, task, s.acts) == :ready,
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_not_ready, site)}
+  end
+
+  # Live: ready or active.
+  defp live(s, task, act, site) do
+    if G.view(act, task, s.acts) in [:ready, :active],
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_not_ready, site)}
+  end
+
+  defp unfinished(act, site) do
+    if act.status in ~w(done skipped),
+      do: {:error, Error.new(:sunna_queue_not_ready, site)},
+      else: :ok
+  end
+
+  defp blockable(act) do
+    if act.status in ~w(pending active),
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_not_ready, :sunna_queue_block_not_live)}
+  end
+
+  defp not_review(%{type: "review"}, site),
+    do: {:error, Error.new(:sunna_queue_review_decides, site)}
+
+  defp not_review(_act, _site), do: :ok
+
+  defp review(%{type: "review"}), do: :ok
+
+  defp review(_act),
+    do: {:error, Error.new(:sunna_queue_not_a_review, :sunna_queue_decide_not_review)}
+
+  defp reviewer(act, actor) do
+    if act.assignee == me(actor),
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_decide_not_reviewer)}
+  end
+
+  defp outcome_ok(outcome) when outcome in @outcomes, do: :ok
+
+  defp outcome_ok(_other),
+    do: {:error, Error.new(:sunna_queue_invalid, :sunna_queue_decide_outcome)}
+
+  defp may_work(s, task, act, actor, site) do
+    mine = me(actor)
+
+    cond do
+      actor.kind == :witness -> :ok
+      not is_nil(mine) and mine in [act.assignee, task.owner] -> :ok
+      act.assignee == "unknown" and not is_nil(mine) -> :ok
+      act.assignee == "claude-code" and not is_nil(mine) and mine == s.via -> :ok
+      true -> {:error, Error.new(:sunna_queue_not_yours, site)}
+    end
+  end
+
+  defp may_skip(task, act, actor) do
+    mine = me(actor)
+
+    cond do
+      not is_nil(mine) and mine == task.owner -> :ok
+      act.optional and not is_nil(mine) and mine == act.assignee -> :ok
+      true -> {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_skip_not_yours)}
+    end
+  end
+
+  defp may_assign(task, act, actor) do
+    mine = me(actor)
+
+    if actor.kind == :witness or (not is_nil(mine) and mine in [task.owner, act.assignee]),
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_assign_not_yours)}
+  end
+
+  defp assignee_ok(s, task, act, assignee) do
+    cond do
+      not assignee?(assignee) ->
+        {:error, Error.new(:sunna_queue_invalid, :sunna_queue_assign_assignee)}
+
+      # claude-code only behind its deliver step (§3).
+      assignee == "claude-code" and not delivered_before?(s, task, act) ->
+        {:error, Error.new(:sunna_queue_route_required, :sunna_queue_assign_route)}
+
+      true ->
+        :ok
+    end
+  end
+
+  defp delivered_before?(s, task, act) do
+    case G.layer_of(task, act.id) do
+      i when is_integer(i) and i > 0 and not is_nil(s.via) ->
+        task.layers
+        |> Enum.at(i - 1)
+        |> Enum.any?(&(s.acts[&1].type == "deliver" and s.acts[&1].assignee == s.via))
+
+      _first ->
+        false
+    end
+  end
+
+  defp owner_or_witness(task, actor, site) do
+    if actor.kind == :witness or me(actor) == task.owner,
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_not_yours, site)}
+  end
+
+  # A review standing in front of a gated activity still to run is never
+  # skipped (§7): skip the gated activity first, or approve it.
+  defp not_guarding(s, task, %{type: "review"} = act) do
+    if authorized(s, task, act) == [],
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_review_required, :sunna_queue_skip_review)}
+  end
+
+  defp not_guarding(_s, _task, _act), do: :ok
+
+  defp block_ok(_s, _task, nil), do: :ok
+
+  defp block_ok(s, task, waits_on) when is_integer(waits_on) do
+    case G.block_ok?(s.tasks, s.acts, task.number, waits_on) do
+      :ok -> :ok
+      :self -> {:error, Error.new(:sunna_queue_block_refused, :sunna_queue_block_self)}
+      :cycle -> {:error, Error.new(:sunna_queue_block_refused, :sunna_queue_block_cycle)}
+      :no_such_task -> {:error, Error.new(:sunna_queue_block_refused, :sunna_queue_block_missing)}
+    end
+  end
+
+  defp block_ok(_s, _task, _other),
+    do: {:error, Error.new(:sunna_queue_block_refused, :sunna_queue_block_not_a_task)}
+
+  defp reason_ok(text, site) do
+    if words?(text, 500), do: :ok, else: {:error, Error.new(:sunna_queue_invalid, site)}
+  end
+
+  defp optional_words(nil, _site), do: :ok
+
+  defp optional_words(text, site) do
+    if is_binary(text) and String.length(text) <= @words,
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_invalid, site)}
+  end
+
+  defp slot?(artifact), do: is_binary(artifact) and String.starts_with?(artifact, "slot:")
+
+  defp slug?(s), do: is_binary(s) and Regex.match?(~r/\A[a-z0-9][a-z0-9-]{0,63}\z/, s)
+
+  defp uuid?(id), do: match?({:ok, _}, Ecto.UUID.cast(id))
+
+  defp words?(text, max),
+    do: is_binary(text) and String.trim(text) != "" and String.length(text) <= max
+
+  defp short?(nil, _max), do: true
+  defp short?(text, max), do: is_binary(text) and String.length(text) <= max
+
+  defp blank_nil(v) when is_binary(v), do: if(String.trim(v) == "", do: nil, else: String.trim(v))
+  defp blank_nil(v), do: v
+end

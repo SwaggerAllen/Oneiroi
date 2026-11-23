@@ -74,6 +74,9 @@ defmodule Oneiroi.SimaQian.Export do
     "household" =>
       {:stream,
        "the household, the billing owner, every member's and no one resident's (gaia#17)"},
+    "queue" =>
+      {:stream,
+       "the house queue, every member's and no one resident's (sunna#80); each task is in the house repository as its index document"},
     "rounds" =>
       {:stream,
        "the household's round-robin turns, every member's and no one resident's (gaia#53); the threads they gate are on the household's shelf"},
