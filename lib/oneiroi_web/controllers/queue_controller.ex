@@ -228,6 +228,27 @@ defmodule OneiroiWeb.QueueController do
     )
   end
 
+  operation(:edit_layers,
+    summary:
+      "Edits an open task's layers (sunna#85): layers, the whole new arrangement, each entry an existing activity by id (with fields to change while it is pending) or a new activity's spec; note, why. What started stays put; the layers before the open one stay as they are",
+    parameters: [number: [in: :path, type: :integer]],
+    request_body: {"layers and note", "application/json", %Schema{type: :object}},
+    responses: [ok: {"done", "application/json", %Schema{type: :object}}]
+  )
+
+  def edit_layers(conn, %{"number" => number} = p) do
+    done(
+      conn,
+      Sunna.queue_edit_layers(
+        conn.assigns.household_id,
+        int(number),
+        p["layers"],
+        p["note"],
+        actor(conn)
+      )
+    )
+  end
+
   operation(:drop,
     summary: "Drops a task, with a note; what waits on it is released",
     parameters: [number: [in: :path, type: :integer]],

@@ -20,6 +20,7 @@ defmodule Oneiroi.Seshat.Household.Reading do
 
   @contract "CONTRACT.md"
   @beats "BEATS.md"
+  @cutover "records/work-queue-at-cutover.md"
 
   @doc false
   def read(%Actor{} = actor, name, opts \\ []) do
@@ -66,6 +67,7 @@ defmodule Oneiroi.Seshat.Household.Reading do
     cond do
       name in [@contract, "contract"] -> read_contract(view)
       name in [@beats, "beats"] -> read_beats(view)
+      name == @cutover -> read_cutover(view)
       thread = Files.thread_path(name) -> read_thread(actor, household_id, view, thread)
       true -> read_document(actor, household_id, view, name)
     end
@@ -144,6 +146,21 @@ defmodule Oneiroi.Seshat.Household.Reading do
 
   # The beats' record (seshat#71), at the root as the contract is; before
   # the first beat event it is not there yet.
+  # The old queues' record at the cutover (sunna#84), the platform's
+  # rendering at a path the household's id named.
+  defp read_cutover(view) do
+    case Files.file(view, @cutover) do
+      text when is_binary(text) ->
+        {:ok, %{path: @cutover, kind: "house", title: "The work queue at cutover", content: text}}
+
+      _absent ->
+        {:error,
+         Error.new(:seshat_household_no_such_document, :seshat_household_cutover_absent,
+           path: @cutover
+         )}
+    end
+  end
+
   defp read_beats(view) do
     case Files.file(view, @beats) do
       text when is_binary(text) ->

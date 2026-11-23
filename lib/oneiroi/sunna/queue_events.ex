@@ -93,6 +93,13 @@ defmodule Oneiroi.Sunna.Events.Queue do
     use Oneiroi.Event, version: 1, fields: [:id, :task, :slot, :artifact, :acts]
   end
 
+  defmodule LayersEdited do
+    # The task's layers after the edit, each activity whole with its id
+    # (new ones numbered on from the task's last); `removed`, the pending
+    # activities taken out.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :task, :layers, :removed]
+  end
+
   defmodule TaskCompleted do
     use Oneiroi.Event, version: 1, fields: [:id, :task]
   end

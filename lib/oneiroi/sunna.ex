@@ -62,6 +62,7 @@ defmodule Oneiroi.Sunna do
       QueueCommands.DecideReview,
       QueueCommands.DropTask,
       QueueCommands.FillSlot,
+      QueueCommands.EditLayers,
       QueueCommands.CutOver,
       QueueCommands.CutBack,
       Events.Queue.ProjectOpened,
@@ -78,6 +79,7 @@ defmodule Oneiroi.Sunna do
       Events.Queue.ReviewDecided,
       Events.Queue.ApprovalLapsed,
       Events.Queue.SlotFilled,
+      Events.Queue.LayersEdited,
       Events.Queue.TaskCompleted,
       Events.Queue.TaskDropped,
       Events.Queue.CutOver,
@@ -115,6 +117,8 @@ defmodule Oneiroi.Sunna do
       Commands.DisarmWork,
       Commands.ResetWorkRuns,
       Commands.SkipCareWait,
+      Commands.StartActivityRun,
+      Commands.EndActivityRun,
       Events.WorkAdded,
       Events.WorkMoved,
       Events.WorkHeld,
@@ -127,6 +131,8 @@ defmodule Oneiroi.Sunna do
       Events.WorkDisarmed,
       Events.WorkRunsReset,
       Events.WorkCareSkipped,
+      Events.ActivityRunStarted,
+      Events.ActivityRunEnded,
       Events.LettersWoke,
       Events.WakeManifested,
       Events.WakeRead,
@@ -387,10 +393,13 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.Queue.ReviewDecided, 1},
       {Oneiroi.Sunna.Events.Queue.ApprovalLapsed, 1},
       {Oneiroi.Sunna.Events.Queue.SlotFilled, 1},
+      {Oneiroi.Sunna.Events.Queue.LayersEdited, 1},
       {Oneiroi.Sunna.Events.Queue.TaskCompleted, 1},
       {Oneiroi.Sunna.Events.Queue.TaskDropped, 1},
       {Oneiroi.Sunna.Events.Queue.CutOver, 1},
       {Oneiroi.Sunna.Events.Queue.CutBack, 1},
+      {Oneiroi.Sunna.Events.ActivityRunStarted, 1},
+      {Oneiroi.Sunna.Events.ActivityRunEnded, 1},
       {Oneiroi.Sunna.Events.WorkAdded, 1},
       {Oneiroi.Sunna.Events.WorkMoved, 1},
       {Oneiroi.Sunna.Events.WorkHeld, 1},
@@ -528,6 +537,9 @@ defmodule Oneiroi.Sunna do
        "a promotion to the house is finished by promoting (Scarlett's second guard): the library checks its audience then, whatever the review approved",
        remedy:
          "promote it with household_promote naming the task and activity; the activity finishes when the copy is made"},
+      {:sunna_queue_edit_refused,
+       "an edit keeps what has started: every activity done, skipped, active, blocked or failed stays where it is, unchanged; the layers before the open one stay as they are; only pending activities are changed, moved or removed, and new ones go in the open layer or after it",
+       remedy: "leave started work in place and change only what has not begun"},
       {:sunna_queue_pin_required, "an approval names the revision approved, its pin",
        remedy: "approve the artifact at the commit you read"},
       {:sunna_queue_pin_mismatch,
@@ -859,6 +871,13 @@ defmodule Oneiroi.Sunna do
           :ok | {:error, term()}
   defexport(queue_fill_slot(household_id, task, slot, artifact, actor),
     do: Queues.fill_slot(household_id, task, slot, artifact, actor)
+  )
+
+  @doc "Edits an open task's layers (sunna#85): existing activities by id, new ones as specs, with a note."
+  @spec queue_edit_layers(String.t(), pos_integer(), list(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_edit_layers(household_id, task, layers, note, actor),
+    do: Queues.edit_layers(household_id, task, layers, note, actor)
   )
 
   @doc "Drops a task, with a note; it counts as complete for what waits on it."

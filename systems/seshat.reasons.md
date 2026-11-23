@@ -858,3 +858,9 @@ A task's rows are the queue's truth, but a record a person cannot read
 outside the client is not repo first. Rendering after the projection,
 not inside it, keeps the queue below the library; a render that changes
 nothing committing nothing keeps the history to real changes.
+
+## #105
+A record in the repository that the Records view does not show is
+filed where nobody looks. Registering the kind is what puts tasks in
+the same list, search and citations as everything else; refusing hand
+edits keeps the rendering honest to the rows it comes from.

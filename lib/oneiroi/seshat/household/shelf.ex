@@ -19,6 +19,7 @@ defmodule Oneiroi.Seshat.Household.Shelf do
 
   @contract "CONTRACT.md"
   @beats "BEATS.md"
+  @cutover "records/work-queue-at-cutover.md"
   @page 50
 
   @doc false
@@ -68,7 +69,9 @@ defmodule Oneiroi.Seshat.Household.Shelf do
       own =
         for {path, title} <- [
               {@contract, "The household contract"},
-              {@beats, "The household's beats"}
+              {@beats, "The household's beats"},
+              # The old work queues as they stood at the cutover (sunna#84).
+              {@cutover, "The work queue at cutover"}
             ],
             Files.has?(view, path),
             do: file_row("house", path, title, nil, nil)

@@ -1,0 +1,38 @@
+defmodule OneiroiWeb.HouseChannelTest do
+  @moduledoc "The house queue's notices (sunna#80): a member joins the household's channel and hears a queue change as a notice, so the Work page never polls; a stranger cannot join."
+  use OneiroiWeb.ChannelCase, async: false
+
+  alias Ecto.Adapters.SQL.Sandbox
+  alias Oneiroi.Actor
+  alias Oneiroi.Fixtures
+  alias OneiroiWeb.UserSocket
+
+  setup do
+    pid = Sandbox.start_owner!(Oneiroi.Repo, shared: true)
+    on_exit(fn -> Sandbox.stop_owner(pid) end)
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    {:ok, witness: witness, resident: resident}
+  end
+
+  defp join_as(account_id, household_id) do
+    {:ok, socket} =
+      connect(UserSocket, %{"token" => UserSocket.token(OneiroiWeb.Endpoint, account_id)})
+
+    subscribe_and_join(socket, OneiroiWeb.HouseChannel, "house:#{household_id}", %{})
+  end
+
+  test "a member hears a queue change, whoever made it", ctx do
+    {:ok, _reply, _socket} = join_as(ctx.witness.id, ctx.witness.id)
+    lily = Actor.new(:resident, ctx.resident.id)
+
+    :ok = Oneiroi.Sunna.queue_open_project(ctx.witness.id, %{slug: "p", name: "P"}, lily)
+
+    assert_push "notice", %{stream: "queue", kind: "ProjectOpened"}, 5_000
+  end
+
+  test "a stranger cannot join another household's channel", ctx do
+    stranger = Fixtures.account!()
+    assert {:error, %{reason: "not a member"}} = join_as(stranger.id, ctx.witness.id)
+  end
+end

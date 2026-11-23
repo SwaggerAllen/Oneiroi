@@ -649,6 +649,11 @@ export interface WorkQueue {
   armed_at?: string | null;
   // Who armed it (sunna#43): her tool, or his button.
   armed_by?: 'resident' | 'witness' | null;
+  // A house queue activity running on the line (sunna#86), and whether
+  // the house queue has the line since the cutover (sunna#84).
+  running_act?: string | null;
+  running_task?: number | null;
+  house_queue?: boolean;
 }
 
 // A plugin, as the agreement shows it (brain#68, agathos-daimon#37):
@@ -915,5 +920,8 @@ export interface QueueTaskPage {
   waiting: QueueActivity[];
   history: { act_id: string | null; what: string; outcome: string | null; pin: string | null; note: string | null; actor_kind: string; actor_id: string | null; at: string }[];
 }
+
+/** An entry of a layer edit (sunna#85): an existing activity by id, or a new one's spec. */
+export type QueueEditEntry = { id: string } | { type: string; assignee: string };
 
 export type QueueMove = 'take' | 'finish' | 'skip' | 'block' | 'reopen' | 'fail' | 'assign' | 'decide';

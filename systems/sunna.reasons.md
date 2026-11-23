@@ -600,3 +600,21 @@ A hard cutover with no automated mapper means the people moving the
 work decide where each piece stands; keeping the old rows untouched and
 committing a readable copy means the first bad week costs one step to
 undo, and nothing is lost if it never is.
+
+## #85
+Work changes shape as it goes: a review asks for a fact-check, a step
+turns out unneeded. Keeping started work where it was is what keeps the
+history true; the shape and routing rules hold after an edit for the
+same reason they hold at the start.
+
+## #86
+A queue nothing runs is a list. The line already knew how to run work
+safely (care first, the budget, the cap, one run at a time); giving it
+the house queue's activities after the cutover keeps those brakes and
+adds nothing new to trust. A run ending when she records the activity
+means the queue, not the run, says what happened.
+
+## #87
+A page that polls spends the server on reads that find nothing, and is
+late when something did change. The projection already says when it
+changed; the page only has to listen.

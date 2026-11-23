@@ -219,6 +219,10 @@ defmodule Oneiroi.Sunna.Store do
       field(:armed_at, :utc_datetime_usec)
       field(:armed_by, :string)
       field(:care_skipped_at, :utc_datetime_usec)
+      # A house queue activity's run (sunna#86).
+      field(:running_act, :string)
+      field(:running_task, :integer)
+      field(:running_household, :binary_id)
     end
 
     @type t :: %__MODULE__{}

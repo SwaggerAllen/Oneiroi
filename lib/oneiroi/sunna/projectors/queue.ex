@@ -219,6 +219,34 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
     |> refresh(e.id, e.task, e.at)
   end)
 
+  # A task's layers edited (sunna#85): the removed pending rows gone,
+  # every kept row at its new layer and place with its spec, the new ones
+  # pending; then the views read again.
+  fold(%E.LayersEdited{} = e, _metadata, fn multi ->
+    removed = List.wrap(e.removed)
+
+    placed =
+      for {layer, i} <- Enum.with_index(e.layers), {spec, j} <- Enum.with_index(layer) do
+        {spec, i, j}
+      end
+
+    multi
+    |> Multi.delete_all(
+      :removed,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
+      from(a in S.Activity, where: a.household_id == ^e.id and a.act_id in ^removed)
+    )
+    |> Multi.run(:placed, fn repo, _ ->
+      for {spec, i, j} <- placed do
+        place(repo, e, spec, i, j)
+      end
+
+      {:ok, length(placed)}
+    end)
+    |> history(e, nil, "layers edited", nil, nil, e.note)
+    |> refresh(e.id, e.task, e.at)
+  end)
+
   fold(%E.SlotFilled{} = e, _metadata, fn multi ->
     acts = List.wrap(e.acts)
 
@@ -261,6 +289,33 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
   fold(%E.CutBack{} = e, _metadata, fn multi ->
     state(multi, e.id, cut_over: false, note: e.note)
   end)
+
+  defp place(repo, e, spec, i, j) do
+    id = Queue.get(spec, :id)
+
+    set = [
+      layer: i,
+      position: j,
+      type: Queue.get(spec, :type),
+      assignee: Queue.get(spec, :assignee),
+      artifact: Queue.get(spec, :artifact),
+      destination: Queue.get(spec, :destination),
+      action: Queue.get(spec, :action),
+      optional: Queue.get(spec, :optional) == true,
+      throwback: Queue.get(spec, :throwback),
+      updated_at: e.at
+    ]
+
+    repo.insert(
+      struct(
+        S.Activity,
+        [household_id: e.id, act_id: id, task: e.task, status: "pending", view: "waiting"] ++
+          set
+      ),
+      on_conflict: [set: set],
+      conflict_target: [:household_id, :act_id]
+    )
+  end
 
   defp act(multi, e, set),
     do:

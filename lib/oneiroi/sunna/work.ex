@@ -30,7 +30,8 @@ defmodule Oneiroi.Sunna.Work do
             running: nil,
             wrapped: false,
             rested: nil,
-            armed: false
+            armed: false,
+            running_act: nil
 
   @parties [:resident, :witness]
   @moved ~w(open blocked held done dropped)
@@ -168,7 +169,38 @@ defmodule Oneiroi.Sunna.Work do
 
   # A claim: nothing when the loop is already running an item or the item
   # is not open, so a second check in the same minute starts nothing.
-  def execute(%__MODULE__{running: nil, items: items}, %Commands.StartWork{} = c) do
+  # A house queue activity's run (sunna#86): a claim, as StartWork is,
+  # and only when nothing else runs on her line.
+  def execute(%__MODULE__{running: nil, running_act: nil}, %Commands.StartActivityRun{} = c),
+    do: %Events.ActivityRunStarted{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      household: c.household,
+      task: c.task,
+      act: c.act,
+      session_key: c.session_key,
+      day: c.day
+    }
+
+  def execute(%__MODULE__{}, %Commands.StartActivityRun{}), do: []
+
+  def execute(%__MODULE__{running_act: act}, %Commands.EndActivityRun{act: act} = c)
+      when not is_nil(act),
+      do: %Events.ActivityRunEnded{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        act: act,
+        stopped: c.stopped == true
+      }
+
+  def execute(%__MODULE__{}, %Commands.EndActivityRun{}), do: []
+
+  def execute(
+        %__MODULE__{running: nil, running_act: nil, items: items},
+        %Commands.StartWork{} = c
+      ) do
     case Map.get(items, c.number) do
       %{status: "open"} ->
         %Events.WorkStarted{
@@ -296,6 +328,13 @@ defmodule Oneiroi.Sunna.Work do
     }
 
   def apply(%__MODULE__{} = s, %Events.WorkRested{reason: reason}), do: %{s | rested: reason}
+
+  def apply(%__MODULE__{} = s, %Events.ActivityRunStarted{act: act}),
+    do: %{s | running_act: act, rested: nil}
+
+  def apply(%__MODULE__{} = s, %Events.ActivityRunEnded{} = e),
+    do: %{s | running_act: nil, rested: if(e.stopped, do: stopped_rest(), else: s.rested)}
+
   def apply(%__MODULE__{} = s, %Events.WorkArmed{}), do: %{s | armed: true, rested: nil}
   def apply(%__MODULE__{} = s, %Events.WorkDisarmed{}), do: %{s | armed: false}
   # The count lives in the projection; the stream keeps the act and its note.

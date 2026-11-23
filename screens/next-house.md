@@ -220,7 +220,14 @@ subject is open.
   then turn the house queue on naming that commit (offered once a
   template exists), or revert with a note.
 
-Not built: the per-resident Work card in Settings stays as it was (the
-design retires it at cutover for a link here); no mobile-specific card
-layout beyond the settings column; no live push (read every 30 seconds
-and after every move).
+- **Edit layers** (the task's owner or a witness): started work and
+  closed layers shown locked; pending activities move up or down a
+  layer, or go; new ones are added from the open layer on, or as a new
+  layer; saved whole with a note (sunna#85).
+- **Live:** the page listens on the household's channel and reads again
+  when the queue changes (sunna#87); nothing polls.
+- **After the cutover** a resident's Work card in Settings keeps her
+  line (arm, off, runs, care) and links here; her old items stay below,
+  read-only (sunna#86).
+
+Not built: no mobile-specific card layout beyond the settings column.

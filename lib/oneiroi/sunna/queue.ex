@@ -41,6 +41,7 @@ defmodule Oneiroi.Sunna.Queue do
             cut_over: false
 
   @outcomes ~w(approved changes declined)
+  @spec_fields [:type, :assignee, :artifact, :destination, :action, :optional, :throwback]
   @words 4_000
   @verb 40
 
@@ -122,6 +123,25 @@ defmodule Oneiroi.Sunna.Queue do
         start_layer: c.start_layer || 0,
         links: List.wrap(c.links)
       }
+    end
+  end
+
+  def execute(%__MODULE__{} = s, %C.EditLayers{} = c) do
+    with {:ok, task} <- open_task(s, c.task),
+         :ok <- may_edit(task, c.actor),
+         {:ok, layers, removed} <- edited_layers(s, task, c.layers),
+         :ok <- edited_shape_ok(layers, c.carrier) do
+      edited = %E.LayersEdited{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        task: c.task,
+        layers: layers,
+        removed: removed,
+        note: c.note
+      }
+
+      completing(s, [edited], c)
     end
   end
 
@@ -341,10 +361,40 @@ defmodule Oneiroi.Sunna.Queue do
       layers: layers,
       owner: e.owner,
       project: e.project,
-      slug: e.slug
+      slug: e.slug,
+      next_k: next_k(layers)
     }
 
     %{s | next_task: e.number + 1, tasks: Map.put(s.tasks, e.number, task), acts: acts}
+  end
+
+  def apply(%__MODULE__{} = s, %E.LayersEdited{} = e) do
+    acts = Map.drop(s.acts, List.wrap(e.removed))
+
+    acts =
+      for layer <- e.layers, spec <- layer, into: acts do
+        id = get(spec, :id)
+
+        act =
+          case acts[id] do
+            nil -> activity_from(spec, e.task, false)
+            old -> Map.merge(old, Map.take(activity_from(spec, e.task, false), @spec_fields))
+          end
+
+        {id, act}
+      end
+
+    layers = Enum.map(e.layers, fn layer -> Enum.map(layer, &get(&1, :id)) end)
+    given = next_k(layers ++ [List.wrap(e.removed)])
+
+    %{
+      s
+      | acts: acts,
+        tasks:
+          Map.update!(s.tasks, e.task, fn t ->
+            %{t | layers: layers} |> Map.put(:next_k, max(Map.get(t, :next_k) || 0, given))
+          end)
+    }
   end
 
   def apply(%__MODULE__{} = s, %E.ActivityTaken{} = e),
@@ -1012,6 +1062,147 @@ defmodule Oneiroi.Sunna.Queue do
 
       _first ->
         nil
+    end
+  end
+
+  # ---- editing a task's layers ----
+
+  defp may_edit(task, actor) do
+    if actor.kind == :witness or me(actor) == task.owner,
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_edit_not_yours)}
+  end
+
+  # The new arrangement, each activity whole: an existing one by its id
+  # (a pending one with its changes), a new one numbered on from the
+  # task's highest. What started stays put and unchanged; the layers
+  # before the open one stay as they were; new and moved activities go in
+  # the open layer or after it.
+  defp edited_layers(s, task, given) do
+    open = G.open_layer(task, s.acts) || length(task.layers)
+    before = Enum.flat_map(task.layers, & &1)
+    next = Map.get(task, :next_k) || next_k(task.layers)
+
+    with {:ok, layers} <- arrange(s, task, given, next),
+         ids = Enum.flat_map(layers, fn l -> Enum.map(l, & &1.id) end),
+         true <- Enum.uniq(ids) == ids || :refused,
+         true <- kept_in_place?(s, task, layers, open) || :refused,
+         removed = before -- ids,
+         true <- Enum.all?(removed, &(s.acts[&1].status == "pending")) || :refused,
+         true <- throwbacks_earlier?(layers) || :invalid do
+      {:ok, layers, removed}
+    else
+      :refused -> {:error, Error.new(:sunna_queue_edit_refused, :sunna_queue_edit_started)}
+      _invalid -> {:error, Error.new(:sunna_queue_invalid, :sunna_queue_edit_layers)}
+    end
+  end
+
+  defp arrange(s, task, given, next) when is_list(given) and given != [] do
+    {layers, _k} =
+      Enum.map_reduce(given, next, fn layer, k ->
+        if is_list(layer) and layer != [],
+          do: Enum.map_reduce(layer, k, &arranged(s, task, &1, &2)),
+          else: {[nil], k}
+      end)
+
+    flat = List.flatten(layers)
+
+    cond do
+      :started in flat -> :refused
+      Enum.any?(flat, &is_nil/1) -> :invalid
+      true -> {:ok, layers}
+    end
+  end
+
+  defp arrange(_s, _task, _given, _next), do: :invalid
+
+  # An entry naming an activity of this task: kept, its spec changed only
+  # while it is pending; any other entry: a new activity.
+  defp arranged(s, task, entry, k) do
+    case is_map(entry) && get(entry, :id) do
+      id when is_binary(id) ->
+        case s.acts[id] do
+          %{task: n} = old when n == task.number -> {changed(old, entry), k}
+          _other -> {nil, k}
+        end
+
+      _new ->
+        {spec_of(entry, "#{task.number}.#{k}"), k + 1}
+    end
+  end
+
+  defp changed(%{status: "pending"} = old, entry) do
+    merged =
+      Map.merge(
+        Map.take(old, @spec_fields),
+        Map.new(Map.take(entry, @spec_fields ++ Enum.map(@spec_fields, &Atom.to_string/1)), fn {k,
+                                                                                                v} ->
+          {to_key(k), v}
+        end)
+      )
+
+    spec_of(merged, old.id)
+  end
+
+  defp changed(old, entry) do
+    asked = Map.new(Map.drop(entry, [:id, "id"]), fn {k, v} -> {to_key(k), v} end)
+    kept = Map.take(old, @spec_fields) |> Map.put(:id, old.id)
+    # Started work is kept as it is: a change to it is refused, not read
+    # as a malformed entry.
+    if Enum.all?(asked, fn {k, v} -> Map.get(old, k) == v end), do: kept, else: :started
+  end
+
+  defp to_key(k) when is_atom(k), do: k
+  defp to_key(k), do: Enum.find(@spec_fields, :unknown, &(Atom.to_string(&1) == k))
+
+  # Started work in the layer it was in, and nothing new or moved before
+  # the open layer.
+  defp kept_in_place?(s, task, layers, open) do
+    Enum.with_index(layers)
+    |> Enum.all?(fn {layer, i} -> Enum.all?(layer, &placed_ok?(s, task, &1, i, open)) end) and
+      Enum.take(layers, open) |> Enum.map(fn l -> Enum.map(l, & &1.id) end) ==
+        Enum.take(task.layers, open)
+  end
+
+  defp placed_ok?(s, task, a, i, open) do
+    case s.acts[a.id] do
+      nil -> i >= open
+      %{status: "pending"} -> i >= open or G.layer_of(task, a.id) == i
+      _started -> G.layer_of(task, a.id) == i
+    end
+  end
+
+  # A throwback names an activity in an earlier layer.
+  defp throwbacks_earlier?(layers) do
+    at = for {l, i} <- Enum.with_index(layers), a <- l, into: %{}, do: {a.id, i}
+
+    Enum.all?(at, fn {id, i} ->
+      a = Enum.find(Enum.at(layers, i), &(&1.id == id))
+      is_nil(a.throwback) or (Map.has_key?(at, a.throwback) and at[a.throwback] < i)
+    end)
+  end
+
+  # One past the highest activity number in these layers: an id is never
+  # given twice in a task, a removed one's included (the task keeps the
+  # highest it has given, `next_k`).
+  defp next_k(layers) do
+    layers
+    |> List.flatten()
+    |> Enum.map(fn id -> id |> String.split(".") |> List.last() |> String.to_integer() end)
+    |> Enum.max(fn -> 0 end)
+    |> Kernel.+(1)
+  end
+
+  defp edited_shape_ok(layers, carrier) do
+    cond do
+      shape_bad?(layers) ->
+        {:error, Error.new(:sunna_queue_shape, :sunna_queue_edit_shape)}
+
+      not routed?(carrier, layers) ->
+        {:error, Error.new(:sunna_queue_route_required, :sunna_queue_edit_route)}
+
+      true ->
+        :ok
     end
   end
 

@@ -17,6 +17,13 @@ defmodule Oneiroi.Sunna.WorkWorker do
     end
   end
 
+  # A house queue activity's run (sunna#86).
+  def run(%{"resident_id" => id, "session_key" => key, "act" => act, "turn" => "wrap"} = a),
+    do: WorkLoop.activity_wrap(id, key, a["household"], a["task"], act)
+
+  def run(%{"resident_id" => id, "session_key" => key, "act" => act, "turn" => n} = a),
+    do: WorkLoop.activity_turn(id, key, a["household"], a["task"], act, n)
+
   def run(%{"resident_id" => id, "session_key" => key, "number" => number, "turn" => "wrap"}),
     do: WorkLoop.wrap_turn(id, key, number)
 
@@ -43,6 +50,29 @@ defmodule Oneiroi.Sunna.WorkWorker do
 
   @doc "Enqueues the run's wrap."
   def enqueue_wrap(resident_id, key, number), do: job(resident_id, key, number, "wrap")
+
+  @doc "Enqueues turn `n` of a house queue activity's run (sunna#86)."
+  def enqueue_activity(resident_id, key, %{household: h, task: task, act: act}, n),
+    do: activity_job(resident_id, key, h, task, act, n)
+
+  @doc "Enqueues an activity run's closing turn."
+  def enqueue_activity_wrap(resident_id, key, h, task, act),
+    do: activity_job(resident_id, key, h, task, act, "wrap")
+
+  defp activity_job(resident_id, key, h, task, act, turn) do
+    Jobs.enqueue(
+      __MODULE__,
+      %{
+        "resident_id" => resident_id,
+        "session_key" => key,
+        "household" => h,
+        "task" => task,
+        "act" => act,
+        "turn" => turn
+      },
+      unique: [period: :infinity, keys: [:session_key, :turn]]
+    )
+  end
 
   defp job(resident_id, key, number, turn) do
     Jobs.enqueue(

@@ -35,6 +35,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   alias Oneiroi.Scope
   alias Oneiroi.Sunna.Commands
   alias Oneiroi.Sunna.Error
+  alias Oneiroi.Sunna.Queues
   alias Oneiroi.Sunna.QueueState
   alias Oneiroi.Sunna.Schedules
   alias Oneiroi.Sunna.Store
@@ -139,8 +140,6 @@ defmodule Oneiroi.Sunna.WorkLoop do
       else: :ok
   end
 
-  @frozen "off: the house queue took the work at the cutover (sunna#80); this queue is read-only"
-
   defp cut_over?(resident_id) do
     case Oneiroi.Gaia.resident_household(resident_id) do
       %{id: h} -> QueueState.cut_over?(h)
@@ -179,8 +178,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   starting the next, until the queue clears and the line goes off.
   """
   def arm(resident_id, %Actor{} = actor) do
-    with :ok <- open_for_work(resident_id),
-         {:ok, _} <- dispatch(%Commands.ArmWork{actor: actor, at: Clock.now(), id: resident_id}) do
+    with {:ok, _} <- dispatch(%Commands.ArmWork{actor: actor, at: Clock.now(), id: resident_id}) do
       worker().enqueue_check(resident_id)
       :ok
     end
@@ -255,19 +253,41 @@ defmodule Oneiroi.Sunna.WorkLoop do
           ])
         ),
       running: live(state, items),
-      running_since: live(state, items) && state.running_since,
-      rested: state && state.rested_reason,
-      rested_at: state && state.rested_at,
+      # Whether the house queue has the line (sunna#84, #86).
+      house_queue: cut_over?(resident_id),
       runs_today: runs_today(resident_id, state),
       runs_a_day: Config.fetch!(:sunna, :work_runs_a_day),
-      budget: budget(resident_id),
-      # Armed by her for a batch, off once the queue clears (sunna#35).
-      armed: (state && state.armed) || false,
-      armed_at: state && state.armed_at,
-      # Who armed it (sunna#43): "resident" by her tool, "witness" by his button.
-      armed_by: state && state.armed_by
+      budget: budget(resident_id)
     }
+    |> Map.merge(line_state(state, live(state, items)))
   end
+
+  defp line_state(nil, _live),
+    do: %{
+      running_since: nil,
+      running_act: nil,
+      running_task: nil,
+      rested: nil,
+      rested_at: nil,
+      armed: false,
+      armed_at: nil,
+      armed_by: nil
+    }
+
+  defp line_state(state, live),
+    do: %{
+      running_since: if(live || state.running_act, do: state.running_since),
+      # A house queue activity running on the line (sunna#86): its id and task.
+      running_act: state.running_act,
+      running_task: state.running_task,
+      rested: state.rested_reason,
+      rested_at: state.rested_at,
+      # Armed by her for a batch, off once the queue clears (sunna#35).
+      armed: state.armed || false,
+      armed_at: state.armed_at,
+      # Who armed it (sunna#43): "resident" by her tool, "witness" by his button.
+      armed_by: state.armed_by
+    }
 
   # ---- the loop ----
 
@@ -284,7 +304,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
       left_behind?(state, items) ->
         end_stalled(resident_id, state)
 
-      state && state.running ->
+      state && (state.running || state.running_act) ->
         :running
 
       state && state.rested_reason == Work.stopped_rest() ->
@@ -305,11 +325,13 @@ defmodule Oneiroi.Sunna.WorkLoop do
     line = budget(resident_id)
     cap = Config.fetch!(:sunna, :work_runs_a_day)
 
-    cond do
-      cut_over?(resident_id) ->
-        disarm(resident_id)
-        rest(resident_id, @frozen)
+    if cut_over?(resident_id),
+      do: next_activity(resident_id, state, line, cap),
+      else: next_item(resident_id, items, state, open, line, cap)
+  end
 
+  defp next_item(resident_id, items, state, open, line, cap) do
+    cond do
       # The batch is over: the line goes off, and the loop rests.
       is_nil(open) ->
         disarm(resident_id)
@@ -494,9 +516,9 @@ defmodule Oneiroi.Sunna.WorkLoop do
       # A run left behind is asked about armed or not (sunna#41): the
       # check is the only place that ends it.
       (state != nil and left_behind?(state, items)) or
-        (state != nil and state.armed and is_nil(state.running) and
+        (state != nil and state.armed and is_nil(state.running) and is_nil(state.running_act) and
            state.rested_reason != Work.stopped_rest() and
-           Enum.any?(items, &(&1.status == "open")))
+           (Enum.any?(items, &(&1.status == "open")) or activity_waiting?(resident_id)))
     end)
   end
 
@@ -519,6 +541,11 @@ defmodule Oneiroi.Sunna.WorkLoop do
   # restart, a crash past its one attempt), so nothing would ever end it
   # and the loop would say it runs an item forever. Past
   # `SUNNA_WORK_RUN_STALE_MINUTES` the check ends it, and goes on.
+  defp stalled?(%{running_act: a, running_since: %DateTime{} = since}) when is_binary(a) do
+    stale = Config.fetch!(:sunna, :work_run_stale_minutes) * 60
+    DateTime.diff(Clock.now(), since, :second) > stale
+  end
+
   defp stalled?(%{running: n, running_since: %DateTime{} = since}) when is_integer(n) do
     stale = Config.fetch!(:sunna, :work_run_stale_minutes) * 60
     DateTime.diff(Clock.now(), since, :second) > stale
@@ -540,8 +567,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
   # short grace for the start's own enqueue, none means the run is gone,
   # and the check ends it so its item opens again.
   @dead_grace 120
-  defp dead?(%{running: n, running_key: key, running_since: %DateTime{} = since} = state)
-       when is_integer(n) and is_binary(key) do
+  defp dead?(%{running_key: key, running_since: %DateTime{} = since} = state)
+       when is_binary(key) and (is_integer(state.running) or is_binary(state.running_act)) do
     DateTime.diff(Clock.now(), since, :second) > @dead_grace and
       not Enum.any?(
         Scope.resident(state.resident_id, fn ->
@@ -555,6 +582,22 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
   # Checks again only when the end was recorded: a record that ends
   # nothing must not be asked about forever.
+  defp end_stalled(resident_id, %{running_act: act}) when is_binary(act) do
+    case dispatch(%Commands.EndActivityRun{
+           actor: @actor,
+           at: Clock.now(),
+           id: resident_id,
+           act: act
+         }) do
+      {:ok, [_ended]} ->
+        worker().enqueue_check(resident_id)
+        :stalled
+
+      other ->
+        other
+    end
+  end
+
   defp end_stalled(resident_id, state) do
     case dispatch(%Commands.EndWork{
            actor: @actor,
@@ -577,6 +620,249 @@ defmodule Oneiroi.Sunna.WorkLoop do
       Scope.resident(resident_id, fn -> Store.work_queue() end)
     )
   end
+
+  # ---- the house queue's activities (sunna#86) ----
+
+  # After the cutover the line runs her house queue: the first of her
+  # ready or active activities in Waiting-on-me order (blocking-most,
+  # then oldest ready), taken at the run's start and run a turn at a time
+  # in a `work` conversation, under the same line, care, budget and cap.
+  defp next_activity(resident_id, state, line, cap) do
+    card = first_activity(resident_id)
+
+    cond do
+      not (state && state.armed) ->
+        rest(resident_id, "off: the work line waits for you to arm it (work_arm)")
+
+      is_nil(card) ->
+        disarm(resident_id)
+        rest(resident_id, "empty, holding: nothing in the house queue is ready for you")
+
+      line && line.left <= 0 ->
+        rest(resident_id, spent(line))
+
+      runs_today(resident_id, state) >= cap ->
+        rest(resident_id, "holding: today's #{cap} runs are spent")
+
+      true ->
+        start_activity(resident_id, card)
+    end
+  end
+
+  defp activity_waiting?(resident_id),
+    do: cut_over?(resident_id) and not is_nil(first_activity(resident_id))
+
+  defp first_activity(resident_id) do
+    case Oneiroi.Gaia.resident_household(resident_id) do
+      %{id: h} ->
+        h
+        |> Queues.waiting_on("resident:#{resident_id}")
+        |> Map.fetch!(:ready)
+        |> Enum.find(&(&1.view in ["ready", "active"]))
+        |> then(&(&1 && Map.put(&1, :household, h)))
+
+      _none ->
+        nil
+    end
+  end
+
+  defp start_activity(resident_id, card) do
+    her = Actor.new(:resident, resident_id)
+
+    with {:ok, row} <- resident(resident_id),
+         :ok <- taken(card, her),
+         {:ok, key} <-
+           Kumbukumbu.open_session(
+             resident_id,
+             "work",
+             "brain",
+             List.wrap(row.account_id),
+             @actor
+           ),
+         {:ok, [_started]} <-
+           dispatch(%Commands.StartActivityRun{
+             actor: @actor,
+             at: Clock.now(),
+             id: resident_id,
+             household: card.household,
+             task: card.task,
+             act: card.act,
+             session_key: key,
+             day: Schedules.local_day(Schedules.local_now(resident_id))
+           }) do
+      worker().enqueue_activity(resident_id, key, card, 1)
+      {:started, card.act}
+    else
+      {:ok, []} -> :running
+      other -> other
+    end
+  end
+
+  # A ready activity is hers once her run starts; an active one already is.
+  defp taken(%{view: "active"}, _her), do: :ok
+  defp taken(card, her), do: Queues.take(card.household, card.task, card.act, her)
+
+  @doc """
+  Turn `n` of an activity's run (sunna#86): the first opens on the
+  activity, its task and what came before it; the rest carry on. The run
+  ends as soon as the activity is no longer hers to work (she finished,
+  skipped, blocked or failed it, or it went to someone else); spent
+  turns or money bring the closing turn.
+  """
+  def activity_turn(resident_id, key, h, task, act, n) do
+    with true <- running_act?(resident_id, act, key),
+         nil <- care_wait(resident_id),
+         {:ok, left} <- allowance(resident_id),
+         true <- n <= Config.fetch!(:sunna, :work_turns),
+         _ <- Wakes.run(resident_id, "work", [%{kind: "activity", act: act, task: task, turn: n}]),
+         {:ok, result} <-
+           wake(resident_id, key, activity_note(resident_id, h, task, act, n, left), :work) do
+      activity_carry_on(resident_id, key, {h, task, act}, n, result)
+    else
+      false ->
+        :ok
+
+      wait when is_integer(wait) ->
+        {:snooze, wait}
+
+      {:error, %{kind: :brain_wake_outlasted}} ->
+        activity_carry_on(resident_id, key, {h, task, act}, n, %{rounds_spent: true})
+
+      {:error, _} = failed ->
+        activity_close(resident_id, act, failed)
+
+      _spent ->
+        worker().enqueue_activity_wrap(resident_id, key, h, task, act)
+    end
+  end
+
+  defp activity_carry_on(resident_id, _key, {_h, _task, act}, _n, %{stopped: _by}) do
+    with {:ok, _} <-
+           dispatch(%Commands.EndActivityRun{
+             actor: @actor,
+             at: Clock.now(),
+             id: resident_id,
+             act: act,
+             stopped: true
+           }),
+         do: :ok
+  end
+
+  defp activity_carry_on(resident_id, key, {h, task, act}, n, result) do
+    cond do
+      not still_hers?(resident_id, h, task, act) ->
+        activity_close(resident_id, act, {:ok, :recorded})
+
+      match?(%{rounds_spent: true}, result) and n < Config.fetch!(:sunna, :work_turns) ->
+        worker().enqueue_activity(resident_id, key, %{household: h, task: task, act: act}, n + 1)
+        :ok
+
+      true ->
+        worker().enqueue_activity_wrap(resident_id, key, h, task, act)
+        :ok
+    end
+  end
+
+  # Whether the activity is still hers to work: assigned to her and live.
+  defp still_hers?(resident_id, h, task, act) do
+    with %{layers: layers} <- Queues.task(h, task),
+         %{} = a <- Enum.find(List.flatten(layers), &(&1.act_id == act)) do
+      a.assignee == "resident:#{resident_id}" and a.view in ["ready", "active"]
+    else
+      _gone -> false
+    end
+  end
+
+  @doc "An activity run's closing turn (sunna#86): she records where it stands with her queue tools; then the run ends and the next check comes."
+  def activity_wrap(resident_id, key, _h, task, act) do
+    case running_act?(resident_id, act, key) && care_wait(resident_id) do
+      false ->
+        :ok
+
+      nil ->
+        _ = Wakes.run(resident_id, "work", [%{kind: "activity_wrap", act: act, task: task}])
+
+        result =
+          case wake(
+                 resident_id,
+                 key,
+                 Prompt.render!("queue_work_wrap", %{act: act, task: task}),
+                 :planning
+               ) do
+            {:error, %{kind: :brain_wake_outlasted}} -> {:ok, :outlasted}
+            other -> other
+          end
+
+        activity_close(resident_id, act, result)
+
+      wait ->
+        {:snooze, wait}
+    end
+  end
+
+  defp activity_close(resident_id, act, result) do
+    ended =
+      dispatch(%Commands.EndActivityRun{
+        actor: @actor,
+        at: Clock.now(),
+        id: resident_id,
+        act: act
+      })
+
+    if waits?(result),
+      do: worker().enqueue_check(resident_id, Config.fetch!(:sunna, :work_retry_seconds)),
+      else: worker().enqueue_check(resident_id)
+
+    case {result, ended} do
+      {{:error, _} = failed, _} -> failed
+      {_ok, {:ok, _}} -> :ok
+      {_ok, failed} -> failed
+    end
+  end
+
+  defp running_act?(resident_id, act, key) do
+    match?(
+      %{running_act: ^act, running_key: ^key},
+      Scope.resident(resident_id, fn -> Store.work_queue() end)
+    )
+  end
+
+  defp activity_note(resident_id, h, task, act, 1, left) do
+    page = Queues.task(h, task)
+    a = Enum.find(List.flatten(page.layers), &(&1.act_id == act))
+
+    Prompt.render!("queue_work", %{
+      name: name(resident_id),
+      act: act,
+      type: a.type,
+      task: task,
+      title: page.task.title,
+      project: page.task.project,
+      outcome: page.task.outcome,
+      artifact: a.artifact || "none named",
+      note: a.note || "none",
+      layers: Enum.map_join(Enum.with_index(page.layers, 1), "\n", &layer_line/1),
+      turns: Config.fetch!(:sunna, :work_turns),
+      left: left
+    })
+  end
+
+  defp activity_note(_resident_id, _h, task, act, n, left),
+    do:
+      Prompt.render!("queue_work_continue", %{
+        act: act,
+        task: task,
+        turn: n,
+        turns: Config.fetch!(:sunna, :work_turns),
+        left: left
+      })
+
+  defp layer_line({acts, i}),
+    do:
+      "#{i}. " <>
+        Enum.map_join(acts, "; ", fn a ->
+          "#{a.act_id} #{a.type} (#{a.assignee}, #{a.view})#{if a.note, do: ": " <> a.note, else: ""}"
+        end)
 
   # ---- the note ----
 

@@ -174,6 +174,14 @@ defmodule Oneiroi.Seshat.Household.Documents do
     """
   end
 
+  # A kind the platform renders (a task's index document, seshat#104) is
+  # never written by a post: the queue is where it changes.
+  defp not_rendered(path) do
+    if Kinds.kind_of(path).access == :core,
+      do: {:error, Error.new(:seshat_household_invalid, :seshat_household_document_rendered)},
+      else: :ok
+  end
+
   @doc false
   def post_document(actor, household_id, _view, attrs) do
     title = Files.one_line(attrs["title"])
@@ -181,6 +189,7 @@ defmodule Oneiroi.Seshat.Household.Documents do
     with :ok <- path_given(attrs["path"]),
          {:ok, path} <- Files.household_path(attrs["path"]),
          false <- Kinds.container?(Kinds.kind_of(path)),
+         :ok <- not_rendered(path),
          :ok <- own_folder(actor, path),
          {:ok, sharing} <- sharing(attrs, actor),
          {:ok, text, source} <- words_from(actor, attrs),

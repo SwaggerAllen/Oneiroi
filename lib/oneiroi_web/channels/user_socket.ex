@@ -15,6 +15,7 @@ defmodule OneiroiWeb.UserSocket do
   channel("session:*", OneiroiWeb.SessionChannel)
   channel("regression:*", OneiroiWeb.RegressionChannel)
   channel("resident:*", OneiroiWeb.ResidentChannel)
+  channel("house:*", OneiroiWeb.HouseChannel)
 
   # Five minutes: long enough to open a socket after fetching it, short
   # enough that a token read off a client is nearly spent.
