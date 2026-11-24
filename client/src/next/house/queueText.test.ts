@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QueueActivity, QueueCard, QueueDocument } from '../../api/types';
-import { actName, blockedLine, blockerLine, holderChoices, holdersOf, holderWords, pairedHolders, replacedDocument, withPaired, documentRows, drawLayers, forkNote, fromLine, nameOf, placeOf, pinOf, postKind, rearranged, roleChoices, sentence, since, slugify, taskSummaries, templateProblems, unpinned, withMd } from './queueText';
+import { actName, blockedLine, blockerLine, holderChoices, holdersOf, holderWords, pairedHolders, replacedDocument, stepStatus, withPaired, documentRows, drawLayers, forkNote, fromLine, nameOf, placeOf, pinOf, postKind, rearranged, roleChoices, sentence, since, slugify, taskSummaries, templateProblems, unpinned, withMd } from './queueText';
 
 const names = { 'resident:l': 'Lily', 'witness:a': 'Andrew' };
 
@@ -241,6 +241,23 @@ describe("a task's document changed for another (2026-11-23)", () => {
     const { arrangement, changed } = replacedDocument(layers, 'lily:design/x.md', 'house/strut:doc/design/x.md');
     expect(changed).toBe(1);
     expect(arrangement).toEqual([[{ id: '12.1' }], [{ id: '12.2', artifact: 'house/strut:doc/design/x.md' }], [{ id: '12.3' }]]);
+  });
+});
+
+describe("a card's step, where it stands (2026-11-23)", () => {
+  const now = Date.parse('2026-11-23T18:00:00Z');
+  const base = { type: 'draft', reason: null, ready_at: '2026-11-23T16:00:00Z', updated_at: '2026-11-23T17:00:00Z', line: null };
+
+  it('says ready since when, and why her line has not taken it', () => {
+    expect(stepStatus({ ...base, view: 'ready', line: { state: 'resting', reason: 'waiting: a free-time pass is underway' } }, now)).toBe('ready 2h ago · line waiting: a free-time pass is underway');
+    expect(stepStatus({ ...base, view: 'ready', line: { state: 'busy', other: '7.1' } }, now)).toBe('ready 2h ago · after 7.1');
+    expect(stepStatus({ ...base, type: 'review', view: 'ready' }, now)).toBe('ready for review 2h ago');
+  });
+
+  it('says a step being worked, and a blocked or failed one with its reason', () => {
+    expect(stepStatus({ ...base, view: 'active', line: { state: 'running', since: '2026-11-23T17:48:00Z' } }, now)).toBe('being worked, started 12m ago');
+    expect(stepStatus({ ...base, view: 'blocked', reason: 'waits on #12' }, now)).toBe('blocked: waits on #12');
+    expect(stepStatus({ ...base, view: 'failed', reason: 'the build broke' }, now)).toBe('failed: the build broke');
   });
 });
 

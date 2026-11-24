@@ -69,6 +69,8 @@ export const docChip = style({
   cursor: 'pointer',
 });
 export const nowRow = style({ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, fontSize: 14, minWidth: 0 });
+// Where the step stands (2026-11-23): its own line under the name, quiet.
+export const stepStatus = style({ flexBasis: '100%', paddingLeft: 16, fontSize: 12, color: vars.color.textMuted, overflowWrap: 'anywhere' });
 export const dot = style({ width: 8, height: 8, borderRadius: '50%', flex: 'none' });
 export const viewColor = styleVariants({
   ready: { background: vars.color.resident.accent },

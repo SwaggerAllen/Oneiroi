@@ -8,7 +8,7 @@ import { useAct } from '../settings/useAct';
 import { useShell } from '../state/store';
 import { DocumentScreen } from './DocumentScreen';
 import { HOUSE } from './keys';
-import { actName, blockedLine, holdersOf, nameOf, since, slugify, taskSummaries, unpinned, type Names, type TaskSummary } from './queueText';
+import { actName, blockedLine, holdersOf, nameOf, since, slugify, stepStatus, taskSummaries, unpinned, type Names, type TaskSummary } from './queueText';
 import { ActivityPage, NewActivityPage, TaskPage, Who } from './TaskPage';
 import { TemplateActivity, TemplateEditor } from './TemplateEditor';
 import * as w from './work.css';
@@ -244,6 +244,7 @@ function TaskCard({ s, names, me, mine = false }: { s: TaskSummary; names: Names
           <span>{actName(c)}</span>
           {c.name && <span className={w.typeWord}>{c.type}</span>}
           <Who assignee={c.assignee} names={names} me={me} />
+          <span className={w.stepStatus}>{stepStatus(c)}</span>
         </div>
       ))}
       {s.blocked && <span className={w.blocked}>{blockedLine(s.blocked, names)}</span>}
