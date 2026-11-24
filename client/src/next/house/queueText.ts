@@ -413,3 +413,23 @@ export function stepStatus(c: Pick<QueueCard, 'view' | 'reason' | 'ready_at' | '
   }
 }
 
+/** Yesterday in the viewer's zone, as YYYY-MM-DD: a backfill runs through days before today. */
+export function yesterday(now = new Date()): string {
+  const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+/** Every domain a resident's agreement declares, his and hers (2026-11-24): what a backfill names. */
+export function declaredLists(agreement: { persons?: { witness: string | null; resident: string }; domains?: { person: string; domain: string }[] } | undefined): { his: string[]; hers: string[] } {
+  const declared = agreement?.domains ?? [];
+  const persons = agreement?.persons;
+  const of = (person: string | null | undefined) => [...new Set(declared.filter((d) => person && d.person === person).map((d) => d.domain))].sort();
+  return { his: of(persons?.witness), hers: of(persons?.resident) };
+}
+
+/** A resident's backfill in a line: where it runs, or none. */
+export function backfillLine(s: { day: string; pass: string; turn: number; to: string } | null): string {
+  if (!s) return 'no backfill running';
+  return `running ${s.pass} for ${s.day}${s.turn > 1 ? ` (turn ${s.turn})` : ''}, through ${s.to}`;
+}
+

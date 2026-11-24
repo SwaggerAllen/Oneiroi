@@ -258,12 +258,21 @@ browser's back steps through: `task/<n>`, `task/<n>/act/<id>`,
 - **Setting up** (witnesses only): the starter templates to add, and the
   cutover: commit the old queue, then turn the house queue on naming that
   commit, or revert with a note.
+- **Memory backfill** (witnesses only, at the bottom): each resident's
+  backfill as it stands (pass, day, turn, through when), with Stop while
+  one runs; tick the residents that need one, a range of days (from
+  2026-10-17, through yesterday by default) and the passes (scenes,
+  domains, people, labels), and Start runs it for each ticked resident
+  naming every domain her agreement declares, his and hers, listed
+  under her name before it starts (sunna#89 clears the undeclared ones
+  first). The same calls as her Settings Work card. A running backfill's
+  status is read again every 30 seconds, the one poll on these pages.
 - **Live:** every page here, the document screen and the house's Chat
   join the household's channel (one channel shared, left when the last
   page leaves): a queue notice reads the queue's queries again, a
   threads notice the house's threads and the document screens; her own
   threads arrive on her channel (`ThreadWritten` on `threads`). Nothing
-  polls (sunna#87).
+  polls but a running backfill's status (sunna#87).
 - **After the cutover** a resident's Work card in Settings keeps her
   line (arm, off, runs, care) and links here; her old items stay below,
   read-only (sunna#86).

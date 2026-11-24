@@ -8,6 +8,7 @@ import { useAct } from '../settings/useAct';
 import { useShell } from '../state/store';
 import { DocumentScreen } from './DocumentScreen';
 import { HOUSE } from './keys';
+import { BackfillPanel } from './BackfillPanel';
 import { actName, blockedLine, holdersOf, nameOf, since, slugify, stepStatus, taskSummaries, unpinned, type Names, type TaskSummary } from './queueText';
 import { ActivityPage, NewActivityPage, TaskPage, Who } from './TaskPage';
 import { TemplateActivity, TemplateEditor } from './TemplateEditor';
@@ -143,6 +144,7 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
         </>
       )}
       <Templates overview={q} />
+      <BackfillPanel overview={q} />
       <Setup overview={q} />
     </>
   );
