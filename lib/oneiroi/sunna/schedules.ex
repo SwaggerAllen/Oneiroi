@@ -22,6 +22,7 @@ defmodule Oneiroi.Sunna.Schedules do
   alias Oneiroi.Sunna.Commands
   alias Oneiroi.Sunna.Error
   alias Oneiroi.Sunna.Events
+  alias Oneiroi.Sunna.FreeTimeRuns
   alias Oneiroi.Sunna.Router
   alias Oneiroi.Sunna.Store
   alias Oneiroi.Sunna.Wakes
@@ -183,13 +184,19 @@ defmodule Oneiroi.Sunna.Schedules do
   def plan_free_time(resident_id, key) do
     since = Clock.now()
 
+    # A closing turn that runs past the wait still closes the slot
+    # (sunna#97): it is running in the session, and the run is over; it
+    # was read as a failure, and the run, never closed, read as free time
+    # underway (three of Lily's runs on 2026-11-23).
     with {:ok, row} <- resident(resident_id),
          {:ok, _result} <-
-           wake(
-             resident_id,
-             key,
-             Prompt.render!("free_time_plan", %{goals: String.upcase(row.slug) <> "-GOALS.md"}),
-             :planning
+           ran_on(
+             wake(
+               resident_id,
+               key,
+               Prompt.render!("free_time_plan", %{goals: String.upcase(row.slug) <> "-GOALS.md"}),
+               :planning
+             )
            ) do
       # Its own receipt (sunna#32): what the closing turn cost, beside the
       # slot it closed, never folded into the free-time line.
@@ -1189,7 +1196,7 @@ defmodule Oneiroi.Sunna.Schedules do
          [_ | _] = letters <- free_time_letters(resident_id),
          {key, [_ | _] = owed} <- origin(resident_id, letters),
          false <- free_time_spent?(resident_id),
-         false <- Scope.resident(resident_id, fn -> pass_underway?() end),
+         false <- pass_underway?(resident_id),
          command = %Commands.WakeForLetters{
            actor: actor,
            at: Clock.now(),
@@ -1222,10 +1229,10 @@ defmodule Oneiroi.Sunna.Schedules do
     end
   end
 
-  # A free-time pass still running (its planning turn not yet closed it):
+  # A free-time pass still going (sunna#96: live, not merely unclosed):
   # the letter joins it, read on its next turn, rather than a second run.
-  defp pass_underway?,
-    do: Store.free_time_underway?(DateTime.add(Clock.now(), -6 * 3600, :second))
+  defp pass_underway?(resident_id),
+    do: FreeTimeRuns.live?(resident_id, DateTime.add(Clock.now(), -6 * 3600, :second))
 
   # The free-time session the oldest owed letter belongs to (sunna#44),
   # with every waiting letter that belongs to it; nil when none has a

@@ -17,6 +17,7 @@ defmodule Oneiroi.Sunna.FreeTimeWakeTest do
   alias Oneiroi.Nisaba.Provider.Fake
   alias Oneiroi.Scope
   alias Oneiroi.Sunna
+  alias Oneiroi.Sunna.FreeTimeRuns
   alias Oneiroi.Sunna.FreeTimeWorker
   alias Oneiroi.Sunna.Store
 
@@ -165,18 +166,14 @@ defmodule Oneiroi.Sunna.FreeTimeWakeTest do
 
     assert :ok = perform_job(FreeTimeWorker, plan.args)
 
-    refute Scope.resident(ctx.id, fn ->
-             Store.free_time_underway?(~U[2026-10-01 00:00:00Z])
-           end)
+    refute FreeTimeRuns.live?(ctx.id, ~U[2026-10-01 00:00:00Z])
 
     # Later, an answer to the slot wakes that same conversation.
     _ = answer(ctx, a, "the fetch is back")
     Clock.Fake.advance(3600)
     :ok = Sunna.tick(ctx.id)
 
-    assert Scope.resident(ctx.id, fn ->
-             Store.free_time_underway?(~U[2026-10-01 00:00:00Z])
-           end)
+    assert FreeTimeRuns.live?(ctx.id, ~U[2026-10-01 00:00:00Z])
 
     # Its own planning job, beside the slot's: never dropped as a duplicate.
     plans = for j <- all_enqueued(worker: FreeTimeWorker), j.args["turn"] == "plan", do: j
@@ -184,8 +181,6 @@ defmodule Oneiroi.Sunna.FreeTimeWakeTest do
     woken = Enum.find(plans, &(&1.args["run"] =~ "woken"))
     assert :ok = perform_job(FreeTimeWorker, woken.args)
 
-    refute Scope.resident(ctx.id, fn ->
-             Store.free_time_underway?(~U[2026-10-01 00:00:00Z])
-           end)
+    refute FreeTimeRuns.live?(ctx.id, ~U[2026-10-01 00:00:00Z])
   end
 end

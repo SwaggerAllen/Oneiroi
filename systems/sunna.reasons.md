@@ -650,3 +650,6 @@ A citation that names nothing reads like a document on every screen until someon
 
 ## #96
 A run whose closing turn was never recorded is not a pass in progress, and treating it as one let a missing bookkeeping row hold the house's work for hours, with nothing on any screen saying why. Asking the conversation whether it is still going is the fact the rule was standing in for.
+
+## #97
+A closing turn that is still running has done what the close records: the slot is over and she is planning. Treating its long run as a failure left the run open, and an open run read as free time going on.

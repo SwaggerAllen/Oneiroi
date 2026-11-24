@@ -68,7 +68,16 @@ defmodule Oneiroi.Sunna.FreeTimeSlotOnceTest do
 
     Clock.Fake.advance(60)
     :ok = Sunna.tick(ctx.id)
-    assert [_still_one] = sessions(ctx.id)
+    assert [key] = sessions(ctx.id)
+
+    # Its closing turn outlasting the wait too still closes the run
+    # (sunna#97): it runs on, and the run is over.
+    assert :ok = Sunna.Schedules.plan_free_time(ctx.id, key)
+
+    assert [%{planning_nanos: nanos}] =
+             Scope.resident(ctx.id, fn -> Store.free_time_runs(@day) end)
+
+    assert is_integer(nanos)
   end
 
   test "while another tick runs the slot, this one leaves it; after, the slot runs once", ctx do

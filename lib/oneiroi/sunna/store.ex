@@ -319,7 +319,7 @@ defmodule Oneiroi.Sunna.Store do
   def work_queue, do: Repo.one(from(q in WorkQueue, limit: 1))
 
   @doc "The conversations of free-time runs since `since` with no closing turn recorded (sunna#96)."
-  @spec free_time_unclosed(DateTime.t()) :: [String.t()]
+  @spec free_time_unclosed(DateTime.t()) :: [{String.t(), DateTime.t()}]
   def free_time_unclosed(since),
     do:
       Repo.all(
@@ -327,17 +327,7 @@ defmodule Oneiroi.Sunna.Store do
           where:
             r.outcome == "ran" and r.at >= ^since and is_nil(r.planning_nanos) and
               not is_nil(r.session_key),
-          select: r.session_key
-        )
-      )
-
-  @doc "Whether a free-time pass is underway: a slot ran since `since` and its planning turn has not closed it (sunna#33's care rule)."
-  @spec free_time_underway?(DateTime.t()) :: boolean()
-  def free_time_underway?(since),
-    do:
-      Repo.exists?(
-        from(r in FreeTimeRun,
-          where: r.outcome == "ran" and r.at >= ^since and is_nil(r.planning_nanos)
+          select: {r.session_key, r.at}
         )
       )
 

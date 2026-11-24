@@ -35,6 +35,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   alias Oneiroi.Scope
   alias Oneiroi.Sunna.Commands
   alias Oneiroi.Sunna.Error
+  alias Oneiroi.Sunna.FreeTimeRuns
   alias Oneiroi.Sunna.Queues
   alias Oneiroi.Sunna.QueueState
   alias Oneiroi.Sunna.Schedules
@@ -991,30 +992,9 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
   # Care comes first while her free time is live (sunna#96; the witness,
   # 2026-11-23: her line held for three hours behind a pass that had
-  # ended without its closing turn recorded): a run counts while its
-  # conversation has a turn open, or had one in the last minutes; a run
-  # that went quiet no longer holds the house's work.
-  @free_time_quiet 15 * 60
-  defp care_first?(resident_id) do
-    since = free_time_since(resident_id)
-
-    resident_id
-    |> then(&Scope.resident(&1, fn -> Store.free_time_unclosed(since) end))
-    |> Enum.any?(&free_time_live?(resident_id, &1))
-  end
-
-  defp free_time_live?(resident_id, key) do
-    case Kumbukumbu.uncompacted(resident_id, key) do
-      {:ok, %{open_turn_ref: ref}, _count} when is_binary(ref) ->
-        true
-
-      {:ok, %{last_turn_at: %DateTime{} = last}, _count} ->
-        DateTime.diff(Clock.now(), last, :second) < @free_time_quiet
-
-      _gone ->
-        false
-    end
-  end
+  # ended without its closing turn recorded).
+  defp care_first?(resident_id),
+    do: FreeTimeRuns.live?(resident_id, free_time_since(resident_id))
 
   # What the armed line allows a turn (sunna#35): with no cap, unlimited;
   # with one, what is left, or `:spent`, when the run goes to its wrap.
