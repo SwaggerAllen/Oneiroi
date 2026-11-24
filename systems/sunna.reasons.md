@@ -653,3 +653,6 @@ A run whose closing turn was never recorded is not a pass in progress, and treat
 
 ## #97
 A closing turn that is still running has done what the close records: the slot is over and she is planning. Treating its long run as a failure left the run open, and an open run read as free time going on.
+
+## #98
+The guard exists so a decision cannot authorize words the reviewer did not see. Two commits naming the same words are the same thing to the reviewer; refusing because the house wrote something else in between kept the guard's letter and broke its purpose.
