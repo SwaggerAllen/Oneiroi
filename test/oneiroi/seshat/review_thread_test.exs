@@ -10,6 +10,7 @@ defmodule Oneiroi.Seshat.ReviewThreadTest do
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.HouseQueue
   alias Oneiroi.Fixtures
   alias Oneiroi.Gaia
   alias Oneiroi.Seshat
@@ -113,7 +114,7 @@ defmodule Oneiroi.Seshat.ReviewThreadTest do
     {:ok, %{commit: read_at}} = Seshat.household_read(ctx.andrew, "human/andrew/plan.md")
 
     assert :ok =
-             Oneiroi.Brain.HouseQueue.decide(
+             HouseQueue.decide(
                ctx.h,
                n,
                "#{n}.1",
