@@ -44,6 +44,11 @@ defmodule Oneiroi.Sunna.QueueStore do
       field(:opened_at, :utc_datetime_usec)
       field(:completed_at, :utc_datetime_usec)
       field(:note, :string)
+      # Its place in the backlog (sunna#103): its batch, its rank (in the
+      # backlog, or in its batch), and whether it is open, alone.
+      field(:batch, :integer)
+      field(:rank, :integer)
+      field(:open, :boolean, default: false)
     end
 
     @type t :: %__MODULE__{}
@@ -140,6 +145,22 @@ defmodule Oneiroi.Sunna.QueueStore do
       field(:role, :string)
       field(:attached_by, :string)
       field(:attached_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Batch do
+    @moduledoc "A numbered batch of the backlog (sunna#103): its name, rank and whether it is open."
+    use Ecto.Schema
+    @primary_key false
+    schema "sunna_queue_batch" do
+      field(:household_id, :binary_id, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:name, :string)
+      field(:made_at, :utc_datetime_usec)
+      field(:rank, :integer)
+      field(:open, :boolean, default: false)
     end
 
     @type t :: %__MODULE__{}

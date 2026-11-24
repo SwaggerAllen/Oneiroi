@@ -40,7 +40,9 @@ defmodule Oneiroi.Sunna.Queue do
             tasks: %{},
             acts: %{},
             cut_over: false,
-            paused: false
+            paused: false,
+            batches: %{},
+            next_batch: 1
 
   @outcomes ~w(approved changes declined)
   @spec_fields [
@@ -364,6 +366,32 @@ defmodule Oneiroi.Sunna.Queue do
     end
   end
 
+  # ---- the backlog (sunna#103) ----
+
+  # Batches are numbered in the order they are made; a witness's.
+  def execute(%__MODULE__{next_batch: n}, %C.MakeBatch{actor: %{kind: :witness}} = c) do
+    name = if is_binary(c.name) and String.trim(c.name) != "", do: String.trim(c.name)
+    %E.BatchMade{actor: c.actor, at: c.at, id: c.id, number: n, name: name}
+  end
+
+  def execute(%__MODULE__{}, %C.MakeBatch{}),
+    do: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_batch_witness_only)}
+
+  # The whole arrangement at once, a witness's: every entry a known task
+  # or a made batch, each task in it once.
+  def execute(%__MODULE__{} = s, %C.ArrangeBacklog{actor: %{kind: :witness}} = c) do
+    case arranged(s, c.entries) do
+      {:ok, entries} ->
+        %E.BacklogArranged{actor: c.actor, at: c.at, id: c.id, entries: entries}
+
+      :error ->
+        {:error, Error.new(:sunna_queue_invalid, :sunna_queue_backlog_entries)}
+    end
+  end
+
+  def execute(%__MODULE__{}, %C.ArrangeBacklog{}),
+    do: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_backlog_witness_only)}
+
   # The house queue's switch (sunna#94): a witness's, said with a note;
   # pausing what is paused, or resuming what runs, is nothing.
   def execute(%__MODULE__{paused: false}, %C.PauseQueue{actor: %{kind: :witness}} = c),
@@ -501,6 +529,12 @@ defmodule Oneiroi.Sunna.Queue do
   # queue retired (sunna#102); nothing records it any more.
   def apply(%__MODULE__{} = s, %E.CutOver{}), do: %{s | cut_over: true}
   def apply(%__MODULE__{} = s, %E.CutBack{}), do: %{s | cut_over: false}
+
+  def apply(%__MODULE__{} = s, %E.BatchMade{number: n, name: name}),
+    do: %{s | batches: Map.put(s.batches, n, name), next_batch: n + 1}
+
+  def apply(%__MODULE__{} = s, %E.BacklogArranged{}), do: s
+
   def apply(%__MODULE__{} = s, %E.QueuePaused{}), do: %{s | paused: true}
   def apply(%__MODULE__{} = s, %E.QueueResumed{}), do: %{s | paused: false}
 
@@ -1395,4 +1429,51 @@ defmodule Oneiroi.Sunna.Queue do
 
   defp blank_nil(v) when is_binary(v), do: if(String.trim(v) == "", do: nil, else: String.trim(v))
   defp blank_nil(v), do: v
+
+  # An arrangement's entries, read plainly: `%{"batch" => n, "tasks" =>
+  # [n], "open" => bool}` or `%{"task" => n, "open" => bool}`.
+  defp arranged(s, entries) when is_list(entries) do
+    read = Enum.map(entries, &entry(s, &1))
+    tasks = Enum.flat_map(read, &entry_tasks/1)
+
+    if Enum.all?(read, &is_map/1) and length(tasks) == length(Enum.uniq(tasks)),
+      do: {:ok, read},
+      else: :error
+  end
+
+  defp arranged(_s, _entries), do: :error
+
+  defp entry(s, e) when is_map(e) do
+    batch = key(e, "batch")
+    task = key(e, "task")
+    open = key(e, "open") == true
+
+    cond do
+      is_integer(batch) and Map.has_key?(s.batches, batch) ->
+        batch_entry(s, batch, key(e, "tasks"), open)
+
+      is_integer(task) and Map.has_key?(s.tasks, task) ->
+        %{"task" => task, "open" => open}
+
+      true ->
+        nil
+    end
+  end
+
+  defp entry(_s, _e), do: nil
+
+  defp batch_entry(s, batch, tasks, open) do
+    tasks = List.wrap(tasks)
+
+    if Enum.all?(tasks, &Map.has_key?(s.tasks, &1)),
+      do: %{"batch" => batch, "tasks" => tasks, "open" => open},
+      else: nil
+  end
+
+  # An entry's field by its string key, or its atom key as a test gives it.
+  defp key(e, k), do: Map.get(e, k, Map.get(e, String.to_existing_atom(k)))
+
+  defp entry_tasks(%{"tasks" => tasks}), do: tasks
+  defp entry_tasks(%{"task" => task}), do: [task]
+  defp entry_tasks(_none), do: []
 end

@@ -140,7 +140,7 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
 
     # Nothing else is hers (the review is his): the queue still runs and
     # her line holds, saying why (sunna#92, #94), not due until something is.
-    assert {:rested, "running, holding: nothing in the house queue is ready for you"} =
+    assert {:rested, "running, holding: nothing of yours is ready in what is open"} =
              WorkLoop.check(ctx.id)
 
     refute WorkLoop.due?(ctx.id)

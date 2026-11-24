@@ -67,6 +67,8 @@ defmodule Oneiroi.Sunna do
       QueueCommands.EditLayers,
       QueueCommands.PauseQueue,
       QueueCommands.ResumeQueue,
+      QueueCommands.MakeBatch,
+      QueueCommands.ArrangeBacklog,
       Events.Queue.ProjectOpened,
       Events.Queue.ProjectClosed,
       Events.Queue.TemplateDefined,
@@ -90,12 +92,15 @@ defmodule Oneiroi.Sunna do
       Events.Queue.CutBack,
       Events.Queue.QueuePaused,
       Events.Queue.QueueResumed,
+      Events.Queue.BatchMade,
+      Events.Queue.BacklogArranged,
       QueueStore.Project,
       QueueStore.Task,
       QueueStore.Activity,
       QueueStore.History,
       QueueStore.Template,
       QueueStore.State,
+      QueueStore.Batch,
       Wake,
       CheckinParts,
       Commands.SetCheckin,
@@ -412,6 +417,8 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.Queue.CutBack, 1},
       {Oneiroi.Sunna.Events.Queue.QueuePaused, 1},
       {Oneiroi.Sunna.Events.Queue.QueueResumed, 1},
+      {Oneiroi.Sunna.Events.Queue.BatchMade, 1},
+      {Oneiroi.Sunna.Events.Queue.BacklogArranged, 1},
       {Oneiroi.Sunna.Events.ActivityRunStarted, 1},
       {Oneiroi.Sunna.Events.ActivityRunEnded, 2},
       {Oneiroi.Sunna.Events.WorkAdded, 1},
@@ -859,6 +866,23 @@ defmodule Oneiroi.Sunna do
           :ok | {:error, term()}
   defexport(queue_drop(household_id, task, note, actor),
     do: Queues.drop(household_id, task, note, actor)
+  )
+
+  @doc "The backlog (sunna#103): its entries in priority order, open or closed, and what finished."
+  @spec queue_backlog(String.t()) :: map()
+  defexport(queue_backlog(household_id), do: Queues.backlog(household_id))
+
+  @doc "Makes a numbered batch of the backlog (sunna#103), a witness's; answers its number."
+  @spec queue_make_batch(String.t(), String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(queue_make_batch(household_id, name, actor),
+    do: Queues.make_batch(household_id, name, actor)
+  )
+
+  @doc "Arranges the backlog (sunna#103), a witness's: its entries in order, each open or closed."
+  @spec queue_arrange(String.t(), [map()], Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(queue_arrange(household_id, entries, actor),
+    do: Queues.arrange(household_id, entries, actor)
   )
 
   @doc "Pauses the house queue for every resident (sunna#94)."

@@ -372,6 +372,25 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
     state(multi, e.id, cut_over: false, note: e.note)
   end)
 
+  fold(%E.BatchMade{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :batch,
+      %S.Batch{household_id: e.id, number: e.number, name: e.name, made_at: e.at},
+      on_conflict: :nothing,
+      conflict_target: [:household_id, :number]
+    )
+  end)
+
+  # The arrangement (sunna#103): each entry's rank its place; a batch's
+  # tasks ranked within it; a task left out keeps where it was.
+  fold(%E.BacklogArranged{} = e, _metadata, fn multi ->
+    e.entries
+    |> Enum.map(&plain/1)
+    |> Enum.with_index()
+    |> Enum.reduce(multi, fn {entry, i}, multi -> arrange(multi, e.id, entry, i) end)
+  end)
+
   fold(%E.QueuePaused{} = e, _metadata, fn multi ->
     state(multi, e.id, paused: true, paused_at: e.at, note: e.note)
   end)
@@ -531,4 +550,40 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
 
   defp actor_id(%{id: id}), do: id
   defp actor_id(_none), do: nil
+
+  defp arrange(multi, h, %{"batch" => n, "tasks" => tasks} = entry, i) do
+    multi =
+      Multi.update_all(
+        multi,
+        {:batch, n},
+        # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
+        from(b in S.Batch, where: b.household_id == ^h and b.number == ^n),
+        set: [rank: i, open: entry["open"] == true]
+      )
+
+    tasks
+    |> Enum.with_index()
+    |> Enum.reduce(multi, fn {t, j}, multi ->
+      place(multi, h, t, batch: n, rank: j, open: false)
+    end)
+  end
+
+  defp arrange(multi, h, %{"task" => t} = entry, i),
+    do: place(multi, h, t, batch: nil, rank: i, open: entry["open"] == true)
+
+  defp arrange(multi, _h, _entry, _i), do: multi
+
+  # An entry as the store gives it back, its keys read as strings.
+  defp plain(entry) when is_map(entry), do: Map.new(entry, fn {k, v} -> {to_string(k), v} end)
+  defp plain(other), do: other
+
+  defp place(multi, h, t, set),
+    do:
+      Multi.update_all(
+        multi,
+        {:place, t},
+        # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
+        from(x in S.Task, where: x.household_id == ^h and x.number == ^t),
+        set: set
+      )
 end

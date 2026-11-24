@@ -668,3 +668,6 @@ The day's cap guarded against one thing, a loop that never empties, and it guard
 
 ## #102
 Two queues with one line between them was a cost paid every day for a revert nobody would take: the item tools stayed in her context, a frozen queue answered "read-only" to anything that touched it, the cutover's checks sat in every path, and the held-items source read a list that could no longer change. Retiring the behaviour while keeping every event keeps the history honest, and the readable record of what moved is already in the house repository.
+
+## #103
+Blockers say what cannot start; nothing said what should start first, so every line picked by how much a step unblocked and the witness could only steer by blocking. A ranked list says it directly, and open or closed says how much of it may run at once: the top alone keeps the design from getting too far ahead of the build, more opened lets idle residents help. The whole arrangement is sent at once because the list is one decision a witness makes by eye, and a partial move that raced another would leave an order neither meant. Closing drains rather than stops, because a run cut off mid-step costs more than the step it would have finished.

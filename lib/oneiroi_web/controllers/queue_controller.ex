@@ -339,6 +339,42 @@ defmodule OneiroiWeb.QueueController do
   def resume(conn, p),
     do: done(conn, Sunna.queue_resume(conn.assigns.household_id, p["note"], actor(conn)))
 
+  operation(:backlog,
+    summary:
+      "The backlog (sunna#103): the open tasks' entries in priority order, each a batch (number, name, tasks in order) or a task in no batch, open or closed, the top always open; and what finished, newest first",
+    responses: [ok: {"the backlog", "application/json", %Schema{type: :object}}]
+  )
+
+  def backlog(conn, _params), do: json(conn, Sunna.queue_backlog(conn.assigns.household_id))
+
+  operation(:arrange,
+    summary:
+      "Arranges the backlog (sunna#103), a witness's: entries in order, each {batch, tasks, open} or {task, open}; every resident's line checks at once",
+    request_body: {"the entries", "application/json", %Schema{type: :object}},
+    responses: [ok: {"done", "application/json", %Schema{type: :object}}]
+  )
+
+  def arrange(conn, p),
+    do:
+      done(
+        conn,
+        Sunna.queue_arrange(conn.assigns.household_id, List.wrap(p["entries"]), actor(conn))
+      )
+
+  operation(:make_batch,
+    summary:
+      "Makes the next numbered batch of the backlog (sunna#103), a witness's, with an optional name",
+    request_body: {"the name", "application/json", %Schema{type: :object}},
+    responses: [ok: {"its number", "application/json", %Schema{type: :object}}]
+  )
+
+  def make_batch(conn, p) do
+    case Sunna.queue_make_batch(conn.assigns.household_id, p["name"], actor(conn)) do
+      {:ok, n} -> json(conn, %{number: n})
+      other -> done(conn, other)
+    end
+  end
+
   # ---- helpers ----
 
   defp household(conn, _opts) do

@@ -9,6 +9,7 @@ import { useShell } from '../state/store';
 import { DocumentScreen } from './DocumentScreen';
 import { HOUSE } from './keys';
 import { BackfillPanel } from './BackfillPanel';
+import { Backlog } from './Backlog';
 import { actName, blockedLine, holdersOf, nameOf, since, slugify, stepStatus, taskSummaries, unpinned, type Names, type TaskSummary } from './queueText';
 import { ActivityPage, NewActivityPage, TaskPage, Who } from './TaskPage';
 import { TemplateActivity, TemplateEditor } from './TemplateEditor';
@@ -72,6 +73,8 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
   const [project, setProject] = useState('');
   const tasks = q.tasks.filter((t) => !project || t.project === project);
   const all = whose === 'all';
+  // The backlog (sunna#103): the house's order, open and closed.
+  const backlog = whose === 'backlog';
   const { mine, others, later } = taskSummaries(tasks, cards.data ?? [], all ? q.me : holdersOf(whose));
   const you = whose === q.me || all;
   const who = you ? 'Your' : `${nameOf(names, whose)}'s`;
@@ -98,6 +101,9 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
         <button type="button" className={w.segment} aria-pressed={all} onClick={() => setWhose('all')}>
           Everyone
         </button>
+        <button type="button" className={w.segment} aria-pressed={backlog} onClick={() => setWhose('backlog')}>
+          Backlog
+        </button>
       </div>
       <div className={w.segmented} role="group" aria-label="Filters">
         <select className={w.select} aria-label="Project" value={project} onChange={(e) => setProject(e.target.value)}>
@@ -112,7 +118,8 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
       <QueueSwitch overview={q} />
       {whose.startsWith('resident:') && <LineStatus residentId={whose.slice('resident:'.length)} name={nameOf(names, whose)} />}
       {cards.isPending && <p className={css.note}>Reading…</p>}
-      {cards.data && (
+      {backlog && cards.data && <Backlog overview={q} names={names} cards={cards.data} />}
+      {!backlog && cards.data && (
         <>
           <h2 className={w.section}>{who} move · {mine.length}</h2>
           {mine.length === 0 && <p className={css.note}>{you ? 'Nothing waits on you.' : `Nothing waits on ${nameOf(names, whose)}.`}</p>}

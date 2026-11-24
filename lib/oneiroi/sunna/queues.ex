@@ -505,6 +505,40 @@ defmodule Oneiroi.Sunna.Queues do
         note: note
       })
 
+  @doc "Makes a numbered batch of the backlog (sunna#103), a witness's; answers its number."
+  def make_batch(household_id, name, %Actor{} = actor) do
+    command = %C.MakeBatch{actor: actor, at: Clock.now(), id: household_id, name: name}
+
+    with :ok <- member(household_id, actor),
+         {:ok, events} <- send_command(command) do
+      case Enum.find_value(events, &(match?(%E.BatchMade{}, &1) && &1.number)) do
+        n when is_integer(n) -> {:ok, n}
+        _none -> {:error, Error.new(:sunna_queue_invalid, :sunna_queue_batch_not_made)}
+      end
+    end
+  end
+
+  @doc """
+  Arranges the backlog (sunna#103), a witness's: the entries in order,
+  each `%{"batch" => n, "tasks" => [n], "open" => bool}` or `%{"task" =>
+  n, "open" => bool}`. Each resident's line checks at once, since what is
+  open may have changed.
+  """
+  def arrange(household_id, entries, %Actor{} = actor) do
+    with :ok <-
+           dispatch(household_id, actor, %C.ArrangeBacklog{
+             actor: actor,
+             at: Clock.now(),
+             id: household_id,
+             entries: entries
+           }) do
+      for %{kind: "resident", id: id} <- members(household_id),
+          do: work_worker().enqueue_check(id)
+
+      :ok
+    end
+  end
+
   @doc "Pauses the house queue for every resident (sunna#94): a witness's, with a note."
   def pause(household_id, note, %Actor{} = actor),
     do:
@@ -749,6 +783,101 @@ defmodule Oneiroi.Sunna.Queues do
 
       Repo.all(query)
     end)
+  end
+
+  @doc """
+  The backlog (sunna#103): the open tasks' entries in priority order,
+  each a batch (its number, name and tasks in order) or a task in no
+  batch, and whether it is open, the top always open; and what finished,
+  newest first, tasks and whole batches. A task or batch never arranged
+  goes to the bottom, closed, in the order it was made.
+  """
+  def backlog(household_id) do
+    {tasks, batches} =
+      Scope.platform(fn ->
+        {Repo.all(from(t in S.Task, where: t.household_id == ^household_id)),
+         Repo.all(from(b in S.Batch, where: b.household_id == ^household_id))}
+      end)
+
+    live = Enum.filter(tasks, &(&1.status == "open"))
+    by_batch = Enum.group_by(live, & &1.batch)
+
+    batch_entries =
+      for b <- batches, members = Map.get(by_batch, b.number, []), members != [] do
+        %{
+          kind: "batch",
+          number: b.number,
+          name: b.name,
+          open: b.open,
+          rank: b.rank,
+          made: b.number,
+          tasks:
+            members
+            |> Enum.sort_by(&{is_nil(&1.rank), &1.rank, &1.number})
+            |> Enum.map(& &1.number)
+        }
+      end
+
+    known = MapSet.new(batches, & &1.number)
+
+    loose =
+      for t <- live, is_nil(t.batch) or not MapSet.member?(known, t.batch) do
+        %{kind: "task", number: t.number, open: t.open, rank: t.rank, made: t.number}
+      end
+
+    entries =
+      (batch_entries ++ loose)
+      |> Enum.sort_by(&{is_nil(&1.rank), &1.rank, &1.kind == "task", &1.made})
+      |> Enum.with_index()
+      |> Enum.map(fn {e, i} -> e |> Map.put(:top, i == 0) |> Map.put(:open, e.open or i == 0) end)
+      |> Enum.map(&Map.drop(&1, [:rank, :made]))
+
+    %{entries: entries, finished: finished(tasks, batches)}
+  end
+
+  # What finished, newest first: each task done or dropped, and each
+  # batch once every task in it has (sunna#103).
+  defp finished(tasks, batches) do
+    over = Enum.filter(tasks, &(&1.status in ["complete", "dropped"] and &1.completed_at))
+
+    whole =
+      for b <- batches,
+          members = Enum.filter(tasks, &(&1.batch == b.number)),
+          members != [],
+          Enum.all?(members, &(&1.status in ["complete", "dropped"] and &1.completed_at)) do
+        %{
+          kind: "batch",
+          number: b.number,
+          name: b.name,
+          at: Enum.max(Enum.map(members, & &1.completed_at), DateTime)
+        }
+      end
+
+    (whole ++
+       Enum.map(
+         over,
+         &%{
+           kind: "task",
+           number: &1.number,
+           status: &1.status,
+           batch: &1.batch,
+           at: &1.completed_at
+         }
+       ))
+    |> Enum.sort_by(& &1.at, {:desc, DateTime})
+  end
+
+  @doc """
+  Where each open task stands for the lines (sunna#103): task number to
+  `{entry, place in its batch}`, only for entries that are open (the top
+  always is). A line works these in that order.
+  """
+  def open_order(household_id) do
+    for {e, i} <- Enum.with_index(backlog(household_id).entries),
+        e.open,
+        {t, j} <- Enum.with_index(if(e.kind == "batch", do: e.tasks, else: [e.number])),
+        into: %{},
+        do: {t, {i, j}}
   end
 
   @doc """

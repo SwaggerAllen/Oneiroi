@@ -8,6 +8,8 @@ import type {
   ResidentThread,
   QueueMove,
   QueueOverview,
+  QueueBacklog,
+  BacklogArranged,
   QueueSpec,
   QueueTaskPage,
   QueueWaiting,
@@ -764,6 +766,9 @@ export const api = {
     call<{ activity: HouseActivity[] }>('GET', `/v1/household/activity${residentId ? `?resident_id=${encodeURIComponent(residentId)}` : ''}`),
   // The house queue (sunna#80): one queue a household, every member's.
   queue: () => call<QueueOverview>('GET', '/v1/household/queue'),
+  queueBacklog: () => call<QueueBacklog>('GET', '/v1/household/queue/backlog'),
+  queueArrange: (entries: BacklogArranged[]) => call<{ ok: true }>('PUT', '/v1/household/queue/backlog', { entries }),
+  queueMakeBatch: (name: string | null) => call<{ number: number }>('POST', '/v1/household/queue/batches', { name }),
   queueWaiting: (who?: string) => call<QueueWaiting>('GET', `/v1/household/queue/waiting${who ? `?who=${encodeURIComponent(who)}` : ''}`),
   queueActivities: (filter: { who?: string; view?: string[]; project?: string }) => {
     const q = new URLSearchParams();

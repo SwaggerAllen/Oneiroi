@@ -135,4 +135,16 @@ defmodule Oneiroi.Sunna.Events.Queue do
   defmodule QueueResumed do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id]
   end
+
+  # The backlog (sunna#103): a numbered batch made, with an optional name.
+  defmodule BatchMade do
+    use Oneiroi.Event, version: 1, fields: [:id, :number, :name]
+  end
+
+  # The backlog as a witness arranged it (sunna#103): its entries in
+  # priority order, each a batch (`batch`, its `tasks` in order) or a task
+  # in no batch (`task`), and whether it is `open`.
+  defmodule BacklogArranged do
+    use Oneiroi.Event, version: 1, fields: [:id, :entries]
+  end
 end

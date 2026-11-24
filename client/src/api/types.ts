@@ -903,6 +903,19 @@ export interface QueueOverview {
   tasks: QueueTask[];
 }
 
+/** The backlog (sunna#103): entries in priority order, open or closed, the top always open. */
+export type BacklogEntry = { kind: 'batch'; number: number; name: string | null; open: boolean; top: boolean; tasks: number[] } | { kind: 'task'; number: number; open: boolean; top: boolean };
+
+export type BacklogFinished = { kind: 'batch'; number: number; name: string | null; at: string } | { kind: 'task'; number: number; status: 'complete' | 'dropped'; batch: number | null; at: string };
+
+export interface QueueBacklog {
+  entries: BacklogEntry[];
+  finished: BacklogFinished[];
+}
+
+/** One entry as the arrangement sends it. */
+export type BacklogArranged = { batch: number; tasks: number[]; open: boolean } | { task: number; open: boolean };
+
 export interface QueueWaiting {
   who: string;
   ready: QueueCard[];

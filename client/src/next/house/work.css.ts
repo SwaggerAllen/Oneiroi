@@ -245,3 +245,39 @@ export const pickRow = style({
 });
 export const warnNote = style({ margin: 0, padding: '10px 12px', borderRadius: 10, background: status.warnSurface, border: `1px solid ${status.warnBorder}`, color: status.warnText, fontSize: 14, lineHeight: '20px' });
 export const readOnly = style({ display: 'flex', flexDirection: 'column', gap: 2, padding: '8px 12px', borderRadius: 10, background: vars.color.groundDeep, fontSize: 15 });
+
+// The backlog (sunna#103; the queue mocks' Backlog board): entries in
+// priority order, a batch boxed, a closed entry dimmed, rows dragged by
+// their handle (touch too: the handle takes the pointer).
+export const backlogBatch = style({
+  display: 'flex',
+  flexDirection: 'column',
+  gap: 8,
+  padding: 12,
+  borderRadius: radius.l,
+  border: `1px solid ${vars.color.border}`,
+  background: vars.color.surface,
+});
+export const backlogOpen = style({ borderColor: vars.color.witness.border });
+export const backlogClosed = style({ opacity: 0.6 });
+export const backlogHead = style({ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 });
+export const backlogRank = style({ flex: 'none', minWidth: 26, font: `500 13px ${font.mono}`, color: vars.color.textMuted });
+export const backlogRow = style([card, { cursor: 'default', flexDirection: 'row', alignItems: 'flex-start', gap: 6, padding: '12px 12px 12px 4px' }]);
+export const backlogTarget = style({ borderColor: vars.color.witness.border, boxShadow: `0 -3px 0 ${vars.color.witness.border}` });
+export const handle = style({
+  flex: 'none',
+  width: 32,
+  height: 44,
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  border: 'none',
+  background: 'none',
+  color: vars.color.textMuted,
+  cursor: 'grab',
+  touchAction: 'none',
+});
+export const pill = style([segment, { minHeight: 30, fontSize: 12, whiteSpace: 'nowrap' }]);
+export const backlogMenu = style({ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 10, borderTop: `1px solid ${vars.color.border}` });
+export const finishedRow = style({ display: 'flex', gap: 10, alignItems: 'baseline', padding: '8px 12px', borderRadius: radius.m, border: `1px solid ${vars.color.border}`, fontSize: 13 });
+export const finishedWhen = style({ flex: 'none', font: `500 12px ${font.mono}`, color: vars.color.textMuted });

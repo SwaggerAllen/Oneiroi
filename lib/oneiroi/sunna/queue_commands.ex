@@ -125,4 +125,12 @@ defmodule Oneiroi.Sunna.QueueCommands do
   defmodule ResumeQueue do
     use Oneiroi.Command, fields: [:id], decision: true
   end
+
+  defmodule MakeBatch do
+    use Oneiroi.Command, fields: [:id, :name], bounds: [name: 80]
+  end
+
+  defmodule ArrangeBacklog do
+    use Oneiroi.Command, fields: [:id, :entries]
+  end
 end

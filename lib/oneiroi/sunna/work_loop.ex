@@ -260,7 +260,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
         )
 
       is_nil(card) ->
-        rest(resident_id, "running, holding: nothing in the house queue is ready for you")
+        rest(resident_id, "running, holding: nothing of yours is ready in what is open")
 
       line && line.left <= 0 ->
         rest(resident_id, spent(line))
@@ -312,11 +312,14 @@ defmodule Oneiroi.Sunna.WorkLoop do
         bound = Config.fetch!(:sunna, :work_runs_an_activity)
         runs = Scope.resident(resident_id, fn -> Store.work_activity_runs() end)
 
+        order = Queues.open_order(h)
+
         {spent, left} =
           h
           |> Queues.waiting_on("resident:#{resident_id}")
           |> Map.fetch!(:ready)
           |> Enum.filter(&(&1.view in ["ready", "active"]))
+          |> in_backlog_order(order)
           |> Enum.split_with(&(Map.get(runs, &1.act, 0) >= bound))
 
         card = List.first(left)
@@ -325,6 +328,18 @@ defmodule Oneiroi.Sunna.WorkLoop do
       _none ->
         {nil, []}
     end
+  end
+
+  # The backlog decides (sunna#103): she works only what is open, in its
+  # order; a step already hers and active on a task since closed finishes
+  # (the queue drains), after the open ones. Ties keep the queue's own
+  # order (blocking-most, then oldest ready).
+  defp in_backlog_order(cards, order) do
+    cards
+    |> Enum.filter(&(Map.has_key?(order, &1.task) or &1.view == "active"))
+    |> Enum.with_index()
+    |> Enum.sort_by(fn {c, i} -> {Map.get(order, c.task, {:closed, 0}), i} end)
+    |> Enum.map(&elem(&1, 0))
   end
 
   defp start_activity(resident_id, card) do
