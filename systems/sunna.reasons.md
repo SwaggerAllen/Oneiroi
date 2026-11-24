@@ -656,3 +656,6 @@ A closing turn that is still running has done what the close records: the slot i
 
 ## #98
 The guard exists so a decision cannot authorize words the reviewer did not see. Two commits naming the same words are the same thing to the reviewer; refusing because the house wrote something else in between kept the guard's letter and broke its purpose.
+
+## #99
+A pinned citation already says which revision the step is about; asking the reviewer to name it again, with nothing on the screen to name it from, refused an approval the record could answer.
