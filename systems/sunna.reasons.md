@@ -647,3 +647,6 @@ A line per resident, each armed and disarmed apart, made a house queue that coul
 
 ## #95
 A citation that names nothing reads like a document on every screen until someone opens it; checking where it goes in, and naming the house's file when the path is the house's, catches the slip at the moment it is made. Sharing what is already in the house is a step with nothing to do.
+
+## #96
+A run whose closing turn was never recorded is not a pass in progress, and treating it as one let a missing bookkeeping row hold the house's work for hours, with nothing on any screen saying why. Asking the conversation whether it is still going is the fact the rule was standing in for.

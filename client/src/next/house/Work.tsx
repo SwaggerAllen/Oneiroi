@@ -114,6 +114,7 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
         </select>
       </div>
       {q.cut_over && <QueueSwitch overview={q} />}
+      {q.cut_over && whose.startsWith('resident:') && <LineStatus residentId={whose.slice('resident:'.length)} name={nameOf(names, whose)} />}
       {cards.isPending && <p className={css.note}>Reading…</p>}
       {cards.data && (
         <>
@@ -176,6 +177,19 @@ function QueueSwitch({ overview: q }: { overview: QueueOverview }) {
       )}
     </div>
   );
+}
+
+/**
+ * Where a resident's line stands (the witness, 2026-11-23: steps that
+ * looked stalled were waiting on her free time): what it runs, or why it
+ * rests. Read only: the queue's one switch is above.
+ */
+function LineStatus({ residentId, name }: { residentId: string; name: string }) {
+  const line = useQuery({ queryKey: ['resident', residentId, 'settings', 'work'], queryFn: () => api.work(residentId), refetchOnWindowFocus: true });
+  if (!line.data) return null;
+  const q = line.data;
+  const now = q.running_act ? `running ${q.running_act}${q.running_task ? ` of task #${q.running_task}` : ''}` : (q.rested ?? 'idle');
+  return <p className={css.note}>{name}'s line: {now}</p>;
 }
 
 /**
