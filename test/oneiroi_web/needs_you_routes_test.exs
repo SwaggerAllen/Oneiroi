@@ -13,7 +13,6 @@ defmodule OneiroiWeb.NeedsYouRoutesTest do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Fixtures
-  alias Oneiroi.Sunna
   alias Oneiroi.Xenia
 
   setup do
@@ -46,11 +45,6 @@ defmodule OneiroiWeb.NeedsYouRoutesTest do
 
     {:ok, 2} =
       Xenia.draft_reply(ctx.id, Map.merge(new, %{text: "Second.", supersedes: 1}), ctx.lily)
-
-    {:ok, 1} = Sunna.work_add(ctx.id, "Re-stage the Jack letter", "in the queue", ctx.lily)
-    {:ok, 2} = Sunna.work_add(ctx.id, "Something open", "done", ctx.lily)
-    # Blocked on other work is the queue's, never his (sunna#42).
-    :ok = Sunna.work_move(ctx.id, 1, "blocked", "2", "waiting on it", ctx.lily)
 
     assert [
              %{"kind" => "ask", "ref" => 1, "screen" => "inbox", "long" => false},

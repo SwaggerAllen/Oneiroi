@@ -146,26 +146,26 @@ clipboard, or "Couldn't copy; select it" when the browser refuses
     one trial at a time with the trial's words, its grade, whether it is a
     favourite and how it got there, "‹ Previous trial" and "Next trial ›"
     between, and no other model's words on the screen; "‹ The run" returns.
-- **Work queue** (sunna#33, #35, #38, #42, #43, #54, #55, #58):
-  - the line in words: running, resting, runs today, armed by whom and
-    what is left of its cap; "Arm the work line" when it is off and
-    something is open, "Turn the work line off" when armed; once a run has been used today or an activity has runs counted, how many of the day's runs are used, each activity's runs since it last moved against its limit, and "Give the runs back" with a note she reads, which resets both (sunna#53, #101); while the armed line waits on her free time, "Start work now" with a note she reads (optional; a plain line goes when none is given), which lets work go ahead of that pass (sunna#76);
-  - the live items in order: status, who added it, done when, the
-    last wrap (shipped, slipped, why), the note; with a note: Blocked on
-    another item, Unblock, Done, Drop; "Move up";
-  - on an item that has run, how long it has been in work (sunna#58):
-    "running 1h 30m this run · 6h 30m in work over 4 runs since
-    2026-11-11", ticking while it runs; a run past an hour turns the
-    line amber with "running long: worth a look"; an item that ran
-    before the time was kept says only its runs; the line above says
-    "Running item #n now, for …";
-  - "Hold for me…" opens an ask field ("What #n waits on you for") and
-    Hold, required; a held item says "held for you" and "HELD · she asks
-    you: <ask>" (or "you held it"), and "Release", with the note she
-    reads, moves it open again (sunna#54, #55); the line says it steps
-    over what is held;
-  - add work (what, done when); the last five finished.
-- **Memory backfill** (sunna#59), under the work queue: while one runs,
+- **Work line** (sunna#33, #58, #76, #86, #100, #101, #102): one card,
+  her line as it runs her house queue work:
+  - the line in words: "Running activity 12.1 of task #12, for 1h 30m"
+    ticking while it runs (amber with "Running long: worth a look" past
+    an hour), or "Resting: <why>", then the day's runs and the work
+    budget; "Open task #n ›" while one runs;
+  - that it runs while the house queue runs, paused or resumed for
+    everyone on the Work page; when the platform cut her last run off
+    (a restart or a crash), which activity and when;
+  - while the line waits on her free time, "Start work now" with a note
+    she reads (optional; a plain line goes when none is given), which
+    lets work go ahead of that pass (sunna#76);
+  - once a run has been used today or an activity has runs counted, how
+    many of the day's runs are used, each activity's runs since it last
+    moved against its limit, and "Give the runs back" with a note she
+    reads, which resets both (sunna#53, #101);
+  - "Open Work ›" to the house queue. The old queue's items, its arming,
+    holds and wraps are retired (sunna#102); its history stays in the
+    house repository's record of the cutover.
+- **Memory backfill** (sunna#59), under the work line: while one runs,
   what it is doing (writing the scenes, naming the domains or the people
   pass), for which day and turn, through which day, and "Stop the
   backfill"; otherwise what it does in words and a form: from and to
@@ -240,8 +240,8 @@ clipboard, or "Couldn't copy; select it" when the browser refuses
 | (new) | `declinePush` | Notifications |
 | Regression | `regressionTests`, `regressionRuns`, `regressionRun`, `writeTest`, `changeTest`, `startRun`, `grade`, `favourite`, `pinModel`, `socketToken` with the run channel | Regression |
 | (new here) | `suggestTrials` | Regression |
-| Work | `work`, `addWork`, `moveWork`, `orderWork`, `armWork`, `disarmWork`, `resetWorkRuns` | Work queue |
-| (new) | `holdWork` | Work queue |
+| Work | `work`, `resetWorkRuns` | Work line |
+| (new) | `skipWorkCare` | Work line |
 | (new) | `resident`, `setRemote`, `importChatgpt`, `reports`, `fileReport`, `gitea`, `setGiteaPassword` | Backups, imports and reports |
 | (new) | `discardResident` | Delete this resident |
 | (new) | `subscription`, `checkout`, `billingPortal` | Ledger |

@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import type { QueueCard, QueueOverview } from '../../api/types';
-import { Card, Confirm, Field, Said, Select, TextArea } from '../settings/common';
+import { Card, Field, Said, Select, TextArea } from '../settings/common';
 import * as css from '../settings/settings.css';
 import { useAct } from '../settings/useAct';
 import { useShell } from '../state/store';
@@ -78,11 +78,6 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
   const members = q.members.filter((m) => m.assignee !== q.me);
   return (
     <>
-      {!q.cut_over && (
-        <p className={css.note}>
-          The house queue is not on yet: the old work queues still run. Build the templates and move the work in progress, then turn it on below.
-        </p>
-      )}
       <div className={w.top}>
         <h1 className={w.pageTitle}>Work</h1>
         {q.templates.length > 0 && (
@@ -114,8 +109,8 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
           ))}
         </select>
       </div>
-      {q.cut_over && <QueueSwitch overview={q} />}
-      {q.cut_over && whose.startsWith('resident:') && <LineStatus residentId={whose.slice('resident:'.length)} name={nameOf(names, whose)} />}
+      <QueueSwitch overview={q} />
+      {whose.startsWith('resident:') && <LineStatus residentId={whose.slice('resident:'.length)} name={nameOf(names, whose)} />}
       {cards.isPending && <p className={css.note}>Reading…</p>}
       {cards.data && (
         <>
@@ -383,15 +378,12 @@ function NewTask({ overview, citation, onBack }: { overview: QueueOverview; cita
 
 
 /**
- * The witness's setup (§6.2, §7): the
- * templates copied from the platform's starters, and the cutover: the
- * old queue committed first, then the house queue turned on naming that
- * commit, and the one-step revert.
+ * The witness's setup (§7): the templates copied from the platform's
+ * starters. The cutover from the old queues and its revert are retired
+ * with them (sunna#102).
  */
 function Setup({ overview: q }: { overview: QueueOverview }) {
   const act = useAct();
-  const [commit, setCommit] = useState(q.commit ?? '');
-  const [note, setNote] = useState('');
   if (!q.me.startsWith('witness:')) return null;
   const missing = q.starters.filter((s) => !q.templates.some((t) => t.name === s.name));
   return (
@@ -403,26 +395,6 @@ function Setup({ overview: q }: { overview: QueueOverview }) {
           Add {s.name} ({s.title})
         </button>
       ))}
-      {q.cut_over ? (
-        <>
-          <p className={css.note}>
-            On since {q.cut_at ? new Date(q.cut_at).toLocaleString() : '—'}; the old queue is committed at {q.commit?.slice(0, 7)} and kept read-only.
-          </p>
-          <Field label="Why it goes back" value={note} onChange={(e) => setNote(e.target.value)} />
-          <Confirm label="Revert to the old queue" confirm="Revert? The old queue's loop and screens come back on." disabled={act.busy || !note.trim()} onConfirm={() => void act.run(() => api.queueCutBack(note).then(() => 'Reverted.'), QUEUE)} />
-        </>
-      ) : (
-        <>
-          <div className={css.row}>
-            <button type="button" className={css.secondary} disabled={act.busy} onClick={() => void act.run(() => api.queueSnapshot().then((r) => (setCommit(r.commit), `The old queue is committed at ${r.commit.slice(0, 7)}.`)), QUEUE)}>
-              Commit the old queue
-            </button>
-            {commit && <span className={css.mono}>{commit.slice(0, 7)}</span>}
-          </div>
-          <Field label="Why it goes on now" value={note} onChange={(e) => setNote(e.target.value)} />
-          <Confirm label="Turn the house queue on" confirm="Turn it on? The old queues go read-only." disabled={act.busy || !commit || !note.trim() || q.templates.length === 0} onConfirm={() => void act.run(() => api.queueCutOver(commit, note).then(() => 'The house queue is on.'), QUEUE)} />
-        </>
-      )}
       <Said said={act.said} />
     </Card>
   );

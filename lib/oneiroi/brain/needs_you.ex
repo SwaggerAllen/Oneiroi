@@ -34,7 +34,6 @@ defmodule Oneiroi.Brain.NeedsYou do
     Oneiroi.Brain.NeedsYou.Replies,
     Oneiroi.Brain.NeedsYou.Asks,
     Oneiroi.Brain.NeedsYou.Documents,
-    Oneiroi.Brain.NeedsYou.Work,
     Oneiroi.Brain.NeedsYou.Plugins,
     Oneiroi.Brain.NeedsYou.Kinds,
     Oneiroi.Brain.NeedsYou.Theme,

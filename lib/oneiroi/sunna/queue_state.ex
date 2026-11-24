@@ -1,8 +1,9 @@
 defmodule Oneiroi.Sunna.QueueState do
   @moduledoc """
-  Whether a household has cut over to the house queue (sunna#80, §6.2),
-  read alone: the old work loop asks it, and the queue's service turns
-  that loop off, so the read stands apart from both.
+  Whether a household's house queue runs (sunna#94), read alone: the
+  work loop asks it and the queue's service writes it, so the read
+  stands apart from both. The cutover (sunna#80) is history since the
+  old work queue retired (sunna#102): the queue runs unless paused.
   """
 
   alias Oneiroi.Repo
@@ -15,15 +16,7 @@ defmodule Oneiroi.Sunna.QueueState do
       %State{household_id: household_id, cut_over: false}
   end
 
-  @doc "Whether the house queue runs (sunna#94): cut over and not paused."
+  @doc "Whether the house queue runs (sunna#94, #102): unless paused."
   def running?(nil), do: false
-
-  def running?(household_id) do
-    state = get(household_id)
-    state.cut_over == true and state.paused != true
-  end
-
-  @doc "Whether the household has cut over."
-  def cut_over?(nil), do: false
-  def cut_over?(household_id), do: get(household_id).cut_over == true
+  def running?(household_id), do: get(household_id).paused != true
 end

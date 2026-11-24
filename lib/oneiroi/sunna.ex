@@ -65,8 +65,6 @@ defmodule Oneiroi.Sunna do
       QueueCommands.AttachDocument,
       QueueCommands.DetachDocument,
       QueueCommands.EditLayers,
-      QueueCommands.CutOver,
-      QueueCommands.CutBack,
       QueueCommands.PauseQueue,
       QueueCommands.ResumeQueue,
       Events.Queue.ProjectOpened,
@@ -114,15 +112,7 @@ defmodule Oneiroi.Sunna do
       Commands.RemoveDate,
       Commands.MarkHour,
       Commands.WakeForLetters,
-      Commands.AddWork,
-      Commands.MoveWork,
-      Commands.OrderWork,
-      Commands.WrapWork,
-      Commands.StartWork,
-      Commands.EndWork,
       Commands.RestWork,
-      Commands.ArmWork,
-      Commands.DisarmWork,
       Commands.ResetWorkRuns,
       Commands.SkipCareWait,
       Commands.StartActivityRun,
@@ -493,25 +483,11 @@ defmodule Oneiroi.Sunna do
       {:sunna_free_time_failed, "free time could not be opened and was recorded as failed",
        remedy: "read the day's reason; tomorrow's free time runs again"},
       {:sunna_work_invalid,
-       "a work item is what (at most 300 characters) and what done looks like; a status is open, blocked (on another item), held (with an ask), done or dropped, with a note; a wrap says what shipped and why",
-       remedy: "say each in words; name the item that blocks a blocked one"},
-      {:sunna_work_blocked_on_invalid,
-       "a blocked item names the queue item that blocks it, by number (sunna#42): another item, not done or dropped, not itself blocked on this one; work waiting on the witness is not blocked, it waits on his list",
-       remedy:
-         "give the blocking item's number in blocked_on (12 or #12); if the next move is his, leave the item open and ask him, or drop it until he acts"},
-      {:sunna_work_ask_invalid,
-       "a held item says what it needs from the witness (sunna#54): an ask in plain words, at most 500 characters",
-       remedy:
-         "give the ask, as you would say it to him (\"your word on two wordings\"), shorter if need be"},
+       "the work line's command was malformed: a field missing or over its bound",
+       remedy: "say each in words, within its bound"},
       {:sunna_work_not_a_party,
-       "only the resident and her witness keep the work queue, and only she wraps a run",
-       remedy: "ask the resident or the witness"},
-      {:sunna_no_such_work, "no work item has that number", remedy: "read the queue"},
-      {:sunna_work_frozen,
-       "the household has cut over to the house queue (sunna#80): this work queue is kept read-only, its rows untouched for a one-step revert",
-       remedy: "use the house queue: queue_list, queue_task_open, queue_move"},
-      {:sunna_work_not_running, "only the item running now can be wrapped",
-       remedy: "read the queue: the running item is marked in_work"},
+       "only the witness gives the work runs back or skips the free-time wait",
+       remedy: "ask the witness"},
       {:sunna_queue_not_a_member, "only the household's members keep its queue",
        remedy: "ask a member of the household"},
       {:sunna_queue_invalid,
@@ -577,8 +553,6 @@ defmodule Oneiroi.Sunna do
       {:sunna_queue_block_refused,
        "a block may wait on another task's completion, never its own, never one that does not exist, and never close a loop of waits at any length",
        remedy: "name a different task, or give only a reason and clear it by hand"},
-      {:sunna_queue_cutover, "the cutover happens once, and its revert only after it",
-       remedy: "read the queue's state"},
       {:sunna_queue_dispatch_failed, "the house queue's command was not recorded",
        remedy: "try again; a repeat is a fault to report"},
       {:sunna_dispatch_failed, "the schedule's command was not recorded on its stream",
@@ -715,60 +689,7 @@ defmodule Oneiroi.Sunna do
     do: Schedules.set_rounds(resident_id, every_hours, waking, actor)
   )
 
-  @doc "Adds an item to the work queue (sunna#33): what, and what done looks like; returns its number. The resident's and the witness's alike."
-  @spec work_add(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
-          {:ok, pos_integer()} | {:error, term()}
-  defexport(work_add(resident_id, what, done_when, actor),
-    do: WorkLoop.add(resident_id, what, done_when, actor)
-  )
-
-  @doc "Moves a work item's status (open, blocked with what blocks it, done, dropped), with a note. Moving a held item clears its hold (sunna#55)."
-  @spec work_move(
-          String.t(),
-          pos_integer(),
-          String.t(),
-          String.t() | nil,
-          String.t(),
-          Oneiroi.Actor.t()
-        ) :: :ok | {:error, term()}
-  defexport(work_move(resident_id, number, status, blocked_on, note, actor),
-    do: WorkLoop.move(resident_id, number, status, blocked_on, note, actor)
-  )
-
-  @doc "Holds a work item for the witness (sunna#54): `ask` in plain words says what is needed of him; either party's, with an optional note."
-  @spec work_hold(
-          String.t(),
-          pos_integer(),
-          String.t() | nil,
-          String.t() | nil,
-          Oneiroi.Actor.t()
-        ) ::
-          :ok | {:error, term()}
-  defexport(work_hold(resident_id, number, ask, note, actor),
-    do: WorkLoop.hold(resident_id, number, ask, note, actor)
-  )
-
-  @doc "Reorders the work queue: the numbers given first, in that order."
-  @spec work_order(String.t(), [pos_integer()], Oneiroi.Actor.t()) :: :ok | {:error, term()}
-  defexport(work_order(resident_id, numbers, actor),
-    do: WorkLoop.order(resident_id, numbers, actor)
-  )
-
-  @doc "Her wrap of the running item: shipped, slipped, why, status, blocked_on, and ask when it is held (sunna#56)."
-  @spec work_wrap(String.t(), pos_integer(), map(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
-  defexport(work_wrap(resident_id, number, attrs, actor),
-    do: WorkLoop.wrap(resident_id, number, attrs, actor)
-  )
-
-  @doc "Arms the work line for a batch (sunna#35): the resident's act, by tool call."
-  @spec work_arm(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
-  defexport(work_arm(resident_id, actor), do: WorkLoop.arm(resident_id, actor))
-
-  @doc "Turns the work line off by hand (sunna#43): the witness's; the run in work finishes."
-  @spec work_disarm(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
-  defexport(work_disarm(resident_id, actor), do: WorkLoop.disarm_by(resident_id, actor))
-
-  @doc "Gives the day's work runs back (sunna#53): the witness's, with a note; the loop checks at once."
+  @doc "Gives the work runs back (sunna#53, #101): the witness's, with a note; the loop checks at once."
   @spec work_reset_runs(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(work_reset_runs(resident_id, note, actor),
     do: WorkLoop.reset_runs_by(resident_id, note, actor)
@@ -780,7 +701,7 @@ defmodule Oneiroi.Sunna do
     do: WorkLoop.skip_care_by(resident_id, note, actor)
   )
 
-  @doc "The work queue: its items in order and the loop's state, both parties' read."
+  @doc "The work line: what runs, why it rests, and its runs (sunna#33, #102); both parties' read."
   @spec work_queue(String.t()) :: map()
   defexport(work_queue(resident_id), do: WorkLoop.queue(resident_id))
 
@@ -940,19 +861,6 @@ defmodule Oneiroi.Sunna do
     do: Queues.drop(household_id, task, note, actor)
   )
 
-  @doc "Turns the house queue on (§6.2), naming the commit that holds the old one."
-  @spec queue_cut_over(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
-          :ok | {:error, term()}
-  defexport(queue_cut_over(household_id, commit, note, actor),
-    do: Queues.cut_over(household_id, commit, note, actor)
-  )
-
-  @doc "Reverts the cutover in one step (§6.2)."
-  @spec queue_cut_back(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
-  defexport(queue_cut_back(household_id, note, actor),
-    do: Queues.cut_back(household_id, note, actor)
-  )
-
   @doc "Pauses the house queue for every resident (sunna#94)."
   @spec queue_pause(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(queue_pause(household_id, note, actor), do: Queues.pause(household_id, note, actor))
@@ -961,13 +869,9 @@ defmodule Oneiroi.Sunna do
   @spec queue_resume(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(queue_resume(household_id, note, actor), do: Queues.resume(household_id, note, actor))
 
-  @doc "The house queue's state: cut over and its commit."
+  @doc "The house queue's state: whether it is paused (sunna#94)."
   @spec queue_state(String.t()) :: Oneiroi.Sunna.QueueStore.State.t()
   defexport(queue_state(household_id), do: Queues.state(household_id))
-
-  @doc "Whether the household has cut over to the house queue."
-  @spec queue_cut_over?(String.t() | nil) :: boolean()
-  defexport(queue_cut_over?(household_id), do: Queues.cut_over?(household_id))
 
   @doc "The household's projects."
   @spec queue_projects(String.t()) :: [Oneiroi.Sunna.QueueStore.Project.t()]

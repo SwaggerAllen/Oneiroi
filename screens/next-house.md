@@ -255,9 +255,9 @@ browser's back steps through: `task/<n>`, `task/<n>/act/<id>`,
   Remove write into the template's draft, which is kept while its pages
   open and close. What the shape rule would refuse is listed before
   **Save the template** (sunna#88); tasks already open keep their layers.
-- **Setting up** (witnesses only): the starter templates to add, and the
-  cutover: commit the old queue, then turn the house queue on naming that
-  commit, or revert with a note.
+- **Setting up** (witnesses only): the starter templates to add. The
+  cutover from the old work queues and its revert are retired with them
+  (sunna#102); the house queue runs unless paused.
 - **Memory backfill** (witnesses only, at the bottom): each resident's
   backfill as it stands (pass, day, turn, through when), with Stop while
   one runs; tick the residents that need one, a range of days (from
@@ -273,9 +273,8 @@ browser's back steps through: `task/<n>`, `task/<n>/act/<id>`,
   threads notice the house's threads and the document screens; her own
   threads arrive on her channel (`ThreadWritten` on `threads`). Nothing
   polls but a running backfill's status (sunna#87).
-- **After the cutover** a resident's Work card in Settings keeps her
-  line (arm, off, runs, care) and links here; her old items stay below,
-  read-only (sunna#86).
+- A resident's Work card in Settings shows her line (what it runs, why
+  it rests, its runs, care) and links here (sunna#86, #102).
 
 ## The document screen
 

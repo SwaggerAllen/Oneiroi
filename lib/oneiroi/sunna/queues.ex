@@ -505,25 +505,6 @@ defmodule Oneiroi.Sunna.Queues do
         note: note
       })
 
-  @doc "Turns the house queue on (§6.2), naming the commit that holds the old queue: a witness's."
-  def cut_over(household_id, commit, note, %Actor{} = actor) do
-    with :ok <-
-           dispatch(household_id, actor, %C.CutOver{
-             actor: actor,
-             at: Clock.now(),
-             id: household_id,
-             commit: commit,
-             note: note
-           }) do
-      # Each resident's old loop checks once, finds the house queue on,
-      # turns its line off and rests saying why.
-      for %{kind: "resident", id: id} <- members(household_id),
-          do: work_worker().enqueue_check(id)
-
-      :ok
-    end
-  end
-
   @doc "Pauses the house queue for every resident (sunna#94): a witness's, with a note."
   def pause(household_id, note, %Actor{} = actor),
     do:
@@ -549,16 +530,6 @@ defmodule Oneiroi.Sunna.Queues do
       :ok
     end
   end
-
-  @doc "The one-step revert (§6.2): the old queue's screens and loop back on over its untouched rows."
-  def cut_back(household_id, note, %Actor{} = actor),
-    do:
-      dispatch(household_id, actor, %C.CutBack{
-        actor: actor,
-        at: Clock.now(),
-        id: household_id,
-        note: note
-      })
 
   defp dispatch(household_id, actor, command) do
     with :ok <- member(household_id, actor),
@@ -734,11 +705,8 @@ defmodule Oneiroi.Sunna.Queues do
 
   # ---- reads ----
 
-  @doc "The queue's state: cut over or not, and the commit that holds the old queue."
+  @doc "The queue's state: paused or not (sunna#94)."
   def state(household_id), do: QueueState.get(household_id)
-
-  @doc "Whether the household has cut over to the house queue (§6.2)."
-  def cut_over?(household_id), do: QueueState.cut_over?(household_id)
 
   @doc "The household's projects, open first, then by name."
   def projects(household_id) do

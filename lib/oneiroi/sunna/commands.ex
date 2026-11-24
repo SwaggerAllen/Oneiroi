@@ -114,30 +114,8 @@ defmodule Oneiroi.Sunna.Commands do
     use Oneiroi.Command, fields: [:id, :session_key, :cost_nanos]
   end
 
-  # The work queue (sunna#33), on `work-<resident_id>`.
-
-  defmodule AddWork do
-    use Oneiroi.Command, fields: [:id, :what, :done_when]
-  end
-
-  defmodule MoveWork do
-    # `ask`: what a held item needs from the witness (sunna#54), required
-    # with status `held` and nothing otherwise.
-    use Oneiroi.Command,
-      fields: [:id, :number, :status, :blocked_on, :ask],
-      decision: true,
-      bounds: [status: 16, blocked_on: 300]
-  end
-
-  defmodule OrderWork do
-    use Oneiroi.Command, fields: [:id, :order]
-  end
-
-  defmodule WrapWork do
-    use Oneiroi.Command,
-      fields: [:id, :number, :shipped, :slipped, :why, :status, :blocked_on, :ask],
-      bounds: [status: 16, blocked_on: 300]
-  end
+  # The work line (sunna#33, #86), on `work-<resident_id>`; the old
+  # queue's item commands retired (sunna#102).
 
   # A run of a house queue activity on her work line (sunna#86): the
   # household, the task and the activity, in its conversation, on her day.
@@ -147,22 +125,6 @@ defmodule Oneiroi.Sunna.Commands do
 
   defmodule EndActivityRun do
     use Oneiroi.Command, fields: [:id, :act, :stopped, :cut, :moved]
-  end
-
-  defmodule StartWork do
-    use Oneiroi.Command, fields: [:id, :number, :session_key, :day]
-  end
-
-  defmodule EndWork do
-    use Oneiroi.Command, fields: [:id, :number, :stopped]
-  end
-
-  defmodule ArmWork do
-    use Oneiroi.Command, fields: [:id]
-  end
-
-  defmodule DisarmWork do
-    use Oneiroi.Command, fields: [:id]
   end
 
   defmodule ResetWorkRuns do

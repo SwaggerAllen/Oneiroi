@@ -364,23 +364,6 @@ defmodule Oneiroi.Sunna.Queue do
     end
   end
 
-  # ---- the cutover ----
-
-  def execute(%__MODULE__{cut_over: false}, %C.CutOver{actor: %{kind: :witness}} = c) do
-    if words?(c.commit, 64),
-      do: %E.CutOver{actor: c.actor, at: c.at, id: c.id, commit: c.commit, note: c.note},
-      else: {:error, Error.new(:sunna_queue_invalid, :sunna_queue_cutover_commit)}
-  end
-
-  def execute(%__MODULE__{cut_over: true}, %C.CutOver{actor: %{kind: :witness}}),
-    do: {:error, Error.new(:sunna_queue_cutover, :sunna_queue_cutover_already)}
-
-  def execute(%__MODULE__{cut_over: true}, %C.CutBack{actor: %{kind: :witness}} = c),
-    do: %E.CutBack{actor: c.actor, at: c.at, id: c.id, note: c.note}
-
-  def execute(%__MODULE__{cut_over: false}, %C.CutBack{actor: %{kind: :witness}}),
-    do: {:error, Error.new(:sunna_queue_cutover, :sunna_queue_cutback_not_cut)}
-
   # The house queue's switch (sunna#94): a witness's, said with a note;
   # pausing what is paused, or resuming what runs, is nothing.
   def execute(%__MODULE__{paused: false}, %C.PauseQueue{actor: %{kind: :witness}} = c),
@@ -397,12 +380,6 @@ defmodule Oneiroi.Sunna.Queue do
 
   def execute(%__MODULE__{}, %C.ResumeQueue{}),
     do: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_resume_witness_only)}
-
-  def execute(%__MODULE__{}, %C.CutOver{}),
-    do: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_cutover_witness_only)}
-
-  def execute(%__MODULE__{}, %C.CutBack{}),
-    do: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_cutback_witness_only)}
 
   # ---- apply ----
 
@@ -520,6 +497,8 @@ defmodule Oneiroi.Sunna.Queue do
   def apply(%__MODULE__{} = s, %E.TaskDropped{} = e),
     do: %{s | tasks: Map.update!(s.tasks, e.task, &%{&1 | status: "dropped"})}
 
+  # The cutover's history (sunna#80), kept for replay since the old work
+  # queue retired (sunna#102); nothing records it any more.
   def apply(%__MODULE__{} = s, %E.CutOver{}), do: %{s | cut_over: true}
   def apply(%__MODULE__{} = s, %E.CutBack{}), do: %{s | cut_over: false}
   def apply(%__MODULE__{} = s, %E.QueuePaused{}), do: %{s | paused: true}

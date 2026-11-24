@@ -102,7 +102,7 @@ defmodule Oneiroi.Brain.Tools do
     contract_propose contract_agree contract_decline contract_renew contract_safe revision_add
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
     keepsake_register document_archive
-    platform_report triage_move work_add work_move work_order work_wrap work_arm
+    platform_report triage_move
     external_add external_fetch plugin_propose plugin_answer plugin_off
     kind_define kind_gate kind_gate_answer route_define route_ask theme_propose
     household_post household_edit household_mute household_reply household_watch household_sign household_register household_profile
@@ -154,7 +154,7 @@ defmodule Oneiroi.Brain.Tools do
 
   # Where the triage resident's platform problems go, said wherever the
   # rail would have been.
-  @triage_problems "You hold the triage desk, so platform_report is not yours: a filed report reaches only the triage list you read, and wakes nobody. A platform problem you find, a fix you want, goes to the house as a work order: a letter to the Claude Code conversation (letter_send) naming what is wrong and what fixed looks like, or a work item on your queue (work_add) when it is yours to carry."
+  @triage_problems "You hold the triage desk, so platform_report is not yours: a filed report reaches only the triage list you read, and wakes nobody. A platform problem you find, a fix you want, goes to the house as a work order: a letter to the Claude Code conversation (letter_send) naming what is wrong and what fixed looks like, or a task in the house queue (queue_task_open) when it is yours to carry."
 
   @doc """
   The tool definitions a resident's request carries: every tool, less
@@ -601,7 +601,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "free_time_plan",
-        "Plan your next free-time slot (sunna#31), in your words: what you mean to do, where you left off, the tools you expect to reach for. The slot is your own time, for you: not for the day's work, the queue or your witness's reads; project work you want goes on the work line as a work item (work_add), never on the free-time budget (sunna#46). It is read at the start of that slot. Intention, not a fence: every tool stays yours. Writing it again replaces it.",
+        "Plan your next free-time slot (sunna#31), in your words: what you mean to do, where you left off, the tools you expect to reach for. The slot is your own time, for you: not for the day's work, the queue or your witness's reads; project work you want goes to the house queue as a task (queue_task_open), run on your work line, never on the free-time budget (sunna#46). It is read at the start of that slot. Intention, not a fence: every tool stays yours. Writing it again replaces it.",
         %{text: %{type: "string"}},
         [:text]
       ),
@@ -728,53 +728,9 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "work_list",
-        "Your work queue (sunna#33), in priority order: each long item with its number, status (open, in_work, blocked and on what, held and what it asks of your witness, done, dropped), who added it, its runs and its last wrap; and the loop's state, the item running or why it rests. Your witness reads the same list.",
+        "Your work line (sunna#33, #86): the house queue activity it is running, or why it rests; the day's runs and each activity's since it last moved (sunna#101); and the last run the platform cut off, if any (sunna#100). Your work itself is the house queue's: queue_list and queue_task read it.",
         %{},
         []
-      ),
-      tool(
-        "work_add",
-        "Add a long, multi-turn item to your work queue (sunna#33): what (one line, at most 300 characters) and done_when (what done looks like). It goes to the end; work_order moves it. Anything a conversation turn can finish stays in conversation. Your witness adds his the same way.",
-        %{what: %{type: "string"}, done_when: %{type: "string"}},
-        [:what, :done_when]
-      ),
-      tool(
-        "work_move",
-        "Set a work item's status with a note: open, blocked, held, done or dropped. Blocked means waiting on another item of your queue: name it by number in blocked_on (12 or #12); when that item is done or dropped, this one opens again by itself. Held means its next move is your witness's (sunna#54): say in ask, in plain words, what you need from him (\"your word on two wordings\"; at most 500 characters); it shows on his Waiting list and his devices with that ask, and the loop steps over it until it is released (moved open again, by him with a note you read, or by you), done or dropped. A draft, ask or piece already on his list needs no hold; hold the item when the work itself waits on his word. The loop runs the first open item in order; in_work is the loop's own.",
-        %{
-          number: %{type: "integer"},
-          status: %{type: "string", enum: ["open", "blocked", "held", "done", "dropped"]},
-          blocked_on: %{type: "string"},
-          ask: %{type: "string"},
-          note: %{type: "string"}
-        },
-        [:number, :status, :note]
-      ),
-      tool(
-        "work_order",
-        "Reorder your work queue: the numbers you give go first, in that order; the rest keep their order after them.",
-        %{order: %{type: "array", items: %{type: "integer"}}},
-        [:order]
-      ),
-      tool(
-        "work_arm",
-        "Arm the work line for a batch (sunna#35): the loop then runs your queue item after item, each run's end starting the next, until the queue clears and the line goes off by itself. Once a batch, not once an item. Runs bill the work line: unlimited unless your witness caps it, and a spent cap holds the loop.",
-        %{},
-        []
-      ),
-      tool(
-        "work_wrap",
-        "Wrap the run of the item in work now (sunna#33): what shipped, what slipped (if anything), why, and where it stands: done, open (another run picks it up), blocked (on another item, by number) or held (what remains is your witness's word: say in ask what you need from him, and it waits on his list until he releases it, sunna#56). Recorded on the queue for you both to read.",
-        %{
-          number: %{type: "integer"},
-          shipped: %{type: "string"},
-          slipped: %{type: "string"},
-          why: %{type: "string"},
-          status: %{type: "string", enum: ["done", "open", "blocked", "held"]},
-          blocked_on: %{type: "string"},
-          ask: %{type: "string"}
-        },
-        [:number, :shipped, :why, :status]
       ),
       tool(
         "tool_request",
@@ -3216,74 +3172,6 @@ defmodule Oneiroi.Brain.Tools do
 
   defp call("work_list", _args, turn), do: work_text(Oneiroi.Sunna.work_queue(turn.resident_id))
 
-  defp call("work_add", args, turn) do
-    with {:ok, n} <-
-           Oneiroi.Sunna.work_add(
-             turn.resident_id,
-             to_string(args["what"] || ""),
-             to_string(args["done_when"] || ""),
-             turn.resident
-           ),
-         do: "Added as work item ##{n}, at the end of the queue."
-  end
-
-  defp call("work_move", %{"status" => "held"} = args, turn) do
-    with :ok <-
-           Oneiroi.Sunna.work_hold(
-             turn.resident_id,
-             integer_or(args["number"], 0),
-             args["ask"],
-             args["note"],
-             turn.resident
-           ),
-         do: "Work item ##{args["number"]} is held for your witness: #{args["ask"]}"
-  end
-
-  defp call("work_move", args, turn) do
-    with :ok <-
-           Oneiroi.Sunna.work_move(
-             turn.resident_id,
-             integer_or(args["number"], 0),
-             to_string(args["status"] || ""),
-             args["blocked_on"],
-             to_string(args["note"] || ""),
-             turn.resident
-           ),
-         do: "Work item ##{args["number"]} is #{args["status"]}."
-  end
-
-  defp call("work_order", args, turn) do
-    numbers = args["order"] |> List.wrap() |> Enum.map(&integer_or(&1, 0))
-
-    with :ok <- Oneiroi.Sunna.work_order(turn.resident_id, numbers, turn.resident),
-         do: "Reordered: #{Enum.map_join(numbers, ", ", &"##{&1}")} first."
-  end
-
-  defp call("work_arm", _args, turn) do
-    with :ok <- Oneiroi.Sunna.work_arm(turn.resident_id, turn.resident),
-         do: "Armed: the loop runs your queue until it clears; the line goes off by itself then."
-  end
-
-  defp call("work_wrap", args, turn) do
-    attrs = %{
-      shipped: args["shipped"],
-      slipped: args["slipped"],
-      why: args["why"],
-      status: args["status"],
-      blocked_on: args["blocked_on"],
-      ask: args["ask"]
-    }
-
-    with :ok <-
-           Oneiroi.Sunna.work_wrap(
-             turn.resident_id,
-             integer_or(args["number"], 0),
-             attrs,
-             turn.resident
-           ),
-         do: "Wrapped: work item ##{args["number"]} is #{args["status"]}."
-  end
-
   defp call("tool_request", args, turn),
     do: ask(turn, "tool", args["tool"], args["why"], @asked["tool"])
 
@@ -4546,62 +4434,39 @@ defmodule Oneiroi.Brain.Tools do
          do: "Asked as ##{n}. " <> then_words
   end
 
-  # The work queue as she reads it (sunna#33): the loop's state, then
-  # each item in order with its last wrap.
-  defp work_text(%{items: []} = q), do: "Your work queue is empty. " <> work_state(q)
+  # Her work line as she reads it (sunna#33, #86, #102): what runs or
+  # why it rests, then its runs.
+  defp work_text(q) do
+    runs =
+      "Runs today: #{q.runs_today} of #{q.runs_a_day}." <>
+        case q.activity_runs do
+          [] ->
+            ""
 
-  defp work_text(q),
-    do: work_state(q) <> "\n\n" <> Enum.map_join(q.items, "\n", &work_line/1)
+          acts ->
+            " Since each last moved: " <>
+              Enum.map_join(acts, ", ", &"#{&1.act} #{&1.runs} of #{q.runs_an_activity}") <> "."
+        end
 
-  # The run and the arm are two facts, said apart (sunna#41): a run
-  # never implies the line is armed, nor the other way round.
-  defp work_state(q), do: loop_state(q) <> skipping(q) <> " " <> arm_state(q)
+    cut =
+      case q.cut do
+        %{act: act, key: key} ->
+          " Your last run of #{act} was cut off by the platform; it is in conversation #{key}."
 
-  defp loop_state(%{running: n}) when is_integer(n), do: "The loop is running item ##{n}."
-
-  defp loop_state(%{rested: reason, rested_at: at}) when is_binary(reason),
-    do: "The loop rests: #{reason} (since #{local_stamp(at)})."
-
-  defp loop_state(_q), do: "The loop has not run yet."
-
-  # The loop runs the first open item and steps over blocked and held
-  # ones (sunna#42, #54): said once, so a skip never reads as a stall.
-  defp skipping(%{items: items}) do
-    blocked = for %{status: "blocked"} = i <- items, do: "##{i.number} (on #{i.blocked_on})"
-    held = for %{status: "held"} = i <- items, do: "##{i.number}"
-
-    steps(blocked, " It steps over what is blocked: ") <>
-      steps(held, " It steps over what is held for your witness: ")
-  end
-
-  defp steps([], _said), do: ""
-  defp steps(numbers, said), do: said <> Enum.join(numbers, ", ") <> "."
-
-  defp arm_state(%{armed: true, armed_at: %DateTime{} = at} = q),
-    do: "The work line is armed#{armed_by(q)} (since #{local_stamp(at)})."
-
-  defp arm_state(%{armed: true}), do: "The work line is armed."
-  defp arm_state(_q), do: "The work line is off; work_arm arms it for a batch."
-
-  # Who armed it (sunna#43): her tool, or his button.
-  defp armed_by(%{armed_by: "witness"}), do: " by your witness"
-  defp armed_by(%{armed_by: "resident"}), do: " by you"
-  defp armed_by(_q), do: ""
-
-  defp work_line(item) do
-    blocked =
-      cond do
-        item.status == "held" -> ", asking your witness: #{item[:held_ask]}"
-        item.blocked_on -> " on #{item.blocked_on}"
-        true -> ""
+        _none ->
+          ""
       end
 
-    wrap =
-      if item.wrapped_at, do: " Last wrap: shipped #{item.shipped}; why: #{item.why}.", else: ""
-
-    "##{item.number} [#{item.status}#{blocked}] #{item.what}. Done when: #{item.done_when} " <>
-      "(added by #{item.added_by}, #{item.runs} runs).#{wrap}"
+    line_state(q) <> " " <> runs <> cut
   end
+
+  defp line_state(%{running_act: act, running_task: task}) when is_binary(act),
+    do: "Your line is running activity #{act} of task ##{task}."
+
+  defp line_state(%{rested: reason, rested_at: at}) when is_binary(reason),
+    do: "Your line rests: #{reason} (since #{local_stamp(at)})."
+
+  defp line_state(_q), do: "Your line has not run yet."
 
   defp ask_line(a) do
     answer =

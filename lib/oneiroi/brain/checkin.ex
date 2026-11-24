@@ -167,7 +167,6 @@ defmodule Oneiroi.Brain.Checkin do
   defp waiting_label("ask"), do: "ask(s) to answer"
   defp waiting_label("piece_to_review"), do: "piece(s) to review"
   defp waiting_label("piece_to_publish"), do: "drafted piece(s) to publish"
-  defp waiting_label("work_held"), do: "work item(s) held for his word"
   defp waiting_label("work_blocked"), do: "work item(s) blocked"
   defp waiting_label("plugin_proposal"), do: "plugin proposal(s) of hers to answer"
   defp waiting_label("kind_gate_proposal"), do: "kind gate proposal(s) of hers to answer"

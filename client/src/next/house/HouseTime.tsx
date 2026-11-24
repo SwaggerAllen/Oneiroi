@@ -282,6 +282,12 @@ function cause(c: Record<string, unknown>): string {
       return String(c.key ?? '');
     case 'pass':
       return `${String(c.pass)} pass, turn ${String(c.turn)}`;
+    // The work line's runs of house queue activities (sunna#86).
+    case 'activity':
+      return `activity ${String(c.act)} of task #${String(c.task)}, turn ${String(c.turn)}`;
+    case 'activity_wrap':
+      return `activity ${String(c.act)} of task #${String(c.task)}, its wrap`;
+    // The old queue's items, retired (sunna#102): read in the log's history.
     case 'work':
       return `item #${String(c.number)}, turn ${String(c.turn)}`;
     case 'work_wrap':

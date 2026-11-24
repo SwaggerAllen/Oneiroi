@@ -317,11 +317,6 @@ defmodule Oneiroi.Brain.TrialTest do
     # Presence (xenia#20): a trial reads nothing from Substack and stages nothing.
     {"presence_read", %{item: "p-1"}},
     {"presence_stage", %{item: "p-1", kind: "like"}},
-    {"work_add", %{what: "the heron piece", done_when: "drafted"}},
-    {"work_move", %{number: 1, status: "done", note: "drafted"}},
-    {"work_order", %{order: [1]}},
-    {"work_arm", %{}},
-    {"work_wrap", %{number: 1, shipped: "a draft", why: "it was next", status: "done"}},
     {"platform_report", %{kind: "bug", body: "the herons tool froze"}},
     {"triage_move", %{number: 1, status: "resolved", note: "fixed"}},
     {"oracle_ask", %{questions: [%{question: "the herons?"}]}},

@@ -665,3 +665,6 @@ A run is only as alive as the job that carries it, and an executing job is only 
 
 ## #101
 The day's cap guarded against one thing, a loop that never empties, and it guarded by starving everything: once review feedback made runs short and many, honest work spent it by mid-morning, and the one runaway that did happen (an activity rerun every few minutes while its records were refused) spent it fastest. The runaway is per activity, so the guard is too: twenty runs that leave an activity exactly where it was is a loop, not work, and anything that moves it is progress and starts the count over. With that in place the day's cap only needs to catch what nothing else would, so it moves far out of the way.
+
+## #102
+Two queues with one line between them was a cost paid every day for a revert nobody would take: the item tools stayed in her context, a frozen queue answered "read-only" to anything that touched it, the cutover's checks sat in every path, and the held-items source read a list that could no longer change. Retiring the behaviour while keeping every event keeps the history honest, and the readable record of what moved is already in the house repository.

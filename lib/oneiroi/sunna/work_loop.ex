@@ -1,27 +1,22 @@
 defmodule Oneiroi.Sunna.WorkLoop do
   @moduledoc """
-  The work queue's command edge, its reads, and the loop that runs it
-  (sunna#33; Lily's design, `design/work-queue.md`, on the witness's
-  recursive-iteration shape of 2026-11-06).
+  The resident's work line: the loop that runs her house queue
+  activities (sunna#86), its reads and the witness's few levers
+  (sunna#33's loop; the old work queue's items retired, sunna#102).
 
-  The loop is the schedule: there is no calendar. A check reads the
-  queue and either starts the first open item, in priority order, or
-  rests and says why ("empty, holding", a state like any other). A run
-  is a conversation of kind `work`, a turn at a time on the `work`
-  budget line, a brake and never an ignition (sunna#35): the line is
-  armed while the queue has work and off when it is clear, its cap,
-  when the witness sets one, stops a run, and with none it is unlimited,
-  as the chat line is. Carried on while a turn runs out of tool rounds (as free
-  time is, sunna#26), up to `SUNNA_WORK_TURNS`; then the wrap, one
-  closing turn in which she records what shipped, what slipped and why.
-  The run's end buys the next check at once, and the minute tick checks
-  too, so a loop paused for care resumes after it.
+  The loop is the schedule: there is no calendar. A check reads her
+  house queue and either starts the first activity of hers that is
+  ready, or rests and says why, a state like any other. A run is a
+  conversation of kind `work`, a turn at a time on the `work` budget
+  line, carried on while a turn runs out of tool rounds, up to
+  `SUNNA_WORK_TURNS`, then a closing turn. The run's end buys the next
+  check at once, and the minute tick checks too, so a loop paused for
+  care resumes after it.
 
   Care outranks work: no work turn starts while a free-time pass is
-  underway; one that would is put off and tried again. Quiet hours do
-  not hold it (sunna#77): the runs-a-day cap is its brake. The queue accelerates her drafting, never the witness's
-  deciding: the run's note says so, and nothing here acts on the
-  platform.
+  underway; one that would is put off and tried again. The house queue
+  speeds her drafting, never the witness's deciding: the run's note says
+  so, and nothing here acts on the platform.
   """
 
   alias Oneiroi.Actor
@@ -50,149 +45,12 @@ defmodule Oneiroi.Sunna.WorkLoop do
   @free_time_window 3 * 3600
   # How long a work turn waits when care comes first.
   @care_wait 600
-  # What an armed line waiting on her free time says (sunna#75).
+  # What a line waiting on her free time says (sunna#75).
   @care_reason "waiting: a free-time pass is underway, and care comes first; work resumes when it closes"
 
-  # ---- the queue's edge ----
+  # ---- the witness's levers ----
 
-  @doc "Adds an item to the end of the queue; returns its number."
-  def add(resident_id, what, done_when, %Actor{} = actor) do
-    with :ok <- open_for_work(resident_id), do: added(resident_id, what, done_when, actor)
-  end
-
-  defp added(resident_id, what, done_when, actor) do
-    command = %Commands.AddWork{
-      actor: actor,
-      at: Clock.now(),
-      id: resident_id,
-      what: what,
-      done_when: done_when
-    }
-
-    case dispatch(command) do
-      {:ok, [event]} -> checked(resident_id, {:ok, event.number})
-      {:ok, []} -> {:error, Error.new(:sunna_work_invalid, :sunna_work_add_not_recorded)}
-      other -> other
-    end
-  end
-
-  @doc "Moves an item's status (open, blocked with what blocks it, done, dropped), with a note; held is `hold/5`."
-  def move(resident_id, number, status, blocked_on, note, %Actor{} = actor) do
-    with :ok <- open_for_work(resident_id),
-         do: moved(resident_id, number, status, blocked_on, note, actor)
-  end
-
-  defp moved(resident_id, number, status, blocked_on, note, actor) do
-    command = %Commands.MoveWork{
-      actor: actor,
-      at: Clock.now(),
-      id: resident_id,
-      number: number,
-      status: status,
-      blocked_on: blocked_on,
-      note: note
-    }
-
-    with {:ok, _} <- dispatch(command), do: checked(resident_id, :ok)
-  end
-
-  @doc """
-  Holds an item for the witness (sunna#54): its next move is his, and
-  `ask` says what is needed of him in plain words. Either party's; the
-  note, when none is given, says only that it is held. It clears when
-  the item is moved or started (sunna#55).
-  """
-  def hold(resident_id, number, ask, note, %Actor{} = actor) do
-    with :ok <- open_for_work(resident_id), do: held(resident_id, number, ask, note, actor)
-  end
-
-  defp held(resident_id, number, ask, note, actor) do
-    command = %Commands.MoveWork{
-      actor: actor,
-      at: Clock.now(),
-      id: resident_id,
-      number: number,
-      status: "held",
-      ask: ask,
-      note: if(blank?(note), do: "Held for the witness's word.", else: note)
-    }
-
-    with {:ok, _} <- dispatch(command), do: checked(resident_id, :ok)
-  end
-
-  defp blank?(text), do: not is_binary(text) or String.trim(text) == ""
-
-  @doc "Puts the numbers given first, in that order; the rest keep theirs after."
-  def order(resident_id, numbers, %Actor{} = actor) do
-    with :ok <- open_for_work(resident_id), do: ordered(resident_id, numbers, actor)
-  end
-
-  defp ordered(resident_id, numbers, actor) do
-    command = %Commands.OrderWork{actor: actor, at: Clock.now(), id: resident_id, order: numbers}
-    with {:ok, _} <- dispatch(command), do: checked(resident_id, :ok)
-  end
-
-  # After the cutover (sunna#80, lily:design/queue-ia §6.2) this queue is
-  # read-only: its rows and events stay, untouched, so the revert is one
-  # step; the house queue takes the work. A run in work still wraps.
-  defp open_for_work(resident_id) do
-    if cut_over?(resident_id),
-      do: {:error, Error.new(:sunna_work_frozen, :sunna_work_cut_over)},
-      else: :ok
-  end
-
-  defp cut_over?(resident_id) do
-    case Oneiroi.Gaia.resident_household(resident_id) do
-      %{id: h} -> QueueState.cut_over?(h)
-      _none -> false
-    end
-  end
-
-  # A change to the queue asks the loop at once (sunna#76; Lily's letter
-  # #1414), as arming and a run's end do, rather than waiting on the tick.
-  defp checked(resident_id, result) do
-    worker().enqueue_check(resident_id)
-    result
-  end
-
-  @doc "Her wrap of the running item: what shipped, what slipped, why, and where it stands."
-  def wrap(resident_id, number, attrs, %Actor{} = actor) do
-    command = %Commands.WrapWork{
-      actor: actor,
-      at: Clock.now(),
-      id: resident_id,
-      number: number,
-      shipped: attrs[:shipped],
-      slipped: attrs[:slipped],
-      why: attrs[:why],
-      status: attrs[:status],
-      blocked_on: attrs[:blocked_on],
-      ask: attrs[:ask]
-    }
-
-    with {:ok, _} <- dispatch(command), do: :ok
-  end
-
-  @doc """
-  Arms the work line for a batch (sunna#35, the witness's call): her act,
-  by tool call, once; the loop then fires item after item, each run's end
-  starting the next, until the queue clears and the line goes off.
-  """
-  def arm(resident_id, %Actor{} = actor) do
-    with {:ok, _} <- dispatch(%Commands.ArmWork{actor: actor, at: Clock.now(), id: resident_id}) do
-      worker().enqueue_check(resident_id)
-      :ok
-    end
-  end
-
-  @doc "The witness turns the work line off by hand (sunna#43); the run in work finishes."
-  def disarm_by(resident_id, %Actor{} = actor) do
-    with {:ok, _} <-
-           dispatch(%Commands.DisarmWork{actor: actor, at: Clock.now(), id: resident_id}),
-         do: :ok
-  end
-
-  @doc "The witness gives the day's runs back (sunna#53), with a note; the loop checks at once."
+  @doc "The witness gives the runs back (sunna#53, #101), with a note; the loop checks at once."
   def reset_runs_by(resident_id, note, %Actor{} = actor) do
     command = %Commands.ResetWorkRuns{actor: actor, at: Clock.now(), id: resident_id, note: note}
 
@@ -205,7 +63,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   @doc """
   The witness skips the free-time wait (sunna#76), with a note: a pass
   begun before now no longer holds the line, and the loop checks at once.
-  Quiet hours still hold it, and so does any pass begun later.
+  Any pass begun later holds it again.
   """
   def skip_care_by(resident_id, note, %Actor{} = actor) do
     command = %Commands.SkipCareWait{actor: actor, at: Clock.now(), id: resident_id, note: note}
@@ -216,46 +74,11 @@ defmodule Oneiroi.Sunna.WorkLoop do
     end
   end
 
-  defp disarm(resident_id),
-    do: dispatch(%Commands.DisarmWork{actor: @actor, at: Clock.now(), id: resident_id})
-
-  @doc "The queue as both parties read it: the items in order and the loop's state."
+  @doc "The line as both parties read it: what runs, why it rests, and its runs."
   def queue(resident_id) do
-    {items, state} =
-      Scope.resident(resident_id, fn -> {Store.work_items(), Store.work_queue()} end)
+    state = Scope.resident(resident_id, fn -> Store.work_queue() end)
 
     %{
-      items:
-        Enum.map(
-          items,
-          &Map.take(&1, [
-            :number,
-            :what,
-            :done_when,
-            :status,
-            :blocked_on,
-            :held_ask,
-            :held_by,
-            :held_at,
-            :position,
-            :added_by,
-            :added_at,
-            :note,
-            :moved_by,
-            :moved_at,
-            :shipped,
-            :slipped,
-            :why,
-            :wrapped_at,
-            :runs,
-            :session_key,
-            :first_started_at,
-            :worked_seconds
-          ])
-        ),
-      running: live(state, items),
-      # Whether the house queue has the line (sunna#84, #86).
-      house_queue: cut_over?(resident_id),
       # The last run the check ended rather than she (sunna#100).
       cut: cut(state),
       runs_today: runs_today(resident_id, state),
@@ -268,247 +91,54 @@ defmodule Oneiroi.Sunna.WorkLoop do
       runs_an_activity: Config.fetch!(:sunna, :work_runs_an_activity),
       budget: budget(resident_id)
     }
-    |> Map.merge(line_state(state, live(state, items)))
+    |> Map.merge(line_state(state))
   end
 
-  defp line_state(nil, _live),
-    do: %{
-      running_since: nil,
-      running_act: nil,
-      running_task: nil,
-      rested: nil,
-      rested_at: nil,
-      armed: false,
-      armed_at: nil,
-      armed_by: nil
-    }
+  defp line_state(nil),
+    do: %{running_since: nil, running_act: nil, running_task: nil, rested: nil, rested_at: nil}
 
-  defp line_state(state, live),
+  defp line_state(state),
     do: %{
-      running_since: if(live || state.running_act, do: state.running_since),
-      # A house queue activity running on the line (sunna#86): its id and task.
+      running_since: if(state.running_act, do: state.running_since),
+      # The house queue activity running on the line (sunna#86): its id and task.
       running_act: state.running_act,
       running_task: state.running_task,
       rested: state.rested_reason,
-      rested_at: state.rested_at,
-      # Armed by her for a batch, off once the queue clears (sunna#35).
-      armed: state.armed || false,
-      armed_at: state.armed_at,
-      # Who armed it (sunna#43): "resident" by her tool, "witness" by his button.
-      armed_by: state.armed_by
+      rested_at: state.rested_at
     }
 
   # ---- the loop ----
 
   @doc """
-  The queue check: starts the first open item, or rests and says why.
-  Nothing while an item runs, or while care comes first (the tick and
+  The check: starts the first ready activity of hers, or rests and says
+  why. Nothing while one runs, or while care comes first (the tick and
   the run's end ask again).
   """
   def check(resident_id) do
-    {items, state} =
-      Scope.resident(resident_id, fn -> {Store.work_items(), Store.work_queue()} end)
+    state = Scope.resident(resident_id, fn -> Store.work_queue() end)
 
     cond do
-      left_behind?(state, items) ->
+      left_behind?(state) ->
         end_stalled(resident_id, state)
 
-      state && (state.running || state.running_act) ->
+      state && state.running_act ->
         :running
 
       state && state.rested_reason == Work.stopped_rest() ->
         :stopped
 
       care_first?(resident_id) ->
-        # Said, not silent (sunna#75): an armed line waiting on care shows why.
+        # Said, not silent (sunna#75): a line waiting on care shows why.
         _ = rest(resident_id, @care_reason)
         :care
 
       true ->
-        next(resident_id, items, state)
-    end
-  end
-
-  defp next(resident_id, items, state) do
-    open = Enum.find(items, &(&1.status == "open"))
-    line = budget(resident_id)
-    cap = Config.fetch!(:sunna, :work_runs_a_day)
-
-    if cut_over?(resident_id),
-      do: next_activity(resident_id, state, line, cap),
-      else: next_item(resident_id, items, state, open, line, cap)
-  end
-
-  defp next_item(resident_id, items, state, open, line, cap) do
-    cond do
-      # The batch is over: the line goes off, and the loop rests.
-      is_nil(open) ->
-        disarm(resident_id)
-        rest(resident_id, empty(items))
-
-      not (state && state.armed) ->
-        rest(resident_id, "off: the work line waits for you to arm it (work_arm)")
-
-      line && line.left <= 0 ->
-        rest(resident_id, spent(line))
-
-      runs_today(resident_id, state) >= cap ->
-        rest(resident_id, "holding: today's #{cap} runs are spent")
-
-      true ->
-        start(resident_id, open)
-    end
-  end
-
-  # Nothing open: what is left waits on other work or on the witness
-  # (sunna#42, #54), named.
-  defp empty(items) do
-    case Enum.filter(items, &(&1.status in ["blocked", "held"])) do
-      [] -> "empty, holding"
-      waiting -> "empty, holding: " <> Enum.map_join(waiting, "; ", &waiting/1)
-    end
-  end
-
-  defp waiting(%{status: "held"} = i), do: "##{i.number} held for the witness: #{i.held_ask}"
-  defp waiting(i), do: "##{i.number} blocked on #{i.blocked_on}"
-
-  defp start(resident_id, item) do
-    with {:ok, row} <- resident(resident_id),
-         {:ok, key} <-
-           Kumbukumbu.open_session(
-             resident_id,
-             "work",
-             "brain",
-             List.wrap(row.account_id),
-             @actor
-           ),
-         {:ok, [_started]} <-
-           dispatch(%Commands.StartWork{
-             actor: @actor,
-             at: Clock.now(),
-             id: resident_id,
-             number: item.number,
-             session_key: key,
-             day: Schedules.local_day(Schedules.local_now(resident_id))
-           }) do
-      worker().enqueue(resident_id, key, item.number, 1)
-      {:started, item.number}
-    else
-      {:ok, []} -> :running
-      other -> other
-    end
-  end
-
-  @doc """
-  Turn `n` of an item's run: the first opens on the item and the queue,
-  the rest carry on, while the work line has money and the run's turns
-  are not spent; then the wrap. Put off while care comes first.
-  """
-  def turn(resident_id, key, number, n) do
-    with true <- running?(resident_id, number, key),
-         nil <- care_wait(resident_id),
-         {:ok, left} <- allowance(resident_id),
-         true <- n <= Config.fetch!(:sunna, :work_turns),
-         _ <- Wakes.run(resident_id, "work", [%{kind: "work", number: number, turn: n}]),
-         {:ok, result} <- wake(resident_id, key, note(resident_id, number, n, left), :work) do
-      carry_on(resident_id, key, number, n, result)
-    else
-      false ->
-        :ok
-
-      wait when is_integer(wait) ->
-        {:snooze, wait}
-
-      # A turn past the wait is still her turn, running in this run's
-      # conversation (brain#97), never a failure (sunna#67): the run goes
-      # on, its next turn queued behind it in the same session. Ending it
-      # here started the item again in a new conversation while this one
-      # still worked it (2026-11-17, item #55 in several at once).
-      {:error, %{kind: :brain_wake_outlasted}} ->
-        carry_on(resident_id, key, number, n, %{rounds_spent: true})
-
-      {:error, _} = failed ->
-        close(resident_id, key, number, failed)
-
-      _spent ->
-        worker().enqueue_wrap(resident_id, key, number)
-    end
-  end
-
-  # Stopped (brain#61): the run ends unwrapped and the loop rests until
-  # either party touches the queue; no wrap, no next check.
-  defp carry_on(resident_id, _key, number, _n, %{stopped: _by}) do
-    ended =
-      dispatch(%Commands.EndWork{
-        actor: @actor,
-        at: Clock.now(),
-        id: resident_id,
-        number: number,
-        stopped: true
-      })
-
-    with {:ok, _} <- ended, do: :ok
-  end
-
-  defp carry_on(resident_id, key, number, n, %{rounds_spent: true}) do
-    if n < Config.fetch!(:sunna, :work_turns),
-      do: worker().enqueue(resident_id, key, number, n + 1),
-      else: worker().enqueue_wrap(resident_id, key, number)
-
-    :ok
-  end
-
-  defp carry_on(resident_id, key, number, _n, _done) do
-    worker().enqueue_wrap(resident_id, key, number)
-    :ok
-  end
-
-  @doc """
-  The wrap (sunna#33): one closing turn in the run's conversation, in
-  which she records what shipped, what slipped and why; billed to the
-  `planning` line as free time's closing turn is (sunna#32), so a run
-  ended by its budget is still wrapped. Then the run ends, and its end
-  buys the next check.
-  """
-  def wrap_turn(resident_id, key, number) do
-    case running?(resident_id, number, key) && care_wait(resident_id) do
-      false ->
-        :ok
-
-      nil ->
-        _ = Wakes.run(resident_id, "work", [%{kind: "work_wrap", number: number}])
-
-        result =
-          case wake(resident_id, key, Prompt.render!("work_wrap", %{number: number}), :planning) do
-            # Outlasted, the wrap still runs on and records itself (sunna#67).
-            {:error, %{kind: :brain_wake_outlasted}} -> {:ok, :outlasted}
-            other -> other
-          end
-
-        close(resident_id, key, number, result)
-
-      wait ->
-        {:snooze, wait}
-    end
-  end
-
-  defp close(resident_id, _key, number, result) do
-    ended =
-      dispatch(%Commands.EndWork{actor: @actor, at: Clock.now(), id: resident_id, number: number})
-
-    # A run that ended in an error waits before the next check (sunna#52):
-    # the same item would start again at once, fail the same way, and a
-    # day's runs went in eight minutes of empty conversations (2026-11-11).
-    # A wrap still running (sunna#67) waits the same, so the next check
-    # never finds its item open again before the wrap records it.
-    if waits?(result),
-      do: worker().enqueue_check(resident_id, Config.fetch!(:sunna, :work_retry_seconds)),
-      else: worker().enqueue_check(resident_id)
-
-    case {result, ended} do
-      {{:error, _} = failed, _} -> failed
-      {_ok, {:ok, _}} -> :ok
-      {_ok, failed} -> failed
+        next_activity(
+          resident_id,
+          state,
+          budget(resident_id),
+          Config.fetch!(:sunna, :work_runs_a_day)
+        )
     end
   end
 
@@ -516,71 +146,30 @@ defmodule Oneiroi.Sunna.WorkLoop do
   defp waits?({:ok, :outlasted}), do: true
   defp waits?(_ok), do: false
 
-  @doc "Whether the tick should ask for a check: the line on, work waiting, nothing running."
+  @doc "Whether the tick should ask for a check: the house queue running, work of hers ready, nothing running."
   def due?(resident_id) do
     Scope.resident(resident_id, fn ->
       state = Store.work_queue()
-      items = Store.work_items()
 
-      # A run left behind is asked about armed or not (sunna#41): the
-      # check is the only place that ends it.
-      (state != nil and left_behind?(state, items)) or on_and_waiting?(resident_id, state, items)
+      # A run left behind is asked about whatever else holds (sunna#41):
+      # the check is the only place that ends it.
+      left_behind?(state) or
+        (house_running?(resident_id) and not busy?(state) and not stopped?(state) and
+           activity_waiting?(resident_id))
     end)
   end
-
-  # The house queue runs unless paused (sunna#94), no arm of hers; the old
-  # queue runs while she has armed it.
-  defp on_and_waiting?(resident_id, state, items) do
-    if cut_over?(resident_id),
-      do: house_waiting?(resident_id, state),
-      else: old_waiting?(state, items)
-  end
-
-  defp house_waiting?(resident_id, state),
-    do:
-      house_running?(resident_id) and free?(state) and not stopped?(state) and
-        activity_waiting?(resident_id)
-
-  defp old_waiting?(nil, _items), do: false
-
-  defp old_waiting?(state, items),
-    do:
-      state.armed and free?(state) and not stopped?(state) and
-        Enum.any?(items, &(&1.status == "open"))
 
   defp stopped?(nil), do: false
   defp stopped?(state), do: state.rested_reason == Work.stopped_rest()
 
-  defp free?(state), do: not busy?(state)
-
   defp busy?(nil), do: false
-  defp busy?(state), do: not (is_nil(state.running) and is_nil(state.running_act))
-
-  # A run whose item is no longer in work (sunna#41): moved by hand before
-  # sunna#37 ended such runs, so the record still names it; ended by the
-  # check like a stalled one, its item's status kept.
-  defp orphaned?(%{running: n}, items) when is_integer(n),
-    do: not Enum.any?(items, &(&1.number == n and &1.status == "in_work"))
-
-  defp orphaned?(_state, _items), do: false
-
-  # The item running, as the read says it: never one that is not in work.
-  defp live(state, items) do
-    if state != nil and is_integer(state.running) and not orphaned?(state, items),
-      do: state.running,
-      else: nil
-  end
+  defp busy?(state), do: not is_nil(state.running_act)
 
   # A run whose end was never recorded (sunna#37): its job died (a deploy
   # restart, a crash past its one attempt), so nothing would ever end it
-  # and the loop would say it runs an item forever. Past
+  # and the loop would say it runs forever. Past
   # `SUNNA_WORK_RUN_STALE_MINUTES` the check ends it, and goes on.
   defp stalled?(%{running_act: a, running_since: %DateTime{} = since}) when is_binary(a) do
-    stale = Config.fetch!(:sunna, :work_run_stale_minutes) * 60
-    DateTime.diff(Clock.now(), since, :second) > stale
-  end
-
-  defp stalled?(%{running: n, running_since: %DateTime{} = since}) when is_integer(n) do
     stale = Config.fetch!(:sunna, :work_run_stale_minutes) * 60
     DateTime.diff(Clock.now(), since, :second) > stale
   end
@@ -588,10 +177,9 @@ defmodule Oneiroi.Sunna.WorkLoop do
   defp stalled?(_state), do: false
 
   # A run the check ends rather than waits on: stalled past the bound
-  # (#37), its item no longer in work (#41), or no job left to carry it
-  # (#70).
-  defp left_behind?(state, items),
-    do: stalled?(state) or orphaned?(state, items) or dead?(state)
+  # (#37), or no job left to carry it (#70, #100).
+  defp left_behind?(nil), do: false
+  defp left_behind?(state), do: stalled?(state) or dead?(state)
 
   # A run with no job left to carry it (sunna#70): a restart killed its
   # turn mid-call, and a work job has one attempt, so nothing will end
@@ -599,10 +187,10 @@ defmodule Oneiroi.Sunna.WorkLoop do
   # first turn killed by a deploy a minute after it started). Every live
   # run has a turn, a wrap or a snoozed one waiting or executing; past a
   # short grace for the start's own enqueue, none means the run is gone,
-  # and the check ends it so its item opens again.
+  # and the check ends it so its activity runs again.
   @dead_grace 120
-  defp dead?(%{running_key: key, running_since: %DateTime{} = since} = state)
-       when is_binary(key) and (is_integer(state.running) or is_binary(state.running_act)) do
+  defp dead?(%{running_key: key, running_act: act, running_since: %DateTime{} = since} = state)
+       when is_binary(key) and is_binary(act) do
     DateTime.diff(Clock.now(), since, :second) > @dead_grace and
       not Enum.any?(
         Scope.resident(state.resident_id, fn ->
@@ -631,7 +219,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
   # Checks again only when the end was recorded: a record that ends
   # nothing must not be asked about forever.
-  defp end_stalled(resident_id, %{running_act: act}) when is_binary(act) do
+  defp end_stalled(resident_id, %{running_act: act}) do
     case dispatch(%Commands.EndActivityRun{
            actor: @actor,
            at: Clock.now(),
@@ -646,29 +234,6 @@ defmodule Oneiroi.Sunna.WorkLoop do
       other ->
         other
     end
-  end
-
-  defp end_stalled(resident_id, state) do
-    case dispatch(%Commands.EndWork{
-           actor: @actor,
-           at: Clock.now(),
-           id: resident_id,
-           number: state.running
-         }) do
-      {:ok, [_ended]} -> check(resident_id)
-      _nothing -> :running
-    end
-  end
-
-  # Whether this run is still the one running: item `number`, in the
-  # conversation `key`. A turn or wrap of a run that has ended (moved by
-  # hand, stalled and ended) does nothing, and so does one of an earlier
-  # run of the same item, whose conversation is not the run's (sunna#67).
-  defp running?(resident_id, number, key) do
-    match?(
-      %{running: ^number, running_key: ^key},
-      Scope.resident(resident_id, fn -> Store.work_queue() end)
-    )
   end
 
   # ---- the house queue's activities (sunna#86) ----
@@ -735,7 +300,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   end
 
   defp activity_waiting?(resident_id),
-    do: cut_over?(resident_id) and not is_nil(first_activity(resident_id))
+    do: not is_nil(first_activity(resident_id))
 
   defp first_activity(resident_id), do: elem(activities(resident_id), 0)
 
@@ -997,48 +562,6 @@ defmodule Oneiroi.Sunna.WorkLoop do
           "#{a.act_id} #{a.type} (#{a.assignee}, #{a.view})#{if a.note, do: ": " <> a.note, else: ""}"
         end)
 
-  # ---- the note ----
-
-  defp note(resident_id, number, 1, left) do
-    {items, row} = {Scope.resident(resident_id, fn -> Store.work_items() end), name(resident_id)}
-    item = Enum.find(items, &(&1.number == number))
-
-    Prompt.render!("work", %{
-      name: row,
-      number: number,
-      what: item.what,
-      done_when: item.done_when,
-      last: last_wrap(item),
-      queue: Enum.map_join(items, "\n", &line/1),
-      turns: Config.fetch!(:sunna, :work_turns),
-      left: left
-    })
-  end
-
-  defp note(_resident_id, number, n, left),
-    do:
-      Prompt.render!("work_continue", %{
-        number: number,
-        turn: n,
-        turns: Config.fetch!(:sunna, :work_turns),
-        left: left
-      })
-
-  defp last_wrap(%{wrapped_at: nil}), do: "This is the item's first run."
-
-  defp last_wrap(item),
-    do:
-      "Its last run's wrap: shipped: #{item.shipped}" <>
-        if(item.slipped, do: "; slipped: #{item.slipped}", else: "") <> "; why: #{item.why}."
-
-  defp line(item) do
-    "#{item.number}. [#{item.status}#{on(item)}] #{item.what} (added by #{item.added_by})"
-  end
-
-  defp on(%{status: "held", held_ask: ask}) when is_binary(ask), do: ": #{ask}"
-  defp on(%{blocked_on: on}) when is_binary(on), do: " on #{on}"
-  defp on(_item), do: ""
-
   # ---- care, budget, state ----
 
   # How long a run's next turn waits for care, or nil when it may go on.
@@ -1168,9 +691,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
       # A bounded field over its bound (the command's own check), named,
       # never read as a stream fault (sunna#36, platform report #7).
       {:error, {:refused, problems}} when is_list(problems) ->
-        if :blocked_on_too_long in problems,
-          do: {:error, Error.new(:sunna_work_blocked_on_invalid, :sunna_work_blocked_on_bound)},
-          else: {:error, Error.new(:sunna_work_invalid, :sunna_work_field_bound)}
+        {:error, Error.new(:sunna_work_invalid, :sunna_work_field_bound)}
 
       {:error, reason} ->
         {:error, Error.caught(:sunna_dispatch_failed, :sunna_work_dispatch_failed, reason)}

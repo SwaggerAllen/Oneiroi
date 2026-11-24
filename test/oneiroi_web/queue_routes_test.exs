@@ -97,11 +97,11 @@ defmodule OneiroiWeb.QueueRoutesTest do
     assert Enum.map(docs, & &1["role"]) == ["design", "pr", "source"]
   end
 
-  test "set up, a task opened from doc-to-pr, its review decided, and the cutover", ctx do
+  test "set up, a task opened from doc-to-pr, its review decided, and his bell", ctx do
     conn = ctx.conn
     lily = "resident:#{ctx.lily.id}"
 
-    assert %{"cut_over" => false, "members" => members, "starters" => [%{"name" => "doc-to-pr"}]} =
+    assert %{"paused" => false, "members" => members, "starters" => [%{"name" => "doc-to-pr"}]} =
              conn |> get("/v1/household/queue") |> json_response(200)
 
     assert length(members) == 3
@@ -158,24 +158,6 @@ defmodule OneiroiWeb.QueueRoutesTest do
              conn
              |> post("/v1/household/queue/tasks/#{n}/activities/#{n}.3/take", %{})
              |> json_response(422)
-
-    # The cutover: the old queue committed first, the commit named.
-    assert %{"commit" => commit} =
-             conn |> post("/v1/household/queue/snapshot", %{}) |> json_response(200)
-
-    assert is_binary(commit)
-
-    assert %{"ok" => true} =
-             conn
-             |> post("/v1/household/queue/cutover", %{commit: commit, note: "the set is built"})
-             |> json_response(200)
-
-    assert %{"cut_over" => true, "commit" => ^commit} =
-             conn |> get("/v1/household/queue") |> json_response(200)
-
-    # The old queue is read-only now.
-    assert {:error, %{kind: :sunna_work_frozen}} =
-             Oneiroi.Sunna.work_add(ctx.lily.id, "x", "y", ctx.lily_actor)
 
     # Her redraft puts the review back on his bell, on her own (she owns the task).
     :ok = Oneiroi.Sunna.queue_finish(ctx.account.id, n, "#{n}.1", %{}, ctx.lily_actor)

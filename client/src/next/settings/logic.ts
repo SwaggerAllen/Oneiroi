@@ -1,6 +1,6 @@
 // The settings pages' logic, apart from their components (screens/next-settings.md).
 import { RequestFailed } from '../../api/client';
-import type { BudgetLine, KindEntry, ProfileEntry, RegressionCard, RegressionRun, RegressionRunDetail, RouteEntry, RoutesData, WorkItem, WorkQueue } from '../../api/types';
+import type { BudgetLine, KindEntry, ProfileEntry, RegressionCard, RegressionRun, RegressionRunDetail, RouteEntry, RoutesData, WorkQueue } from '../../api/types';
 import { sortCards } from './deck';
 
 /** What a refusal says: the server's meaning and remedy when it sent them, else the plain fact. */
@@ -97,24 +97,8 @@ export function argumentsText(raw: string): string {
   return raw.trim() === '' || raw.trim() === 'null' ? 'with nothing' : raw;
 }
 
-export const isLive = (i: WorkItem) => i.status !== 'done' && i.status !== 'dropped';
-
-/** The queue's order with `n` one place earlier among the live items; null when it is first or absent. */
-export function movedUp(items: WorkItem[], n: number): number[] | null {
-  const order = items.filter(isLive).map((i) => i.number);
-  const at = order.indexOf(n);
-  if (at <= 0) return null;
-  return [...order.slice(0, at - 1), n, order[at - 1], ...order.slice(at + 1)];
-}
-
 const dollars = (nano: number) => `$${(nano / 1e9).toFixed(2)}`;
 
-/**
- * The loop in one line. The work line is a brake, never an ignition
- * (sunna#35): she arms it for a batch, its cap the only thing that stops
- * a run, and it goes off when the queue clears; it steps over blocked
- * items to the next open one (sunna#42).
- */
 /** A span in the largest two units that say it: "45m", "2h 10m", "3d 4h"; under a minute is "under a minute". */
 export function span(seconds: number): string {
   const m = Math.floor(seconds / 60);
@@ -129,50 +113,26 @@ export function span(seconds: number): string {
 // measure; the loop itself ends a run only once it is stale (sunna#37).
 export const LONG_RUN_SECONDS = 60 * 60;
 
-/** The running item's run so far, in seconds, or null when it is not the one running. */
-export function runSeconds(q: Pick<WorkQueue, 'running' | 'running_since'>, n: number, nowMs: number): number | null {
-  if (q.running !== n || !q.running_since) return null;
+/** The running activity's run so far, in seconds, or null when nothing runs. */
+export function runSeconds(q: Pick<WorkQueue, 'running_act' | 'running_since'>, nowMs: number): number | null {
+  if (!q.running_act || !q.running_since) return null;
   return Math.max(0, Math.floor((nowMs - Date.parse(q.running_since)) / 1000));
 }
 
 /**
- * How long an item has been in work (sunna#58): this run so far when it
- * is the one running, and its time over all its runs since its first
- * started. An item that ran before the time was kept says only its runs.
+ * The line in one line (sunna#86): the house queue activity it runs and
+ * for how long, or why it rests; the day's runs and the work budget. The
+ * old queue's items and its arming are retired (sunna#102).
  */
-export function timeLine(item: WorkItem, q: Pick<WorkQueue, 'running' | 'running_since'>, nowMs: number): string {
-  const run = runSeconds(q, item.number, nowMs);
-  const runs = plural(item.runs, 'run');
-  const now = run === null ? '' : `running ${span(run)} this run · `;
-  if (!item.first_started_at) return `${now}${runs}`;
-  const total = (item.worked_seconds ?? 0) + (run ?? 0);
-  return `${now}${span(total)} in work over ${runs} since ${day(item.first_started_at)}`;
-}
-
 export function loopLine(name: string, q: WorkQueue, nowMs: number = Date.now()): string {
   const cap = q.budget ? `${dollars(q.budget.left)} left of ${dollars(q.budget.cap)} a ${q.budget.period}` : 'no cap';
-  const open = q.items.some((i) => i.status === 'open' || i.status === 'in_work');
-  const by = q.armed_by === 'witness' ? ' by you' : q.armed_by === 'resident' ? ` by ${name}` : '';
-  const line = q.armed ? `Work line: armed${by}, ${cap}.` : open ? `Work line: off, waiting for ${name} to arm it.` : 'Work line: off, the queue is clear.';
-  const runs = `${q.runs_today} of ${q.runs_a_day} runs today.`;
-  const blocked = q.items.filter((i) => i.status === 'blocked').map((i) => `#${i.number}`);
-  const held = q.items.filter((i) => i.status === 'held').map((i) => `#${i.number}`);
-  const skips = (blocked.length > 0 ? ` Stepping over blocked ${blocked.join(', ')}.` : '') + (held.length > 0 ? ` Stepping over ${held.join(', ')}, held for you.` : '');
-  if (q.running_act) return `Running activity ${q.running_act} of task #${q.running_task} now.${skips} ${runs} ${line}`;
-  if (q.running !== null) {
-    const run = runSeconds(q, q.running, nowMs);
-    return `Running item #${q.running} now${run === null ? '' : `, for ${span(run)}`}.${skips} ${runs} ${line}`;
+  const runs = `${q.runs_today} of ${q.runs_a_day} runs today; work budget: ${cap}.`;
+  if (q.running_act) {
+    const run = runSeconds(q, nowMs);
+    return `Running activity ${q.running_act} of task #${q.running_task}${run === null ? '' : `, for ${span(run)}`}. ${runs}`;
   }
-  if (q.rested) return `Resting: ${q.rested}. ${runs} ${line}`;
-  return `${name}'s loop has not run yet. ${line}`;
-}
-
-/** What blocks an item is another item of the queue (sunna#42): "#12" read as that item; anything else is a line from before the rule. */
-export function blockedLine(on: string | null, items: WorkItem[]): string {
-  const n = on && /^#?\d+$/.test(on) ? Number(on.replace('#', '')) : null;
-  if (n === null) return `blocked on ${on ?? 'something unnamed'}`;
-  const other = items.find((i) => i.number === n);
-  return other ? `blocked on #${n}: ${other.what}` : `blocked on #${n}`;
+  if (q.rested) return `Resting: ${q.rested}. ${runs}`;
+  return `${name}'s line has not run yet. ${runs}`;
 }
 
 /**

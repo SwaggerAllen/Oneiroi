@@ -1,10 +1,9 @@
 defmodule Oneiroi.Sunna.ActivityRunTest do
   @moduledoc """
-  The work loop on the house queue (sunna#86): after the cutover, an
-  armed line runs her ready activities a turn at a time, under the same
-  line, care and cap as items; the run ends as soon as she records the
-  activity with her queue tools, and the next check starts the next of
-  hers or rests saying why. Before the cutover the line runs items.
+  The work loop on the house queue (sunna#86, #102): her line runs her
+  ready activities a turn at a time, under its care and caps; the run
+  ends as soon as she records the activity with her queue tools, and the
+  next check starts the next of hers or rests saying why.
   """
   use Oneiroi.DataCase, async: false
 
@@ -89,14 +88,12 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
     end)
   end
 
-  test "after the cutover the line runs her ready activity, and her recording it ends the run",
+  test "the line runs her ready activity, and her recording it ends the run",
        ctx do
     n = ctx.n
-    :ok = Sunna.queue_cut_over(ctx.h, "abc1234", "the set is built", ctx.andrew)
 
-    # Old items are read-only. The house queue runs unless paused, with
-    # no arm of hers (sunna#94): paused, nothing starts; resumed, it does.
-    assert {:error, %{kind: :sunna_work_frozen}} = Sunna.work_add(ctx.id, "x", "y", ctx.me)
+    # The house queue runs unless paused, with no arm of hers (sunna#94):
+    # paused, nothing starts; resumed, it does.
     assert WorkLoop.due?(ctx.id)
 
     assert {:error, %{kind: :sunna_queue_not_yours}} =
@@ -157,7 +154,6 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
   test "a run whose job a crash left executing is ended as cut, and the next run is told", ctx do
     n = ctx.n
     act = "#{n}.1"
-    :ok = Sunna.queue_cut_over(ctx.h, "abc1234", "the set is built", ctx.andrew)
     clear_jobs()
     assert {:started, ^act} = WorkLoop.check(ctx.id)
     [%{"session_key" => first}] = jobs(ctx.id)
@@ -201,7 +197,6 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
        ctx do
     n = ctx.n
     act = "#{n}.1"
-    :ok = Sunna.queue_cut_over(ctx.h, "abc1234", "the set is built", ctx.andrew)
 
     for _ <- 1..20 do
       assert {:started, ^act} = WorkLoop.check(ctx.id)
@@ -252,7 +247,6 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
   # A document that starts in the house (the witness, 2026-11-23): her
   # share step on it passes itself, said so, and the line looks again.
   test "her share step on a document already in the house passes itself", ctx do
-    :ok = Sunna.queue_cut_over(ctx.h, "abc1234", "the set is built", ctx.andrew)
     :ok = Sunna.queue_drop(ctx.h, ctx.n, "not this one", ctx.andrew)
     doc = "house/nest:doc/design/db-access-consent.md"
 
@@ -305,11 +299,5 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
              Enum.find(List.flatten(Sunna.queue_task(ctx.h, m).layers), &(&1.act_id == share))
 
     assert [%{"turn" => "check"}] = jobs(ctx.id)
-  end
-
-  test "before the cutover the line is the old queue's", ctx do
-    :ok = Sunna.work_arm(ctx.id, ctx.me)
-
-    assert {:rested, "empty, holding"} = WorkLoop.check(ctx.id)
   end
 end
