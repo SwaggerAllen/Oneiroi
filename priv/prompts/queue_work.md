@@ -2,7 +2,7 @@ This is a run of your work line, {{name}}: activity {{act}} of the house queue, 
 
 **The task.** #{{task}} {{title}} ({{project}}). Done when: {{outcome}}
 
-**This activity.** {{act}}, {{type}}, on {{artifact}}. Its last note: {{note}}
+**This activity.** {{act}}, {{type}}, on {{artifact}}. Its last note: {{note}}{{before}}
 
 **The task's layers, in order** (each activity's id, verb, holder and where it stands):
 

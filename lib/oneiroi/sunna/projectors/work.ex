@@ -6,7 +6,7 @@ defmodule Oneiroi.Sunna.Projectors.Work do
 
   alias Ecto.Multi
   alias Oneiroi.Sunna.Events
-  alias Oneiroi.Sunna.Store.{WorkItem, WorkQueue}
+  alias Oneiroi.Sunna.Store.{WorkActivityRuns, WorkItem, WorkQueue}
   alias Oneiroi.Sunna.Work
 
   # A held mark never outlives its ask (sunna#55): every move, wrap or
@@ -135,6 +135,12 @@ defmodule Oneiroi.Sunna.Projectors.Work do
       row = repo.one(from(q in WorkQueue, where: q.resident_id == ^e.id))
       {:ok, if(row && row.run_day == e.day, do: row.runs_on_day + 1, else: 1)}
     end)
+    |> Multi.run(:act_runs, fn repo, _ ->
+      repo.insert(%WorkActivityRuns{resident_id: e.id, act: e.act, runs: 1},
+        on_conflict: [inc: [runs: 1]],
+        conflict_target: [:resident_id, :act]
+      )
+    end)
     |> Multi.run(:queue, fn repo, %{day_runs: runs} ->
       upsert(repo, e.id,
         running_act: e.act,
@@ -151,17 +157,35 @@ defmodule Oneiroi.Sunna.Projectors.Work do
   end)
 
   fold(%Events.ActivityRunEnded{} = e, _metadata, fn multi ->
-    queue(
-      multi,
-      e.id,
-      [
-        running_act: nil,
-        running_task: nil,
-        running_household: nil,
-        running_key: nil,
-        running_since: nil
-      ] ++ if(e.stopped, do: [rested_reason: Work.stopped_rest(), rested_at: e.at], else: [])
-    )
+    multi
+    |> Multi.run(:cut, fn repo, _ ->
+      row = repo.one(from(q in WorkQueue, where: q.resident_id == ^e.id))
+      {:ok, cut(e, row)}
+    end)
+    |> Multi.run(:act_runs, fn repo, _ ->
+      if e.moved,
+        do:
+          {:ok,
+           repo.delete_all(
+             from(r in WorkActivityRuns, where: r.resident_id == ^e.id and r.act == ^e.act)
+           )},
+        else: {:ok, nil}
+    end)
+    |> Multi.run(:queue, fn repo, %{cut: cut} ->
+      upsert(
+        repo,
+        e.id,
+        [
+          running_act: nil,
+          running_task: nil,
+          running_household: nil,
+          running_key: nil,
+          running_since: nil
+        ] ++
+          cut ++
+          if(e.stopped, do: [rested_reason: Work.stopped_rest(), rested_at: e.at], else: [])
+      )
+    end)
   end)
 
   fold(%Events.WorkRunEnded{} = e, _metadata, fn multi ->
@@ -192,8 +216,11 @@ defmodule Oneiroi.Sunna.Projectors.Work do
     queue(multi, e.id, armed: false, armed_at: nil, armed_by: nil)
   end)
 
+  # The runs given back (sunna#53), each activity's with the day's (#101).
   fold(%Events.WorkRunsReset{} = e, _metadata, fn multi ->
-    queue(multi, e.id, runs_on_day: 0, rested_reason: nil, rested_at: nil)
+    multi
+    |> Multi.delete_all(:act_runs, from(r in WorkActivityRuns, where: r.resident_id == ^e.id))
+    |> queue(e.id, runs_on_day: 0, rested_reason: nil, rested_at: nil)
   end)
 
   fold(%Events.WorkCareSkipped{} = e, _metadata, fn multi ->
@@ -231,6 +258,14 @@ defmodule Oneiroi.Sunna.Projectors.Work do
         from(w in WorkItem, where: w.resident_id == ^resident_id and w.number == ^number),
         set: set
       )
+
+  # The run the check ended, kept until a run of hers ends on its own
+  # (sunna#100): its activity, its conversation and since when it ran,
+  # for the next run of that activity to be told.
+  defp cut(%{cut: true} = e, %WorkQueue{} = row),
+    do: [cut_act: e.act, cut_key: row.running_key, cut_since: row.running_since, cut_at: e.at]
+
+  defp cut(_ended, _row), do: [cut_act: nil, cut_key: nil, cut_since: nil, cut_at: nil]
 
   defp queue(multi, resident_id, set),
     do: Multi.run(multi, :queue, fn repo, _ -> upsert(repo, resident_id, set) end)

@@ -223,6 +223,24 @@ defmodule Oneiroi.Sunna.Store do
       field(:running_act, :string)
       field(:running_task, :integer)
       field(:running_household, :binary_id)
+      # The last run the check ended rather than she (sunna#100).
+      field(:cut_act, :string)
+      field(:cut_key, :string)
+      field(:cut_since, :utc_datetime_usec)
+      field(:cut_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule WorkActivityRuns do
+    @moduledoc "Her runs of one house queue activity since it last moved (sunna#101)."
+    use Ecto.Schema
+    @primary_key false
+    schema "sunna_work_activity_runs" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:act, :string, primary_key: true)
+      field(:runs, :integer, default: 0)
     end
 
     @type t :: %__MODULE__{}
@@ -317,6 +335,11 @@ defmodule Oneiroi.Sunna.Store do
   @doc "The work loop's state, or nil before anything was queued."
   @spec work_queue() :: WorkQueue.t() | nil
   def work_queue, do: Repo.one(from(q in WorkQueue, limit: 1))
+
+  @doc "Her runs of each activity since it last moved (sunna#101), by activity id."
+  @spec work_activity_runs() :: %{String.t() => non_neg_integer()}
+  def work_activity_runs,
+    do: Map.new(Repo.all(from(r in WorkActivityRuns, select: {r.act, r.runs})))
 
   @doc "The conversations of free-time runs since `since` with no closing turn recorded (sunna#96)."
   @spec free_time_unclosed(DateTime.t()) :: [{String.t(), DateTime.t()}]

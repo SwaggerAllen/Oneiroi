@@ -11,10 +11,13 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
   import Ecto.Query, only: [from: 2]
 
   alias Oneiroi.Actor
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Fixtures
   alias Oneiroi.Nisaba.Provider.Fake
   alias Oneiroi.Sunna
+  alias Oneiroi.Sunna.Commands
   alias Oneiroi.Sunna.WorkLoop
+  alias Oneiroi.Sunna.WorkRouter
 
   setup do
     witness = Fixtures.account!()
@@ -144,6 +147,106 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
              WorkLoop.check(ctx.id)
 
     refute WorkLoop.due?(ctx.id)
+  end
+
+  # sunna#100 (the witness, 2026-11-24: "if the server restarts during a
+  # work item run, have we handled restarting the work?"): a crash leaves
+  # the turn's job executing; past any turn's length it is taken for
+  # orphaned, the run is ended as cut, and the activity runs again in a
+  # new conversation that is told where the cut-off run was.
+  test "a run whose job a crash left executing is ended as cut, and the next run is told", ctx do
+    n = ctx.n
+    act = "#{n}.1"
+    :ok = Sunna.queue_cut_over(ctx.h, "abc1234", "the set is built", ctx.andrew)
+    clear_jobs()
+    assert {:started, ^act} = WorkLoop.check(ctx.id)
+    [%{"session_key" => first}] = jobs(ctx.id)
+
+    # The crash: its turn's job says executing, and stays so.
+    executing(first, Clock.now())
+    Clock.Fake.advance(5 * 60)
+    assert :running = WorkLoop.check(ctx.id)
+    refute WorkLoop.due?(ctx.id)
+
+    # Executing longer than any turn: orphaned, so the run is ended.
+    executing(first, DateTime.add(Clock.now(), -20 * 60, :second))
+    assert WorkLoop.due?(ctx.id)
+    assert :stalled = WorkLoop.check(ctx.id)
+    assert %{cut: %{act: ^act, key: ^first}} = Sunna.work_queue(ctx.id)
+
+    # Still hers and active: the next check runs it again, in a new
+    # conversation, whose first turn names the cut-off one.
+    clear_jobs()
+    assert {:started, ^act} = WorkLoop.check(ctx.id)
+    [%{"session_key" => second}] = jobs(ctx.id)
+    assert second != first
+    assert :ok = WorkLoop.activity_turn(ctx.id, second, ctx.h, n, act, 1)
+    assert_received {:asked, messages}
+
+    note =
+      Enum.find(messages, &(is_binary(&1[:content]) and &1.content =~ "a run of your work line"))
+
+    assert note.content =~ "Your last run of this activity was cut off"
+    assert note.content =~ first
+
+    # She finished it this time: a run that ends on its own clears the cut.
+    assert %{cut: nil} = Sunna.work_queue(ctx.id)
+  end
+
+  # sunna#101 (the witness, 2026-11-24: "20 per work item to stop
+  # runaway loops, but no global limit, or maybe like 1000"): an activity
+  # run twenty times with nothing moving it is passed by, said so; the
+  # witness's give-back resets it, and a run that moves it starts it over.
+  test "an activity run twenty times with nothing moving is passed by until the runs come back",
+       ctx do
+    n = ctx.n
+    act = "#{n}.1"
+    :ok = Sunna.queue_cut_over(ctx.h, "abc1234", "the set is built", ctx.andrew)
+
+    for _ <- 1..20 do
+      assert {:started, ^act} = WorkLoop.check(ctx.id)
+      end_run(ctx.id, act, false)
+    end
+
+    assert %{activity_runs: [%{act: ^act, runs: 20}], runs_an_activity: 20, runs_a_day: 1000} =
+             Sunna.work_queue(ctx.id)
+
+    assert {:rested, "holding: " <> why} = WorkLoop.check(ctx.id)
+    assert why =~ "#{act} had 20 runs each with nothing moving"
+    refute WorkLoop.due?(ctx.id)
+
+    # His give-back resets each activity's runs with the day's.
+    :ok = Sunna.work_reset_runs(ctx.id, "go again", ctx.andrew)
+    assert %{activity_runs: []} = Sunna.work_queue(ctx.id)
+    assert {:started, ^act} = WorkLoop.check(ctx.id)
+
+    # A run that ends with the activity moved starts its count over.
+    end_run(ctx.id, act, true)
+    assert %{activity_runs: []} = Sunna.work_queue(ctx.id)
+  end
+
+  defp end_run(id, act, moved) do
+    {:ok, [_]} =
+      WorkRouter.dispatch(%Commands.EndActivityRun{
+        actor: Actor.platform(),
+        at: Clock.now(),
+        id: id,
+        act: act,
+        moved: moved
+      })
+  end
+
+  defp executing(key, at) do
+    Oneiroi.Scope.platform(fn ->
+      Oneiroi.Repo.update_all(
+        from(j in Oban.Job,
+          where:
+            j.worker == "Oneiroi.Sunna.WorkWorker" and
+              fragment("? ->> 'session_key' = ?", j.args, ^key)
+        ),
+        set: [state: "executing", attempted_at: at]
+      )
+    end)
   end
 
   # A document that starts in the house (the witness, 2026-11-23): her

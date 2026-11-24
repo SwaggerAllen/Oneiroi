@@ -371,6 +371,19 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
     assert Judge.parse_quote("Quote: `the meeting`") == "the meeting"
   end
 
+  test "an unreadable answer's shape is logged, never its words" do
+    {:error, %{details: details}} =
+      Judge.parse_disclosure("The verdict, on balance:\nIt is a secret meeting about Andrew.")
+
+    shape = Keyword.fetch!(details, :shape)
+    assert shape =~ "2 lines"
+    assert shape =~ "w | w"
+    refute shape =~ ~r/secret|Andrew|meeting|It /
+
+    {:error, %{details: marked}} = Judge.parse_disclosure("> **Verdict** — fine by me\nQuote: x")
+    assert Keyword.fetch!(marked, :shape) =~ "> **Verdict** | Quote:"
+  end
+
   test "the judge's answer is read strictly; out of form is a failure, not a guess" do
     assert {:ok, :clean, "none carried"} =
              Judge.parse_disclosure("VERDICT: CLEAN\nREASONS: none carried")

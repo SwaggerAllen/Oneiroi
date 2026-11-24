@@ -256,8 +256,16 @@ defmodule Oneiroi.Sunna.WorkLoop do
       running: live(state, items),
       # Whether the house queue has the line (sunna#84, #86).
       house_queue: cut_over?(resident_id),
+      # The last run the check ended rather than she (sunna#100).
+      cut: cut(state),
       runs_today: runs_today(resident_id, state),
       runs_a_day: Config.fetch!(:sunna, :work_runs_a_day),
+      # Her runs of each activity since it last moved (sunna#101).
+      activity_runs:
+        Scope.resident(resident_id, fn -> Store.work_activity_runs() end)
+        |> Enum.map(fn {act, runs} -> %{act: act, runs: runs} end)
+        |> Enum.sort_by(& &1.act),
+      runs_an_activity: Config.fetch!(:sunna, :work_runs_an_activity),
       budget: budget(resident_id)
     }
     |> Map.merge(line_state(state, live(state, items)))
@@ -598,13 +606,28 @@ defmodule Oneiroi.Sunna.WorkLoop do
     DateTime.diff(Clock.now(), since, :second) > @dead_grace and
       not Enum.any?(
         Scope.resident(state.resident_id, fn ->
-          Jobs.states(worker(), %{"session_key" => key})
+          Jobs.attempts(worker(), %{"session_key" => key})
         end),
-        &(&1 in ~w(available scheduled executing retryable))
+        &carrying?/1
       )
   end
 
   defp dead?(_state), do: false
+
+  # A job that can still carry the run: waiting, or executing since
+  # recently. One executing longer than any turn takes was left so by a
+  # node that died without stopping (sunna#100): a deploy's stop marks
+  # its killed job discarded, a crash leaves it executing until Lifeline
+  # nine hours on, and the run with it.
+  defp carrying?({state, _at}) when state in ~w(available scheduled retryable), do: true
+
+  defp carrying?({"executing", %DateTime{} = at}),
+    do:
+      DateTime.diff(Clock.now(), at, :second) <=
+        Config.fetch!(:sunna, :work_job_orphaned_minutes) * 60
+
+  defp carrying?({"executing", nil}), do: true
+  defp carrying?(_done), do: false
 
   # Checks again only when the end was recorded: a record that ends
   # nothing must not be asked about forever.
@@ -613,7 +636,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
            actor: @actor,
            at: Clock.now(),
            id: resident_id,
-           act: act
+           act: act,
+           cut: true
          }) do
       {:ok, [_ended]} ->
         worker().enqueue_check(resident_id)
@@ -654,7 +678,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   # then oldest ready), taken at the run's start and run a turn at a time
   # in a `work` conversation, under the same line, care, budget and cap.
   defp next_activity(resident_id, state, line, cap) do
-    card = first_activity(resident_id)
+    {card, spent} = activities(resident_id)
 
     cond do
       # One switch for the house (sunna#94): her line runs while the
@@ -664,6 +688,12 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
       # Nothing ready is no reason to stop (sunna#92, #94): the house's
       # work arrives any time, and the tick starts it once it is ready.
+      is_nil(card) and spent != [] ->
+        rest(
+          resident_id,
+          "holding: #{Enum.join(spent, ", ")} had #{Config.fetch!(:sunna, :work_runs_an_activity)} runs each with nothing moving; your witness can give runs back"
+        )
+
       is_nil(card) ->
         rest(resident_id, "running, holding: nothing in the house queue is ready for you")
 
@@ -707,17 +737,28 @@ defmodule Oneiroi.Sunna.WorkLoop do
   defp activity_waiting?(resident_id),
     do: cut_over?(resident_id) and not is_nil(first_activity(resident_id))
 
-  defp first_activity(resident_id) do
+  defp first_activity(resident_id), do: elem(activities(resident_id), 0)
+
+  # Her first ready or active activity with runs left (sunna#101), and
+  # the ones passed by for having had their runs with nothing moving.
+  defp activities(resident_id) do
     case Oneiroi.Gaia.resident_household(resident_id) do
       %{id: h} ->
-        h
-        |> Queues.waiting_on("resident:#{resident_id}")
-        |> Map.fetch!(:ready)
-        |> Enum.find(&(&1.view in ["ready", "active"]))
-        |> then(&(&1 && Map.put(&1, :household, h)))
+        bound = Config.fetch!(:sunna, :work_runs_an_activity)
+        runs = Scope.resident(resident_id, fn -> Store.work_activity_runs() end)
+
+        {spent, left} =
+          h
+          |> Queues.waiting_on("resident:#{resident_id}")
+          |> Map.fetch!(:ready)
+          |> Enum.filter(&(&1.view in ["ready", "active"]))
+          |> Enum.split_with(&(Map.get(runs, &1.act, 0) >= bound))
+
+        card = List.first(left)
+        {card && Map.put(card, :household, h), Enum.map(spent, & &1.act)}
 
       _none ->
-        nil
+        {nil, []}
     end
   end
 
@@ -818,6 +859,20 @@ defmodule Oneiroi.Sunna.WorkLoop do
     end
   end
 
+  # Whether the run's activity has left her hands (sunna#101): finished,
+  # decided, blocked, failed, skipped or reassigned. Read off the run
+  # itself, which names its task and household.
+  defp moved?(resident_id, act) do
+    case Scope.resident(resident_id, fn -> Store.work_queue() end) do
+      %{running_act: ^act, running_household: h, running_task: task}
+      when is_binary(h) and is_integer(task) ->
+        not still_hers?(resident_id, h, task, act)
+
+      _unknown ->
+        false
+    end
+  end
+
   # Whether the activity is still hers to work: assigned to her and live.
   defp still_hers?(resident_id, h, task, act) do
     with %{layers: layers} <- Queues.task(h, task),
@@ -861,7 +916,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
         actor: @actor,
         at: Clock.now(),
         id: resident_id,
-        act: act
+        act: act,
+        moved: moved?(resident_id, act)
       })
 
     if waits?(result),
@@ -897,6 +953,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
       artifact: a.artifact || "none named",
       note: a.note || "none",
       layers: Enum.map_join(Enum.with_index(page.layers, 1), "\n", &layer_line/1),
+      before: cut_line(resident_id, act),
       turns: Config.fetch!(:sunna, :work_turns),
       left: left
     })
@@ -911,6 +968,27 @@ defmodule Oneiroi.Sunna.WorkLoop do
         turns: Config.fetch!(:sunna, :work_turns),
         left: left
       })
+
+  defp cut(%{cut_act: act, cut_key: key} = state) when is_binary(act),
+    do: %{act: act, key: key, since: state.cut_since, at: state.cut_at}
+
+  defp cut(_state), do: nil
+
+  # Her last run of this activity, if the check ended it rather than she
+  # (sunna#100): a restart or a crash cut it off mid-work, and this run
+  # starts in a new conversation that would not otherwise know.
+  defp cut_line(resident_id, act) do
+    case Scope.resident(resident_id, fn -> Store.work_queue() end) do
+      %{cut_act: ^act, cut_key: key, cut_since: since, cut_at: at} when is_binary(key) ->
+        "\n\n**Your last run of this activity was cut off.** It ran from #{stamp(since)} until the platform ended it at #{stamp(at)} (a restart or a crash took its turn; nothing you did). What it did is in its conversation, `#{key}`: read it with transcript_read before redoing anything, and carry on from where it got to."
+
+      _none ->
+        ""
+    end
+  end
+
+  defp stamp(%DateTime{} = at), do: Calendar.strftime(at, "%Y-%m-%d %H:%M UTC")
+  defp stamp(_none), do: "an unknown time"
 
   defp layer_line({acts, i}),
     do:

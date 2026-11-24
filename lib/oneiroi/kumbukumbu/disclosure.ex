@@ -34,6 +34,8 @@ defmodule Oneiroi.Kumbukumbu.Disclosure do
   nothing.
   """
 
+  require Logger
+
   alias Oneiroi.Actor
   alias Oneiroi.Config
   alias Oneiroi.Kumbukumbu.Conversations
@@ -146,6 +148,11 @@ defmodule Oneiroi.Kumbukumbu.Disclosure do
         out_of_form("an answer out of form")
 
       {:ok, {:error, %{kind: :eunomia_disclosure_unreadable} = reason}} ->
+        Logger.warning(
+          "kumbukumbu: the disclosure judge answered out of form (#{Keyword.get(List.wrap(reason.details), :shape, "no shape")})",
+          Oneiroi.Error.metadata(reason)
+        )
+
         out_of_form("the call failed: #{reason_words(reason)}")
 
       {:ok, {:error, reason}} ->

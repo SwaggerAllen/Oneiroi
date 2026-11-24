@@ -643,6 +643,9 @@ export interface WorkQueue {
   rested_at: string | null;
   runs_today: number;
   runs_a_day: number;
+  /** Her runs of each house queue activity since it last moved (sunna#101). */
+  activity_runs?: { act: string; runs: number }[];
+  runs_an_activity?: number;
   budget: { cap: number; spent: number; left: number; period: string } | null;
   // Armed by her for a batch, off once the queue clears (sunna#35).
   armed: boolean;

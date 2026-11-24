@@ -88,10 +88,12 @@ export function Work() {
             </div>
           </div>
         )}
-        {q.runs_today > 0 && (
+        {(q.runs_today > 0 || (q.activity_runs ?? []).length > 0) && (
           <div className={css.column}>
             <span className={css.note}>
               {q.runs_today} of {q.runs_a_day} runs used today.
+              {(q.activity_runs ?? []).length > 0 &&
+                ` Since each last moved: ${(q.activity_runs ?? []).map((a) => `${a.act} ${a.runs} of ${q.runs_an_activity ?? 20}`).join(', ')}; an activity at its limit is passed by until it moves or the runs come back.`}
             </span>
             <Field label="Why the runs come back (she reads it)" value={resetNote} onChange={(e) => setResetNote(e.target.value)} />
             <div>
@@ -103,12 +105,12 @@ export function Work() {
                   run(() =>
                     api.resetWorkRuns(id, resetNote.trim()).then(() => {
                       setResetNote('');
-                      return "Today's runs are back; the loop checks now.";
+                      return "The runs are back, today's and each activity's; the loop checks now.";
                     }),
                   )
                 }
               >
-                Reset today's runs
+                Give the runs back
               </button>
             </div>
           </div>

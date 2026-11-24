@@ -192,7 +192,9 @@ defmodule Oneiroi.Sunna.Work do
         at: c.at,
         id: c.id,
         act: act,
-        stopped: c.stopped == true
+        stopped: c.stopped == true,
+        cut: c.cut == true,
+        moved: c.moved == true
       }
 
   def execute(%__MODULE__{}, %Commands.EndActivityRun{}), do: []
