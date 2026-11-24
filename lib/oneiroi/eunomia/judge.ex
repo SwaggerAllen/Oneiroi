@@ -165,7 +165,43 @@ defmodule Oneiroi.Eunomia.Judge do
       do: {:ok, verdict, reasons},
       else:
         {:error,
-         Error.new(:eunomia_disclosure_unreadable, :eunomia_disclosure_verdict_unreadable)}
+         Error.new(:eunomia_disclosure_unreadable, :eunomia_disclosure_verdict_unreadable,
+           shape: shape(content)
+         )}
+  end
+
+  # What an unreadable answer looked like, never what it said (eunomia#34;
+  # the witness, 2026-11-24: a review still came back unreadable twice
+  # after the Markdown fix, and nothing recorded its form): its length,
+  # its line count, and each line's opening marks and first word, the
+  # word kept only when it is one of the form's labels and `w` otherwise,
+  # so the log names the form without carrying her words or the material.
+  @labels ~w(verdict quote reason reasons clean discloses none)
+  @doc false
+  def shape(content) do
+    lines = String.split(content, "\n")
+
+    heads =
+      lines
+      |> Enum.reject(&(String.trim(&1) == ""))
+      |> Enum.take(8)
+      |> Enum.map_join(" | ", &line_head/1)
+
+    "#{String.length(content)} chars, #{length(lines)} lines: #{heads}"
+  end
+
+  defp line_head(line) do
+    case Regex.run(~r/^([^\p{L}]{0,6})(\p{L}+)?([^\p{L}\s]{0,3})/u, line) do
+      [_, marks, word, after_word] ->
+        word = if String.downcase(word) in @labels, do: word, else: "w"
+        marks <> word <> after_word
+
+      [_, marks] ->
+        marks
+
+      nil ->
+        "?"
+    end
   end
 
   # An answer that is the verdict word alone.

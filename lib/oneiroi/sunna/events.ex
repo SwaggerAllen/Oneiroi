@@ -244,7 +244,16 @@ defmodule Oneiroi.Sunna.Events do
 
   defmodule ActivityRunEnded do
     # The activity's run over; `stopped` when a stop ended it (brain#61).
-    use Oneiroi.Event, version: 1, fields: [:id, :act, :stopped]
+    # Version 2 adds `cut` (sunna#100): the check ended a run left behind
+    # (its job died in a restart or a crash, or it outlived the stale
+    # bound), so the next run of the activity is told; a version 1 event
+    # reads as a run that ended on its own.
+    use Oneiroi.Event, version: 2, fields: [:id, :act, :stopped, :cut]
+  end
+
+  defimpl Commanded.Event.Upcaster, for: ActivityRunEnded do
+    def upcast(%{cut: nil} = event, _metadata), do: %{event | cut: false}
+    def upcast(event, _metadata), do: event
   end
 
   defmodule WorkStarted do

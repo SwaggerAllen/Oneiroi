@@ -659,3 +659,6 @@ The guard exists so a decision cannot authorize words the reviewer did not see. 
 
 ## #99
 A pinned citation already says which revision the step is about; asking the reviewer to name it again, with nothing on the screen to name it from, refused an approval the record could answer.
+
+## #100
+A run is only as alive as the job that carries it, and an executing job is only alive while its node is. Oban without its paid lifeline cannot tell a dead node's job from a working one except by time, and every work job's time is bounded by the turn timeout, so time is enough here: a job executing three times longer than any turn can take has no node behind it. A restarted run that starts cold redoes work, or worse, does it differently without knowing there was a first attempt; naming the cut-off conversation costs one line and gives her the record to carry on from.

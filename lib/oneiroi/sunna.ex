@@ -249,6 +249,12 @@ defmodule Oneiroi.Sunna do
        tag: :bound,
        usage:
          "how many turns one run of a work-queue item may take before its wrap (sunna#33), a turn carried on when it runs out of tool rounds; the work budget line is the real limit, this the guard against a run that never says it is done. Free time's number (sunna#26)"},
+      {:work_job_orphaned_minutes, "SUNNA_WORK_JOB_ORPHANED_MINUTES",
+       cast: :integer,
+       default: "15",
+       tag: :bound,
+       usage:
+         "how long a work-loop job may say it is executing before the check takes it for orphaned (sunna#100): a node that died without stopping (out of memory, killed) leaves its job executing, and the run would wait out SUNNA_WORK_RUN_STALE_MINUTES; one turn's job returns within BRAIN_TURN_TIMEOUT_MS (five minutes) and its bookkeeping, so this must stay above that with a margin"},
       {:work_run_stale_minutes, "SUNNA_WORK_RUN_STALE_MINUTES",
        cast: :integer,
        default: "180",
@@ -411,7 +417,7 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.Queue.QueuePaused, 1},
       {Oneiroi.Sunna.Events.Queue.QueueResumed, 1},
       {Oneiroi.Sunna.Events.ActivityRunStarted, 1},
-      {Oneiroi.Sunna.Events.ActivityRunEnded, 1},
+      {Oneiroi.Sunna.Events.ActivityRunEnded, 2},
       {Oneiroi.Sunna.Events.WorkAdded, 1},
       {Oneiroi.Sunna.Events.WorkMoved, 1},
       {Oneiroi.Sunna.Events.WorkHeld, 1},

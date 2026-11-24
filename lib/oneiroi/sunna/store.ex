@@ -223,6 +223,11 @@ defmodule Oneiroi.Sunna.Store do
       field(:running_act, :string)
       field(:running_task, :integer)
       field(:running_household, :binary_id)
+      # The last run the check ended rather than she (sunna#100).
+      field(:cut_act, :string)
+      field(:cut_key, :string)
+      field(:cut_since, :utc_datetime_usec)
+      field(:cut_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}

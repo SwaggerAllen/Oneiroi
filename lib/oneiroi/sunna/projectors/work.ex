@@ -151,17 +151,26 @@ defmodule Oneiroi.Sunna.Projectors.Work do
   end)
 
   fold(%Events.ActivityRunEnded{} = e, _metadata, fn multi ->
-    queue(
-      multi,
-      e.id,
-      [
-        running_act: nil,
-        running_task: nil,
-        running_household: nil,
-        running_key: nil,
-        running_since: nil
-      ] ++ if(e.stopped, do: [rested_reason: Work.stopped_rest(), rested_at: e.at], else: [])
-    )
+    multi
+    |> Multi.run(:cut, fn repo, _ ->
+      row = repo.one(from(q in WorkQueue, where: q.resident_id == ^e.id))
+      {:ok, cut(e, row)}
+    end)
+    |> Multi.run(:queue, fn repo, %{cut: cut} ->
+      upsert(
+        repo,
+        e.id,
+        [
+          running_act: nil,
+          running_task: nil,
+          running_household: nil,
+          running_key: nil,
+          running_since: nil
+        ] ++
+          cut ++
+          if(e.stopped, do: [rested_reason: Work.stopped_rest(), rested_at: e.at], else: [])
+      )
+    end)
   end)
 
   fold(%Events.WorkRunEnded{} = e, _metadata, fn multi ->
@@ -231,6 +240,14 @@ defmodule Oneiroi.Sunna.Projectors.Work do
         from(w in WorkItem, where: w.resident_id == ^resident_id and w.number == ^number),
         set: set
       )
+
+  # The run the check ended, kept until a run of hers ends on its own
+  # (sunna#100): its activity, its conversation and since when it ran,
+  # for the next run of that activity to be told.
+  defp cut(%{cut: true} = e, %WorkQueue{} = row),
+    do: [cut_act: e.act, cut_key: row.running_key, cut_since: row.running_since, cut_at: e.at]
+
+  defp cut(_ended, _row), do: [cut_act: nil, cut_key: nil, cut_since: nil, cut_at: nil]
 
   defp queue(multi, resident_id, set),
     do: Multi.run(multi, :queue, fn repo, _ -> upsert(repo, resident_id, set) end)

@@ -146,7 +146,7 @@ defmodule Oneiroi.Sunna.Commands do
   end
 
   defmodule EndActivityRun do
-    use Oneiroi.Command, fields: [:id, :act, :stopped]
+    use Oneiroi.Command, fields: [:id, :act, :stopped, :cut]
   end
 
   defmodule StartWork do

@@ -49,4 +49,23 @@ defmodule Oneiroi.Apsu.Jobs do
       )
     )
   end
+
+  @doc """
+  The state of each of `worker`'s jobs whose args contain `args`, with
+  when it was last attempted (nil for one never run), newest first: an
+  `executing` job is told from one its node died under by how long ago
+  it started (sunna#100).
+  """
+  @spec attempts(module(), map()) :: [{String.t(), DateTime.t() | nil}]
+  def attempts(worker, args) when is_atom(worker) and is_map(args) do
+    name = worker |> Module.split() |> Enum.join(".")
+
+    Oneiroi.Repo.all(
+      from(j in Oban.Job,
+        where: j.worker == ^name and fragment("? @> ?", j.args, ^args),
+        order_by: [desc: j.id],
+        select: {j.state, j.attempted_at}
+      )
+    )
+  end
 end

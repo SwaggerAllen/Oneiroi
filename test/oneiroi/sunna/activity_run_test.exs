@@ -11,6 +11,7 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
   import Ecto.Query, only: [from: 2]
 
   alias Oneiroi.Actor
+  alias Oneiroi.Apsu.Clock
   alias Oneiroi.Fixtures
   alias Oneiroi.Nisaba.Provider.Fake
   alias Oneiroi.Sunna
@@ -144,6 +145,63 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
              WorkLoop.check(ctx.id)
 
     refute WorkLoop.due?(ctx.id)
+  end
+
+  # sunna#100 (the witness, 2026-11-24: "if the server restarts during a
+  # work item run, have we handled restarting the work?"): a crash leaves
+  # the turn's job executing; past any turn's length it is taken for
+  # orphaned, the run is ended as cut, and the activity runs again in a
+  # new conversation that is told where the cut-off run was.
+  test "a run whose job a crash left executing is ended as cut, and the next run is told", ctx do
+    n = ctx.n
+    act = "#{n}.1"
+    :ok = Sunna.queue_cut_over(ctx.h, "abc1234", "the set is built", ctx.andrew)
+    clear_jobs()
+    assert {:started, ^act} = WorkLoop.check(ctx.id)
+    [%{"session_key" => first}] = jobs(ctx.id)
+
+    # The crash: its turn's job says executing, and stays so.
+    executing(first, Clock.now())
+    Clock.Fake.advance(5 * 60)
+    assert :running = WorkLoop.check(ctx.id)
+    refute WorkLoop.due?(ctx.id)
+
+    # Executing longer than any turn: orphaned, so the run is ended.
+    executing(first, DateTime.add(Clock.now(), -20 * 60, :second))
+    assert WorkLoop.due?(ctx.id)
+    assert :stalled = WorkLoop.check(ctx.id)
+    assert %{cut: %{act: ^act, key: ^first}} = Sunna.work_queue(ctx.id)
+
+    # Still hers and active: the next check runs it again, in a new
+    # conversation, whose first turn names the cut-off one.
+    clear_jobs()
+    assert {:started, ^act} = WorkLoop.check(ctx.id)
+    [%{"session_key" => second}] = jobs(ctx.id)
+    assert second != first
+    assert :ok = WorkLoop.activity_turn(ctx.id, second, ctx.h, n, act, 1)
+    assert_received {:asked, messages}
+
+    note =
+      Enum.find(messages, &(is_binary(&1[:content]) and &1.content =~ "a run of your work line"))
+
+    assert note.content =~ "Your last run of this activity was cut off"
+    assert note.content =~ first
+
+    # She finished it this time: a run that ends on its own clears the cut.
+    assert %{cut: nil} = Sunna.work_queue(ctx.id)
+  end
+
+  defp executing(key, at) do
+    Oneiroi.Scope.platform(fn ->
+      Oneiroi.Repo.update_all(
+        from(j in Oban.Job,
+          where:
+            j.worker == "Oneiroi.Sunna.WorkWorker" and
+              fragment("? ->> 'session_key' = ?", j.args, ^key)
+        ),
+        set: [state: "executing", attempted_at: at]
+      )
+    end)
   end
 
   # A document that starts in the house (the witness, 2026-11-23): her
