@@ -263,10 +263,16 @@ defmodule Oneiroi.Sunna do
          "how long a work run may go with no end recorded before the check ends it as stalled (sunna#37): a run whose job died in a restart or a crash would otherwise hold the loop forever, saying it runs an item that is done; three hours is past any twenty-turn run measured so far"},
       {:work_runs_a_day, "SUNNA_WORK_RUNS_A_DAY",
        cast: :integer,
+       default: "1000",
+       tag: :bound,
+       usage:
+         "how many runs of work may start in one of the resident's days (sunna#33): each finished run fires the next with no one in between. Twenty (the witness, 2026-11-08, up from eight) until the review feedback made runs short and many; a thousand since (the witness, 2026-11-24: \"no global limit, or maybe like 1000\"), a backstop now that SUNNA_WORK_RUNS_AN_ACTIVITY guards the loop that never moves (sunna#101)"},
+      {:work_runs_an_activity, "SUNNA_WORK_RUNS_AN_ACTIVITY",
+       cast: :integer,
        default: "20",
        tag: :bound,
        usage:
-         "how many runs of work-queue items may start in one of the resident's days (sunna#33): each finished run fires the next with no one in between, so this is the guard on a loop that never empties (an item wrapped open again and again); the work budget line is the real limit when one is set. Twenty (the witness, 2026-11-08), up from eight"},
+         "how many runs one house queue activity may take with nothing moving it (sunna#101; the witness, 2026-11-24: \"20 per work item to stop runaway loops\"): the count starts over whenever a run ends with the activity no longer hers to work, and the witness's give-back resets it; at the bound the line passes that activity by, saying so"},
       {:work_retry_seconds, "SUNNA_WORK_RETRY_SECONDS",
        cast: :integer,
        default: "900",

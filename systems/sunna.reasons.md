@@ -662,3 +662,6 @@ A pinned citation already says which revision the step is about; asking the revi
 
 ## #100
 A run is only as alive as the job that carries it, and an executing job is only alive while its node is. Oban without its paid lifeline cannot tell a dead node's job from a working one except by time, and every work job's time is bounded by the turn timeout, so time is enough here: a job executing three times longer than any turn can take has no node behind it. A restarted run that starts cold redoes work, or worse, does it differently without knowing there was a first attempt; naming the cut-off conversation costs one line and gives her the record to carry on from.
+
+## #101
+The day's cap guarded against one thing, a loop that never empties, and it guarded by starving everything: once review feedback made runs short and many, honest work spent it by mid-morning, and the one runaway that did happen (an activity rerun every few minutes while its records were refused) spent it fastest. The runaway is per activity, so the guard is too: twenty runs that leave an activity exactly where it was is a loop, not work, and anything that moves it is progress and starts the count over. With that in place the day's cap only needs to catch what nothing else would, so it moves far out of the way.

@@ -260,6 +260,12 @@ defmodule Oneiroi.Sunna.WorkLoop do
       cut: cut(state),
       runs_today: runs_today(resident_id, state),
       runs_a_day: Config.fetch!(:sunna, :work_runs_a_day),
+      # Her runs of each activity since it last moved (sunna#101).
+      activity_runs:
+        Scope.resident(resident_id, fn -> Store.work_activity_runs() end)
+        |> Enum.map(fn {act, runs} -> %{act: act, runs: runs} end)
+        |> Enum.sort_by(& &1.act),
+      runs_an_activity: Config.fetch!(:sunna, :work_runs_an_activity),
       budget: budget(resident_id)
     }
     |> Map.merge(line_state(state, live(state, items)))
@@ -672,7 +678,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   # then oldest ready), taken at the run's start and run a turn at a time
   # in a `work` conversation, under the same line, care, budget and cap.
   defp next_activity(resident_id, state, line, cap) do
-    card = first_activity(resident_id)
+    {card, spent} = activities(resident_id)
 
     cond do
       # One switch for the house (sunna#94): her line runs while the
@@ -682,6 +688,12 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
       # Nothing ready is no reason to stop (sunna#92, #94): the house's
       # work arrives any time, and the tick starts it once it is ready.
+      is_nil(card) and spent != [] ->
+        rest(
+          resident_id,
+          "holding: #{Enum.join(spent, ", ")} had #{Config.fetch!(:sunna, :work_runs_an_activity)} runs each with nothing moving; your witness can give runs back"
+        )
+
       is_nil(card) ->
         rest(resident_id, "running, holding: nothing in the house queue is ready for you")
 
@@ -725,17 +737,28 @@ defmodule Oneiroi.Sunna.WorkLoop do
   defp activity_waiting?(resident_id),
     do: cut_over?(resident_id) and not is_nil(first_activity(resident_id))
 
-  defp first_activity(resident_id) do
+  defp first_activity(resident_id), do: elem(activities(resident_id), 0)
+
+  # Her first ready or active activity with runs left (sunna#101), and
+  # the ones passed by for having had their runs with nothing moving.
+  defp activities(resident_id) do
     case Oneiroi.Gaia.resident_household(resident_id) do
       %{id: h} ->
-        h
-        |> Queues.waiting_on("resident:#{resident_id}")
-        |> Map.fetch!(:ready)
-        |> Enum.find(&(&1.view in ["ready", "active"]))
-        |> then(&(&1 && Map.put(&1, :household, h)))
+        bound = Config.fetch!(:sunna, :work_runs_an_activity)
+        runs = Scope.resident(resident_id, fn -> Store.work_activity_runs() end)
+
+        {spent, left} =
+          h
+          |> Queues.waiting_on("resident:#{resident_id}")
+          |> Map.fetch!(:ready)
+          |> Enum.filter(&(&1.view in ["ready", "active"]))
+          |> Enum.split_with(&(Map.get(runs, &1.act, 0) >= bound))
+
+        card = List.first(left)
+        {card && Map.put(card, :household, h), Enum.map(spent, & &1.act)}
 
       _none ->
-        nil
+        {nil, []}
     end
   end
 
@@ -836,6 +859,20 @@ defmodule Oneiroi.Sunna.WorkLoop do
     end
   end
 
+  # Whether the run's activity has left her hands (sunna#101): finished,
+  # decided, blocked, failed, skipped or reassigned. Read off the run
+  # itself, which names its task and household.
+  defp moved?(resident_id, act) do
+    case Scope.resident(resident_id, fn -> Store.work_queue() end) do
+      %{running_act: ^act, running_household: h, running_task: task}
+      when is_binary(h) and is_integer(task) ->
+        not still_hers?(resident_id, h, task, act)
+
+      _unknown ->
+        false
+    end
+  end
+
   # Whether the activity is still hers to work: assigned to her and live.
   defp still_hers?(resident_id, h, task, act) do
     with %{layers: layers} <- Queues.task(h, task),
@@ -879,7 +916,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
         actor: @actor,
         at: Clock.now(),
         id: resident_id,
-        act: act
+        act: act,
+        moved: moved?(resident_id, act)
       })
 
     if waits?(result),
