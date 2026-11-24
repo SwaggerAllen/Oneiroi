@@ -35,6 +35,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   alias Oneiroi.Scope
   alias Oneiroi.Sunna.Commands
   alias Oneiroi.Sunna.Error
+  alias Oneiroi.Sunna.FreeTimeRuns
   alias Oneiroi.Sunna.Queues
   alias Oneiroi.Sunna.QueueState
   alias Oneiroi.Sunna.Schedules
@@ -972,11 +973,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   # "the runs-a-day cap is the brake"): quiet hours guard wakes that want
   # him, and the queue wants nobody, so they no longer hold it.
   defp care_wait(resident_id) do
-    if Scope.resident(resident_id, fn ->
-         Store.free_time_underway?(free_time_since(resident_id))
-       end),
-       do: @care_wait,
-       else: nil
+    if care_first?(resident_id), do: @care_wait, else: nil
   end
 
   # The free-time passes that hold the line: begun within the window, and
@@ -993,10 +990,11 @@ defmodule Oneiroi.Sunna.WorkLoop do
     end
   end
 
-  defp care_first?(resident_id) do
-    since = free_time_since(resident_id)
-    Scope.resident(resident_id, fn -> Store.free_time_underway?(since) end)
-  end
+  # Care comes first while her free time is live (sunna#96; the witness,
+  # 2026-11-23: her line held for three hours behind a pass that had
+  # ended without its closing turn recorded).
+  defp care_first?(resident_id),
+    do: FreeTimeRuns.live?(resident_id, free_time_since(resident_id))
 
   # What the armed line allows a turn (sunna#35): with no cap, unlimited;
   # with one, what is left, or `:spent`, when the run goes to its wrap.

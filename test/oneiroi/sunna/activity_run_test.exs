@@ -110,6 +110,10 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
     assert {:started, ^act} = WorkLoop.check(ctx.id)
     assert :running = WorkLoop.check(ctx.id)
 
+    # Its card says her line is working it (2026-11-23).
+    assert %{line: %{state: "running"}} =
+             Enum.find(Sunna.queue_activities(ctx.h, %{}), &(&1.act == act))
+
     # Taken at the run's start: hers, active.
     assert %{view: "active"} =
              Enum.find(List.flatten(Sunna.queue_task(ctx.h, n).layers), &(&1.act_id == act))

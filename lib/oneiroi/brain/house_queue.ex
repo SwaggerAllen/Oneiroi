@@ -27,8 +27,39 @@ defmodule Oneiroi.Brain.HouseQueue do
   @doc "Decides a review on what the reviewer read: `pin` (the head now when not named), the head read now beside it."
   def decide(household_id, task, act, attrs, %Actor{} = actor) do
     head = head(household_id, task, act)
-    attrs = attrs |> Map.put(:head, head) |> Map.update(:pin, head, &(&1 || head))
+    pin = settled(household_id, task, act, attrs[:pin] || head, head, actor)
+    attrs = attrs |> Map.put(:head, head) |> Map.put(:pin, pin)
     Sunna.queue_decide(household_id, task, act, attrs, actor)
+  end
+
+  # A house document's citation is pinned at the house's commit when it
+  # was read (`household_read`), which is not the commit that last changed
+  # the file; any other write to the house since made them differ, and
+  # the guard refused every decision as read on a moved document (the
+  # witness, 2026-11-23: Scarlett's peer review of task #12, refused on an
+  # unchanged document). The pin she read is the head when the document's
+  # words at it are the words at the head (sunna#98).
+  defp settled(_h, _task, _act, pin, nil, _actor), do: pin
+  defp settled(_h, _task, _act, nil, _head, _actor), do: nil
+
+  defp settled(household_id, task, act, pin, head, actor) do
+    cond do
+      String.starts_with?(head, pin) or String.starts_with?(pin, head) -> pin
+      same_words?(household_id, task, act, pin, head, actor) -> head
+      true -> pin
+    end
+  end
+
+  defp same_words?(household_id, task, act, pin, head, actor) do
+    with %{layers: layers} <- Sunna.queue_task(household_id, task),
+         %{artifact: "house/" <> _ = cite} <- Enum.find(List.flatten(layers), &(&1.act_id == act)),
+         {:ok, %{path: path}} <- Seshat.house_citation(cite),
+         {:ok, %{content: then}} <- Seshat.household_read(actor, path, at: pin),
+         {:ok, %{content: now}} <- Seshat.household_read(actor, path, at: head) do
+      then == now
+    else
+      _cannot_tell -> false
+    end
   end
 
   @doc """

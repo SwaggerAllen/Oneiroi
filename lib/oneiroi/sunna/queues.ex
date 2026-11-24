@@ -856,7 +856,8 @@ defmodule Oneiroi.Sunna.Queues do
 
       rows = Repo.all(query)
       blockers = blockers(household_id, rows)
-      Enum.map(rows, fn {a, t} -> card(a, t, blockers) end)
+      lines = lines(rows)
+      Enum.map(rows, fn {a, t} -> card(a, t, blockers) |> Map.put(:line, line_of(a, lines)) end)
     end)
   end
 
@@ -995,6 +996,47 @@ defmodule Oneiroi.Sunna.Queues do
       project: t.project,
       owner: t.owner
     }
+  end
+
+  # The work lines of the residents holding these activities (the witness,
+  # 2026-11-23: a card should say where its step stands): what each runs,
+  # since when, or why it rests. Under the caller's platform scope.
+  defp lines(rows) do
+    ids =
+      for {a, _t} <- rows,
+          id = resident_of(a.assignee),
+          is_binary(id),
+          match?({:ok, _}, Ecto.UUID.cast(id)),
+          uniq: true,
+          do: id
+
+    if ids == [],
+      do: %{},
+      else:
+        Repo.all(from(q in Oneiroi.Sunna.Store.WorkQueue, where: q.resident_id in ^ids))
+        |> Map.new(&{&1.resident_id, &1})
+  end
+
+  defp resident_of("resident:" <> id), do: id
+  defp resident_of("claude-code:" <> id), do: id
+  defp resident_of(_other), do: nil
+
+  # A card's line: running this step (and since when), running another,
+  # or resting with its reason; nil for a witness's step.
+  defp line_of(a, lines) do
+    case lines[resident_of(a.assignee)] do
+      nil ->
+        nil
+
+      %{running_act: act, running_since: since} when act == a.act_id ->
+        %{state: "running", since: since}
+
+      %{running_act: act} when is_binary(act) ->
+        %{state: "busy", other: act}
+
+      q ->
+        %{state: "resting", reason: q.rested_reason, since: q.rested_at}
+    end
   end
 
   @doc "The activities assigned to an assignee that are ready or hold a review for them, for the bell (§2.5)."

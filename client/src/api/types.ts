@@ -840,7 +840,17 @@ export interface QueueActivity {
 }
 
 /** An activity as a card: its own fields plus its task's, and its blocker named (Scarlett's guard). */
+/** Where the holder's work line stands for a card (2026-11-23). */
+export interface QueueLine {
+  state: 'running' | 'busy' | 'resting';
+  since?: string | null;
+  other?: string;
+  reason?: string | null;
+}
+
 export interface QueueCard {
+  /** The holder's work line, for a resident's (or her Claude Code's) step; null for a witness's. */
+  line?: QueueLine | null;
   act: string;
   task: number;
   layer: number;

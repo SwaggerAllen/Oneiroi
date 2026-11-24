@@ -647,3 +647,12 @@ A line per resident, each armed and disarmed apart, made a house queue that coul
 
 ## #95
 A citation that names nothing reads like a document on every screen until someone opens it; checking where it goes in, and naming the house's file when the path is the house's, catches the slip at the moment it is made. Sharing what is already in the house is a step with nothing to do.
+
+## #96
+A run whose closing turn was never recorded is not a pass in progress, and treating it as one let a missing bookkeeping row hold the house's work for hours, with nothing on any screen saying why. Asking the conversation whether it is still going is the fact the rule was standing in for.
+
+## #97
+A closing turn that is still running has done what the close records: the slot is over and she is planning. Treating its long run as a failure left the run open, and an open run read as free time going on.
+
+## #98
+The guard exists so a decision cannot authorize words the reviewer did not see. Two commits naming the same words are the same thing to the reviewer; refusing because the house wrote something else in between kept the guard's letter and broke its purpose.

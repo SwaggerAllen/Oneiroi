@@ -286,6 +286,22 @@ defmodule Oneiroi.Sunna.WorkTest do
              Sunna.work_queue(ctx.id)
   end
 
+  # sunna#96 (the witness, 2026-11-23: her line held for three hours
+  # behind a pass that ended without its closing turn recorded): a pass
+  # whose conversation has gone quiet holds nothing.
+  test "care first holds only while her free time is live; a quiet pass lets the work go", ctx do
+    :ok = Nisaba.set_budget(ctx.id, :work, 5_000_000_000, :day, ctx.actor)
+    {:ok, 1} = Sunna.work_add(ctx.id, "Audience policy", "drafted", ctx.me)
+    :ok = Sunna.set_free_time(ctx.id, "12:00", ctx.actor)
+    :ok = Sunna.tick(ctx.id)
+    flush()
+    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    assert :care = WorkLoop.check(ctx.id)
+
+    Clock.Fake.advance(16 * 60)
+    assert {:started, 1} = WorkLoop.check(ctx.id)
+  end
+
   # sunna#76 (the witness, 2026-11-19): he lets work go ahead of a
   # free-time pass; she cannot; a pass begun after his skip holds it again.
   test "the witness skips the free-time wait with a note, and work starts; hers is refused",

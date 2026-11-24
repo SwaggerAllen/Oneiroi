@@ -8,7 +8,7 @@ import { useAct } from '../settings/useAct';
 import { useShell } from '../state/store';
 import { DocumentScreen } from './DocumentScreen';
 import { HOUSE } from './keys';
-import { actName, blockedLine, holdersOf, nameOf, since, slugify, taskSummaries, unpinned, type Names, type TaskSummary } from './queueText';
+import { actName, blockedLine, holdersOf, nameOf, since, slugify, stepStatus, taskSummaries, unpinned, type Names, type TaskSummary } from './queueText';
 import { ActivityPage, NewActivityPage, TaskPage, Who } from './TaskPage';
 import { TemplateActivity, TemplateEditor } from './TemplateEditor';
 import * as w from './work.css';
@@ -114,6 +114,7 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
         </select>
       </div>
       {q.cut_over && <QueueSwitch overview={q} />}
+      {q.cut_over && whose.startsWith('resident:') && <LineStatus residentId={whose.slice('resident:'.length)} name={nameOf(names, whose)} />}
       {cards.isPending && <p className={css.note}>Reading…</p>}
       {cards.data && (
         <>
@@ -179,6 +180,19 @@ function QueueSwitch({ overview: q }: { overview: QueueOverview }) {
 }
 
 /**
+ * Where a resident's line stands (the witness, 2026-11-23: steps that
+ * looked stalled were waiting on her free time): what it runs, or why it
+ * rests. Read only: the queue's one switch is above.
+ */
+function LineStatus({ residentId, name }: { residentId: string; name: string }) {
+  const line = useQuery({ queryKey: ['resident', residentId, 'settings', 'work'], queryFn: () => api.work(residentId), refetchOnWindowFocus: true });
+  if (!line.data) return null;
+  const q = line.data;
+  const now = q.running_act ? `running ${q.running_act}${q.running_task ? ` of task #${q.running_task}` : ''}` : (q.rested ?? 'idle');
+  return <p className={css.note}>{name}'s line: {now}</p>;
+}
+
+/**
  * A task's card: title and number, project and the layer it is at, its
  * documents as chips (each opens the document screen), what is in
  * progress now with whose it is, and a blocked task's blocker and that
@@ -230,6 +244,7 @@ function TaskCard({ s, names, me, mine = false }: { s: TaskSummary; names: Names
           <span>{actName(c)}</span>
           {c.name && <span className={w.typeWord}>{c.type}</span>}
           <Who assignee={c.assignee} names={names} me={me} />
+          <span className={w.stepStatus}>{stepStatus(c)}</span>
         </div>
       ))}
       {s.blocked && <span className={w.blocked}>{blockedLine(s.blocked, names)}</span>}

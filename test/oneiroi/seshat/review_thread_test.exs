@@ -10,6 +10,7 @@ defmodule Oneiroi.Seshat.ReviewThreadTest do
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.HouseQueue
   alias Oneiroi.Fixtures
   alias Oneiroi.Gaia
   alias Oneiroi.Seshat
@@ -61,6 +62,65 @@ defmodule Oneiroi.Seshat.ReviewThreadTest do
 
     assert {:ok, %{replies: [%{body: "Shorter." <> _}]}} =
              Seshat.household_read(ctx.andrew, thread)
+  end
+
+  # sunna#98 (the witness, 2026-11-23: Scarlett's peer review of task #12
+  # refused on an unchanged house document): a house read pins the
+  # house's commit, not the file's; a decision on what she read records
+  # while the document's words are the same.
+  test "a review of a house document records on the pin the house read gave", ctx do
+    {:ok, _} = Seshat.household_name(ctx.andrew, "nest#{System.unique_integer([:positive])}")
+
+    {:ok, _} =
+      Seshat.household_post(ctx.andrew, %{
+        "kind" => "human",
+        "path" => "human/andrew/plan.md",
+        "title" => "The plan",
+        "content" => "Draft one."
+      })
+
+    house = Gaia.household_slug(ctx.h)
+    cite = "house/#{house}:doc/human/andrew/plan.md"
+    :ok = Queues.open_project(ctx.h, %{slug: "p", name: "P"}, ctx.andrew)
+
+    {:ok, n} =
+      Queues.open_task(
+        ctx.h,
+        %{
+          project: "p",
+          slug: "plan",
+          title: "The plan",
+          outcome: "read",
+          layers: [
+            [
+              %{
+                name: "Read it",
+                type: "review",
+                assignee: "witness:#{ctx.andrew.id}",
+                artifact: cite
+              }
+            ]
+          ]
+        },
+        ctx.andrew
+      )
+
+    # Another write to the house after the document's last change.
+    Clock.Fake.advance(86_400)
+
+    {:ok, _} =
+      Seshat.household_post(ctx.andrew, %{"title" => "Elsewhere", "content" => "Unrelated."})
+
+    {:ok, %{commit: read_at}} = Seshat.household_read(ctx.andrew, "human/andrew/plan.md")
+
+    assert :ok =
+             HouseQueue.decide(
+               ctx.h,
+               n,
+               "#{n}.1",
+               %{outcome: "approved", pin: String.slice(read_at, 0, 12), note: "read it"},
+               ctx.andrew
+             )
   end
 
   test "a review's decision is posted into the document's thread, in her own threads", ctx do

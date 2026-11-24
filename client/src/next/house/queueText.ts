@@ -384,3 +384,32 @@ export function replacedDocument(layers: { act_id: string; artifact: string | nu
   return { arrangement, changed };
 }
 
+/**
+ * Where a card's step stands (the witness, 2026-11-23: "task cards should
+ * show the current status of the current activity"): its view in words,
+ * since when, and for a resident's step what her line is doing about it.
+ */
+export function stepStatus(c: Pick<QueueCard, 'view' | 'reason' | 'ready_at' | 'updated_at' | 'line' | 'type'>, now = Date.now()): string {
+  const ago = (iso: string | null | undefined) => (iso ? ` ${since(iso, now)} ago` : '');
+  switch (c.view) {
+    case 'blocked':
+      return `blocked${c.reason ? `: ${c.reason}` : ''}`;
+    case 'failed':
+      return `failed${c.reason ? `: ${c.reason}` : ''}`;
+    case 'waiting':
+      return 'waiting on an earlier layer';
+    case 'active':
+      if (c.line?.state === 'running') return `being worked, started${ago(c.line.since)}`;
+      return `taken${ago(c.updated_at)}`;
+    case 'ready': {
+      const head = c.type === 'review' ? `ready for review${ago(c.ready_at)}` : `ready${ago(c.ready_at)}`;
+      if (!c.line) return head;
+      if (c.line.state === 'running') return `${head} · starting now`;
+      if (c.line.state === 'busy') return `${head} · after ${c.line.other}`;
+      return c.line.reason ? `${head} · line ${c.line.reason}` : head;
+    }
+    default:
+      return c.view;
+  }
+}
+
