@@ -171,23 +171,23 @@ defmodule Oneiroi.Sunna.Queues do
         _other -> roles
       end
 
-    for layer <- layers do
-      for spec <- layer do
-        case roles[to_string(Queue.get(spec, :role))] do
-          nil ->
-            spec
-
-          who ->
-            spec
-            |> Map.new(fn {k, v} -> {to_string(k), v} end)
-            |> Map.delete("role")
-            |> Map.put("assignee", who)
-        end
-      end
-    end
+    Enum.map(layers, fn layer -> Enum.map(layer, &held(&1, roles)) end)
   end
 
   defp holders(layers, _roles), do: layers
+
+  defp held(spec, roles) do
+    case roles[to_string(Queue.get(spec, :role))] do
+      nil ->
+        spec
+
+      who ->
+        spec
+        |> Map.new(fn {k, v} -> {to_string(k), v} end)
+        |> Map.delete("role")
+        |> Map.put("assignee", who)
+    end
+  end
 
   @doc """
   Opens a task, returning its number. `attrs`:
@@ -517,6 +517,32 @@ defmodule Oneiroi.Sunna.Queues do
            }) do
       # Each resident's old loop checks once, finds the house queue on,
       # turns its line off and rests saying why.
+      for %{kind: "resident", id: id} <- members(household_id),
+          do: work_worker().enqueue_check(id)
+
+      :ok
+    end
+  end
+
+  @doc "Pauses the house queue for every resident (sunna#94): a witness's, with a note."
+  def pause(household_id, note, %Actor{} = actor),
+    do:
+      dispatch(household_id, actor, %C.PauseQueue{
+        actor: actor,
+        at: Clock.now(),
+        id: household_id,
+        note: note
+      })
+
+  @doc "Lets the house queue run again (sunna#94); each resident's line checks at once."
+  def resume(household_id, note, %Actor{} = actor) do
+    with :ok <-
+           dispatch(household_id, actor, %C.ResumeQueue{
+             actor: actor,
+             at: Clock.now(),
+             id: household_id,
+             note: note
+           }) do
       for %{kind: "resident", id: id} <- members(household_id),
           do: work_worker().enqueue_check(id)
 

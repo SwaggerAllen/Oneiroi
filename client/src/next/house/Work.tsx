@@ -8,7 +8,7 @@ import { useAct } from '../settings/useAct';
 import { useShell } from '../state/store';
 import { DocumentScreen } from './DocumentScreen';
 import { HOUSE } from './keys';
-import { actName, blockedLine, holdersOf, nameOf, slugify, taskSummaries, unpinned, type Names, type TaskSummary } from './queueText';
+import { actName, blockedLine, holdersOf, nameOf, since, slugify, taskSummaries, unpinned, type Names, type TaskSummary } from './queueText';
 import { ActivityPage, NewActivityPage, TaskPage, Who } from './TaskPage';
 import { TemplateActivity, TemplateEditor } from './TemplateEditor';
 import * as w from './work.css';
@@ -113,7 +113,7 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
           ))}
         </select>
       </div>
-      {whose.startsWith('resident:') && <WorkLine residentId={whose.slice('resident:'.length)} name={nameOf(names, whose)} />}
+      {q.cut_over && <QueueSwitch overview={q} />}
       {cards.isPending && <p className={css.note}>Reading…</p>}
       {cards.data && (
         <>
@@ -148,30 +148,32 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
 }
 
 /**
- * A resident's work line, where her queue is read (the witness,
- * 2026-11-23: tasks waiting on her and the line off with no way to see
- * it): armed or off, why it rests, and the switch.
+ * The house queue's one switch (sunna#94; the witness, 2026-11-23: "the
+ * queue is either running or it's not"): it runs unless paused, for every
+ * resident at once; a witness pauses or resumes it, with a note.
  */
-function WorkLine({ residentId, name }: { residentId: string; name: string }) {
+function QueueSwitch({ overview: q }: { overview: QueueOverview }) {
   const queries = useQueryClient();
-  const line = useQuery({ queryKey: ['resident', residentId, 'settings', 'work'], queryFn: () => api.work(residentId) });
+  const [note, setNote] = useState('');
   const flip = useMutation({
-    mutationFn: (on: boolean) => (on ? api.armWork(residentId) : api.disarmWork(residentId)),
-    onSettled: () => queries.invalidateQueries({ queryKey: ['resident', residentId, 'settings', 'work'] }),
+    mutationFn: () => (q.paused ? api.queueResume(note || 'running again') : api.queuePause(note || 'paused')),
+    onSettled: () => {
+      setNote('');
+      void queries.invalidateQueries({ queryKey: QUEUE });
+    },
   });
-  if (!line.data) return null;
-  const q = line.data;
-  const running = q.running_act ? ` · running ${q.running_act}` : '';
+  const witness = q.me.startsWith('witness:');
   return (
-    <div className={w.segmented} role="group" aria-label={`${name}'s work line`}>
-      <span className={css.note}>
-        {name}'s work line: {q.armed ? 'armed' : 'off'}
-        {running}
-        {q.rested && !q.running_act ? ` · ${q.rested}` : ''}
-      </span>
-      <button type="button" className={q.armed ? css.secondary : css.primary} disabled={flip.isPending} onClick={() => flip.mutate(!q.armed)}>
-        {q.armed ? 'Turn off' : 'Arm'}
-      </button>
+    <div className={w.segmented} role="group" aria-label="The house queue">
+      <span className={css.note}>{q.paused ? `The queue is paused${q.paused_at ? ` since ${since(q.paused_at)} ago` : ''}: nothing starts on anyone's line.` : 'The queue is running: each resident takes her next ready step.'}</span>
+      {witness && (
+        <>
+          <input className={w.select} aria-label="Why (a note)" placeholder="Why (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+          <button type="button" className={q.paused ? css.primary : css.secondary} disabled={flip.isPending} onClick={() => flip.mutate()}>
+            {q.paused ? 'Resume' : 'Pause'}
+          </button>
+        </>
+      )}
     </div>
   );
 }

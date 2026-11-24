@@ -641,3 +641,6 @@ The old queue was a batch she armed and the line ended with it; the house queue 
 
 ## #93
 A template is the house's agreement about who does what; resolving it against whoever happened to open the task made the agreement depend on a click. Naming the holders in the template keeps it the same every time. A Claude Code and its resident's deliver are one decision in two rows, so the screens change them as one.
+
+## #94
+A line per resident, each armed and disarmed apart, made a house queue that could be half on with nobody choosing it, and the default after a quiet hour was off. One switch says what the house is doing, and its default is running.

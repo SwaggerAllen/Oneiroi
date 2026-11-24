@@ -34,6 +34,9 @@ defmodule OneiroiWeb.QueueController do
       household_id: h,
       me: me(conn),
       cut_over: state.cut_over,
+      # The house queue's one switch (sunna#94).
+      paused: state.paused == true,
+      paused_at: state.paused_at,
       cut_at: state.cut_at,
       commit: state.commit,
       members: Sunna.queue_members(h),
@@ -348,6 +351,25 @@ defmodule OneiroiWeb.QueueController do
         conn,
         Sunna.queue_cut_over(conn.assigns.household_id, p["commit"], p["note"], actor(conn))
       )
+
+  operation(:pause,
+    summary:
+      "Pauses the house queue for every resident (sunna#94): nothing starts on anyone's line until it runs again; a witness's, with a note",
+    request_body: {"the note", "application/json", %Schema{type: :object}},
+    responses: [ok: {"done", "application/json", %Schema{type: :object}}]
+  )
+
+  def pause(conn, p),
+    do: done(conn, Sunna.queue_pause(conn.assigns.household_id, p["note"], actor(conn)))
+
+  operation(:resume,
+    summary: "Lets the house queue run again (sunna#94); every resident's line checks at once",
+    request_body: {"the note", "application/json", %Schema{type: :object}},
+    responses: [ok: {"done", "application/json", %Schema{type: :object}}]
+  )
+
+  def resume(conn, p),
+    do: done(conn, Sunna.queue_resume(conn.assigns.household_id, p["note"], actor(conn)))
 
   operation(:cut_back,
     summary: "The one-step revert (§6.2): the old queue's screens and loop back on, with a note",

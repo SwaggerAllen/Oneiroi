@@ -114,6 +114,8 @@ defmodule OneiroiWeb.Router do
       post("/household/queue/snapshot", QueueController, :snapshot)
       post("/household/queue/cutover", QueueController, :cut_over)
       post("/household/queue/cutback", QueueController, :cut_back)
+      post("/household/queue/pause", QueueController, :pause)
+      post("/household/queue/resume", QueueController, :resume)
       get("/household/read", HouseholdController, :read)
       get("/household/files", HouseholdController, :files)
       get("/household/search", HouseholdController, :search)

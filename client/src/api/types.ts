@@ -917,6 +917,9 @@ export interface QueueOverview {
   household_id: string;
   me: string;
   cut_over: boolean;
+  /** The house queue's one switch (sunna#94): it runs unless paused. */
+  paused?: boolean;
+  paused_at?: string | null;
   cut_at: string | null;
   commit: string | null;
   members: QueueMember[];

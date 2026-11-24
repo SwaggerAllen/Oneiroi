@@ -507,7 +507,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
   defp waits?({:ok, :outlasted}), do: true
   defp waits?(_ok), do: false
 
-  @doc "Whether the tick should ask for a check: the line armed, work open, nothing running."
+  @doc "Whether the tick should ask for a check: the line on, work waiting, nothing running."
   def due?(resident_id) do
     Scope.resident(resident_id, fn ->
       state = Store.work_queue()
@@ -515,12 +515,37 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
       # A run left behind is asked about armed or not (sunna#41): the
       # check is the only place that ends it.
-      (state != nil and left_behind?(state, items)) or
-        (state != nil and state.armed and is_nil(state.running) and is_nil(state.running_act) and
-           state.rested_reason != Work.stopped_rest() and
-           (Enum.any?(items, &(&1.status == "open")) or activity_waiting?(resident_id)))
+      (state != nil and left_behind?(state, items)) or on_and_waiting?(resident_id, state, items)
     end)
   end
+
+  # The house queue runs unless paused (sunna#94), no arm of hers; the old
+  # queue runs while she has armed it.
+  defp on_and_waiting?(resident_id, state, items) do
+    if cut_over?(resident_id),
+      do: house_waiting?(resident_id, state),
+      else: old_waiting?(state, items)
+  end
+
+  defp house_waiting?(resident_id, state),
+    do:
+      house_running?(resident_id) and free?(state) and not stopped?(state) and
+        activity_waiting?(resident_id)
+
+  defp old_waiting?(nil, _items), do: false
+
+  defp old_waiting?(state, items),
+    do:
+      state.armed and free?(state) and not stopped?(state) and
+        Enum.any?(items, &(&1.status == "open"))
+
+  defp stopped?(nil), do: false
+  defp stopped?(state), do: state.rested_reason == Work.stopped_rest()
+
+  defp free?(state), do: not busy?(state)
+
+  defp busy?(nil), do: false
+  defp busy?(state), do: not (is_nil(state.running) and is_nil(state.running_act))
 
   # A run whose item is no longer in work (sunna#41): moved by hand before
   # sunna#37 ended such runs, so the record still names it; ended by the
@@ -631,15 +656,15 @@ defmodule Oneiroi.Sunna.WorkLoop do
     card = first_activity(resident_id)
 
     cond do
-      not (state && state.armed) ->
-        rest(resident_id, "off: the work line waits for you to arm it (work_arm)")
+      # One switch for the house (sunna#94): her line runs while the
+      # house queue does, whatever her old arm said.
+      not house_running?(resident_id) ->
+        rest(resident_id, "paused: the house queue is paused")
 
-      # On the house queue the line stays armed with nothing ready
-      # (sunna#92; the witness, 2026-11-23): the house's work arrives any
-      # time, and the tick starts it once it is ready. Only a person
-      # turns the line off.
+      # Nothing ready is no reason to stop (sunna#92, #94): the house's
+      # work arrives any time, and the tick starts it once it is ready.
       is_nil(card) ->
-        rest(resident_id, "armed, holding: nothing in the house queue is ready for you")
+        rest(resident_id, "running, holding: nothing in the house queue is ready for you")
 
       line && line.left <= 0 ->
         rest(resident_id, spent(line))
@@ -649,6 +674,13 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
       true ->
         start_activity(resident_id, card)
+    end
+  end
+
+  defp house_running?(resident_id) do
+    case Oneiroi.Gaia.resident_household(resident_id) do
+      %{id: h} -> QueueState.running?(h)
+      _none -> false
     end
   end
 

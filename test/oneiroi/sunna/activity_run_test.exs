@@ -91,9 +91,18 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
     n = ctx.n
     :ok = Sunna.queue_cut_over(ctx.h, "abc1234", "the set is built", ctx.andrew)
 
-    # Old items are read-only; the line itself still arms.
+    # Old items are read-only. The house queue runs unless paused, with
+    # no arm of hers (sunna#94): paused, nothing starts; resumed, it does.
     assert {:error, %{kind: :sunna_work_frozen}} = Sunna.work_add(ctx.id, "x", "y", ctx.me)
-    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    assert WorkLoop.due?(ctx.id)
+
+    assert {:error, %{kind: :sunna_queue_not_yours}} =
+             Sunna.queue_pause(ctx.h, "mine to stop", Oneiroi.Actor.new(:resident, ctx.id))
+
+    :ok = Sunna.queue_pause(ctx.h, "a quiet evening", ctx.andrew)
+    refute WorkLoop.due?(ctx.id)
+    assert {:rested, "paused: the house queue is paused"} = WorkLoop.check(ctx.id)
+    :ok = Sunna.queue_resume(ctx.h, "back to it", ctx.andrew)
     assert WorkLoop.due?(ctx.id)
     clear_jobs()
 
@@ -125,12 +134,11 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
 
     assert [%{"turn" => "check"}] = jobs(ctx.id)
 
-    # Nothing else is hers (the review is his): the line stays armed and
-    # holds, saying why (sunna#92), and is not due until something is.
-    assert {:rested, "armed, holding: nothing in the house queue is ready for you"} =
+    # Nothing else is hers (the review is his): the queue still runs and
+    # her line holds, saying why (sunna#92, #94), not due until something is.
+    assert {:rested, "running, holding: nothing in the house queue is ready for you"} =
              WorkLoop.check(ctx.id)
 
-    assert %{armed: true} = WorkLoop.queue(ctx.id)
     refute WorkLoop.due?(ctx.id)
   end
 

@@ -806,6 +806,8 @@ export const api = {
   queueSnapshot: () => call<{ commit: string }>('POST', '/v1/household/queue/snapshot'),
   queueCutOver: (commit: string, note: string) => call<{ ok: true }>('POST', '/v1/household/queue/cutover', { commit, note }),
   queueCutBack: (note: string) => call<{ ok: true }>('POST', '/v1/household/queue/cutback', { note }),
+  queuePause: (note: string) => call<{ ok: true }>('POST', '/v1/household/queue/pause', { note }),
+  queueResume: (note: string) => call<{ ok: true }>('POST', '/v1/household/queue/resume', { note }),
   householdPost: (post: { title?: string; content: string; kind?: string; path?: string; doc?: string; ballot?: { bundle: BallotItem[]; term_days: number; note: string } }) =>
     call<{ path: string }>('POST', '/v1/household/posts', post),
   householdVote: (thread: string, vote: 'yes' | 'no', content: string) => call<{ number: number }>('POST', '/v1/household/votes', { thread, vote, content }),

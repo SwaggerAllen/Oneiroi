@@ -67,6 +67,8 @@ defmodule Oneiroi.Sunna do
       QueueCommands.EditLayers,
       QueueCommands.CutOver,
       QueueCommands.CutBack,
+      QueueCommands.PauseQueue,
+      QueueCommands.ResumeQueue,
       Events.Queue.ProjectOpened,
       Events.Queue.ProjectClosed,
       Events.Queue.TemplateDefined,
@@ -88,6 +90,8 @@ defmodule Oneiroi.Sunna do
       Events.Queue.TaskDropped,
       Events.Queue.CutOver,
       Events.Queue.CutBack,
+      Events.Queue.QueuePaused,
+      Events.Queue.QueueResumed,
       QueueStore.Project,
       QueueStore.Task,
       QueueStore.Activity,
@@ -404,6 +408,8 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.Queue.TaskDropped, 1},
       {Oneiroi.Sunna.Events.Queue.CutOver, 1},
       {Oneiroi.Sunna.Events.Queue.CutBack, 1},
+      {Oneiroi.Sunna.Events.Queue.QueuePaused, 1},
+      {Oneiroi.Sunna.Events.Queue.QueueResumed, 1},
       {Oneiroi.Sunna.Events.ActivityRunStarted, 1},
       {Oneiroi.Sunna.Events.ActivityRunEnded, 1},
       {Oneiroi.Sunna.Events.WorkAdded, 1},
@@ -934,6 +940,14 @@ defmodule Oneiroi.Sunna do
   defexport(queue_cut_back(household_id, note, actor),
     do: Queues.cut_back(household_id, note, actor)
   )
+
+  @doc "Pauses the house queue for every resident (sunna#94)."
+  @spec queue_pause(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(queue_pause(household_id, note, actor), do: Queues.pause(household_id, note, actor))
+
+  @doc "Lets the house queue run again (sunna#94)."
+  @spec queue_resume(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(queue_resume(household_id, note, actor), do: Queues.resume(household_id, note, actor))
 
   @doc "The house queue's state: cut over and its commit."
   @spec queue_state(String.t()) :: Oneiroi.Sunna.QueueStore.State.t()
