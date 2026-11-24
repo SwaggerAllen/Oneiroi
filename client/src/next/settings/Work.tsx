@@ -45,7 +45,7 @@ export function Work() {
     <>
       <Card title="The work line" witness>
         <LoopLine name={name} q={q} />
-        {!q.armed && live.some((i) => i.status === 'open') && (
+        {!q.armed && (q.house_queue || live.some((i) => i.status === 'open')) && (
           <div>
             <button type="button" className={css.primary} disabled={act.busy} onClick={() => run(() => api.armWork(id).then(() => 'Armed.'))}>
               Arm the work line

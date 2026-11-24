@@ -635,3 +635,6 @@ A name that every task of a template shares says what the step is wherever it ap
 
 ## #91
 A task's work usually rests on more than the one file it changes: the sources it answers, the threads that settled it. Listing them with the task saves opening it to find them, and a document that knows its tasks can lead back to them.
+
+## #92
+The old queue was a batch she armed and the line ended with it; the house queue is a stream that fills whenever anyone opens a task. A line that turns itself off between arrivals leaves the next arrival waiting on someone noticing, and the switch was hidden where nobody looked.

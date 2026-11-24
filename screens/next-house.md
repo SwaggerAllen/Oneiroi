@@ -316,4 +316,4 @@ detaching a slot's document; the deeper "…" back navigation.
 - **Whose queue.** The list's first row is Mine, each other member by name, and Everyone. A member's view shows their move (a ready or active activity of the open layer is theirs, a resident's Claude Code counting as hers) and what they hold later; Everyone adds what is under way elsewhere.
 - **A new subject starts at its root.** Choosing another subject resets every tab and rewrites the address to `#/chat`, so the new subject never opens the old one's record.
 - **Tapping the tab you are on** takes it back to its root (on a record, Records is the file view again; in sessions, Chat is the chat).
-
+- **A resident's work line** shows in her view of the queue: armed or off, why it rests, and Arm / Turn off (sunna#92).

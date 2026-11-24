@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import type { QueueCard, QueueOverview } from '../../api/types';
@@ -113,6 +113,7 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
           ))}
         </select>
       </div>
+      {whose.startsWith('resident:') && <WorkLine residentId={whose.slice('resident:'.length)} name={nameOf(names, whose)} />}
       {cards.isPending && <p className={css.note}>Reading…</p>}
       {cards.data && (
         <>
@@ -143,6 +144,35 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
       <Templates overview={q} />
       <Setup overview={q} />
     </>
+  );
+}
+
+/**
+ * A resident's work line, where her queue is read (the witness,
+ * 2026-11-23: tasks waiting on her and the line off with no way to see
+ * it): armed or off, why it rests, and the switch.
+ */
+function WorkLine({ residentId, name }: { residentId: string; name: string }) {
+  const queries = useQueryClient();
+  const line = useQuery({ queryKey: ['resident', residentId, 'settings', 'work'], queryFn: () => api.work(residentId) });
+  const flip = useMutation({
+    mutationFn: (on: boolean) => (on ? api.armWork(residentId) : api.disarmWork(residentId)),
+    onSettled: () => queries.invalidateQueries({ queryKey: ['resident', residentId, 'settings', 'work'] }),
+  });
+  if (!line.data) return null;
+  const q = line.data;
+  const running = q.running_act ? ` · running ${q.running_act}` : '';
+  return (
+    <div className={w.segmented} role="group" aria-label={`${name}'s work line`}>
+      <span className={css.note}>
+        {name}'s work line: {q.armed ? 'armed' : 'off'}
+        {running}
+        {q.rested && !q.running_act ? ` · ${q.rested}` : ''}
+      </span>
+      <button type="button" className={q.armed ? css.secondary : css.primary} disabled={flip.isPending} onClick={() => flip.mutate(!q.armed)}>
+        {q.armed ? 'Turn off' : 'Arm'}
+      </button>
+    </div>
   );
 }
 

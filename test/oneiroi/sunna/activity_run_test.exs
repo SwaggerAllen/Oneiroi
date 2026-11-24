@@ -125,10 +125,12 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
 
     assert [%{"turn" => "check"}] = jobs(ctx.id)
 
-    # Nothing else is hers (the review is his): the line goes off, saying why.
-    assert {:rested, "empty, holding: nothing in the house queue is ready for you"} =
+    # Nothing else is hers (the review is his): the line stays armed and
+    # holds, saying why (sunna#92), and is not due until something is.
+    assert {:rested, "armed, holding: nothing in the house queue is ready for you"} =
              WorkLoop.check(ctx.id)
 
+    assert %{armed: true} = WorkLoop.queue(ctx.id)
     refute WorkLoop.due?(ctx.id)
   end
 

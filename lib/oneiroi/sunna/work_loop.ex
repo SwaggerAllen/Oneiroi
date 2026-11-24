@@ -634,9 +634,12 @@ defmodule Oneiroi.Sunna.WorkLoop do
       not (state && state.armed) ->
         rest(resident_id, "off: the work line waits for you to arm it (work_arm)")
 
+      # On the house queue the line stays armed with nothing ready
+      # (sunna#92; the witness, 2026-11-23): the house's work arrives any
+      # time, and the tick starts it once it is ready. Only a person
+      # turns the line off.
       is_nil(card) ->
-        disarm(resident_id)
-        rest(resident_id, "empty, holding: nothing in the house queue is ready for you")
+        rest(resident_id, "armed, holding: nothing in the house queue is ready for you")
 
       line && line.left <= 0 ->
         rest(resident_id, spent(line))
