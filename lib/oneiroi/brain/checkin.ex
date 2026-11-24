@@ -167,10 +167,17 @@ defmodule Oneiroi.Brain.Checkin do
   defp waiting_label("ask"), do: "ask(s) to answer"
   defp waiting_label("piece_to_review"), do: "piece(s) to review"
   defp waiting_label("piece_to_publish"), do: "drafted piece(s) to publish"
-  defp waiting_label("work_blocked"), do: "work item(s) blocked"
   defp waiting_label("plugin_proposal"), do: "plugin proposal(s) of hers to answer"
   defp waiting_label("kind_gate_proposal"), do: "kind gate proposal(s) of hers to answer"
   defp waiting_label("theme_proposal"), do: "theme proposal(s) of hers to answer"
+  defp waiting_label("activity"), do: "house queue step(s) of his ready"
+  defp waiting_label("contract_to_answer"), do: "agreement version(s) to answer"
+  defp waiting_label("remote_public"), do: "public remote(s) to look at"
+  # A kind added to his list after this line was written is named by its
+  # kind, never a crash (brain#115; the witness, 2026-11-24: three house
+  # check-ins in a row reached neither resident, the note raising on
+  # "activity" before either wake was sent).
+  defp waiting_label(kind), do: "#{String.replace(kind, "_", " ")}(s)"
 
   # The one part that does something: it asks the reader for a digest
   # from the chat (seshat#40), whose letter wakes the chat when it lands.

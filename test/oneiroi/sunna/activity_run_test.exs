@@ -244,6 +244,15 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
     end)
   end
 
+  # brain#115 (the witness, 2026-11-24: three house check-ins in a row
+  # reached neither resident): the check-in note names a house queue step
+  # of his on her bell, rather than raising on it before any wake is sent.
+  test "the check-in's waiting part names a house queue step ready for the witness", ctx do
+    :ok = Sunna.queue_finish(ctx.h, ctx.n, "#{ctx.n}.1", %{}, ctx.me)
+    part = Oneiroi.Brain.checkin_part(ctx.id, "needs_you")
+    assert part =~ "- 1 house queue step(s) of his ready"
+  end
+
   # A document that starts in the house (the witness, 2026-11-23): her
   # share step on it passes itself, said so, and the line looks again.
   test "her share step on a document already in the house passes itself", ctx do

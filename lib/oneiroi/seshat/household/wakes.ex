@@ -83,13 +83,16 @@ defmodule Oneiroi.Seshat.Household.Wakes do
   def wake_house(household_id, note_for, thread \\ nil) do
     for %{kind: "resident", id: id} <- Gaia.household_members(household_id),
         not AgathosDaimon.held?(id) do
-      # Its manifest first (sunna#71): a check-in's wake carries the thread.
+      # Her note before her manifest (brain#115): a note that cannot be
+      # built leaves no wake recorded and never sent.
+      note = note_for.(id)
+      # Its manifest (sunna#71): a check-in's wake carries the thread.
       wake_id = manifest(id, "checkin", [%{kind: "post", thread: thread}], household_id)
 
       Jobs.enqueue(@house_wake_worker, %{
         "household_id" => household_id,
         "house_wake" => id,
-        "note" => note_for.(id),
+        "note" => note,
         "thread" => thread,
         "wake_id" => wake_id
       })
