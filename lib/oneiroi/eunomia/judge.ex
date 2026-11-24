@@ -141,16 +141,22 @@ defmodule Oneiroi.Eunomia.Judge do
   end
 
   @doc false
-  # Public for its test.
+  # Public for its test. The form is read past its markup (eunomia#40;
+  # the witness, 2026-11-24: task #12's draft and its thread reply were
+  # refused all morning as "not in the form asked"): a model that sets
+  # its answer in Markdown (`**VERDICT:** CLEAN`, `## Verdict: CLEAN`,
+  # `VERDICT: **CLEAN**`) gave the verdict, and the review reads it.
   def parse_disclosure(content) do
+    plain = unmarked(content)
+
     verdict =
-      case Regex.run(~r/^VERDICT:\s*(DISCLOSES|CLEAN)\b/im, content) do
+      case Regex.run(~r/^VERDICT\s*[:\-–—]\s*(DISCLOSES|CLEAN)\b/imu, plain) do
         [_, v] -> if String.upcase(v) == "CLEAN", do: :clean, else: :discloses
-        nil -> nil
+        nil -> bare_verdict(plain)
       end
 
     reasons =
-      case Regex.run(~r/^REASONS?:\s*(.+)$/im, content) do
+      case Regex.run(~r/^REASONS?\s*[:\-–—]\s*(.+)$/imu, plain) do
         [_, r] -> String.trim(r)
         nil -> ""
       end
@@ -162,13 +168,44 @@ defmodule Oneiroi.Eunomia.Judge do
          Error.new(:eunomia_disclosure_unreadable, :eunomia_disclosure_verdict_unreadable)}
   end
 
+  # An answer that is the verdict word alone.
+  defp bare_verdict(plain) do
+    case plain |> String.trim() |> String.trim_trailing(".") |> String.upcase() do
+      "CLEAN" -> :clean
+      "DISCLOSES" -> :discloses
+      _other -> nil
+    end
+  end
+
+  # Line by line: a heading's or quote's marks at the start, and the
+  # emphasis and code marks anywhere, removed; the words stay.
+  defp unmarked(content) do
+    content
+    |> String.split("\n")
+    |> Enum.map_join("\n", fn line ->
+      line
+      |> String.replace(~r/^\s*(?:[#>]+|[-*+]\s)\s*/u, "")
+      |> String.replace(~r/\*\*|__|`/u, "")
+      |> String.replace(~r/^\*|\*(?=\s*[:\-–—])/u, "")
+      |> String.trim_leading()
+    end)
+  end
+
   @doc false
   # The words a DISCLOSES verdict points at (kumbukumbu#104), nil for NONE
   # or none given. Public for its test.
   def parse_quote(content) do
-    case Regex.run(~r/^QUOTE:\s*(.+)$/im, content) do
+    case Regex.run(~r/^[\s#>*_-]*QUOTE[\s*_]*[:\-–—][\s*_]*(.+)$/imu, content) do
       [_, q] ->
-        q = q |> String.trim() |> String.trim("\"") |> String.trim("“") |> String.trim("”")
+        q =
+          q
+          |> String.trim()
+          |> String.trim("*")
+          |> String.trim("`")
+          |> String.trim("\"")
+          |> String.trim("“")
+          |> String.trim("”")
+
         if q == "" or String.upcase(q) == "NONE", do: nil, else: q
 
       nil ->

@@ -833,3 +833,6 @@ A tag that named a domain and was later retagged left its carry on the messages 
 
 ## #107
 A judge that says DISCLOSES and cannot point at the words is reporting a feeling about the context, not a fact about the message, and failing that closed refused every delivery the context happened to touch. The prompt asked for two things at once, caution when unsure and proof always; asking only for proof, with her words fenced off from the material, is what makes a finding mean the message carries it.
+
+## #108
+An unreadable answer is the model's slip, not a verdict, and the next ask usually comes back in form; failing it closed at once made a single bad answer cost the resident her delivery and the queue its move. Asking once more bounds the cost the way #107 does for an unproven finding. A failed or timed-out call is different: asking again doubles the wait for a provider that is down, so it fails closed at once.

@@ -27,7 +27,12 @@ defmodule Oneiroi.Brain.HouseQueue do
   @doc "Decides a review on what the reviewer read: `pin` (the head now when not named), the head read now beside it."
   def decide(household_id, task, act, attrs, %Actor{} = actor) do
     head = head(household_id, task, act)
-    pin = settled(household_id, task, act, attrs[:pin] || head, head, actor)
+    # A pinned citation names its revision (sunna#99; the witness,
+    # 2026-11-24: an approval of task #12's pinned document was refused
+    # for naming none): with no pin given and no head to read, the
+    # approval is of the revision the citation names.
+    given = attrs[:pin] || head || cited_pin(household_id, task, act)
+    pin = settled(household_id, task, act, given, head, actor)
     attrs = attrs |> Map.put(:head, head) |> Map.put(:pin, pin)
     Sunna.queue_decide(household_id, task, act, attrs, actor)
   end
@@ -110,6 +115,19 @@ defmodule Oneiroi.Brain.HouseQueue do
   defp last_commit(household_id) do
     case Oneiroi.SimaQian.household_log(household_id, "records/work-queue-at-cutover.md", 1) do
       {:ok, [%{sha: sha} | _]} -> sha
+      _none -> nil
+    end
+  end
+
+  defp cited_pin(household_id, task, act) do
+    with %{layers: layers} <- Sunna.queue_task(household_id, task),
+         %{artifact: artifact} when is_binary(artifact) <-
+           Enum.find(List.flatten(layers), &(&1.act_id == act)),
+         [_cite, pin] <- String.split(artifact, "@", parts: 2),
+         pin = String.trim(pin),
+         true <- pin != "" do
+      pin
+    else
       _none -> nil
     end
   end

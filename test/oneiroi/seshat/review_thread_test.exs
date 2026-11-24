@@ -121,6 +121,44 @@ defmodule Oneiroi.Seshat.ReviewThreadTest do
                %{outcome: "approved", pin: String.slice(read_at, 0, 12), note: "read it"},
                ctx.andrew
              )
+
+    # sunna#99 (2026-11-24): a pinned document's review approved with no
+    # pin given is of the revision its citation names.
+    pinned = cite <> "@" <> String.slice(read_at, 0, 12)
+
+    {:ok, m} =
+      Queues.open_task(
+        ctx.h,
+        %{
+          project: "p",
+          slug: "pinned",
+          title: "Pinned",
+          outcome: "read",
+          layers: [
+            [
+              %{
+                name: "Read it",
+                type: "review",
+                assignee: "witness:#{ctx.andrew.id}",
+                artifact: pinned
+              }
+            ]
+          ]
+        },
+        ctx.andrew
+      )
+
+    assert :ok =
+             HouseQueue.decide(
+               ctx.h,
+               m,
+               "#{m}.1",
+               %{outcome: "approved", note: "fine"},
+               ctx.andrew
+             )
+
+    assert [[%{approved_pin: pin}]] = Queues.task(ctx.h, m).layers
+    assert pin == String.slice(read_at, 0, 12)
   end
 
   test "a review's decision is posted into the document's thread, in her own threads", ctx do
