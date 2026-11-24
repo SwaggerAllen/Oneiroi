@@ -69,6 +69,9 @@ export function Shell({ residentId, residentName, waiting, failing = false, onRe
   const page = useShell((s) => s.page);
   const setPage = useShell((s) => s.setPage);
   const { leaving, ref } = useTabDissolve(tab);
+  // The house queue is a subject of its own (the witness, 2026-11-23): its
+  // name in the header, and no tabs under it.
+  const work = page === 'queue';
   const wide = useWide();
   // On a wide screen Records and Time show the list beside the page, so
   // a push changes one pane, not the view: only the narrow layout slides.
@@ -78,7 +81,7 @@ export function Shell({ residentId, residentName, waiting, failing = false, onRe
   return (
     <div className={css.root}>
       <Header
-        name={residentName}
+        name={work ? 'Work' : residentName}
         waiting={waiting}
         failing={failing}
         unreadElsewhere={elsewhere(unread, residentId)}
@@ -112,7 +115,7 @@ export function Shell({ residentId, residentName, waiting, failing = false, onRe
           </section>
         )}
       </main>
-      <TabBar active={tab} onSelect={setTab} house={house} />
+      {!work && <TabBar active={tab} onSelect={setTab} house={house} />}
       {house ? <HouseSearchSheet /> : <SearchSheet residentId={residentId} residentName={residentName} />}
       <Overlays />
     </div>

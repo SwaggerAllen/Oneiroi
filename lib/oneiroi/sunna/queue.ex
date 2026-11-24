@@ -39,7 +39,8 @@ defmodule Oneiroi.Sunna.Queue do
             next_task: 1,
             tasks: %{},
             acts: %{},
-            cut_over: false
+            cut_over: false,
+            paused: false
 
   @outcomes ~w(approved changes declined)
   @spec_fields [
@@ -380,6 +381,23 @@ defmodule Oneiroi.Sunna.Queue do
   def execute(%__MODULE__{cut_over: false}, %C.CutBack{actor: %{kind: :witness}}),
     do: {:error, Error.new(:sunna_queue_cutover, :sunna_queue_cutback_not_cut)}
 
+  # The house queue's switch (sunna#94): a witness's, said with a note;
+  # pausing what is paused, or resuming what runs, is nothing.
+  def execute(%__MODULE__{paused: false}, %C.PauseQueue{actor: %{kind: :witness}} = c),
+    do: %E.QueuePaused{actor: c.actor, at: c.at, id: c.id, note: c.note}
+
+  def execute(%__MODULE__{paused: true}, %C.ResumeQueue{actor: %{kind: :witness}} = c),
+    do: %E.QueueResumed{actor: c.actor, at: c.at, id: c.id, note: c.note}
+
+  def execute(%__MODULE__{}, %C.PauseQueue{actor: %{kind: :witness}}), do: []
+  def execute(%__MODULE__{}, %C.ResumeQueue{actor: %{kind: :witness}}), do: []
+
+  def execute(%__MODULE__{}, %C.PauseQueue{}),
+    do: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_pause_witness_only)}
+
+  def execute(%__MODULE__{}, %C.ResumeQueue{}),
+    do: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_resume_witness_only)}
+
   def execute(%__MODULE__{}, %C.CutOver{}),
     do: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_cutover_witness_only)}
 
@@ -504,6 +522,8 @@ defmodule Oneiroi.Sunna.Queue do
 
   def apply(%__MODULE__{} = s, %E.CutOver{}), do: %{s | cut_over: true}
   def apply(%__MODULE__{} = s, %E.CutBack{}), do: %{s | cut_over: false}
+  def apply(%__MODULE__{} = s, %E.QueuePaused{}), do: %{s | paused: true}
+  def apply(%__MODULE__{} = s, %E.QueueResumed{}), do: %{s | paused: false}
 
   # ---- shared readers ----
 
@@ -951,11 +971,18 @@ defmodule Oneiroi.Sunna.Queue do
   defp template_layer(_layer, _i), do: [nil]
 
   defp template_spec(spec, _i, j) when is_map(spec) do
+    assignee = blank_nil(get(spec, :assignee))
+
     t = %{
       pos: j,
       name: blank_nil(get(spec, :name)),
       type: get(spec, :type),
-      role: get(spec, :role) || "unknown",
+      # Who holds it, set in the template (sunna#93): a member, a
+      # resident's Claude Code, or unknown; never who opens the task. A
+      # role (author, witness, peer, builder) stays readable on a template
+      # written before, resolved as it was.
+      assignee: assignee,
+      role: if(assignee, do: nil, else: get(spec, :role) || "unknown"),
       artifact: blank_nil(get(spec, :artifact)),
       destination: blank_nil(get(spec, :destination)),
       action: blank_nil(get(spec, :action)),
@@ -965,14 +992,19 @@ defmodule Oneiroi.Sunna.Queue do
 
     # A template names every activity (sunna#90): the name every task
     # made from it shows.
-    if words?(t.name, @name) and words?(t.type, @verb) and t.role in @roles and
-         short?(t.artifact, 64) and
-         short?(t.destination, 120) and short?(t.action, @verb) and short?(t.throwback, 16),
-       do: t,
-       else: nil
+    if template_spec_ok?(t), do: t, else: nil
   end
 
   defp template_spec(_spec, _i, _j), do: nil
+
+  defp template_spec_ok?(t) do
+    words?(t.name, @name) and words?(t.type, @verb) and holder_ok?(t) and
+      short?(t.artifact, 64) and short?(t.destination, 120) and short?(t.action, @verb) and
+      short?(t.throwback, 16)
+  end
+
+  defp holder_ok?(%{assignee: a}) when is_binary(a), do: assignee?(a)
+  defp holder_ok?(%{role: role}), do: role in @roles
 
   defp template_shape?(specs) do
     keyed =

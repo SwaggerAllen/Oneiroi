@@ -34,6 +34,9 @@ defmodule OneiroiWeb.QueueController do
       household_id: h,
       me: me(conn),
       cut_over: state.cut_over,
+      # The house queue's one switch (sunna#94).
+      paused: state.paused == true,
+      paused_at: state.paused_at,
       cut_at: state.cut_at,
       commit: state.commit,
       members: Sunna.queue_members(h),
@@ -156,7 +159,12 @@ defmodule OneiroiWeb.QueueController do
   )
 
   def define_template(conn, params) do
-    attrs = %{from: blank(params["from"]), title: params["title"], layers: params["layers"]}
+    attrs = %{
+      from: blank(params["from"]),
+      title: params["title"],
+      layers: params["layers"],
+      roles: params["roles"]
+    }
 
     done(
       conn,
@@ -186,9 +194,14 @@ defmodule OneiroiWeb.QueueController do
       links: params["links"]
     }
 
-    case Sunna.queue_open_task(conn.assigns.household_id, attrs, actor(conn)) do
-      {:ok, n} -> json(conn, %{number: n})
-      {:error, e} -> error(conn, 422, e)
+    h = conn.assigns.household_id
+
+    # Every document it names is one that exists (sunna#95).
+    with :ok <- Brain.queue_document_check(h, Brain.queue_document_citations(attrs)),
+         {:ok, n} <- Sunna.queue_open_task(h, attrs, actor(conn)) do
+      json(conn, %{number: n})
+    else
+      {:error, _} = refused -> done(conn, refused)
     end
   end
 
@@ -220,16 +233,13 @@ defmodule OneiroiWeb.QueueController do
   )
 
   def fill_slot(conn, %{"number" => number} = p) do
-    done(
-      conn,
-      Sunna.queue_fill_slot(
-        conn.assigns.household_id,
-        int(number),
-        p["slot"],
-        p["artifact"],
-        actor(conn)
-      )
-    )
+    h = conn.assigns.household_id
+
+    result =
+      with :ok <- Brain.queue_document_check(h, [p["artifact"]]),
+           do: Sunna.queue_fill_slot(h, int(number), p["slot"], p["artifact"], actor(conn))
+
+    done(conn, result)
   end
 
   operation(:attach_document,
@@ -241,16 +251,13 @@ defmodule OneiroiWeb.QueueController do
   )
 
   def attach_document(conn, %{"number" => number} = p) do
-    done(
-      conn,
-      Sunna.queue_attach_document(
-        conn.assigns.household_id,
-        int(number),
-        p["citation"],
-        p["role"],
-        actor(conn)
-      )
-    )
+    h = conn.assigns.household_id
+
+    result =
+      with :ok <- Brain.queue_document_check(h, [p["citation"]]),
+           do: Sunna.queue_attach_document(h, int(number), p["citation"], p["role"], actor(conn))
+
+    done(conn, result)
   end
 
   operation(:detach_document,
@@ -294,16 +301,15 @@ defmodule OneiroiWeb.QueueController do
   )
 
   def edit_layers(conn, %{"number" => number} = p) do
-    done(
-      conn,
-      Sunna.queue_edit_layers(
-        conn.assigns.household_id,
-        int(number),
-        p["layers"],
-        p["note"],
-        actor(conn)
-      )
-    )
+    h = conn.assigns.household_id
+
+    # A document it names is one that exists (sunna#95).
+    result =
+      with :ok <-
+             Brain.queue_document_check(h, Brain.queue_document_citations(%{layers: p["layers"]})),
+           do: Sunna.queue_edit_layers(h, int(number), p["layers"], p["note"], actor(conn))
+
+    done(conn, result)
   end
 
   operation(:drop,
@@ -343,6 +349,25 @@ defmodule OneiroiWeb.QueueController do
         conn,
         Sunna.queue_cut_over(conn.assigns.household_id, p["commit"], p["note"], actor(conn))
       )
+
+  operation(:pause,
+    summary:
+      "Pauses the house queue for every resident (sunna#94): nothing starts on anyone's line until it runs again; a witness's, with a note",
+    request_body: {"the note", "application/json", %Schema{type: :object}},
+    responses: [ok: {"done", "application/json", %Schema{type: :object}}]
+  )
+
+  def pause(conn, p),
+    do: done(conn, Sunna.queue_pause(conn.assigns.household_id, p["note"], actor(conn)))
+
+  operation(:resume,
+    summary: "Lets the house queue run again (sunna#94); every resident's line checks at once",
+    request_body: {"the note", "application/json", %Schema{type: :object}},
+    responses: [ok: {"done", "application/json", %Schema{type: :object}}]
+  )
+
+  def resume(conn, p),
+    do: done(conn, Sunna.queue_resume(conn.assigns.household_id, p["note"], actor(conn)))
 
   operation(:cut_back,
     summary: "The one-step revert (§6.2): the old queue's screens and loop back on, with a note",
@@ -406,6 +431,12 @@ defmodule OneiroiWeb.QueueController do
 
   defp done(conn, :ok), do: json(conn, %{ok: true})
   defp done(conn, {:error, %{kind: :sunna_queue_not_a_member} = e}), do: error(conn, 404, e)
+
+  # A document that does not exist (sunna#95): its remedy names what was
+  # meant, when the house holds it.
+  defp done(conn, {:error, %{kind: :brain_queue_document_absent} = e}),
+    do: error(conn, 422, %{e | remedy: Brain.queue_document_said(e)})
+
   defp done(conn, {:error, e}), do: error(conn, 422, e)
 
   defp project(p),

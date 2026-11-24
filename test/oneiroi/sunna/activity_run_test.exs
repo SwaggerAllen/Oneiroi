@@ -91,9 +91,18 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
     n = ctx.n
     :ok = Sunna.queue_cut_over(ctx.h, "abc1234", "the set is built", ctx.andrew)
 
-    # Old items are read-only; the line itself still arms.
+    # Old items are read-only. The house queue runs unless paused, with
+    # no arm of hers (sunna#94): paused, nothing starts; resumed, it does.
     assert {:error, %{kind: :sunna_work_frozen}} = Sunna.work_add(ctx.id, "x", "y", ctx.me)
-    :ok = Sunna.work_arm(ctx.id, ctx.me)
+    assert WorkLoop.due?(ctx.id)
+
+    assert {:error, %{kind: :sunna_queue_not_yours}} =
+             Sunna.queue_pause(ctx.h, "mine to stop", Oneiroi.Actor.new(:resident, ctx.id))
+
+    :ok = Sunna.queue_pause(ctx.h, "a quiet evening", ctx.andrew)
+    refute WorkLoop.due?(ctx.id)
+    assert {:rested, "paused: the house queue is paused"} = WorkLoop.check(ctx.id)
+    :ok = Sunna.queue_resume(ctx.h, "back to it", ctx.andrew)
     assert WorkLoop.due?(ctx.id)
     clear_jobs()
 
@@ -125,11 +134,70 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
 
     assert [%{"turn" => "check"}] = jobs(ctx.id)
 
-    # Nothing else is hers (the review is his): the line goes off, saying why.
-    assert {:rested, "empty, holding: nothing in the house queue is ready for you"} =
+    # Nothing else is hers (the review is his): the queue still runs and
+    # her line holds, saying why (sunna#92, #94), not due until something is.
+    assert {:rested, "running, holding: nothing in the house queue is ready for you"} =
              WorkLoop.check(ctx.id)
 
     refute WorkLoop.due?(ctx.id)
+  end
+
+  # A document that starts in the house (the witness, 2026-11-23): her
+  # share step on it passes itself, said so, and the line looks again.
+  test "her share step on a document already in the house passes itself", ctx do
+    :ok = Sunna.queue_cut_over(ctx.h, "abc1234", "the set is built", ctx.andrew)
+    :ok = Sunna.queue_drop(ctx.h, ctx.n, "not this one", ctx.andrew)
+    doc = "house/nest:doc/design/db-access-consent.md"
+
+    {:ok, m} =
+      Sunna.queue_open_task(
+        ctx.h,
+        %{
+          project: "p",
+          slug: "consent",
+          title: "Consent",
+          outcome: "built",
+          layers: [
+            [
+              %{
+                type: "review",
+                assignee: "witness:#{ctx.andrew.id}",
+                artifact: doc,
+                destination: "house",
+                action: "promote-to-house"
+              }
+            ],
+            [
+              %{
+                type: "promote-to-house",
+                assignee: "resident:#{ctx.id}",
+                artifact: doc,
+                destination: "house",
+                optional: true
+              }
+            ]
+          ]
+        },
+        ctx.me
+      )
+
+    :ok =
+      Sunna.queue_decide(
+        ctx.h,
+        m,
+        "#{m}.1",
+        %{outcome: "approved", pin: "abc1234", note: "fine"},
+        ctx.andrew
+      )
+
+    clear_jobs()
+    share = "#{m}.2"
+    assert {:passed, ^share} = WorkLoop.check(ctx.id)
+
+    assert %{status: "skipped"} =
+             Enum.find(List.flatten(Sunna.queue_task(ctx.h, m).layers), &(&1.act_id == share))
+
+    assert [%{"turn" => "check"}] = jobs(ctx.id)
   end
 
   test "before the cutover the line is the old queue's", ctx do

@@ -71,7 +71,17 @@ export const useShell = create<ShellState>((set) => ({
   setSeeds: (seeds) => set({ seeds }),
   setTryOn: (tryOn) => set({ tryOn }),
   setOverlay: (overlay) => set({ overlay }),
-  resetStacks: () => set({ stacks: roots(), tab: 'chat', page: null, pagePath: '' }),
+  // The address moves too (the witness, 2026-11-23): the new subject's
+  // shell reads the URL as it mounts, and the old resident's path there
+  // sent it straight back to a record she does not have.
+  resetStacks: () => {
+    try {
+      window.history.replaceState(null, '', '#/chat');
+    } catch {
+      // no history to rewrite (a test)
+    }
+    set({ stacks: roots(), tab: 'chat', page: null, pagePath: '' });
+  },
   setPage: (page, pagePath = '') => set({ page, pagePath }),
 
   // Arriving from the URL (load, back/forward): the tab becomes active and
@@ -91,8 +101,15 @@ export const useShell = create<ShellState>((set) => ({
       return stack.length > 1 ? { stacks: { ...s.stacks, [s.tab]: stack.slice(0, -1) } } : {};
     }),
   // Switching tabs keeps every stack: the tab comes back where it was.
-  // A tab tapped under a settings page closes the page.
-  setTab: (tab) => set({ tab, page: null, pagePath: '' }),
+  // A tab tapped under a settings page closes the page. The tab you are
+  // already on, tapped again, goes back to its root (the witness,
+  // 2026-11-23: on a record, Records is the file view again).
+  setTab: (tab) =>
+    set((s) =>
+      s.tab === tab && s.page === null
+        ? { stacks: { ...s.stacks, [tab]: [''] } }
+        : { tab, page: null, pagePath: '' },
+    ),
   setConnection: (connection, now = Date.now()) =>
     set((s) => ({
       connection,

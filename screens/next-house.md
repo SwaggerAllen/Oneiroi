@@ -309,3 +309,13 @@ appearing live in her thread and in a house thread.
 Not built: a published piece's reader comments (the mocks' Review ·
 published); a pin chosen to read at (the document is read at its head);
 detaching a slot's document; the deeper "…" back navigation.
+
+## Navigation (2026-11-23, the witness's asks)
+
+- **Work is a subject.** On the house queue (`#/settings/queue`) the header names "Work", the tab bar is gone, and the subject menu shows Work ticked; choosing a resident or the house from there leaves it. Its top has no Back.
+- **Whose queue.** The list's first row is Mine, each other member by name, and Everyone. A member's view shows their move (a ready or active activity of the open layer is theirs, a resident's Claude Code counting as hers) and what they hold later; Everyone adds what is under way elsewhere.
+- **A new subject starts at its root.** Choosing another subject resets every tab and rewrites the address to `#/chat`, so the new subject never opens the old one's record.
+- **Tapping the tab you are on** takes it back to its root (on a record, Records is the file view again; in sessions, Chat is the chat).
+- **The queue's one switch** (sunna#94): Work says whether the queue is running or paused (and since when); a witness pauses or resumes it for every resident, with an optional note. There is no per-resident arming on the house queue; a resident's old work page says her line runs with it.
+- **A template's holders are members** (sunna#93): "Held by" lists each member, each resident's Claude Code and not known yet; a step still held by an old role says so until one is chosen. On a task, changing a Claude Code's or a deliver's holder says its pair goes too, and Save or "Assign both" changes both.
+- **A task's document can be changed** (sunna#95): Change on a document row takes the citation it should be; pending activities move to it, started work keeps what it worked on. A citation that names no file is refused, naming the house's copy when there is one.

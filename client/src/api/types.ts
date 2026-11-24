@@ -904,8 +904,8 @@ export interface QueueDocument {
 export interface QueueSpec {
   name?: string | null;
   type: string;
-  role?: string;
-  assignee?: string;
+  role?: string | null;
+  assignee?: string | null;
   artifact?: string | null;
   destination?: string | null;
   action?: string | null;
@@ -917,6 +917,9 @@ export interface QueueOverview {
   household_id: string;
   me: string;
   cut_over: boolean;
+  /** The house queue's one switch (sunna#94): it runs unless paused. */
+  paused?: boolean;
+  paused_at?: string | null;
   cut_at: string | null;
   commit: string | null;
   members: QueueMember[];

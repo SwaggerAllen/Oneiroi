@@ -635,3 +635,15 @@ A name that every task of a template shares says what the step is wherever it ap
 
 ## #91
 A task's work usually rests on more than the one file it changes: the sources it answers, the threads that settled it. Listing them with the task saves opening it to find them, and a document that knows its tasks can lead back to them.
+
+## #92
+The old queue was a batch she armed and the line ended with it; the house queue is a stream that fills whenever anyone opens a task. A line that turns itself off between arrivals leaves the next arrival waiting on someone noticing, and the switch was hidden where nobody looked.
+
+## #93
+A template is the house's agreement about who does what; resolving it against whoever happened to open the task made the agreement depend on a click. Naming the holders in the template keeps it the same every time. A Claude Code and its resident's deliver are one decision in two rows, so the screens change them as one.
+
+## #94
+A line per resident, each armed and disarmed apart, made a house queue that could be half on with nobody choosing it, and the default after a quiet hour was off. One switch says what the house is doing, and its default is running.
+
+## #95
+A citation that names nothing reads like a document on every screen until someone opens it; checking where it goes in, and naming the house's file when the path is the house's, catches the slip at the moment it is made. Sharing what is already in the house is a step with nothing to do.

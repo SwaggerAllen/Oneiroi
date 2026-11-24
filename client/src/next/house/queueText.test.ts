@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QueueActivity, QueueCard, QueueDocument } from '../../api/types';
-import { actName, blockedLine, blockerLine, documentRows, drawLayers, forkNote, fromLine, nameOf, placeOf, pinOf, postKind, rearranged, roleChoices, sentence, since, slugify, taskSummaries, templateProblems, unpinned, withMd } from './queueText';
+import { actName, blockedLine, blockerLine, holderChoices, holdersOf, holderWords, pairedHolders, replacedDocument, withPaired, documentRows, drawLayers, forkNote, fromLine, nameOf, placeOf, pinOf, postKind, rearranged, roleChoices, sentence, since, slugify, taskSummaries, templateProblems, unpinned, withMd } from './queueText';
 
 const names = { 'resident:l': 'Lily', 'witness:a': 'Andrew' };
 
@@ -131,6 +131,18 @@ describe('the task list', () => {
     expect(others.map((s) => s.task.number)).toEqual([2]);
   });
 
+  it("shows a member's queue: her move, her Claude Code's, and what she holds later", () => {
+    const cards = [
+      card({ task: 1, layer: 0, assignee: 'claude-code:l', view: 'ready' }),
+      card({ task: 2, layer: 0, assignee: 'witness:a', view: 'ready' }),
+      card({ task: 2, layer: 3, assignee: 'resident:l', view: 'waiting' }),
+    ];
+    const { mine, later } = taskSummaries([task(1, 0), task(2, 0)], cards, holdersOf('resident:l'));
+    expect(mine.map((s) => s.task.number)).toEqual([1]);
+    expect(later.map((s) => s.task.number)).toEqual([2]);
+    expect(holdersOf('witness:a')).toEqual(['witness:a']);
+  });
+
   it("names a blocked task's blocker and its next action by name", () => {
     const blocked = card({ view: 'blocked', blocker: { number: 12, title: 'Domain system rework', project: 'memory', status: 'open', next: act({ name: 'Draft the design', assignee: 'resident:l' }) } });
     expect(blockedLine(blocked, names)).toBe('Blocked on #12 Domain system rework · next: Draft the design, Lily');
@@ -194,3 +206,41 @@ describe("a thread's posts", () => {
     expect(postKind({ by_kind: 'resident' }, 'a')).toBe('theirs');
   });
 });
+
+describe('holders that move together (§3, 2026-11-23)', () => {
+  const a = (act_id: string, type: string, assignee: string, status = 'pending') => ({ act_id, type, assignee, status });
+  const layers = [[a('1.1', 'draft', 'resident:l', 'done')], [a('1.5', 'deliver', 'resident:l')], [a('1.6', 'implement', 'claude-code:l')], [a('1.7', 'review', 'witness:w')]];
+
+  it("gives her deliver to the resident whose Claude Code now holds the work", () => {
+    expect(pairedHolders(layers, '1.6', 'claude-code:s')).toEqual([{ id: '1.5', assignee: 'resident:s' }]);
+  });
+
+  it('gives the work after a deliver to the new resident\'s Claude Code', () => {
+    expect(pairedHolders(layers, '1.5', 'resident:s')).toEqual([{ id: '1.6', assignee: 'claude-code:s' }]);
+  });
+
+  it('moves nothing else, and puts the pairs on the arrangement', () => {
+    expect(pairedHolders(layers, '1.7', 'witness:x')).toEqual([]);
+    expect(withPaired([[{ id: '1.5' }], [{ id: '1.6' }]], [{ id: '1.5', assignee: 'resident:s' }])).toEqual([[{ id: '1.5', assignee: 'resident:s' }], [{ id: '1.6' }]]);
+  });
+
+  it('offers every member, each resident\'s Claude Code, and not known yet as a template holder', () => {
+    const members = [{ assignee: 'witness:w', kind: 'witness', name: 'Andrew' }, { assignee: 'resident:l', kind: 'resident', name: 'Lily' }];
+    expect(holderChoices(members).map((h) => h.label)).toEqual(['Andrew', 'Lily', "Lily's Claude Code", 'not known yet']);
+    expect(holderWords({ role: 'author' }, {})).toBe('by role: the task owner (choose a member)');
+  });
+});
+
+describe("a task's document changed for another (2026-11-23)", () => {
+  it('moves every pending activity on it, and leaves started work as it was', () => {
+    const layers = [
+      [{ act_id: '12.1', artifact: 'lily:design/x.md', status: 'done' }],
+      [{ act_id: '12.2', artifact: 'lily:design/x.md@abc', status: 'pending' }],
+      [{ act_id: '12.3', artifact: 'slot:pr', status: 'pending' }],
+    ];
+    const { arrangement, changed } = replacedDocument(layers, 'lily:design/x.md', 'house/strut:doc/design/x.md');
+    expect(changed).toBe(1);
+    expect(arrangement).toEqual([[{ id: '12.1' }], [{ id: '12.2', artifact: 'house/strut:doc/design/x.md' }], [{ id: '12.3' }]]);
+  });
+});
+

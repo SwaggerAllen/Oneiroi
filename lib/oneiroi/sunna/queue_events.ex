@@ -125,4 +125,14 @@ defmodule Oneiroi.Sunna.Events.Queue do
   defmodule CutBack do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id]
   end
+
+  # The house queue's one switch (sunna#94): it runs unless paused, for
+  # every resident at once.
+  defmodule QueuePaused do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id]
+  end
+
+  defmodule QueueResumed do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id]
+  end
 end

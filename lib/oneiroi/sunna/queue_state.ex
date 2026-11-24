@@ -15,6 +15,14 @@ defmodule Oneiroi.Sunna.QueueState do
       %State{household_id: household_id, cut_over: false}
   end
 
+  @doc "Whether the house queue runs (sunna#94): cut over and not paused."
+  def running?(nil), do: false
+
+  def running?(household_id) do
+    state = get(household_id)
+    state.cut_over == true and state.paused != true
+  end
+
   @doc "Whether the household has cut over."
   def cut_over?(nil), do: false
   def cut_over?(household_id), do: get(household_id).cut_over == true

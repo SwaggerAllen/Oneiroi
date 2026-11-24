@@ -36,7 +36,8 @@ export function SettingsPage({ section, onBack }: { section: SettingsSection; on
   const { id, name } = useSubject();
   // The house queue draws its own heads (screen:next-house): its list says Work, and each page under it has its own way back.
   const pagePath = useShell((s) => s.pagePath);
-  const inQueue = pagePath !== '' && section === 'queue';
+  // Work is a subject, left by the subject menu: no Back at its top either.
+  const inQueue = section === 'queue';
   const lede: Record<SettingsSection, string> = {
     ledger: `What ${name} may spend, by purpose, and what has been spent.`,
     kinds: `The kinds of document ${name}'s records hold, and every way into or out of her house.`,

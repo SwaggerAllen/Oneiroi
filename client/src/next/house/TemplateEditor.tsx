@@ -6,7 +6,7 @@ import { Field, Said, Select } from '../settings/common';
 import * as css from '../settings/settings.css';
 import { useAct } from '../settings/useAct';
 import { HOUSE } from './keys';
-import { GATED, glyph, LETS, position, ROLE_WORDS, ROLES, slugify, templateProblems, TYPES, type DrawnLayer, type TemplateSpec } from './queueText';
+import { GATED, glyph, holderChoices, holderWords, LETS, position, slugify, templateProblems, TYPES, type DrawnLayer, type Names, type TemplateSpec } from './queueText';
 import { LayersDrawn } from './TaskPage';
 import * as w from './work.css';
 import { useWorkNav, workPath } from './workRoutes';
@@ -31,7 +31,8 @@ const draftsOf = (layers: QueueSpec[][]): TemplateDraft[][] => {
       key: keyed[i][j],
       name: s.name ?? '',
       type: s.type ?? '',
-      role: s.role ?? 'unknown',
+      assignee: s.assignee ?? null,
+      role: s.assignee ? null : (s.role ?? 'unknown'),
       artifact: s.artifact ?? null,
       destination: s.destination ?? null,
       action: s.action ?? null,
@@ -48,6 +49,8 @@ const positioned = (layers: TemplateDraft[][]): TemplateSpec[][] => {
   return layers.map((l) =>
     l.map(({ key: _key, ...s }) => ({
       ...s,
+      // A member chosen is the holder; the old role goes (sunna#93).
+      role: s.assignee ? null : s.role,
       name: s.name.trim(),
       artifact: s.artifact || null,
       destination: s.destination || null,
@@ -96,12 +99,15 @@ function drawn(d: Draft): DrawnLayer[] {
     n: i + 1,
     state: 'later',
     label: l.length === 1 ? '1 activity' : `${l.length} activities`,
-    acts: l.map((s, j) => ({ id: position(i, j), name: s.name || '(no name yet)', type: s.type || 'a type', glyph: glyph(s.type), assignee: s.role, view: '', gated: GATED.includes(s.type), slot: s.artifact ?? null })),
+    acts: l.map((s, j) => ({ id: position(i, j), name: s.name || '(no name yet)', type: s.type || 'a type', glyph: glyph(s.type), assignee: s.assignee ?? 'unknown', view: '', gated: GATED.includes(s.type), slot: s.artifact ?? null })),
   }));
 }
 
-function holdLine(s: TemplateDraft, where: Map<string, string>): string {
-  const bits = [ROLE_WORDS[s.role] ?? s.role];
+// The house's members by assignee, for the holders a template names.
+const namesOf = (q: QueueOverview): Names => ({ ...Object.fromEntries(q.members.map((m) => [m.assignee, m.name])), [q.me]: 'you' });
+
+function holdLine(s: TemplateDraft, where: Map<string, string>, names: Names): string {
+  const bits = [holderWords(s, names)];
   if (s.action) bits.push(`lets ${LETS[s.action] ?? s.action}`);
   if (s.throwback && where.get(s.throwback)) bits.push(`back to ${where.get(s.throwback)?.split('.')[0]}`);
   if (s.optional) bits.push('optional');
@@ -198,7 +204,7 @@ export function TemplateEditor({ name, overview: q }: { name: string; overview: 
           </button>
         </div>
         {d.layers.length === 0 && <p className={css.note}>No activities yet.</p>}
-        <LayersDrawn layers={drawn(d)} names={{}} me="" onOpen={(at) => nav(workPath.templateActivity(name, at))} hold={(a) => holdLine(byPos.get(a.id) as TemplateDraft, where)} />
+        <LayersDrawn layers={drawn(d)} names={namesOf(q)} me={q.me} onOpen={(at) => nav(workPath.templateActivity(name, at))} hold={(a) => holdLine(byPos.get(a.id) as TemplateDraft, where, namesOf(q))} />
       </section>
       {problems.length > 0 && (
         <ul className={css.list} aria-label="Before it can be saved">
@@ -239,7 +245,7 @@ export function TemplateActivity({ name, at, overview: q }: { name: string; at: 
   const [i, j] = at.split('.').map((x) => Number(x) - 1);
   const s = at === 'new' ? null : (d.layers[i]?.[j] ?? null);
   const [f, setF] = useState<Fields>(() =>
-    s ? { ...s, layer: i } : { name: '', type: '', role: 'author', artifact: null, destination: null, action: null, optional: false, throwback: null, layer: Math.max(d.layers.length - 1, 0) },
+    s ? { ...s, layer: i } : { name: '', type: '', assignee: 'unknown', role: null, artifact: null, destination: null, action: null, optional: false, throwback: null, layer: Math.max(d.layers.length - 1, 0) },
   );
   if (at !== 'new' && !s) return <p className={css.refused}>{name} has no activity {at}.</p>;
   const set = (patch: Partial<Fields>) => setF({ ...f, ...patch });
@@ -280,10 +286,12 @@ export function TemplateActivity({ name, at, overview: q }: { name: string; at: 
             </option>
           ))}
         </Select>
-        <Select label="Held by" value={f.role} onChange={(v) => set({ role: v })}>
-          {ROLES.map((r) => (
-            <option key={r} value={r}>
-              {ROLE_WORDS[r]}
+        {/* Fixed in the template, whoever opens the task (sunna#93). */}
+        <Select label="Held by" value={f.assignee ?? ''} onChange={(v) => set({ assignee: v, role: null })}>
+          {!f.assignee && <option value="">{holderWords(f, namesOf(q))}</option>}
+          {holderChoices(q.members).map((h) => (
+            <option key={h.value} value={h.value}>
+              {h.value === q.me ? `${h.label} (you)` : h.label}
             </option>
           ))}
         </Select>

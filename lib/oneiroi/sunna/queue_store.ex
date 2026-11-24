@@ -152,6 +152,9 @@ defmodule Oneiroi.Sunna.QueueStore do
     schema "sunna_queue_state" do
       field(:household_id, :binary_id, primary_key: true)
       field(:cut_over, :boolean, default: false)
+      # The house queue's one switch (sunna#94).
+      field(:paused, :boolean, default: false)
+      field(:paused_at, :utc_datetime_usec)
       field(:cut_at, :utc_datetime_usec)
       field(:commit, :string)
       field(:note, :string)

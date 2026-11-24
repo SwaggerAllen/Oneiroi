@@ -45,14 +45,15 @@ export function Work() {
     <>
       <Card title="The work line" witness>
         <LoopLine name={name} q={q} />
-        {!q.armed && live.some((i) => i.status === 'open') && (
+        {q.house_queue && <span className={css.note}>On the house queue, {name}'s line runs while the queue runs; it is paused or resumed for everyone on the Work page.</span>}
+        {!q.house_queue && !q.armed && live.some((i) => i.status === 'open') && (
           <div>
             <button type="button" className={css.primary} disabled={act.busy} onClick={() => run(() => api.armWork(id).then(() => 'Armed.'))}>
               Arm the work line
             </button>
           </div>
         )}
-        {q.armed && (
+        {!q.house_queue && q.armed && (
           <div className={css.column}>
             <div>
               <button type="button" className={css.secondary} disabled={act.busy} onClick={() => run(() => api.disarmWork(id).then(() => 'The work line is off.'))}>

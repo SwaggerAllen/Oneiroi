@@ -60,7 +60,10 @@ export interface TemplateSpec {
   /** What every task made from the template calls it (sunna#90). */
   name: string;
   type: string;
-  role: string;
+  /** Who holds it in every task made from the template (sunna#93): a member, a Claude Code, or unknown. */
+  assignee?: string | null;
+  /** A holder by role, on a template written before sunna#93; resolved as it was until a member is chosen. */
+  role?: string | null;
   artifact?: string | null;
   destination?: string | null;
   action?: string | null;
@@ -124,6 +127,23 @@ export const glyph = (type: string) => GLYPHS[type] ?? '•';
 
 /** What approving a review lets happen, by the gated action it names. */
 export const LETS: Record<string, string> = { 'promote-to-house': 'it be shared', merge: 'it be merged', send: 'it be sent', publish: 'it be published', spend: 'it be spent' };
+
+/**
+ * Who a template's activity can be held by (sunna#93): each member, each
+ * resident's Claude Code, and not known yet. Fixed in the template: never
+ * who opens the task.
+ */
+export function holderChoices(members: { assignee: string; kind: string; name: string }[]): { value: string; label: string }[] {
+  const people = members.map((m) => ({ value: m.assignee, label: m.name }));
+  const builders = members.filter((m) => m.kind === 'resident').map((m) => ({ value: `claude-code:${m.assignee.slice('resident:'.length)}`, label: `${m.name}'s Claude Code` }));
+  return [...people, ...builders, { value: 'unknown', label: 'not known yet' }];
+}
+
+/** A template activity's holder in words: its member, or the old role it still holds by. */
+export function holderWords(s: { assignee?: string | null; role?: string | null }, names: Names): string {
+  if (s.assignee) return nameOf(names, s.assignee);
+  return `by role: ${ROLE_WORDS[s.role ?? 'unknown'] ?? s.role} (choose a member)`;
+}
 
 /** A template's roles in words, as the editor offers them. */
 export const ROLE_WORDS: Record<string, string> = {
@@ -194,18 +214,34 @@ const FINISHED = new Set(['done', 'skipped']);
  * Your move (a ready or active activity of the open layer is yours) and
  * Under way elsewhere.
  */
-export function taskSummaries(tasks: QueueTask[], cards: QueueCard[], me: string): { mine: TaskSummary[]; others: TaskSummary[] } {
+export function taskSummaries(tasks: QueueTask[], cards: QueueCard[], me: string | string[]): { mine: TaskSummary[]; others: TaskSummary[]; later: TaskSummary[] } {
+  const holders = new Set(Array.isArray(me) ? me : [me]);
   const mine: TaskSummary[] = [];
   const others: TaskSummary[] = [];
+  // Tasks where they hold something not yet theirs to do (a later layer, or blocked).
+  const later: TaskSummary[] = [];
   for (const task of tasks) {
     if (task.status !== 'open') continue;
     const own = cards.filter((c) => c.task === task.number);
     const of = Math.max(task.open_layer === null ? 0 : task.open_layer + 1, ...own.map((c) => c.layer + 1));
     const now = task.open_layer === null ? [] : own.filter((c) => c.layer === task.open_layer && !FINISHED.has(c.view));
     const s: TaskSummary = { task, at: (task.open_layer ?? of - 1) + 1, of, now, blocked: now.find((c) => c.view === 'blocked') ?? null };
-    (now.some((c) => c.assignee === me && (c.view === 'ready' || c.view === 'active')) ? mine : others).push(s);
+    if (now.some((c) => holders.has(c.assignee) && (c.view === 'ready' || c.view === 'active'))) mine.push(s);
+    else {
+      others.push(s);
+      if (own.some((c) => holders.has(c.assignee) && !FINISHED.has(c.view))) later.push(s);
+    }
   }
-  return { mine, others };
+  return { mine, others, later };
+}
+
+/**
+ * Whose queue a view shows (the witness, 2026-11-23: "a way to view each
+ * household member's queue"): the member, and for a resident her Claude
+ * Code too, whose work is hers.
+ */
+export function holdersOf(assignee: string): string[] {
+  return assignee.startsWith('resident:') ? [assignee, `claude-code:${assignee.slice('resident:'.length)}`] : [assignee];
 }
 
 /** A blocked task's line: "Blocked on #12 Domain system rework · next: Draft the design, Lily". */
@@ -294,3 +330,57 @@ export function rearranged(layers: { act_id: string }[][], change: { id: string 
   }
   return out.filter((l) => l.length > 0);
 }
+
+/**
+ * The holders that move with one (the witness, 2026-11-23: "the option to
+ * change both assignees"): a resident's Claude Code is reached only
+ * through her deliver in the layer before it (§3), so giving a Claude
+ * Code activity to another resident's Claude Code gives that resident the
+ * deliver before it, and giving a deliver to another resident gives her
+ * Claude Code the activities after it. Pending ones only; started work
+ * stays as it is.
+ */
+export function pairedHolders(layers: { act_id: string; type: string; assignee: string; status: string }[][], actId: string, assignee: string): { id: string; assignee: string }[] {
+  const at = layers.findIndex((l) => l.some((a) => a.act_id === actId));
+  if (at < 0) return [];
+  const pending = (a: { status: string }) => a.status === 'pending';
+  if (assignee.startsWith('claude-code:')) {
+    const hers = `resident:${assignee.slice('claude-code:'.length)}`;
+    return (layers[at - 1] ?? []).filter((a) => a.type === 'deliver' && pending(a) && a.assignee !== hers).map((a) => ({ id: a.act_id, assignee: hers }));
+  }
+  const self = layers[at].find((a) => a.act_id === actId);
+  if (self?.type === 'deliver' && assignee.startsWith('resident:')) {
+    const builder = `claude-code:${assignee.slice('resident:'.length)}`;
+    return (layers[at + 1] ?? []).filter((a) => a.assignee.startsWith('claude-code:') && pending(a) && a.assignee !== builder).map((a) => ({ id: a.act_id, assignee: builder }));
+  }
+  return [];
+}
+
+/** An arrangement with the paired holders set on their entries. */
+export function withPaired(arrangement: QueueEditEntry[][], pairs: { id: string; assignee: string }[]): QueueEditEntry[][] {
+  const by = new Map(pairs.map((p) => [p.id, p.assignee]));
+  return arrangement.map((l) => l.map((e) => ('id' in e && e.id && by.has(e.id) ? { ...e, assignee: by.get(e.id) as string } : e)));
+}
+
+/**
+ * A task's document changed for another (the witness, 2026-11-23: a task
+ * named her file where the document was the house's): every pending
+ * activity working on it works on the new one instead; started work
+ * keeps what it worked on. The arrangement for one layer edit, and how
+ * many it changes.
+ */
+export function replacedDocument(layers: { act_id: string; artifact: string | null; status: string }[][], oldKey: string, citation: string): { arrangement: QueueEditEntry[][]; changed: number } {
+  let changed = 0;
+  const key = (c: string | null) => (c ?? '').split('@')[0].trim();
+  const arrangement = layers.map((l) =>
+    l.map((a) => {
+      if (a.status === 'pending' && a.artifact && key(a.artifact) === oldKey) {
+        changed += 1;
+        return { id: a.act_id, artifact: citation } as QueueEditEntry;
+      }
+      return { id: a.act_id } as QueueEditEntry;
+    }),
+  );
+  return { arrangement, changed };
+}
+

@@ -372,6 +372,14 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
     state(multi, e.id, cut_over: false, note: e.note)
   end)
 
+  fold(%E.QueuePaused{} = e, _metadata, fn multi ->
+    state(multi, e.id, paused: true, paused_at: e.at, note: e.note)
+  end)
+
+  fold(%E.QueueResumed{} = e, _metadata, fn multi ->
+    state(multi, e.id, paused: false, paused_at: nil, note: e.note)
+  end)
+
   defp place(repo, e, spec, i, j) do
     id = Queue.get(spec, :id)
 

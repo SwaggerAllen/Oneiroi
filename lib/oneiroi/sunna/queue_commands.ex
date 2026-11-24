@@ -127,4 +127,12 @@ defmodule Oneiroi.Sunna.QueueCommands do
   defmodule CutBack do
     use Oneiroi.Command, fields: [:id], decision: true
   end
+
+  defmodule PauseQueue do
+    use Oneiroi.Command, fields: [:id], decision: true
+  end
+
+  defmodule ResumeQueue do
+    use Oneiroi.Command, fields: [:id], decision: true
+  end
 end

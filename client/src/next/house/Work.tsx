@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import type { QueueCard, QueueOverview } from '../../api/types';
@@ -8,7 +8,7 @@ import { useAct } from '../settings/useAct';
 import { useShell } from '../state/store';
 import { DocumentScreen } from './DocumentScreen';
 import { HOUSE } from './keys';
-import { actName, blockedLine, slugify, taskSummaries, unpinned, type Names, type TaskSummary } from './queueText';
+import { actName, blockedLine, holdersOf, nameOf, since, slugify, taskSummaries, unpinned, type Names, type TaskSummary } from './queueText';
 import { ActivityPage, NewActivityPage, TaskPage, Who } from './TaskPage';
 import { TemplateActivity, TemplateEditor } from './TemplateEditor';
 import * as w from './work.css';
@@ -66,10 +66,15 @@ export function HouseWork() {
 function TaskList({ overview: q, names }: { overview: QueueOverview; names: Names }) {
   const nav = useWorkNav();
   const cards = useQuery({ queryKey: [...QUEUE, 'activities', 'anyone'], queryFn: () => api.queueActivities({ who: 'anyone' }) });
-  const [all, setAll] = useState(false);
+  // Whose queue (the witness, 2026-11-23): yours, any member's, or everyone's.
+  const [whose, setWhose] = useState<string>(q.me);
   const [project, setProject] = useState('');
   const tasks = q.tasks.filter((t) => !project || t.project === project);
-  const { mine, others } = taskSummaries(tasks, cards.data ?? [], q.me);
+  const all = whose === 'all';
+  const { mine, others, later } = taskSummaries(tasks, cards.data ?? [], all ? q.me : holdersOf(whose));
+  const you = whose === q.me || all;
+  const who = you ? 'Your' : `${nameOf(names, whose)}'s`;
+  const members = q.members.filter((m) => m.assignee !== q.me);
   return (
     <>
       {!q.cut_over && (
@@ -85,13 +90,20 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
           </button>
         )}
       </div>
+      <div className={w.segmented} role="group" aria-label="Whose queue">
+        <button type="button" className={w.segment} aria-pressed={whose === q.me} onClick={() => setWhose(q.me)}>
+          Mine
+        </button>
+        {members.map((m) => (
+          <button key={m.assignee} type="button" className={w.segment} aria-pressed={whose === m.assignee} onClick={() => setWhose(m.assignee)}>
+            {m.name}
+          </button>
+        ))}
+        <button type="button" className={w.segment} aria-pressed={all} onClick={() => setWhose('all')}>
+          Everyone
+        </button>
+      </div>
       <div className={w.segmented} role="group" aria-label="Filters">
-        <button type="button" className={w.segment} aria-pressed={!all} onClick={() => setAll(false)}>
-          Waiting on me · {mine.length}
-        </button>
-        <button type="button" className={w.segment} aria-pressed={all} onClick={() => setAll(true)}>
-          All open · {mine.length + others.length}
-        </button>
         <select className={w.select} aria-label="Project" value={project} onChange={(e) => setProject(e.target.value)}>
           <option value="">Project: all</option>
           {q.projects.map((p) => (
@@ -101,17 +113,26 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
           ))}
         </select>
       </div>
+      {q.cut_over && <QueueSwitch overview={q} />}
       {cards.isPending && <p className={css.note}>Reading…</p>}
       {cards.data && (
         <>
-          <h2 className={w.section}>Your move</h2>
-          {mine.length === 0 && <p className={css.note}>Nothing waits on you.</p>}
+          <h2 className={w.section}>{who} move · {mine.length}</h2>
+          {mine.length === 0 && <p className={css.note}>{you ? 'Nothing waits on you.' : `Nothing waits on ${nameOf(names, whose)}.`}</p>}
           {mine.map((s) => (
             <TaskCard key={s.task.number} s={s} names={names} me={q.me} mine />
           ))}
+          {!all && later.length > 0 && (
+            <>
+              <h2 className={w.section}>{you ? 'Yours' : `${nameOf(names, whose)}'s`} later · {later.length}</h2>
+              {later.map((s) => (
+                <TaskCard key={s.task.number} s={s} names={names} me={q.me} />
+              ))}
+            </>
+          )}
           {all && (
             <>
-              <h2 className={w.section}>Under way elsewhere</h2>
+              <h2 className={w.section}>Under way elsewhere · {others.length}</h2>
               {others.length === 0 && <p className={css.note}>Nothing else is open.</p>}
               {others.map((s) => (
                 <TaskCard key={s.task.number} s={s} names={names} me={q.me} />
@@ -123,6 +144,37 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
       <Templates overview={q} />
       <Setup overview={q} />
     </>
+  );
+}
+
+/**
+ * The house queue's one switch (sunna#94; the witness, 2026-11-23: "the
+ * queue is either running or it's not"): it runs unless paused, for every
+ * resident at once; a witness pauses or resumes it, with a note.
+ */
+function QueueSwitch({ overview: q }: { overview: QueueOverview }) {
+  const queries = useQueryClient();
+  const [note, setNote] = useState('');
+  const flip = useMutation({
+    mutationFn: () => (q.paused ? api.queueResume(note || 'running again') : api.queuePause(note || 'paused')),
+    onSettled: () => {
+      setNote('');
+      void queries.invalidateQueries({ queryKey: QUEUE });
+    },
+  });
+  const witness = q.me.startsWith('witness:');
+  return (
+    <div className={w.segmented} role="group" aria-label="The house queue">
+      <span className={css.note}>{q.paused ? `The queue is paused${q.paused_at ? ` since ${since(q.paused_at)} ago` : ''}: nothing starts on anyone's line.` : 'The queue is running: each resident takes her next ready step.'}</span>
+      {witness && (
+        <>
+          <input className={w.select} aria-label="Why (a note)" placeholder="Why (optional)" value={note} onChange={(e) => setNote(e.target.value)} />
+          <button type="button" className={q.paused ? css.primary : css.secondary} disabled={flip.isPending} onClick={() => flip.mutate()}>
+            {q.paused ? 'Resume' : 'Pause'}
+          </button>
+        </>
+      )}
+    </div>
   );
 }
 
