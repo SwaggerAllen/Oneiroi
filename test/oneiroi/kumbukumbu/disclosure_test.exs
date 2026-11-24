@@ -32,6 +32,15 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
         request.candidate =~ "broken" ->
           {:error, :unavailable}
 
+        # Out of form the first time, read the second (kumbukumbu#108).
+        request.candidate =~ "garbled" ->
+          n = :persistent_term.get({__MODULE__, :garbled}, 0) + 1
+          :persistent_term.put({__MODULE__, :garbled}, n)
+
+          if n == 1,
+            do: Judge.parse_disclosure("I would say it is fine."),
+            else: {:ok, %{verdict: :clean, reasons: "carries none of it", model: "fake/judge"}}
+
         # A finding that points at words she never wrote (kumbukumbu#104).
         request.candidate =~ "invented" ->
           :persistent_term.put(
@@ -337,6 +346,29 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
     assert review.(%{text: "Off to the meeting.", audience: "household"}) =~ "they carry it"
     assert review.(%{text: "x", audience: "person", to: "Nobody"}) =~ "no such audience"
     assert [_, _] = verdicts(ctx)
+  end
+
+  test "an answer out of form is asked once more before the review fails closed", ctx do
+    judge(FakeJudge)
+    :persistent_term.put({FakeJudge, :garbled}, 0)
+    assert post(ctx, "A garbled first answer.") =~ "Posted"
+    assert :persistent_term.get({FakeJudge, :garbled}) == 2
+    assert [%{verdict: "clean"}] = verdicts(ctx)
+  end
+
+  test "the judge's answer is read past its Markdown (eunomia#34)" do
+    assert {:ok, :clean, "none carried"} =
+             Judge.parse_disclosure(
+               "**VERDICT:** CLEAN\n**QUOTE:** NONE\n**REASONS:** none carried"
+             )
+
+    assert {:ok, :discloses, "x"} =
+             Judge.parse_disclosure("## Verdict: **DISCLOSES**\nQuote: `the meeting`\nReasons: x")
+
+    assert {:ok, :clean, _} = Judge.parse_disclosure("- VERDICT - CLEAN\n- REASONS - fine")
+    assert {:ok, :clean, ""} = Judge.parse_disclosure("CLEAN.")
+    assert Judge.parse_quote("**QUOTE:** \"the meeting\"") == "the meeting"
+    assert Judge.parse_quote("Quote: `the meeting`") == "the meeting"
   end
 
   test "the judge's answer is read strictly; out of form is a failure, not a guess" do

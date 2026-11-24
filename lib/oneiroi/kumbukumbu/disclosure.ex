@@ -143,7 +143,10 @@ defmodule Oneiroi.Kumbukumbu.Disclosure do
         Map.put_new(verdict, :quote, nil)
 
       {:ok, {:ok, _out_of_form}} ->
-        failed("an answer out of form")
+        out_of_form("an answer out of form")
+
+      {:ok, {:error, %{kind: :eunomia_disclosure_unreadable} = reason}} ->
+        out_of_form("the call failed: #{reason_words(reason)}")
 
       {:ok, {:error, reason}} ->
         failed("the call failed: #{reason_words(reason)}")
@@ -158,6 +161,10 @@ defmodule Oneiroi.Kumbukumbu.Disclosure do
 
   defp failed(why), do: %{verdict: :failed, reasons: why, model: nil}
 
+  # An answer the review could not read (kumbukumbu#108): asked once
+  # more, like an unproven finding, before the review fails closed.
+  defp out_of_form(why), do: Map.put(failed(why), :form, false)
+
   # A finding proves itself (kumbukumbu#104; the witness, 2026-11-21:
   # "make the judge prove its finding", after the judge refused
   # Scarlett's letter for words it was not in): a DISCLOSES verdict
@@ -171,6 +178,9 @@ defmodule Oneiroi.Kumbukumbu.Disclosure do
     verdict = ask(port, resident_id, request)
 
     cond do
+      Map.get(verdict, :form) == false and n < @asks ->
+        proven(port, resident_id, request, n + 1)
+
       verdict.verdict != :discloses ->
         verdict
 

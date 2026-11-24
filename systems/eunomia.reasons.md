@@ -253,3 +253,6 @@ a disclosure with her own chat model would ask the composer to grade
 its own leak. The prompt asks one question, says unsure is discloses,
 and grades nobody, so a verdict is a reading of the words and nothing
 more.
+
+## #34
+The form the judge is asked for is three labelled lines, and models set labels in Markdown as often as not. A reader that took `**VERDICT:** CLEAN` for no verdict at all failed every such review closed, so a clean message sat refused for hours while the judge had answered it. The marks carry no meaning in the answer; reading past them changes nothing the judge said, and an answer that names no verdict is still refused.
