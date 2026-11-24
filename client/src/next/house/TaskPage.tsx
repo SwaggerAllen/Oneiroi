@@ -6,7 +6,7 @@ import { Confirm, Field, Said, Select, TextArea } from '../settings/common';
 import * as css from '../settings/settings.css';
 import { useAct } from '../settings/useAct';
 import { HOUSE } from './keys';
-import { actName, documentRows, drawLayers, forkNote, fromLine, GATED, glyph, LETS, nameOf, pin, rearranged, roleChoices, since, TYPES, type DrawnLayer, type Names } from './queueText';
+import { actName, documentRows, drawLayers, forkNote, fromLine, GATED, glyph, LETS, nameOf, pairedHolders, pin, rearranged, roleChoices, since, TYPES, withPaired, type DrawnLayer, type Names } from './queueText';
 import * as w from './work.css';
 import { useWorkNav, workPath } from './workRoutes';
 
@@ -305,7 +305,7 @@ export function ActivityPage({ number, actId, names, overview }: { number: numbe
             </button>
           </div>
         )}
-        <Moves task={number} a={a} names={names} overview={overview} />
+        <Moves task={number} a={a} names={names} overview={overview} layers={layers} />
       </section>
       {mayEdit && <ActivityForm key={a.act_id} task={task} layers={layers} a={a} layer={layer} names={names} overview={overview} />}
       <section className={css.card} aria-label="History">
@@ -349,10 +349,12 @@ export function ActivityForm({ task, layers, a, layer, names, overview }: { task
     };
     return a ? { id: a.act_id, ...fields } : { name: name.trim(), ...fields };
   };
+  // A Claude Code and its deliver change holders together (§3).
+  const pairs = a && f.assignee !== a.assignee ? pairedHolders(layers, a.act_id, f.assignee) : [];
   const save = (to: number | null, said: string, note: string) =>
     void act.run(
       () =>
-        api.queueEditLayers(task.number, rearranged(layers, { id: a?.act_id ?? null, to, entry: to === null ? null : entry() }), note).then(() => {
+        api.queueEditLayers(task.number, withPaired(rearranged(layers, { id: a?.act_id ?? null, to, entry: to === null ? null : entry() }), to === null ? [] : pairs), note).then(() => {
           nav(workPath.task(task.number));
           return said;
         }),
@@ -398,6 +400,11 @@ export function ActivityForm({ task, layers, a, layer, names, overview }: { task
           {!f.assignee && <option value="">Choose…</option>}
           <HolderOptions overview={overview} names={names} />
         </Select>
+        {pairs.length > 0 && (
+          <p className={w.warnNote}>
+            {pairs.map((p) => `${p.id} goes to ${nameOf(names, p.assignee)} too`).join('; ')}: a Claude Code is reached only through its resident's deliver step, so they change together.
+          </p>
+        )}
         <Select label="Layer" value={String(f.layer)} onChange={(v) => set({ layer: Number(v) })}>
           {pending ? (
             layerChoices.map((i) => (
@@ -499,7 +506,7 @@ export function NewActivityPage({ number, names, overview }: { number: number; n
  * The moves an activity allows (sunna#80): take, finish, failed, block,
  * reopen, skip, assign; a review's decision is on its document's screen.
  */
-function Moves({ task, a, names, overview }: { task: number; a: QueueActivity; names: Names; overview: QueueOverview }) {
+function Moves({ task, a, names, overview, layers }: { task: number; a: QueueActivity; names: Names; overview: QueueOverview; layers: QueueActivity[][] }) {
   const act = useAct();
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState('');
@@ -508,6 +515,19 @@ function Moves({ task, a, names, overview }: { task: number; a: QueueActivity; n
   const move = (m: QueueMove, fields: Record<string, unknown> = {}, said = `${actName(a)}: ${m}.`) => void act.run(() => api.queueMove(task, a.act_id, m, fields).then(() => said), QUEUE);
   const live = a.view === 'ready' || a.view === 'active';
   const stuck = a.view === 'blocked' || a.view === 'failed';
+  // A Claude Code and its deliver change holders together (§3): one edit
+  // of the layers carries both, since either alone is refused.
+  const pairs = assignee !== a.assignee ? pairedHolders(layers, a.act_id, assignee) : [];
+  const assign = () =>
+    pairs.length === 0
+      ? move('assign', { assignee, note: note || undefined }, `${actName(a)} is ${nameOf(names, assignee)}'s.`)
+      : void act.run(
+          () =>
+            api
+              .queueEditLayers(task, withPaired(layers.map((l) => l.map((x) => ({ id: x.act_id }))), [{ id: a.act_id, assignee }, ...pairs]), note || `${actName(a)} and its pair change holders`)
+              .then(() => `${actName(a)} is ${nameOf(names, assignee)}'s, and ${pairs.map((p) => `${p.id} ${nameOf(names, p.assignee)}'s`).join(', ')}.`),
+          QUEUE,
+        );
   if (a.view === 'done' || a.view === 'skipped') return null;
   return (
     <>
@@ -565,10 +585,11 @@ function Moves({ task, a, names, overview }: { task: number; a: QueueActivity; n
             <Select label="Assign to" value={assignee} onChange={setAssignee}>
               <HolderOptions overview={overview} names={names} />
             </Select>
-            <button type="button" className={css.quiet} disabled={act.busy || assignee === a.assignee} onClick={() => move('assign', { assignee, note: note || undefined }, `${actName(a)} is ${nameOf(names, assignee)}'s.`)}>
-              Assign
+            <button type="button" className={css.quiet} disabled={act.busy || assignee === a.assignee} onClick={assign}>
+              {pairs.length > 0 ? 'Assign both' : 'Assign'}
             </button>
           </div>
+          {pairs.length > 0 && <p className={w.warnNote}>{pairs.map((p) => `${p.id} goes to ${nameOf(names, p.assignee)} too`).join('; ')}: a Claude Code is reached only through its resident's deliver step.</p>}
         </div>
       )}
       <Said said={act.said} />

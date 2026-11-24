@@ -156,7 +156,12 @@ defmodule OneiroiWeb.QueueController do
   )
 
   def define_template(conn, params) do
-    attrs = %{from: blank(params["from"]), title: params["title"], layers: params["layers"]}
+    attrs = %{
+      from: blank(params["from"]),
+      title: params["title"],
+      layers: params["layers"],
+      roles: params["roles"]
+    }
 
     done(
       conn,

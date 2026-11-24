@@ -60,7 +60,10 @@ export interface TemplateSpec {
   /** What every task made from the template calls it (sunna#90). */
   name: string;
   type: string;
-  role: string;
+  /** Who holds it in every task made from the template (sunna#93): a member, a Claude Code, or unknown. */
+  assignee?: string | null;
+  /** A holder by role, on a template written before sunna#93; resolved as it was until a member is chosen. */
+  role?: string | null;
   artifact?: string | null;
   destination?: string | null;
   action?: string | null;
@@ -124,6 +127,23 @@ export const glyph = (type: string) => GLYPHS[type] ?? '•';
 
 /** What approving a review lets happen, by the gated action it names. */
 export const LETS: Record<string, string> = { 'promote-to-house': 'it be shared', merge: 'it be merged', send: 'it be sent', publish: 'it be published', spend: 'it be spent' };
+
+/**
+ * Who a template's activity can be held by (sunna#93): each member, each
+ * resident's Claude Code, and not known yet. Fixed in the template: never
+ * who opens the task.
+ */
+export function holderChoices(members: { assignee: string; kind: string; name: string }[]): { value: string; label: string }[] {
+  const people = members.map((m) => ({ value: m.assignee, label: m.name }));
+  const builders = members.filter((m) => m.kind === 'resident').map((m) => ({ value: `claude-code:${m.assignee.slice('resident:'.length)}`, label: `${m.name}'s Claude Code` }));
+  return [...people, ...builders, { value: 'unknown', label: 'not known yet' }];
+}
+
+/** A template activity's holder in words: its member, or the old role it still holds by. */
+export function holderWords(s: { assignee?: string | null; role?: string | null }, names: Names): string {
+  if (s.assignee) return nameOf(names, s.assignee);
+  return `by role: ${ROLE_WORDS[s.role ?? 'unknown'] ?? s.role} (choose a member)`;
+}
 
 /** A template's roles in words, as the editor offers them. */
 export const ROLE_WORDS: Record<string, string> = {
@@ -310,3 +330,35 @@ export function rearranged(layers: { act_id: string }[][], change: { id: string 
   }
   return out.filter((l) => l.length > 0);
 }
+
+/**
+ * The holders that move with one (the witness, 2026-11-23: "the option to
+ * change both assignees"): a resident's Claude Code is reached only
+ * through her deliver in the layer before it (§3), so giving a Claude
+ * Code activity to another resident's Claude Code gives that resident the
+ * deliver before it, and giving a deliver to another resident gives her
+ * Claude Code the activities after it. Pending ones only; started work
+ * stays as it is.
+ */
+export function pairedHolders(layers: { act_id: string; type: string; assignee: string; status: string }[][], actId: string, assignee: string): { id: string; assignee: string }[] {
+  const at = layers.findIndex((l) => l.some((a) => a.act_id === actId));
+  if (at < 0) return [];
+  const pending = (a: { status: string }) => a.status === 'pending';
+  if (assignee.startsWith('claude-code:')) {
+    const hers = `resident:${assignee.slice('claude-code:'.length)}`;
+    return (layers[at - 1] ?? []).filter((a) => a.type === 'deliver' && pending(a) && a.assignee !== hers).map((a) => ({ id: a.act_id, assignee: hers }));
+  }
+  const self = layers[at].find((a) => a.act_id === actId);
+  if (self?.type === 'deliver' && assignee.startsWith('resident:')) {
+    const builder = `claude-code:${assignee.slice('resident:'.length)}`;
+    return (layers[at + 1] ?? []).filter((a) => a.assignee.startsWith('claude-code:') && pending(a) && a.assignee !== builder).map((a) => ({ id: a.act_id, assignee: builder }));
+  }
+  return [];
+}
+
+/** An arrangement with the paired holders set on their entries. */
+export function withPaired(arrangement: QueueEditEntry[][], pairs: { id: string; assignee: string }[]): QueueEditEntry[][] {
+  const by = new Map(pairs.map((p) => [p.id, p.assignee]));
+  return arrangement.map((l) => l.map((e) => ('id' in e && e.id && by.has(e.id) ? { ...e, assignee: by.get(e.id) as string } : e)));
+}
+

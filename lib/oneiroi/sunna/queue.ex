@@ -951,11 +951,18 @@ defmodule Oneiroi.Sunna.Queue do
   defp template_layer(_layer, _i), do: [nil]
 
   defp template_spec(spec, _i, j) when is_map(spec) do
+    assignee = blank_nil(get(spec, :assignee))
+
     t = %{
       pos: j,
       name: blank_nil(get(spec, :name)),
       type: get(spec, :type),
-      role: get(spec, :role) || "unknown",
+      # Who holds it, set in the template (sunna#93): a member, a
+      # resident's Claude Code, or unknown; never who opens the task. A
+      # role (author, witness, peer, builder) stays readable on a template
+      # written before, resolved as it was.
+      assignee: assignee,
+      role: if(assignee, do: nil, else: get(spec, :role) || "unknown"),
       artifact: blank_nil(get(spec, :artifact)),
       destination: blank_nil(get(spec, :destination)),
       action: blank_nil(get(spec, :action)),
@@ -965,7 +972,8 @@ defmodule Oneiroi.Sunna.Queue do
 
     # A template names every activity (sunna#90): the name every task
     # made from it shows.
-    if words?(t.name, @name) and words?(t.type, @verb) and t.role in @roles and
+    if words?(t.name, @name) and words?(t.type, @verb) and
+         ((is_binary(t.assignee) and assignee?(t.assignee)) or t.role in @roles) and
          short?(t.artifact, 64) and
          short?(t.destination, 120) and short?(t.action, @verb) and short?(t.throwback, 16),
        do: t,

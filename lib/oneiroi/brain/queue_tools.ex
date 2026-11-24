@@ -57,10 +57,11 @@ defmodule Oneiroi.Brain.QueueTools do
       ),
       tool(
         "queue_template_define",
-        "Write a house template (sunna#88): name (lowercase, hyphens; the same name replaces it), title, and layers, an array of layers each an array of activities {name, type, role, artifact, destination, action, optional, throwback}. name is what every task made from the template calls the activity, as \"Witness review\" (sunna#90); every activity has one. role is who holds it when a task opens: author (the task's owner), witness, peer (the other resident), builder (the owner's Claude Code) or unknown. artifact is a slot name (design, pr) filled when the task opens. A gated step (send, publish, spend, merge, promote-to-house) sits right after a review of the same slot whose destination matches and whose action is that step; throwback names an earlier activity by position (\"1.1\"). Or from: a starter's name, to copy it.",
+        "Write a house template (sunna#88): name (lowercase, hyphens; the same name replaces it), title, and layers, an array of layers each an array of activities {name, type, assignee, artifact, destination, action, optional, throwback}. name is what every task made from the template calls the activity, as \"Witness review\" (sunna#90); every activity has one. assignee is who holds it in every task made from the template, whoever opens the task (sunna#93): a member as queue_templates lists them (resident:<id>, witness:<id>), a resident's Claude Code (claude-code:<id>) or unknown. With from (a starter), roles names its holders: {\"author\": \"resident:<id>\", \"witness\": ..., \"peer\": ...}, the author's Claude Code building unless builder is named. artifact is a slot name (design, pr) filled when the task opens. A gated step (send, publish, spend, merge, promote-to-house) sits right after a review of the same slot whose destination matches and whose action is that step; throwback names an earlier activity by position (\"1.1\"). Or from: a starter's name, to copy it.",
         %{
           name: %{type: "string"},
           title: %{type: "string"},
+          roles: %{type: "object"},
           layers: %{type: "array", items: %{type: "array", items: %{type: "object"}}},
           from: %{type: "string"}
         },
@@ -215,7 +216,12 @@ defmodule Oneiroi.Brain.QueueTools do
   end
 
   defp run("queue_template_define", args, h, actor, _me) do
-    attrs = %{from: blank(args["from"]), title: args["title"], layers: args["layers"]}
+    attrs = %{
+      from: blank(args["from"]),
+      title: args["title"],
+      layers: args["layers"],
+      roles: args["roles"]
+    }
 
     with :ok <- Sunna.queue_define_template(h, to_string(args["name"] || ""), attrs, actor),
          do: "Template #{args["name"]} is saved in the house."
@@ -470,7 +476,7 @@ defmodule Oneiroi.Brain.QueueTools do
     get = &(Map.get(s, &1) || Map.get(s, Atom.to_string(&1)))
     gated = if get.(:destination), do: " → #{get.(:destination)}", else: ""
     named = if get.(:name), do: "#{get.(:name)}: ", else: ""
-    "#{named}#{get.(:type)} (#{get.(:role)})#{gated}"
+    "#{named}#{get.(:type)} (#{get.(:assignee) || "by role: #{get.(:role)}"})#{gated}"
   end
 
   defp next_line(h, task) do

@@ -904,8 +904,8 @@ export interface QueueDocument {
 export interface QueueSpec {
   name?: string | null;
   type: string;
-  role?: string;
-  assignee?: string;
+  role?: string | null;
+  assignee?: string | null;
   artifact?: string | null;
   destination?: string | null;
   action?: string | null;

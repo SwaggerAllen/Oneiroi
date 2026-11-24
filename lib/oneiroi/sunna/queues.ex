@@ -154,10 +154,40 @@ defmodule Oneiroi.Sunna.Queues do
         id: household_id,
         name: name,
         title: attrs[:title] || base[:title],
-        layers: attrs[:layers] || base[:layers]
+        layers: holders(attrs[:layers] || base[:layers], attrs[:roles])
       })
     end
   end
+
+  # A starter's roles made the house's members as it is defined
+  # (sunna#93): `roles`, role → assignee; the owner's Claude Code builds
+  # unless named. A role left unnamed stays a role.
+  defp holders(layers, roles) when is_map(roles) and map_size(roles) > 0 do
+    roles = Map.new(roles, fn {k, v} -> {to_string(k), v} end)
+
+    roles =
+      case roles["author"] do
+        "resident:" <> id -> Map.put_new(roles, "builder", "claude-code:" <> id)
+        _other -> roles
+      end
+
+    for layer <- layers do
+      for spec <- layer do
+        case roles[to_string(Queue.get(spec, :role))] do
+          nil ->
+            spec
+
+          who ->
+            spec
+            |> Map.new(fn {k, v} -> {to_string(k), v} end)
+            |> Map.delete("role")
+            |> Map.put("assignee", who)
+        end
+      end
+    end
+  end
+
+  defp holders(layers, _roles), do: layers
 
   @doc """
   Opens a task, returning its number. `attrs`:
@@ -589,7 +619,8 @@ defmodule Oneiroi.Sunna.Queues do
           name: Queue.get(spec, :name),
           slot: slot,
           type: Queue.get(spec, :type),
-          assignee: roles[Queue.get(spec, :role)] || "unknown",
+          # A holder the template names is the holder (sunna#93).
+          assignee: Queue.get(spec, :assignee) || roles[Queue.get(spec, :role)] || "unknown",
           artifact: slot && (slots[slot] || "slot:#{slot}"),
           destination: Queue.get(spec, :destination),
           action: Queue.get(spec, :action),

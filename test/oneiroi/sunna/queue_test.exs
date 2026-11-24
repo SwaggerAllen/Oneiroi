@@ -415,6 +415,34 @@ defmodule Oneiroi.Sunna.QueueTest do
     assert %{version: 2} = Queues.template(ctx.h, "doc-to-pr")
   end
 
+  # sunna#93 (the witness, 2026-11-23: "nothing should change about
+  # assignees dependent on who creates the task").
+  test "a template names who holds each step, whoever opens the task", ctx do
+    roles = %{"author" => ctx.a_lily, "witness" => ctx.a_andrew, "peer" => ctx.a_scarlett}
+
+    :ok =
+      Queues.define_template(ctx.h, "doc-to-pr", %{from: "doc-to-pr", roles: roles}, ctx.andrew)
+
+    :ok = Queues.open_project(ctx.h, %{slug: "p", name: "P"}, ctx.scarlett)
+
+    {:ok, n} =
+      Queues.open_task(
+        ctx.h,
+        %{project: "p", slug: "x", title: "X", outcome: "done", template: "doc-to-pr"},
+        ctx.scarlett
+      )
+
+    holders = Enum.map(acts(ctx, n), &{&1.name, &1.assignee})
+    assert {"Draft the design", ctx.a_lily} in holders
+    assert {"Peer review", ctx.a_scarlett} in holders
+    assert {"Hand to Claude Code", ctx.a_lily} in holders
+    assert {"Build it", "claude-code:#{ctx.lily.id}"} in holders
+    assert {"Witness review", ctx.a_andrew} in holders
+
+    %{layers: %{"layers" => layers}} = Queues.template(ctx.h, "doc-to-pr")
+    assert Enum.all?(List.flatten(layers), &(&1["assignee"] && is_nil(&1["role"])))
+  end
+
   test "a task's documents: its slots', and those attached; a document finds its tasks", ctx do
     {:ok, n} = doc_to_pr(ctx, attrs: [links: ["scarlett:design/emergency-access.md"]])
 

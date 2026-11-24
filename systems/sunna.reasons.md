@@ -638,3 +638,6 @@ A task's work usually rests on more than the one file it changes: the sources it
 
 ## #92
 The old queue was a batch she armed and the line ended with it; the house queue is a stream that fills whenever anyone opens a task. A line that turns itself off between arrivals leaves the next arrival waiting on someone noticing, and the switch was hidden where nobody looked.
+
+## #93
+A template is the house's agreement about who does what; resolving it against whoever happened to open the task made the agreement depend on a click. Naming the holders in the template keeps it the same every time. A Claude Code and its resident's deliver are one decision in two rows, so the screens change them as one.

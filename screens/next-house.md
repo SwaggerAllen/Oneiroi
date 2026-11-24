@@ -317,3 +317,4 @@ detaching a slot's document; the deeper "…" back navigation.
 - **A new subject starts at its root.** Choosing another subject resets every tab and rewrites the address to `#/chat`, so the new subject never opens the old one's record.
 - **Tapping the tab you are on** takes it back to its root (on a record, Records is the file view again; in sessions, Chat is the chat).
 - **A resident's work line** shows in her view of the queue: armed or off, why it rests, and Arm / Turn off (sunna#92).
+- **A template's holders are members** (sunna#93): "Held by" lists each member, each resident's Claude Code and not known yet; a step still held by an old role says so until one is chosen. On a task, changing a Claude Code's or a deliver's holder says its pair goes too, and Save or "Assign both" changes both.
