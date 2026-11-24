@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QueueActivity, QueueCard, QueueDocument } from '../../api/types';
-import { actName, blockedLine, blockerLine, holderChoices, holdersOf, holderWords, pairedHolders, withPaired, documentRows, drawLayers, forkNote, fromLine, nameOf, placeOf, pinOf, postKind, rearranged, roleChoices, sentence, since, slugify, taskSummaries, templateProblems, unpinned, withMd } from './queueText';
+import { actName, blockedLine, blockerLine, holderChoices, holdersOf, holderWords, pairedHolders, replacedDocument, withPaired, documentRows, drawLayers, forkNote, fromLine, nameOf, placeOf, pinOf, postKind, rearranged, roleChoices, sentence, since, slugify, taskSummaries, templateProblems, unpinned, withMd } from './queueText';
 
 const names = { 'resident:l': 'Lily', 'witness:a': 'Andrew' };
 
@@ -228,6 +228,19 @@ describe('holders that move together (§3, 2026-11-23)', () => {
     const members = [{ assignee: 'witness:w', kind: 'witness', name: 'Andrew' }, { assignee: 'resident:l', kind: 'resident', name: 'Lily' }];
     expect(holderChoices(members).map((h) => h.label)).toEqual(['Andrew', 'Lily', "Lily's Claude Code", 'not known yet']);
     expect(holderWords({ role: 'author' }, {})).toBe('by role: the task owner (choose a member)');
+  });
+});
+
+describe("a task's document changed for another (2026-11-23)", () => {
+  it('moves every pending activity on it, and leaves started work as it was', () => {
+    const layers = [
+      [{ act_id: '12.1', artifact: 'lily:design/x.md', status: 'done' }],
+      [{ act_id: '12.2', artifact: 'lily:design/x.md@abc', status: 'pending' }],
+      [{ act_id: '12.3', artifact: 'slot:pr', status: 'pending' }],
+    ];
+    const { arrangement, changed } = replacedDocument(layers, 'lily:design/x.md', 'house/strut:doc/design/x.md');
+    expect(changed).toBe(1);
+    expect(arrangement).toEqual([[{ id: '12.1' }], [{ id: '12.2', artifact: 'house/strut:doc/design/x.md' }], [{ id: '12.3' }]]);
   });
 });
 

@@ -644,3 +644,6 @@ A template is the house's agreement about who does what; resolving it against wh
 
 ## #94
 A line per resident, each armed and disarmed apart, made a house queue that could be half on with nobody choosing it, and the default after a quiet hour was off. One switch says what the house is doing, and its default is running.
+
+## #95
+A citation that names nothing reads like a document on every screen until someone opens it; checking where it goes in, and naming the house's file when the path is the house's, catches the slip at the moment it is made. Sharing what is already in the house is a step with nothing to do.

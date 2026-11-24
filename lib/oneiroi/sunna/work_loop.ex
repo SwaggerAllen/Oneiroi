@@ -673,9 +673,28 @@ defmodule Oneiroi.Sunna.WorkLoop do
         rest(resident_id, "holding: today's #{cap} runs are spent")
 
       true ->
+        start_or_pass(resident_id, card)
+    end
+  end
+
+  # A document already in the house needs no sharing (the witness,
+  # 2026-11-23: a doc that starts in the house): her optional share step
+  # on a house document passes itself, said so, and the line looks again.
+  defp start_or_pass(resident_id, %{type: "promote-to-house", artifact: "house/" <> _} = card) do
+    her = Actor.new(:resident, resident_id)
+    note = "the document is already in the house; nothing to share"
+
+    case Queues.skip(card.household, card.task, card.act, note, her) do
+      :ok ->
+        worker().enqueue_check(resident_id)
+        {:passed, card.act}
+
+      _not_hers_to_pass ->
         start_activity(resident_id, card)
     end
   end
+
+  defp start_or_pass(resident_id, card), do: start_activity(resident_id, card)
 
   defp house_running?(resident_id) do
     case Oneiroi.Gaia.resident_household(resident_id) do

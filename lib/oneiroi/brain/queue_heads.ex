@@ -33,6 +33,24 @@ defmodule Oneiroi.Brain.QueueHeads do
     end
   end
 
+  @doc "Where a citation points: `:house`, `:resident` (a member resident's file) or `:other`, which the platform cannot read."
+  @spec place(String.t(), String.t()) :: :house | :resident | :other
+  def place(household_id, citation) do
+    cond do
+      String.starts_with?(citation, "slot:") -> :other
+      String.starts_with?(citation, "house/") -> :house
+      resident_slug?(household_id, citation) -> :resident
+      true -> :other
+    end
+  end
+
+  defp resident_slug?(household_id, citation) do
+    case String.split(citation, ":", parts: 2) do
+      [slug, _rest] -> not is_nil(resident_by_slug(household_id, slug))
+      _other -> false
+    end
+  end
+
   defp house(household_id, citation) do
     with {:ok, %{path: path}} <- Seshat.house_citation(citation),
          {:ok, [%{sha: sha} | _]} <- SimaQian.household_log(household_id, path, 1) do

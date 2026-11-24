@@ -6,7 +6,7 @@ import { Confirm, Field, Said, Select, TextArea } from '../settings/common';
 import * as css from '../settings/settings.css';
 import { useAct } from '../settings/useAct';
 import { HOUSE } from './keys';
-import { actName, documentRows, drawLayers, forkNote, fromLine, GATED, glyph, LETS, nameOf, pairedHolders, pin, rearranged, roleChoices, since, TYPES, withPaired, type DrawnLayer, type Names } from './queueText';
+import { actName, documentRows, drawLayers, forkNote, fromLine, GATED, glyph, LETS, nameOf, pairedHolders, pin, rearranged, replacedDocument, roleChoices, since, TYPES, withPaired, type DrawnLayer, type Names } from './queueText';
 import * as w from './work.css';
 import { useWorkNav, workPath } from './workRoutes';
 
@@ -99,7 +99,7 @@ export function TaskPage({ number, names, overview }: { number: number; names: N
       <p className={css.meta}>
         Owner {nameOf(names, task.owner)} · {fromLine(task)}
       </p>
-      <TaskDocuments number={task.number} documents={task.documents ?? []} mayEdit={task.status === 'open'} />
+      <TaskDocuments number={task.number} documents={task.documents ?? []} layers={layers} mayEdit={task.status === 'open'} />
       <section className={css.card} aria-label="Layers">
         <div className={w.top}>
           <h2 className={css.heading}>Layers</h2>
@@ -143,10 +143,29 @@ function History({ rows, names }: { rows: QueueTaskPage['history']; names: Names
 }
 
 /** A task's documents (sunna#91): each opens the document screen; an attached one can go; a new one is added by citation with its role. */
-function TaskDocuments({ number, documents, mayEdit }: { number: number; documents: NonNullable<QueueTaskPage['task']['documents']>; mayEdit: boolean }) {
+function TaskDocuments({ number, documents, layers, mayEdit }: { number: number; documents: NonNullable<QueueTaskPage['task']['documents']>; layers: QueueActivity[][]; mayEdit: boolean }) {
   const nav = useWorkNav();
   const act = useAct();
   const [adding, setAdding] = useState(false);
+  // A document changed for another (2026-11-23): its row's key, and the new citation.
+  const [changing, setChanging] = useState<string | null>(null);
+  const [replacement, setReplacement] = useState('');
+  const change = (d: { key: string; role: string; citation: string | null; attached: boolean }) => {
+    const next = replacement.trim();
+    void act.run(async () => {
+      if (d.attached && d.citation) {
+        await api.queueAttachDocument(number, next, d.role);
+        await api.queueDetachDocument(number, d.citation);
+      } else {
+        const { arrangement, changed } = replacedDocument(layers, d.key, next);
+        if (changed === 0) return 'Nothing pending works on it; started work keeps what it worked on.';
+        await api.queueEditLayers(number, arrangement, `the ${d.role} is ${next}, not ${d.citation}`);
+      }
+      setChanging(null);
+      setReplacement('');
+      return `The ${d.role} is ${next} now.`;
+    }, QUEUE);
+  };
   const [citation, setCitation] = useState('');
   const choices = roleChoices(documents);
   const [role, setRole] = useState('');
@@ -178,10 +197,31 @@ function TaskDocuments({ number, documents, mayEdit }: { number: number; documen
               )}
             </div>
             <span className={w.role}>{d.role}</span>
+            {mayEdit && d.citation && changing !== d.key && (
+              <button type="button" className={css.quiet} disabled={act.busy} onClick={() => {
+                  setChanging(d.key);
+                  setReplacement(d.citation ?? '');
+                }}>
+                Change
+              </button>
+            )}
             {mayEdit && d.attached && d.citation && (
               <button type="button" className={css.quiet} aria-label={`Detach ${d.citation}`} disabled={act.busy} onClick={() => void act.run(() => api.queueDetachDocument(number, d.citation as string).then(() => `${d.citation} is off the task.`), QUEUE)}>
                 ×
               </button>
+            )}
+            {changing === d.key && (
+              <div className={css.column}>
+                <Field label="The document it should be (house/<house>:doc/<path> for the house's)" value={replacement} onChange={(e) => setReplacement(e.target.value)} />
+                <div className={css.row}>
+                  <button type="button" className={css.primary} disabled={act.busy || !replacement.trim() || replacement.trim() === d.citation} onClick={() => change(d)}>
+                    Change it
+                  </button>
+                  <button type="button" className={css.quiet} onClick={() => setChanging(null)}>
+                    Cancel
+                  </button>
+                </div>
+              </div>
             )}
           </li>
         ))}

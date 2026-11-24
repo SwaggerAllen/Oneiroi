@@ -142,6 +142,64 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
     refute WorkLoop.due?(ctx.id)
   end
 
+  # A document that starts in the house (the witness, 2026-11-23): her
+  # share step on it passes itself, said so, and the line looks again.
+  test "her share step on a document already in the house passes itself", ctx do
+    :ok = Sunna.queue_cut_over(ctx.h, "abc1234", "the set is built", ctx.andrew)
+    :ok = Sunna.queue_drop(ctx.h, ctx.n, "not this one", ctx.andrew)
+    doc = "house/nest:doc/design/db-access-consent.md"
+
+    {:ok, m} =
+      Sunna.queue_open_task(
+        ctx.h,
+        %{
+          project: "p",
+          slug: "consent",
+          title: "Consent",
+          outcome: "built",
+          layers: [
+            [
+              %{
+                type: "review",
+                assignee: "witness:#{ctx.andrew.id}",
+                artifact: doc,
+                destination: "house",
+                action: "promote-to-house"
+              }
+            ],
+            [
+              %{
+                type: "promote-to-house",
+                assignee: "resident:#{ctx.id}",
+                artifact: doc,
+                destination: "house",
+                optional: true
+              }
+            ]
+          ]
+        },
+        ctx.me
+      )
+
+    :ok =
+      Sunna.queue_decide(
+        ctx.h,
+        m,
+        "#{m}.1",
+        %{outcome: "approved", pin: "abc1234", note: "fine"},
+        ctx.andrew
+      )
+
+    clear_jobs()
+    share = "#{m}.2"
+    assert {:passed, ^share} = WorkLoop.check(ctx.id)
+
+    assert %{status: "skipped"} =
+             Enum.find(List.flatten(Sunna.queue_task(ctx.h, m).layers), &(&1.act_id == share))
+
+    assert [%{"turn" => "check"}] = jobs(ctx.id)
+  end
+
   test "before the cutover the line is the old queue's", ctx do
     :ok = Sunna.work_arm(ctx.id, ctx.me)
 

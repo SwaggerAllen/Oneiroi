@@ -8,6 +8,7 @@ defmodule Oneiroi.Brain.QueueTools do
   """
 
   alias Oneiroi.Brain.HouseQueue
+  alias Oneiroi.Brain.QueueDocs
   alias Oneiroi.Gaia
   alias Oneiroi.Sunna
 
@@ -247,7 +248,9 @@ defmodule Oneiroi.Brain.QueueTools do
       links: args["links"]
     }
 
-    with {:ok, n} <- Sunna.queue_open_task(h, attrs, actor) do
+    # Every document it names is one that exists (sunna#95).
+    with :ok <- checked(h, QueueDocs.of_opening(attrs)),
+         {:ok, n} <- Sunna.queue_open_task(h, attrs, actor) do
       "Opened task ##{n}.\n\n" <> page_text(h, n)
     end
   end
@@ -290,7 +293,8 @@ defmodule Oneiroi.Brain.QueueTools do
   defp run("queue_task_document", args, h, actor, _me) do
     role = blank(args["role"]) || "source"
 
-    with :ok <-
+    with :ok <- checked(h, [args["citation"]]),
+         :ok <-
            Sunna.queue_attach_document(
              h,
              integer(args["task"]),
@@ -302,7 +306,8 @@ defmodule Oneiroi.Brain.QueueTools do
   end
 
   defp run("queue_fill_slot", args, h, actor, _me) do
-    with :ok <-
+    with :ok <- checked(h, [args["artifact"]]),
+         :ok <-
            Sunna.queue_fill_slot(h, integer(args["task"]), args["slot"], args["artifact"], actor),
          do: "slot:#{args["slot"]} is #{args["artifact"]} now."
   end
@@ -310,7 +315,8 @@ defmodule Oneiroi.Brain.QueueTools do
   defp run("queue_task_edit", args, h, actor, _me) do
     task = integer(args["task"])
 
-    with :ok <-
+    with :ok <- checked(h, QueueDocs.of_opening(%{layers: args["layers"]})),
+         :ok <-
            Sunna.queue_edit_layers(h, task, args["layers"], to_string(args["note"] || ""), actor) do
       "Task ##{task}'s layers edited.\n\n" <> page_text(h, task)
     end
@@ -421,6 +427,13 @@ defmodule Oneiroi.Brain.QueueTools do
       |> Enum.map_join("\n", &history_line/1)
 
     "#{head}\n#{layer_lines}#{waiting_line}\nHistory:\n#{history_lines}"
+  end
+
+  defp checked(h, citations) do
+    case QueueDocs.check_all(h, citations) do
+      :ok -> :ok
+      {:error, e} -> QueueDocs.said(e)
+    end
   end
 
   defp page_text(h, n) do

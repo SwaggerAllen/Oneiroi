@@ -362,3 +362,25 @@ export function withPaired(arrangement: QueueEditEntry[][], pairs: { id: string;
   return arrangement.map((l) => l.map((e) => ('id' in e && e.id && by.has(e.id) ? { ...e, assignee: by.get(e.id) as string } : e)));
 }
 
+/**
+ * A task's document changed for another (the witness, 2026-11-23: a task
+ * named her file where the document was the house's): every pending
+ * activity working on it works on the new one instead; started work
+ * keeps what it worked on. The arrangement for one layer edit, and how
+ * many it changes.
+ */
+export function replacedDocument(layers: { act_id: string; artifact: string | null; status: string }[][], oldKey: string, citation: string): { arrangement: QueueEditEntry[][]; changed: number } {
+  let changed = 0;
+  const key = (c: string | null) => (c ?? '').split('@')[0].trim();
+  const arrangement = layers.map((l) =>
+    l.map((a) => {
+      if (a.status === 'pending' && a.artifact && key(a.artifact) === oldKey) {
+        changed += 1;
+        return { id: a.act_id, artifact: citation } as QueueEditEntry;
+      }
+      return { id: a.act_id } as QueueEditEntry;
+    }),
+  );
+  return { arrangement, changed };
+}
+

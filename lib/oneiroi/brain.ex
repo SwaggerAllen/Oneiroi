@@ -54,6 +54,7 @@ defmodule Oneiroi.Brain do
   alias Oneiroi.Brain.NightPasses
   alias Oneiroi.Brain.PluginConsent
   alias Oneiroi.Brain.Preview
+  alias Oneiroi.Brain.QueueDocs
   alias Oneiroi.Brain.Reactions
   alias Oneiroi.Brain.Retry
   alias Oneiroi.Brain.Session
@@ -232,6 +233,10 @@ defmodule Oneiroi.Brain do
   @impl Oneiroi.Component
   def errors do
     [
+      {:brain_queue_document_absent,
+       "a document named to the house queue is one that exists: no file is at that citation (sunna#95)",
+       remedy:
+         "name the file by the citation its reader gives it; a house document is house/<the house>:doc/<path>"},
       {:brain_turn_failed,
        "the turn did not complete: the witness's words were kept and no reply was captured (brain#45)",
        remedy:
@@ -539,6 +544,20 @@ defmodule Oneiroi.Brain do
   defexport(backfill_note(resident_id, pass, day, n, lists),
     do: BackfillNotes.note(resident_id, pass, day, n, lists)
   )
+
+  @doc "Whether each citation named to the house queue is a file that exists (sunna#95): `:ok` or the refusal, naming what was meant."
+  @spec queue_document_check(String.t(), [String.t()]) :: :ok | {:error, term()}
+  defexport(queue_document_check(household_id, citations),
+    do: QueueDocs.check_all(household_id, citations)
+  )
+
+  @doc "The citations a task opening names (sunna#95): its slots', links' and given layers' artifacts."
+  @spec queue_document_citations(map()) :: [String.t()]
+  defexport(queue_document_citations(attrs), do: QueueDocs.of_opening(attrs))
+
+  @doc "A refused document in words, naming what was meant when the house holds it (sunna#95)."
+  @spec queue_document_said(Oneiroi.Error.t()) :: String.t()
+  defexport(queue_document_said(error), do: QueueDocs.said(error))
 
   @impl Oneiroi.Sunna.Wake
   @doc "The conversations of a past day the backfill's domains pass has not yet named (sunna#89)."

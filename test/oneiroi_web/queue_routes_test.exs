@@ -44,6 +44,20 @@ defmodule OneiroiWeb.QueueRoutesTest do
     citation = "#{ctx.lily.slug}:design/plan.md"
     post(conn, "/v1/household/queue/templates", %{name: "doc-to-pr", from: "doc-to-pr"})
     post(conn, "/v1/household/queue/projects", %{slug: "p", name: "P"})
+    {:ok, _} = Oneiroi.Seshat.write(ctx.lily.id, "design/plan.md", "A plan.", ctx.lily_actor)
+
+    # A document that does not exist is refused, said so (sunna#95).
+    assert %{"error" => %{"kind" => "brain_queue_document_absent", "remedy" => "Not done: " <> _}} =
+             conn
+             |> post("/v1/household/queue/tasks", %{
+               project: "p",
+               slug: "ghost",
+               title: "Ghost",
+               outcome: "x",
+               template: "doc-to-pr",
+               slots: %{"design" => "#{ctx.lily.slug}:design/absent.md"}
+             })
+             |> json_response(422)
 
     %{"number" => n} =
       conn
