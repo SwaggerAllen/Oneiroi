@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QueueActivity, QueueCard, QueueDocument } from '../../api/types';
-import { actName, blockedLine, blockerLine, documentRows, drawLayers, forkNote, fromLine, nameOf, placeOf, pinOf, postKind, rearranged, roleChoices, sentence, since, slugify, taskSummaries, templateProblems, unpinned, withMd } from './queueText';
+import { actName, blockedLine, blockerLine, holdersOf, documentRows, drawLayers, forkNote, fromLine, nameOf, placeOf, pinOf, postKind, rearranged, roleChoices, sentence, since, slugify, taskSummaries, templateProblems, unpinned, withMd } from './queueText';
 
 const names = { 'resident:l': 'Lily', 'witness:a': 'Andrew' };
 
@@ -129,6 +129,18 @@ describe('the task list', () => {
     const { mine, others } = taskSummaries([task(1, 1), task(2, 0)], cards, 'witness:a');
     expect(mine.map((s) => [s.task.number, s.at, s.of, s.now.length])).toEqual([[1, 2, 5, 1]]);
     expect(others.map((s) => s.task.number)).toEqual([2]);
+  });
+
+  it("shows a member's queue: her move, her Claude Code's, and what she holds later", () => {
+    const cards = [
+      card({ task: 1, layer: 0, assignee: 'claude-code:l', view: 'ready' }),
+      card({ task: 2, layer: 0, assignee: 'witness:a', view: 'ready' }),
+      card({ task: 2, layer: 3, assignee: 'resident:l', view: 'waiting' }),
+    ];
+    const { mine, later } = taskSummaries([task(1, 0), task(2, 0)], cards, holdersOf('resident:l'));
+    expect(mine.map((s) => s.task.number)).toEqual([1]);
+    expect(later.map((s) => s.task.number)).toEqual([2]);
+    expect(holdersOf('witness:a')).toEqual(['witness:a']);
   });
 
   it("names a blocked task's blocker and its next action by name", () => {

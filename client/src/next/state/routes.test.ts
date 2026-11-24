@@ -35,6 +35,24 @@ describe('stacks', () => {
     expect(topOf(useShell.getState().stacks, 'records')).toBe('doc/b');
   });
 
+  it('takes the tab you are on back to its root when tapped again (2026-11-23)', () => {
+    const s = useShell.getState();
+    s.setTab('records');
+    s.push('doc/a');
+    s.setTab('records');
+    expect(useShell.getState().stacks.records).toEqual(['']);
+  });
+
+  it('a new subject starts every tab at its root, the address too', () => {
+    window.history.replaceState(null, '', '#/records/doc/a');
+    const s = useShell.getState();
+    s.go({ tab: 'records', path: 'doc/a' });
+    s.resetStacks();
+    expect(window.location.hash).toBe('#/chat');
+    expect(useShell.getState().stacks.records).toEqual(['']);
+    expect(useShell.getState().tab).toBe('chat');
+  });
+
   it('pops back within a tab, never past its root', () => {
     const s = useShell.getState();
     s.setTab('time');

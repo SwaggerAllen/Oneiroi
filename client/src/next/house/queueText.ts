@@ -194,18 +194,34 @@ const FINISHED = new Set(['done', 'skipped']);
  * Your move (a ready or active activity of the open layer is yours) and
  * Under way elsewhere.
  */
-export function taskSummaries(tasks: QueueTask[], cards: QueueCard[], me: string): { mine: TaskSummary[]; others: TaskSummary[] } {
+export function taskSummaries(tasks: QueueTask[], cards: QueueCard[], me: string | string[]): { mine: TaskSummary[]; others: TaskSummary[]; later: TaskSummary[] } {
+  const holders = new Set(Array.isArray(me) ? me : [me]);
   const mine: TaskSummary[] = [];
   const others: TaskSummary[] = [];
+  // Tasks where they hold something not yet theirs to do (a later layer, or blocked).
+  const later: TaskSummary[] = [];
   for (const task of tasks) {
     if (task.status !== 'open') continue;
     const own = cards.filter((c) => c.task === task.number);
     const of = Math.max(task.open_layer === null ? 0 : task.open_layer + 1, ...own.map((c) => c.layer + 1));
     const now = task.open_layer === null ? [] : own.filter((c) => c.layer === task.open_layer && !FINISHED.has(c.view));
     const s: TaskSummary = { task, at: (task.open_layer ?? of - 1) + 1, of, now, blocked: now.find((c) => c.view === 'blocked') ?? null };
-    (now.some((c) => c.assignee === me && (c.view === 'ready' || c.view === 'active')) ? mine : others).push(s);
+    if (now.some((c) => holders.has(c.assignee) && (c.view === 'ready' || c.view === 'active'))) mine.push(s);
+    else {
+      others.push(s);
+      if (own.some((c) => holders.has(c.assignee) && !FINISHED.has(c.view))) later.push(s);
+    }
   }
-  return { mine, others };
+  return { mine, others, later };
+}
+
+/**
+ * Whose queue a view shows (the witness, 2026-11-23: "a way to view each
+ * household member's queue"): the member, and for a resident her Claude
+ * Code too, whose work is hers.
+ */
+export function holdersOf(assignee: string): string[] {
+  return assignee.startsWith('resident:') ? [assignee, `claude-code:${assignee.slice('resident:'.length)}`] : [assignee];
 }
 
 /** A blocked task's line: "Blocked on #12 Domain system rework · next: Draft the design, Lily". */

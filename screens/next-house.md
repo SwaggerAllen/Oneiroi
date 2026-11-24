@@ -309,3 +309,11 @@ appearing live in her thread and in a house thread.
 Not built: a published piece's reader comments (the mocks' Review ·
 published); a pin chosen to read at (the document is read at its head);
 detaching a slot's document; the deeper "…" back navigation.
+
+## Navigation (2026-11-23, the witness's asks)
+
+- **Work is a subject.** On the house queue (`#/settings/queue`) the header names "Work", the tab bar is gone, and the subject menu shows Work ticked; choosing a resident or the house from there leaves it. Its top has no Back.
+- **Whose queue.** The list's first row is Mine, each other member by name, and Everyone. A member's view shows their move (a ready or active activity of the open layer is theirs, a resident's Claude Code counting as hers) and what they hold later; Everyone adds what is under way elsewhere.
+- **A new subject starts at its root.** Choosing another subject resets every tab and rewrites the address to `#/chat`, so the new subject never opens the old one's record.
+- **Tapping the tab you are on** takes it back to its root (on a record, Records is the file view again; in sessions, Chat is the chat).
+

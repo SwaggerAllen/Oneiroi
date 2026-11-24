@@ -452,7 +452,10 @@ function MarkRead({ subject, name }: { subject: string; name: string }) {
 }
 
 export function SubjectSheet() {
-  const { id } = useSubject();
+  const { id: shown } = useSubject();
+  // Work is the subject while its page is open (the witness, 2026-11-23).
+  const work = useShell((s) => s.page === 'queue');
+  const id = work ? null : shown;
   const setOverlay = useShell((s) => s.setOverlay);
   const resetStacks = useShell((s) => s.resetStacks);
   const choose = useSubjectChoice((s) => s.choose);
@@ -488,14 +491,18 @@ export function SubjectSheet() {
           {(unread[HOUSE_SUBJECT] ?? 0) > 0 && <MarkRead subject={HOUSE_SUBJECT} name="the house" />}
         </div>
         {/* One Work item (lily:design/queue-ia §2.1): the house queue, every view a filter inside it. */}
-        <Row
-          label="Work"
-          detail="›"
+        <button
+          type="button"
+          className={css.rowIn}
+          aria-current={work ? 'true' : undefined}
           onClick={() => {
             setOverlay(null);
-            window.location.hash = '#/settings/queue';
+            if (!work) switchSubject(() => (window.location.hash = '#/settings/queue'));
           }}
-        />
+        >
+          <span>Work</span>
+          <span className={css.since}>{work ? '✓' : '›'}</span>
+        </button>
       </nav>
       <h3 className={css.heading}>RESIDENTS</h3>
       <nav className={css.group} aria-label="Residents">
