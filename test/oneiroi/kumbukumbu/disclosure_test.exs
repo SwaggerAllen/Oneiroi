@@ -17,6 +17,7 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
   alias Oneiroi.Fixtures
   alias Oneiroi.Gaia
   alias Oneiroi.Kumbukumbu
+  alias Oneiroi.Nisaba.Provider.Fake
   alias Oneiroi.Seshat
   alias Oneiroi.SimaQian
 
@@ -382,6 +383,91 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
 
     {:error, %{details: marked}} = Judge.parse_disclosure("> **Verdict** — fine by me\nQuote: x")
     assert Keyword.fetch!(marked, :shape) =~ "> **Verdict** | Quote:"
+  end
+
+  # brain#117 (Lily's report, 2026-11-25: takes refused from a room that
+  # had held a private domain): a queue move with no words of hers has
+  # nothing to disclose and passes; one with words is reviewed as before.
+  test "a queue move with no words passes the gate; one with words is still reviewed", ctx do
+    judge(FakeJudge)
+    :ok = Oneiroi.Sunna.queue_open_project(ctx.household, %{slug: "p", name: "P"}, ctx.lily)
+
+    {:ok, n} =
+      Oneiroi.Sunna.queue_open_task(
+        ctx.household,
+        %{
+          project: "p",
+          slug: "t",
+          title: "A task",
+          outcome: "done",
+          layers: [[%{type: "draft", assignee: "resident:#{ctx.id}"}]]
+        },
+        ctx.lily
+      )
+
+    take =
+      Tools.run(
+        "queue_move",
+        Jason.encode!(%{task: n, act: "#{n}.1", move: "take"}),
+        tool_turn(ctx)
+      )
+
+    refute take =~ "withheld"
+
+    assert %{status: "active"} =
+             Enum.find(
+               List.flatten(Oneiroi.Sunna.queue_task(ctx.household, n).layers),
+               &(&1.act_id == "#{n}.1")
+             )
+
+    said =
+      Tools.run(
+        "queue_move",
+        Jason.encode!(%{task: n, act: "#{n}.1", move: "finish", note: "after the meeting"}),
+        tool_turn(ctx)
+      )
+
+    assert said =~ "the meeting"
+  end
+
+  # eunomia#35 (the witness's logs, 2026-11-25: every unreadable answer
+  # was the provider's content filter, 0 tokens): a filtered review goes
+  # once to the fallback model when one is set, and fails closed when not.
+  test "a review the judge's provider filters goes to the fallback model, when one is set", ctx do
+    :ok =
+      Oneiroi.Gaia.store_key(String.replace(ctx.him, "account:", ""), "sk-or-test", ctx.andrew)
+
+    on_exit(fn -> Fake.clear(for: ctx.id) end)
+
+    Fake.script(
+      fn request ->
+        if request.model == "fake/fallback",
+          do: {:ok, "VERDICT: CLEAN\nQUOTE: NONE\nREASONS: carries none of it"},
+          else: {:refusal, ""}
+      end,
+      for: ctx.id
+    )
+
+    request = %{
+      audience: "household",
+      candidate: "Back soon.",
+      fragments: [%{ref: "message:1", text: "held"}]
+    }
+
+    assert {:error, %{kind: :eunomia_disclosure_unreadable}} =
+             Judge.disclosure(ctx.id, "fake/judge", request)
+
+    store = {Oneiroi.Config, :values}
+    values = :persistent_term.get(store)
+    on_exit(fn -> :persistent_term.put(store, values) end)
+
+    :persistent_term.put(
+      store,
+      Map.put(values, {:eunomia, :judge_fallback_model}, "fake/fallback")
+    )
+
+    assert {:ok, %{verdict: :clean, model: "fake/fallback"}} =
+             Judge.disclosure(ctx.id, "fake/judge", request)
   end
 
   test "the judge's answer is read strictly; out of form is a failure, not a guess" do

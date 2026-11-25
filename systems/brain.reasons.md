@@ -983,3 +983,6 @@ is what makes "this revision" mean the revision.
 A view that comes back mid-turn knew nothing of the turn until its next
 event, which might be the end; asking the session what runs, at the
 moment of joining, costs one call and closes the gap.
+
+## #117
+A take moves a card from ready to active and says nothing; refusing it because the room once held a private domain made the gate stop work the policy never meant to touch, with no words to show anyone. Limiting the pass to queue moves keeps the rule where its premise is checked: their candidate names every field that carries words.

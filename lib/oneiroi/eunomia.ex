@@ -156,6 +156,10 @@ defmodule Oneiroi.Eunomia do
        default: "anthropic/claude-sonnet-4.5",
        usage:
          "the platform's judge model (F41), used unless the witness chooses another; a dated slug is what comparability wants and this default is a placeholder the author pins, not measured"},
+      {:judge_fallback_model, "EUNOMIA_JUDGE_FALLBACK_MODEL",
+       required: false,
+       usage:
+         "a second judge model for a disclosure review the first refused to read (eunomia#35): the provider's content filter answered nothing, so the same model would refuse again; unset, the review fails closed as before"},
       {:live_check_ms, "EUNOMIA_LIVE_CHECK_MS",
        cast: :integer,
        default: "90000",

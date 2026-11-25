@@ -1889,19 +1889,32 @@ defmodule Oneiroi.Brain.Tools do
   defp words_allowed(name, args, turn, audience) do
     words = candidate(name, args)
 
-    if source_file(name, args) != nil and words == "" do
-      :ok
-    else
-      case Kumbukumbu.delivery_check(
-             turn.resident_id,
-             Map.get(turn, :session_key),
-             Map.get(turn, :turn_ref),
-             audience,
-             words
-           ) do
-        {:ok, _decision} -> :ok
-        refused -> refused
-      end
+    cond do
+      source_file(name, args) != nil and words == "" ->
+        :ok
+
+      # A queue move with no words of hers (a take, a bare finish) carries
+      # nothing that could disclose (brain#117; Lily's report, 2026-11-25:
+      # takes refused from a room that had held duet). Every other tool
+      # keeps the strict rule: its content may ride fields not words.
+      String.starts_with?(name, "queue_") and String.trim(words) == "" ->
+        :ok
+
+      true ->
+        checked_words(turn, audience, words)
+    end
+  end
+
+  defp checked_words(turn, audience, words) do
+    case Kumbukumbu.delivery_check(
+           turn.resident_id,
+           Map.get(turn, :session_key),
+           Map.get(turn, :turn_ref),
+           audience,
+           words
+         ) do
+      {:ok, _decision} -> :ok
+      refused -> refused
     end
   end
 
