@@ -511,7 +511,7 @@ export interface CalendarDay {
 }
 
 export type SearchResult =
-  | { type: 'transcript'; ref: { session_key: string; turn_ref: string; cursor: string }; title: string; snippet: string; at: string | null; score: number | null }
+  | { type: 'transcript'; ref: { session_key: string; turn_ref: string; cursor: string }; title: string; snippet: string; at: string | null; score: number | null; domain?: { slug: string; person: string } | null }
   | { type: 'document'; ref: { path: string }; title: string; snippet: string; at: string | null; score: number | null }
   | { type: 'bookmark'; ref: { number: number }; title: string; snippet: string; at: string | null; score: number | null }
   | { type: 'scene'; ref: { day: string; id: string | null; path: string }; title: string; snippet: string; at: string | null; score: number | null }

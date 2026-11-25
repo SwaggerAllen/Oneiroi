@@ -836,3 +836,6 @@ A judge that says DISCLOSES and cannot point at the words is reporting a feeling
 
 ## #108
 An unreadable answer is the model's slip, not a verdict, and the next ask usually comes back in form; failing it closed at once made a single bad answer cost the resident her delivery and the queue its move. Asking once more bounds the cost the way #107 does for an unproven finding. A failed or timed-out call is different: asking again doubles the wait for a provider that is down, so it fails closed at once.
+
+## #109
+A domain the agreement does not declare is a tag nothing governs: the audience policies are written per declared domain, so an undeclared one falls through to whatever the gate does with the unknown, which is what kept refusing her house records. The backfill clears them once; tags made by hand after it, or before a version is agreed, come back. Finding them by words means guessing words; finding them by their domain is the list the witness needs to put each one where it belongs.

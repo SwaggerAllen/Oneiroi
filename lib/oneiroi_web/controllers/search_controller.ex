@@ -107,8 +107,10 @@ defmodule OneiroiWeb.SearchController do
   def search(conn, %{"id" => id} = params) do
     q = String.trim(to_string(params["q"] || ""))
     scope = params["scope"] || "everything"
+    # Words kept to a domain need no words (kumbukumbu#109): every turn in it.
+    least = if scope == "words" and params["domain"] not in [nil, ""], do: 0, else: @min_chars
 
-    with :ok <- check(conn, id, q, scope),
+    with :ok <- check(conn, id, q, scope, least),
          {:ok, results} <- run(conn, id, q, scope, params) do
       json(conn, Map.merge(%{q: q, scope: scope}, results))
     else
@@ -120,9 +122,9 @@ defmodule OneiroiWeb.SearchController do
   # The declared refusals, in order: the query's length, the scope's
   # name, and the witness's reads switch for the scopes that read
   # bookmarks.
-  defp check(conn, id, q, scope) do
+  defp check(conn, id, q, scope, least) do
     cond do
-      String.length(q) < @min_chars ->
+      String.length(q) < least ->
         problem(
           conn,
           422,
@@ -295,7 +297,7 @@ defmodule OneiroiWeb.SearchController do
              Kumbukumbu.Conversation.kinds() ++ ["imported"],
              "conversations"
            ),
-         do: {:ok, who: who, sent_to: sent_to, conversations: kinds}
+         do: {:ok, who: who, sent_to: sent_to, conversations: kinds, domain: domain_of(params)}
   end
 
   defp narrow_of("records", params) do
@@ -333,6 +335,22 @@ defmodule OneiroiWeb.SearchController do
           else: {:refused, "#{name} is one of #{Enum.join(allowed, ", ")}"}
     end
   end
+
+  # A domain to keep to (kumbukumbu#109): `domain=common`, the common
+  # room; `domain=undeclared`, any the agreement does not declare (the
+  # witness, 2026-11-25: "filter for domains that aren't declared in the
+  # contract so I can recategorize them"); or a domain by its slug, with
+  # `domain_person` whose life it is.
+  defp domain_of(%{"domain" => "common"}), do: :common
+
+  defp domain_of(%{"domain" => "undeclared", "id" => id}),
+    do: {:undeclared, AgathosDaimon.declared_domains(id)}
+
+  defp domain_of(%{"domain" => d, "domain_person" => p})
+       when d not in ["", nil] and p not in ["", nil],
+       do: {:is, p, d}
+
+  defp domain_of(_params), do: nil
 
   defp some_of(raw, allowed, name) do
     values = list(raw)
@@ -508,7 +526,9 @@ defmodule OneiroiWeb.SearchController do
       title: Kumbukumbu.Conversation.title(session),
       snippet: around(m.content, q),
       at: m.sent_at,
-      score: nil
+      score: nil,
+      # The turn's domain as tagged (kumbukumbu#109), null for the common room.
+      domain: m.domain && %{slug: m.domain, person: m.domain_person}
     }
 
   # `at` is the date the reader filtered on: the last write, or with

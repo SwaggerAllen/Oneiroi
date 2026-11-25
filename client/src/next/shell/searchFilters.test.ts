@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { activeCount, NO_FILTERS, toParams } from './searchFilters';
+import { activeCount, listsWithoutWords, NO_FILTERS, toParams } from './searchFilters';
 
 describe('search filters (kumbukumbu#69)', () => {
   it('sends only what is set, in the server’s names, for the scope asked', () => {
@@ -26,5 +26,15 @@ describe('search filters (kumbukumbu#69)', () => {
     expect(activeCount('scenes', f)).toBe(2);
     expect(activeCount('bookmarks', f)).toBe(2);
     expect(activeCount('records', f)).toBe(1);
+  });
+
+  it('keeps transcripts to a domain: the common room, every undeclared one, or one declared (kumbukumbu#109)', () => {
+    expect(toParams('words', { ...NO_FILTERS, domain: 'undeclared' })).toMatchObject({ domain: 'undeclared' });
+    expect(toParams('words', { ...NO_FILTERS, domain: 'common' })).toMatchObject({ domain: 'common' });
+    expect(toParams('words', { ...NO_FILTERS, domain: 'declared:w-1:recovery' })).toMatchObject({ domain: 'recovery', domain_person: 'w-1' });
+    expect(toParams('records', { ...NO_FILTERS, domain: 'undeclared' })).toEqual({});
+    expect(listsWithoutWords('words', { ...NO_FILTERS, domain: 'undeclared' })).toBe(true);
+    expect(listsWithoutWords('words', NO_FILTERS)).toBe(false);
+    expect(activeCount('words', { ...NO_FILTERS, domain: 'common' })).toBe(1);
   });
 });

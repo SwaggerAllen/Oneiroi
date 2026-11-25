@@ -1083,12 +1083,30 @@ defmodule Oneiroi.Kumbukumbu.Store do
         {:conversations, [_ | _] = kinds}, q ->
           from([_m, s] in q, where: s.kind in ^kinds)
 
+        # By domain (kumbukumbu#109): one declared, the common room, or
+        # every domain the agreement does not declare, to recategorize.
+        {:domain, filter}, q ->
+          in_domain(q, filter)
+
         _other, q ->
           q
       end)
 
     rows = Repo.all(query)
     {Enum.take(rows, limit), length(rows) > limit}
+  end
+
+  defp in_domain(q, :common), do: from([m, _s] in q, where: is_nil(m.domain))
+
+  defp in_domain(q, {:is, person, domain}),
+    do: from([m, _s] in q, where: m.domain_person == ^person and m.domain == ^domain)
+
+  defp in_domain(q, {:undeclared, declared}) do
+    q = from([m, _s] in q, where: not is_nil(m.domain))
+
+    Enum.reduce(declared, q, fn %{person: p, domain: d}, q ->
+      from([m, _s] in q, where: not (m.domain_person == ^p and m.domain == ^d))
+    end)
   end
 
   @doc """

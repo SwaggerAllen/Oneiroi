@@ -4,7 +4,7 @@ import { Dialog, Heading, Input, Modal, ModalOverlay, SearchField, ToggleButton,
 import { api, type SearchResult } from '../../api/client';
 import { Retag } from '../chat/TurnTools';
 import { formatHash } from '../state/routes';
-import { activeCount, CONVERSATIONS, FILTERED, NO_FILTERS, sorts, toParams, type Filters } from './searchFilters';
+import { activeCount, CONVERSATIONS, FILTERED, listsWithoutWords, NO_FILTERS, sorts, toParams, type Filters } from './searchFilters';
 import { useShell } from '../state/store';
 import * as css from './search.css';
 
@@ -44,6 +44,9 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
   const kinds = useQuery({ queryKey: ['resident', residentId, 'kinds'], queryFn: () => api.kinds(residentId), enabled: open && showFilters && scope === 'records' });
   const parties = useQuery({ queryKey: ['resident', residentId, 'letter-parties'], queryFn: () => api.letterParties(residentId), enabled: open && showFilters && scope === 'letters' });
   const tags = useQuery({ queryKey: ['resident', residentId, 'tags'], queryFn: () => api.tags(residentId), enabled: open && showFilters && scope === 'bookmarks' });
+  const agreement = useQuery({ queryKey: ['resident', residentId, 'soul', 'agreement'], queryFn: () => api.agreement(residentId), enabled: open && scope === 'words' });
+  const declared = agreement.data?.domains ?? [];
+  const whose = (person: string) => (person === agreement.data?.persons?.witness ? 'yours' : person === agreement.data?.persons?.resident ? `${residentName}'s` : 'someone else');
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -57,7 +60,7 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
   }, [setOpen]);
 
   const term = q.trim();
-  const searchable = term.length >= 2;
+  const searchable = term.length >= 2 || listsWithoutWords(scope, filters);
   const narrow = toParams(scope, filters, page);
   const results = useQuery({
     queryKey: ['resident', residentId, 'search', scope, term, narrow],
@@ -205,7 +208,21 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
                         <option value="witness">You</option>
                       </select>
                     </label>
+                    <label className={css.filter}>
+                      Domain
+                      <select className={css.filterInput} value={filters.domain} onChange={(e) => set('domain', e.target.value)}>
+                        <option value="">Any</option>
+                        <option value="undeclared">Not declared in the agreement</option>
+                        <option value="common">The common room</option>
+                        {declared.map((d) => (
+                          <option key={`${d.person}:${d.domain}`} value={`declared:${d.person}:${d.domain}`}>
+                            {d.domain} ({whose(d.person)})
+                          </option>
+                        ))}
+                      </select>
+                    </label>
                   </div>
+                  {filters.domain && <p className={css.note}>Kept to a domain, the words are optional: leave the search empty to list every turn in it.</p>}
                   <fieldset className={css.checks}>
                     <legend className={css.filter}>Conversations</legend>
                     {CONVERSATIONS.map(([kind, label]) => (
@@ -303,7 +320,14 @@ export function SearchSheet({ residentId, residentName }: { residentId: string; 
                   </span>
                   <span className={css.hitText}>{hit.snippet}</span>
                 </a>
-                {hit.type === 'transcript' && <HitDomain residentId={residentId} sessionKey={hit.ref.session_key} turnRef={hit.ref.turn_ref} />}
+                {hit.type === 'transcript' && (
+                  <>
+                    <span className={css.hitPath} style={{ padding: '0 12px' }}>
+                      {hit.domain ? `Domain: ${hit.domain.slug}${declared.some((d) => d.domain === hit.domain?.slug && d.person === hit.domain?.person) ? '' : ' (not declared)'}` : 'The common room'}
+                    </span>
+                    <HitDomain residentId={residentId} sessionKey={hit.ref.session_key} turnRef={hit.ref.turn_ref} />
+                  </>
+                )}
               </div>
             ))}
           </div>
