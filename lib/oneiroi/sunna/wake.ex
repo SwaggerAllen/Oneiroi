@@ -95,7 +95,21 @@ defmodule Oneiroi.Sunna.Wake do
   """
   @callback backfill_left(resident_id :: String.t(), day :: String.t()) :: [String.t()]
 
+  @doc """
+  Performs a mechanical house queue activity with no agent turn
+  (sunna#104): a `promote-to-house` of the resident's own document, at
+  the revision its review approved. `:ok` when the activity is finished;
+  `{:error, reason}` leaves it hers to do in a run.
+  """
+  @callback promote_activity(
+              resident_id :: String.t(),
+              household_id :: String.t(),
+              task :: pos_integer(),
+              act :: String.t()
+            ) :: :ok | {:error, term()}
+
   @optional_callbacks wake_for: 5,
+                      promote_activity: 4,
                       backfill_left: 2,
                       backfill_labels: 3,
                       checkin_part: 2,

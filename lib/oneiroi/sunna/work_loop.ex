@@ -116,6 +116,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
   """
   def check(resident_id) do
     state = Scope.resident(resident_id, fn -> Store.work_queue() end)
+    # What needs no agent is done first, whatever her line is doing (sunna#104).
+    _ = mechanical(resident_id)
 
     cond do
       left_behind?(state) ->
@@ -153,7 +155,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
       # A run left behind is asked about whatever else holds (sunna#41):
       # the check is the only place that ends it.
-      left_behind?(state) or
+      left_behind?(state) or mechanical_waiting?(resident_id) or
         (house_running?(resident_id) and not busy?(state) and not stopped?(state) and
            activity_waiting?(resident_id))
     end)
@@ -276,6 +278,71 @@ defmodule Oneiroi.Sunna.WorkLoop do
   # A document already in the house needs no sharing (the witness,
   # 2026-11-23: a doc that starts in the house): her optional share step
   # on a house document passes itself, said so, and the line looks again.
+  # ---- mechanical activities (sunna#104) ----
+
+  # A step that needs no agent is done by the platform the moment it is
+  # hers and ready in what is open (the witness, 2026-11-25: "promoting
+  # from a resident workspace to a house workspace shouldn't need an
+  # agent, it could just happen"): a promote-to-house of her own document,
+  # through the wake port, as hers; one of a house document passes
+  # itself (sunna#95). One the platform cannot do (the library refused
+  # it) is taken for her, so her next run does it, and is not tried again.
+  defp mechanical(resident_id) do
+    if house_running?(resident_id),
+      do: resident_id |> mechanical_cards() |> Enum.map(&mechanically(resident_id, &1)),
+      else: []
+  end
+
+  defp mechanical_waiting?(resident_id),
+    do: house_running?(resident_id) and mechanical_cards(resident_id) != []
+
+  defp mechanical_cards(resident_id) do
+    case Oneiroi.Gaia.resident_household(resident_id) do
+      %{id: h} ->
+        order = Queues.open_order(h)
+
+        h
+        |> Queues.waiting_on("resident:#{resident_id}")
+        |> Map.fetch!(:ready)
+        |> Enum.filter(&(&1.type == "promote-to-house" and &1.view == "ready"))
+        |> in_backlog_order(order)
+        |> Enum.map(&Map.put(&1, :household, h))
+
+      _none ->
+        []
+    end
+  end
+
+  defp mechanically(resident_id, %{artifact: "house/" <> _} = card) do
+    her = Actor.new(:resident, resident_id)
+
+    Queues.skip(
+      card.household,
+      card.task,
+      card.act,
+      "the document is already in the house; nothing to share",
+      her
+    )
+  end
+
+  defp mechanically(resident_id, card) do
+    port = Config.fetch!(:sunna, :wake)
+
+    result =
+      if function_exported?(port, :promote_activity, 4),
+        do: port.promote_activity(resident_id, card.household, card.task, card.act),
+        else: :no_port
+
+    case result do
+      :ok ->
+        :ok
+
+      _refused ->
+        _ = Queues.take(card.household, card.task, card.act, Actor.new(:resident, resident_id))
+        :taken
+    end
+  end
+
   defp start_or_pass(resident_id, %{type: "promote-to-house", artifact: "house/" <> _} = card) do
     her = Actor.new(:resident, resident_id)
     note = "the document is already in the house; nothing to share"
