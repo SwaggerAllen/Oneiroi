@@ -418,6 +418,8 @@ defmodule Oneiroi.Brain.TrialTest do
     {"record_classify", %{kind: "letter", id: "1", domain: "none"}},
     # A redo (kumbukumbu#113): answered as it would be, nothing queued.
     {"delivery_redo", %{audience: "workspace", to: "w-1", ask: "Finish it."}},
+    # A change in place (brain#120): answered as it would be.
+    {"document_edit", %{path: "design/nope.md", edits: [%{old: "a", new: "b"}]}},
     # Her prefix (agathos-daimon#50): answered as it would be, nothing retired.
     {"identity_file_retire", %{file: "GOALS.md", note: "migrated"}}
   ]

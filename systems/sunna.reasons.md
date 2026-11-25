@@ -683,3 +683,6 @@ A spent activity passed by silently looked, from the queue, like an activity tha
 
 ## #107
 A step with no judgement in it has no reason to queue behind the one resident whose name it carries: her line, her free time and the backlog's open entries all order the work that needs her, and a promotion needs only the platform. Handing a failed one to her run turned a library refusal into an agent's afternoon; a block says what failed where it can be fixed.
+
+## #108
+Two spellings of one file are one file: the library resolves them alike, so the queue keyed them apart only by accident of how a citation was typed, and a task grew a second document nobody could remove.

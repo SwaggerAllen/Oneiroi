@@ -8,7 +8,7 @@ This is a run of your work line, {{name}}: activity {{act}} of the house queue, 
 
 {{layers}}
 
-This run may take up to {{turns}} turns; the work line is armed while it runs ({{left}}). Do the {{type}}: read, draft, write in your library, send letters where the work needs them. When it is done, or can go no further, record it with your queue tools, and the run ends there:
+This run may take up to {{turns}} turns; the work line is armed while it runs ({{left}}). Do the {{type}}: read, draft, write in your library, send letters where the work needs them. To change a document that exists (a review's changes folded in, a section revised), use **document_edit** with just the edits; writing the whole file again with document_write is for a new file or a full rewrite, and costs the whole document in one call. When it is done, or can go no further, record it with your queue tools, and the run ends there:
 
 - **queue_move** with move `finish` (a note; a result citation if it made one), `block` (the reason, and waits_on a task number if it waits on one), `fail` (what failed), or `skip` (an optional one, with a note);
 - **queue_decide** when it is a review assigned to you: approved, changes or declined, with your note;

@@ -606,11 +606,26 @@ export interface FeedbackReport {
 // A resident's work line (sunna#33, #86): what runs on it from the house
 // queue, why it rests, and its runs. The old queue's items are retired
 // (sunna#102).
+/** Where a running turn is (brain#119): what it is doing and since when, never its words. */
+export interface RunProgress {
+  turn_ref: string;
+  started_at: string;
+  doing: 'thinking' | 'tool' | string;
+  tool: string | null;
+  since: string;
+  rounds: number;
+  calls: number;
+}
+
 export interface WorkQueue {
   running_since: string | null;
   // The house queue activity running on the line (sunna#86): its id and task.
   running_act: string | null;
   running_task: number | null;
+  /** The run's conversation (brain#119). */
+  running_key?: string | null;
+  /** Where its turn is (brain#119): receipts, never words. */
+  progress?: RunProgress | null;
   rested: string | null;
   rested_at: string | null;
   runs_today: number;

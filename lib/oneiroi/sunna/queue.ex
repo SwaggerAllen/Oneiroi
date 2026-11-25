@@ -1242,9 +1242,16 @@ defmodule Oneiroi.Sunna.Queue do
           Map.update!(s.tasks, n, &Map.put(&1, :documents, fun.(Map.get(&1, :documents, %{}))))
     }
 
-  @doc "A document's key: its citation without the pin (`@<commit>`)."
-  def doc_key(citation) when is_binary(citation),
-    do: citation |> String.split("@", parts: 2) |> hd() |> String.trim()
+  @doc """
+  A document's key: its citation without the pin (`@<commit>`), its last
+  segment with `.md` where it names no extension, as every citation
+  resolves (sunna#108): `lily:design/x` and `lily:design/x.md` are one
+  document, never two on a task.
+  """
+  def doc_key(citation) when is_binary(citation) do
+    bare = citation |> String.split("@", parts: 2) |> hd() |> String.trim()
+    if bare == "" or Path.extname(bare) != "", do: bare, else: bare <> ".md"
+  end
 
   defp may_edit(task, actor) do
     if actor.kind == :witness or me(actor) == task.owner,

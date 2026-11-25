@@ -42,6 +42,7 @@ defmodule Oneiroi.Brain.Turn do
   alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.History
   alias Oneiroi.Brain.Plugins
+  alias Oneiroi.Brain.Progress
   alias Oneiroi.Brain.Reactions
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Brain.Uses
@@ -1823,8 +1824,14 @@ defmodule Oneiroi.Brain.Turn do
   # What the turn is doing now (brain#45), for the client's status line:
   # `thinking` before each model call, `tool` with its name before each
   # call to one. Streamed words say `writing` by themselves.
-  defp status(turn, what, detail),
-    do: broadcast(turn.resident_id, turn.session_key, {:status, turn.turn_ref, what, detail})
+  defp status(turn, what, detail) do
+    # Kept for a view that tells working from hung (brain#119); a trial
+    # is no conversation's.
+    unless Map.get(turn, :trial?),
+      do: Progress.note(turn.resident_id, turn.session_key, turn.turn_ref, what, detail)
+
+    broadcast(turn.resident_id, turn.session_key, {:status, turn.turn_ref, what, detail})
+  end
 
   def broadcast(resident_id, session_key, payload),
     do: PubSub.broadcast(:brain, :session, {resident_id, session_key, payload})

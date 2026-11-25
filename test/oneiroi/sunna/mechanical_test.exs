@@ -5,8 +5,9 @@ defmodule Oneiroi.Sunna.MechanicalTest do
   it could just happen"): her promote-to-house step is done by the
   platform as hers, at the revision its review approved, with no run;
   wherever its task sits in the backlog and whatever her line is doing
-  (sunna#107); one it cannot do is blocked with the library's reason, never
-  handed to her line; an unfilled template slot waits.
+  (sunna#107), in what the backlog has open; one it cannot do is blocked
+  with the library's reason, never handed to her line; an unfilled
+  template slot waits.
   """
   use Oneiroi.DataCase, async: false
 
@@ -136,31 +137,49 @@ defmodule Oneiroi.Sunna.MechanicalTest do
   end
 
   # sunna#107 (the witness, 2026-11-25: "for mechanical steps like promote
-  # doc, it shouldn't need to wait on a resident being free"): a promotion
-  # in a closed backlog entry is done all the same, its citation resolved
-  # as every citation is (no `.md` named), and an unfilled slot waits.
-  test "a promotion is done wherever its task sits in the backlog, its citation resolved", ctx do
-    # The top entry: something else of the house's, open.
-    _top = ctx.open.("design/other.md")
-
+  # doc, it shouldn't need to wait on a resident being free", and "I want
+  # 14 specifically to promote"): a promotion handed to her line before
+  # is the platform's again, its citation resolved as every citation is
+  # (no `.md` named); one in a closed backlog entry waits for it to open.
+  test "a promotion taken for her line before is done by the platform, its citation resolved",
+       ctx do
     {:ok, _} =
       Seshat.write(
         ctx.id,
         "design/later.md",
-        "---\ntitle: Later\n---\n\nClosed, still shared.\n",
+        "---\ntitle: Later\n---\n\nShared at last.\n",
         ctx.wren
       )
 
     n = ctx.open.("design/later")
     :ok = HouseQueue.decide(ctx.h, n, "#{n}.1", %{outcome: "approved", note: "good"}, ctx.andrew)
-    _ = WorkLoop.check(ctx.id)
 
+    # A second, below it and closed, waits for its entry to open.
+    {:ok, _} =
+      Seshat.write(ctx.id, "design/below.md", "---\ntitle: Below\n---\n\nNot yet.\n", ctx.wren)
+
+    m = ctx.open.("design/below.md")
+    :ok = HouseQueue.decide(ctx.h, m, "#{m}.1", %{outcome: "approved", note: "good"}, ctx.andrew)
+    # Taken for her run, as a refusal used to leave it.
+    :ok = Sunna.queue_take(ctx.h, n, "#{n}.2", ctx.wren)
+    assert %{view: "active"} = act(ctx, n, "#{n}.2")
+
+    _ = WorkLoop.check(ctx.id)
     assert %{status: "done"} = act(ctx, n, "#{n}.2")
 
     {:ok, %{content: copy}} =
       Seshat.household_read(ctx.andrew, "shared/#{ctx.slug}/design/later.md")
 
-    assert copy =~ "Closed, still shared."
+    assert copy =~ "Shared at last."
+
+    # A second, below it and closed, waits for its entry to open.
+    {:ok, _} =
+      Seshat.write(ctx.id, "design/below.md", "---\ntitle: Below\n---\n\nNot yet.\n", ctx.wren)
+
+    m = ctx.open.("design/below.md")
+    :ok = HouseQueue.decide(ctx.h, m, "#{m}.1", %{outcome: "approved", note: "good"}, ctx.andrew)
+    _ = WorkLoop.check(ctx.id)
+    assert %{view: "ready"} = act(ctx, m, "#{m}.2")
   end
 
   # sunna#105 (the witness, 2026-11-25: "promotion doesn't necessarily

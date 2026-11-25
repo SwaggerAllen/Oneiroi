@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QueueActivity, QueueCard, QueueDocument } from '../../api/types';
-import { actName, blockedLine, blockerLine, holderChoices, holdersOf, holderWords, outOfRuns, pairedHolders, replacedDocument, stepStatus, withPaired, documentRows, drawLayers, forkNote, fromLine, nameOf, placeOf, pinOf, postKind, rearranged, roleChoices, sentence, since, slugify, taskSummaries, templateProblems, unpinned, withMd } from './queueText';
+import { actName, blockedLine, blockerLine, holderChoices, holdersOf, holderWords, outOfRuns, runNowLine, pairedHolders, replacedDocument, stepStatus, withPaired, documentRows, drawLayers, forkNote, fromLine, nameOf, placeOf, pinOf, postKind, rearranged, roleChoices, sentence, since, slugify, taskSummaries, templateProblems, unpinned, withMd } from './queueText';
 
 const names = { 'resident:l': 'Lily', 'witness:a': 'Andrew' };
 
@@ -267,5 +267,19 @@ describe('runs (sunna#106)', () => {
     expect(outOfRuns({ view: 'blocked', reason: 'out of runs: 20 runs with nothing moving; your witness gives them back on its task' })).toBe(true);
     expect(outOfRuns({ view: 'blocked', reason: 'waits on the review' })).toBe(false);
     expect(outOfRuns({ view: 'active', reason: null })).toBe(false);
+  });
+});
+
+describe('a run now (brain#119)', () => {
+  it('says how long the run and its turn have gone, and what the turn is doing, never its words', () => {
+    const now = Date.parse('2026-11-25T22:30:00Z');
+    const q = {
+      running_act: '12.1',
+      running_since: '2026-11-25T22:00:00Z',
+      progress: { started_at: '2026-11-25T22:18:00Z', doing: 'thinking', tool: null, since: '2026-11-25T22:19:00Z', rounds: 3, calls: 5 },
+    };
+    expect(runNowLine(q, 'Lily', now)).toBe("Now: 12.1 running on Lily's line for 30m. Its turn began 12m ago: the model answering for 11m, 3 rounds, 5 tool calls.");
+    expect(runNowLine({ ...q, progress: { ...q.progress, doing: 'tool', tool: 'document_write' } }, 'Lily', now)).toContain('running document_write for 11m');
+    expect(runNowLine({ ...q, progress: null }, 'Lily', now)).toBe("Now: 12.1 running on Lily's line for 30m; its turn has not reported yet.");
   });
 });

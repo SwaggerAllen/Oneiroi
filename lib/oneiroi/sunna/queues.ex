@@ -474,11 +474,16 @@ defmodule Oneiroi.Sunna.Queues do
           select: d.task
         )
 
+      # An activity names it as written, with its `.md` or without
+      # (sunna#108).
+      bare = String.replace_suffix(key, ".md", "")
+
       worked =
         from(a in S.Activity,
           where:
             a.household_id == ^household_id and
-              (a.artifact == ^key or like(a.artifact, ^(key <> "@%"))),
+              (a.artifact in ^[key, bare] or like(a.artifact, ^(key <> "@%")) or
+                 like(a.artifact, ^(bare <> "@%"))),
           select: a.task
         )
 

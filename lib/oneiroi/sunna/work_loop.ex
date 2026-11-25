@@ -147,7 +147,14 @@ defmodule Oneiroi.Sunna.WorkLoop do
   end
 
   defp line_state(nil),
-    do: %{running_since: nil, running_act: nil, running_task: nil, rested: nil, rested_at: nil}
+    do: %{
+      running_since: nil,
+      running_act: nil,
+      running_task: nil,
+      running_key: nil,
+      rested: nil,
+      rested_at: nil
+    }
 
   defp line_state(state),
     do: %{
@@ -155,6 +162,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
       # The house queue activity running on the line (sunna#86): its id and task.
       running_act: state.running_act,
       running_task: state.running_task,
+      # The run's conversation, so a view can ask where its turn is (brain#119).
+      running_key: if(state.running_act, do: state.running_key),
       rested: state.rested_reason,
       rested_at: state.rested_at
     }
@@ -339,8 +348,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
   # workspace to a house workspace shouldn't need an agent, it could just
   # happen"; and "for mechanical steps like promote doc, it shouldn't need
   # to wait on a resident being free", sunna#107): a promote-to-house of
-  # her own document, through the wake port, as hers, whatever her line is
-  # doing and wherever its task sits in the backlog; one of a house
+  # her own document in what is open, through the wake port, as hers,
+  # whatever her line is doing; one of a house
   # document passes itself (sunna#95); one whose document is a template
   # slot nobody has filled waits for it. One the platform cannot do is
   # blocked, the library's refusal its reason, for a person to fix and
@@ -367,8 +376,10 @@ defmodule Oneiroi.Sunna.WorkLoop do
         # is running it now.
         |> Enum.filter(&(&1.type == "promote-to-house" and &1.view in ["ready", "active"]))
         |> Enum.reject(&(slot?(&1.artifact) or &1.act == running_act(resident_id)))
-        # The backlog orders them, open first, but holds none back.
-        |> Enum.sort_by(&Map.get(order, &1.task, {:closed, 0}))
+        # What is open, in its order (sunna#103): the backlog decides
+        # what moves, a mechanical step as much as any (the witness,
+        # 2026-11-25: "I don't want to promote regardless of batch").
+        |> in_backlog_order(order)
         |> Enum.map(&Map.put(&1, :household, h))
 
       _none ->

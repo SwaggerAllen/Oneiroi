@@ -50,6 +50,29 @@ export const slugify = (s: string) =>
 // ---- templates (sunna#83, #88) ----
 
 /** The activity types a review must stand in front of (§6.1), as the server's `gated_types/0`; promote-to-house no longer (sunna#105). */
+/** How long ago an instant was, in minutes or hours and minutes. */
+const ago = (iso: string, now: number) => {
+  const m = Math.max(0, Math.round((now - Date.parse(iso)) / 60_000));
+  return m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`;
+};
+
+/**
+ * A running activity's status line (brain#119): how long the run has
+ * gone, its turn and what that turn is doing for how long, its rounds and
+ * tool calls; receipts, never words.
+ */
+export function runNowLine(
+  q: { running_act: string | null; running_since: string | null; progress?: { started_at: string; doing: string; tool: string | null; since: string; rounds: number; calls: number } | null },
+  who: string,
+  now: number = Date.now(),
+): string {
+  const run = q.running_since ? `running on ${who}'s line for ${ago(q.running_since, now)}` : `running on ${who}'s line`;
+  const p = q.progress;
+  if (!p) return `Now: ${q.running_act} ${run}; its turn has not reported yet.`;
+  const doing = p.doing === 'tool' ? `running ${p.tool ?? 'a tool'}` : 'the model answering';
+  return `Now: ${q.running_act} ${run}. Its turn began ${ago(p.started_at, now)} ago: ${doing} for ${ago(p.since, now)}, ${p.rounds} round${p.rounds === 1 ? '' : 's'}, ${p.calls} tool call${p.calls === 1 ? '' : 's'}.`;
+}
+
 /** Whether an activity was blocked for running out of runs (sunna#106): its runs, given back on its task, open it again. */
 export const outOfRuns = (a: { view: string; reason: string | null }) => a.view === 'blocked' && (a.reason ?? '').startsWith('out of runs');
 

@@ -218,7 +218,13 @@ browser's back steps through: `task/<n>`, `task/<n>/act/<id>`,
   activities as boxes (glyph and type, its slot, gated, its name, who
   holds it, its state, coloured by state); a box opens the activity.
   **New activity** (the owner or a witness). What waits on the task, its
-  history, and Drop (asks twice).
+  history (open while one of its activities runs, and ending then with a
+  line per running activity: how long the run has gone, when its turn
+  began, what it is doing and for how long, its rounds and tool calls;
+  receipts, never words, brain#119), and Drop (asks twice). A document's
+  key resolves as its citation does, so `x` and `x.md` are one row
+  (sunna#108); a change or an add that is refused says so under its own
+  inputs, not at the section's foot.
 - **An activity.** Its id and layer, glyph and type, its name; where it
   stands (Ready for you, since when, the authorization line on a review)
   with **Review it** on a review of yours (it opens the document screen)

@@ -989,3 +989,9 @@ A take moves a card from ready to active and says nothing; refusing it because t
 
 ## #118
 A blocked or failed activity is a fact the house needs to plan by; why it is blocked may be the private part. Holding the whole move back made the queue lie (the activity stayed active while nobody worked it) to protect a sentence. Splitting them keeps both true: the house sees the state, the witness gets the reason, and nothing the policies hold crosses.
+
+## #119
+A run that is thinking for twenty minutes and a run whose job died look the same from the queue: active, nothing new. The turn already says, round by round, what it is doing; keeping the last of it, with when, is enough to tell the two apart without exposing a word of a conversation that is hers.
+
+## #120
+A model that can only write whole files regenerates the whole file to change a line, which is slow, costs the whole document in one call, and risks dropping what it did not mean to touch. An exact-match edit, refused when ambiguous, changes only what was asked and leaves the rest byte for byte.
