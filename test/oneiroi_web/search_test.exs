@@ -7,6 +7,8 @@ defmodule OneiroiWeb.SearchTest do
   """
   use OneiroiWeb.ConnCase, async: false
 
+  import Ecto.Query, only: [from: 2]
+
   alias Ecto.Adapters.SQL.Sandbox
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
@@ -265,6 +267,52 @@ defmodule OneiroiWeb.SearchTest do
 
   defp refs(body, key), do: Enum.map(body["results"], & &1["ref"][key])
 
+  # kumbukumbu#109 (the witness, 2026-11-25: "filter for domains that
+  # aren't declared in the contract so I can recategorize them").
+  test "transcripts narrow by domain: one declared, the common room, or every undeclared one, words optional",
+       ctx do
+    Fixtures.declare_domains!(ctx.id, ctx.account.id, ~w(recovery))
+    capture!(ctx, ctx.key, "t-1", "the steps, again")
+    capture!(ctx, ctx.key, "t-2", "the business plan")
+    capture!(ctx, ctx.key, "t-3", "the weather")
+    :ok = Kumbukumbu.tag_domain(ctx.id, ctx.key, "t-1", nil, "recovery", ctx.actor)
+    # A tag carries forward; the weather goes back to the common room.
+    :ok = Kumbukumbu.tag_domain(ctx.id, ctx.key, "t-3", nil, nil, ctx.actor)
+
+    # A tag left from before the agreement named its domains.
+    Oneiroi.Scope.platform(fn ->
+      Oneiroi.Repo.update_all(
+        from(m in Oneiroi.Kumbukumbu.Store.Message,
+          where: m.resident_id == ^ctx.id and m.turn_ref == "t-2"
+        ),
+        set: [domain: "business", domain_person: ctx.account.id]
+      )
+    end)
+
+    undeclared = ctx |> searched(%{scope: "words", domain: "undeclared"}) |> json_response(200)
+    assert refs(undeclared, "turn_ref") == ["t-2"]
+    assert [%{"domain" => %{"slug" => "business"}}] = undeclared["results"]
+
+    common = ctx |> searched(%{scope: "words", domain: "common"}) |> json_response(200)
+    assert refs(common, "turn_ref") == ["t-3"]
+
+    [%{"domain" => %{"person" => person}}] =
+      ctx
+      |> searched(%{scope: "words", q: "steps"})
+      |> json_response(200)
+      |> Map.fetch!("results")
+
+    declared =
+      ctx
+      |> searched(%{scope: "words", domain: "recovery", domain_person: person})
+      |> json_response(200)
+
+    assert refs(declared, "turn_ref") == ["t-1"]
+
+    # Without a domain, the words are still required.
+    assert ctx |> searched(%{scope: "words"}) |> json_response(422)
+  end
+
   test "transcripts narrow by who said it and the kind of conversation (kumbukumbu#69)", ctx do
     capture!(ctx, ctx.key, "t-her", "The plover ran along the sand.")
 
@@ -484,9 +532,10 @@ defmodule OneiroiWeb.SearchTest do
     assert Enum.map(results, & &1["type"]) ==
              ~w(document bookmark scene transcript bookmark)
 
-    # Every result has the one shape, whatever its type.
+    # Every result has the one shape, whatever its type; a transcript's
+    # names its domain too (kumbukumbu#109).
     for r <- results,
-        do: assert(Enum.sort(Map.keys(r)) == ~w(at ref score snippet title type))
+        do: assert(Enum.sort(Map.keys(r) -- ["domain"]) == ~w(at ref score snippet title type))
   end
 
   test "as she sees it is what her memory would surface for the words: the ranked index then the madeleine, never a pin, never a private session's",

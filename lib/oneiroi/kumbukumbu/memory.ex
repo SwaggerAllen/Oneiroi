@@ -16,6 +16,10 @@ defmodule Oneiroi.Kumbukumbu.Memory do
   alias Oneiroi.Kumbukumbu.Events.Memory, as: Events
   alias Oneiroi.Kumbukumbu.MemoryCommands, as: Commands
 
+  # The records her classification reaches (kumbukumbu#110); a file is
+  # classified in the library (seshat#102).
+  @classified_kinds ~w(journal letter self_letter)
+
   defstruct [
     :id,
     bookmarks: %{},
@@ -523,6 +527,63 @@ defmodule Oneiroi.Kumbukumbu.Memory do
       note: c.note
     }
 
+  # One undeclared domain moved whole (kumbukumbu#110); the service has
+  # already asked the agreement which pairs it declares.
+  def execute(%__MODULE__{}, %Commands.RecategorizeDomain{} = c) do
+    cond do
+      not pair_ok?(c.from_person, c.from_domain) or not target_ok?(c.to_person, c.to_domain) ->
+        {:error,
+         Error.new(:kumbukumbu_domain_invalid, :kumbukumbu_memory_recategorize_invalid,
+           from: c.from_domain,
+           to: c.to_domain
+         )}
+
+      {c.from_person, c.from_domain} == {c.to_person, c.to_domain} ->
+        []
+
+      true ->
+        %Events.DomainRecategorized{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          from_person: c.from_person,
+          from_domain: c.from_domain,
+          to_person: c.to_domain && c.to_person,
+          to_domain: c.to_domain,
+          note: c.note
+        }
+    end
+  end
+
+  # Her classification of a record that keeps labels (kumbukumbu#110).
+  def execute(%__MODULE__{}, %Commands.ClassifyRecord{} = c) do
+    cond do
+      c.kind not in @classified_kinds or not is_binary(c.record_id) or c.record_id == "" ->
+        {:error,
+         Error.new(:kumbukumbu_record_kind_invalid, :kumbukumbu_memory_classify_kind,
+           kind: c.kind
+         )}
+
+      not target_ok?(c.person, c.domain) ->
+        {:error,
+         Error.new(:kumbukumbu_domain_invalid, :kumbukumbu_memory_classify_domain,
+           domain: c.domain
+         )}
+
+      true ->
+        %Events.RecordClassified{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          kind: c.kind,
+          record_id: c.record_id,
+          person: c.domain && c.person,
+          domain: c.domain,
+          note: c.note
+        }
+    end
+  end
+
   def execute(%__MODULE__{revisions: revisions}, %Commands.AcceptRevision{} = c) do
     case Map.get(revisions, c.number) do
       %{state: :proposed} = r ->
@@ -620,6 +681,8 @@ defmodule Oneiroi.Kumbukumbu.Memory do
 
   def apply(%__MODULE__{} = m, %Events.LabelsDerived{} = e), do: %{m | id: e.id}
   def apply(%__MODULE__{} = m, %Events.UndeclaredDomainsCleared{} = e), do: %{m | id: e.id}
+  def apply(%__MODULE__{} = m, %Events.DomainRecategorized{} = e), do: %{m | id: e.id}
+  def apply(%__MODULE__{} = m, %Events.RecordClassified{} = e), do: %{m | id: e.id}
 
   def apply(%__MODULE__{} = m, %Events.RevisionDeclined{} = e),
     do: %{m | revisions: Map.update!(m.revisions, e.number, &%{&1 | state: :declined})}
@@ -812,4 +875,15 @@ defmodule Oneiroi.Kumbukumbu.Memory do
 
   defp platform_labels(%{kind: :resident}), do: nil
   defp platform_labels(_witness_or_platform), do: [%{"kind" => "common_room"}]
+
+  # A domain pair as the classifications take it: a slug of an account's
+  # or a resident's life.
+  defp pair_ok?(person, domain),
+    do:
+      is_binary(domain) and Regex.match?(~r/\A[a-z][a-z0-9-]{1,31}\z/, domain) and
+        is_binary(person) and Regex.match?(~r/\A(account|resident):/, person)
+
+  # A target: a pair, or nil for the common room.
+  defp target_ok?(_person, nil), do: true
+  defp target_ok?(person, domain), do: pair_ok?(person, domain)
 end

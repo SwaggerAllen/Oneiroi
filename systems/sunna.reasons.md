@@ -671,3 +671,9 @@ Two queues with one line between them was a cost paid every day for a revert nob
 
 ## #103
 Blockers say what cannot start; nothing said what should start first, so every line picked by how much a step unblocked and the witness could only steer by blocking. A ranked list says it directly, and open or closed says how much of it may run at once: the top alone keeps the design from getting too far ahead of the build, more opened lets idle residents help. The whole arrangement is sent at once because the list is one decision a witness makes by eye, and a partial move that raced another would leave an order neither meant. Closing drains rather than stops, because a run cut off mid-step costs more than the step it would have finished.
+
+## #104
+A promotion is one call with nothing to decide: the document, the revision its review approved, the house's default terms. Spending an agent run on it cost a conversation, turns and a disclosure review of the run's whole context, and the runs failed on exactly the gate the call itself passes cleanly. Doing it as the platform, in her name and through the same library checks, keeps every guard and drops the agent; taking it for her when the library refuses keeps a refusal from being retried every minute and leaves the judgment to her.
+
+## #105
+Sharing a document into the house is not an act on the world the way a send, a spend or a merge is: the house is the household's own room, a promoted copy is read-only and says where it came from, and the author can unpromote it. A required review in front of every promotion made a witness's approval the gate on a resident sharing her own work with her own house. Where a household wants the review, its template still puts one there, and that review still governs the revision that goes.

@@ -254,7 +254,10 @@ browser's back steps through: `task/<n>`, `task/<n>/act/<id>`,
   lets, destination, if refused back to, optional; Save, Cancel and
   Remove write into the template's draft, which is kept while its pages
   open and close. What the shape rule would refuse is listed before
-  **Save the template** (sunna#88); tasks already open keep their layers.
+  **Save the template** (sunna#88): a send, publish, spend or merge with
+  no review of its slot in front of it, or any of those or a promotion
+  with no slot (a promotion needs no review, sunna#105); tasks already
+  open keep their layers.
 - **Setting up** (witnesses only): the starter templates to add. The
   cutover from the old work queues and its revert are retired with them
   (sunna#102); the house queue runs unless paused.
@@ -322,7 +325,8 @@ detaching a slot's document; the deeper "…" back navigation.
 
 - **Work is a subject.** On the house queue (`#/settings/queue`) the header names "Work", the tab bar is gone, and the subject menu shows Work ticked; choosing a resident or the house from there leaves it. Its top has no Back.
 - **Whose queue.** The list's first row is Mine, each other member by name, Everyone and Backlog. A member's view shows their move (a ready or active activity of the open layer is theirs, a resident's Claude Code counting as hers) and what they hold later; Everyone adds what is under way elsewhere.
-- **Backlog** (sunna#103; the queue mocks' Backlog board). The house's open work in priority order: each entry a numbered batch (its tasks ranked 1.1, 1.2, …) or a task in no batch, with an Open/Closed pill, the top reading "Open · top" and locked. Each row shows its current step, whose it is and where it stands. A witness drags a row by its handle (pointer events, so touch drags too; dropping on a task in a batch joins that batch before it, on a task in no batch stands before it), or uses its ⋯ menu (Top, Up, Down, Bottom; Batch 1…n or No batch); a batch moves with Batch up and Batch down; New batch takes an optional name, its tasks, at the top or the bottom, and whether it opens now. Every change sends the whole arrangement. A resident sees the list without handles, menus or pills to press. Finished lists below, newest first: tasks done or dropped (and their batch) and whole batches.
+- **Mechanical steps** (sunna#104, #105): a resident's promote-to-house step is never a run; it finishes on its own once it is ready (once its review approves, when its template puts one in front of it; a promotion needs none), the card going from ready to done, and only a promotion the library refuses shows as hers and active, for her next run.
+- **Backlog** (sunna#103; the queue mocks' Backlog board). The house's open work in priority order: each entry a numbered batch (its tasks ranked 1.1, 1.2, …) or a task in no batch, with an Open/Closed pill, the top reading "Open · top" and locked. Each row shows its current step, whose it is and where it stands. A witness drags a row by its handle (pointer events, so touch drags too; dropping on a task in a batch joins that batch before it, on a task in no batch stands before it), or uses its ⋯ menu (Top, Up, Down, Bottom; Batch 1…n or No batch); a batch moves with its own Top, Up, Down and Bottom; New batch takes an optional name, its tasks, at the top or the bottom, and whether it opens now. Every change sends the whole arrangement. A resident sees the list without handles, menus or pills to press. Finished lists below, newest first: tasks done or dropped (and their batch) and whole batches.
 - **A new subject starts at its root.** Choosing another subject resets every tab and rewrites the address to `#/chat`, so the new subject never opens the old one's record.
 - **Tapping the tab you are on** takes it back to its root (on a record, Records is the file view again; in sessions, Chat is the chat).
 - **The queue's one switch** (sunna#94): Work says whether the queue is running or paused (and since when); a witness pauses or resumes it for every resident, with an optional note. There is no per-resident arming on the house queue; a resident's old work page says her line runs with it.

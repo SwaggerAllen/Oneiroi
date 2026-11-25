@@ -800,6 +800,10 @@ defmodule Oneiroi.AgathosDaimon do
   @spec domain_policies(String.t()) :: %{version: pos_integer() | nil, policies: [map()]}
   defexport(domain_policies(id), do: Agreements.domain_policies(id))
 
+  @doc "What each declared domain covers, in its own words (agathos-daimon#62): `%{{person, domain} => description}`, only those that have one."
+  @spec domain_descriptions(String.t()) :: %{{String.t(), String.t()} => String.t()}
+  defexport(domain_descriptions(id), do: Agreements.domain_descriptions(id))
+
   @doc "The domains the agreement in force declares (agathos-daimon#57): the only ones any tag, classification or annotation may name."
   @spec declared_domains(String.t()) :: [%{person: String.t(), domain: String.t()}]
   defexport(declared_domains(id), do: Agreements.declared_domains(id))

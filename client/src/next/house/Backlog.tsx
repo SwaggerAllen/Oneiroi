@@ -64,6 +64,14 @@ export function Backlog({ overview: q, names, cards }: { overview: QueueOverview
 
 type Batch = Extract<BacklogEntry, { kind: 'batch' }>;
 
+/** The four moves, the same for a task and a batch. */
+const MOVES: [Move, string][] = [
+  ['top', 'Top'],
+  ['up', 'Up'],
+  ['down', 'Down'],
+  ['bottom', 'Bottom'],
+];
+
 function Rows({
   entries,
   tasks,
@@ -171,13 +179,12 @@ function Rows({
               <OpenPill entry={e} onFlip={witness ? () => onChange(flip(entries, i)) : undefined} />
             </div>
             {witness && (
-              <div className={css.row}>
-                <button type="button" className={css.secondary} onClick={() => onChange(moveEntry(entries, i, 'up'))}>
-                  Batch up
-                </button>
-                <button type="button" className={css.secondary} onClick={() => onChange(moveEntry(entries, i, 'down'))}>
-                  Batch down
-                </button>
+              <div className={css.row} role="group" aria-label={`Move Batch ${e.number}`}>
+                {MOVES.map(([how, word]) => (
+                  <button key={how} type="button" className={css.secondary} onClick={() => onChange(moveEntry(entries, i, how))}>
+                    {word}
+                  </button>
+                ))}
               </div>
             )}
             {e.tasks.map((n, j) => row(n, `${rank}.${j + 1}`, null))}
@@ -214,17 +221,11 @@ function OpenPill({ entry, onFlip }: { entry: BacklogEntry; onFlip?: () => void 
 }
 
 function Menu({ n, entries, batches, inBatch, onChange }: { n: number; entries: Entries; batches: Batch[]; inBatch: boolean; onChange: (next: Entries) => void }) {
-  const moves: [Move, string][] = [
-    ['top', 'Top'],
-    ['up', 'Up'],
-    ['down', 'Down'],
-    ['bottom', 'Bottom'],
-  ];
   const mine = batches.find((b) => b.tasks.includes(n))?.number ?? null;
   return (
     <div className={w.backlogMenu}>
       <div className={css.row}>
-        {moves.map(([how, word]) => (
+        {MOVES.map(([how, word]) => (
           <button key={how} type="button" className={css.secondary} onClick={() => onChange(moveTask(entries, n, how))}>
             {word}
           </button>

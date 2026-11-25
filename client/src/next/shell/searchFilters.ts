@@ -17,6 +17,8 @@ export interface Filters {
   who: '' | 'resident' | 'witness' | 'platform';
   sentTo: '' | 'resident' | 'witness';
   conversations: string[];
+  // By domain (kumbukumbu#109): '' any, 'common', 'undeclared', or 'declared:<person>:<slug>'.
+  domain: string;
   // Letters
   letterFrom: string;
   letterTo: string;
@@ -40,6 +42,7 @@ export const NO_FILTERS: Filters = {
   who: '',
   sentTo: '',
   conversations: [],
+  domain: '',
   letterFrom: '',
   letterTo: '',
   pinned: false,
@@ -72,7 +75,7 @@ export function sorts(scope: string): Sort[] {
 export function activeCount(scope: string, f: Filters): number {
   const own: Record<string, unknown[]> = {
     records: [f.kinds.length > 0, f.status, f.author],
-    words: [f.who, f.sentTo, f.conversations.length > 0],
+    words: [f.who, f.sentTo, f.conversations.length > 0, f.domain],
     letters: [f.letterFrom, f.letterTo],
     bookmarks: [f.pinned, f.tag, f.madeBy],
     scenes: [f.mood, f.person],
@@ -95,6 +98,7 @@ export function toParams(scope: string, f: Filters, page = 1): Record<string, st
     if (f.who) out.who = f.who;
     if (f.sentTo) out.sent_to = f.sentTo;
     if (f.conversations.length) out.conversations = f.conversations.join(',');
+    Object.assign(out, domainParams(f.domain));
     return out;
   }
   if (scope === 'letters') {
@@ -121,3 +125,13 @@ export function toParams(scope: string, f: Filters, page = 1): Record<string, st
   }
   return out;
 }
+
+/** A domain filter's query parameters (kumbukumbu#109): the common room, every undeclared one, or one declared, by whose life it is. */
+export function domainParams(domain: string): Record<string, string> {
+  if (domain === 'common' || domain === 'undeclared') return { domain };
+  const m = /^declared:([^:]+):(.+)$/.exec(domain);
+  return m ? { domain: m[2], domain_person: m[1] } : {};
+}
+
+/** Whether the transcripts can be listed with no words: kept to a domain, every turn in it (kumbukumbu#109). */
+export const listsWithoutWords = (scope: string, f: Filters): boolean => scope === 'words' && f.domain !== '';

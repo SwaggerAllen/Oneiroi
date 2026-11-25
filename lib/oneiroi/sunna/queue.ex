@@ -657,7 +657,7 @@ defmodule Oneiroi.Sunna.Queue do
 
     for id <- Enum.at(task.layers, i + 1) || [],
         a = s.acts[id],
-        a.type in G.gated_types(),
+        a.type in G.guarded_types(),
         a.status not in ~w(done skipped),
         guards?(review, a),
         do: id
@@ -685,7 +685,7 @@ defmodule Oneiroi.Sunna.Queue do
   # Scarlett's first guard: a head that moved past the approved pin
   # lapses the approval, at the moment of execution.
   defp lapsed(s, task, act, head, c) do
-    with true <- act.type in G.gated_types(),
+    with true <- act.type in G.guarded_types(),
          %{approved_pin: approved} = review when is_binary(approved) <- review_of(s, task, act),
          true <- is_binary(head) and not same_pin?(head, approved) do
       %E.ApprovalLapsed{
@@ -740,9 +740,24 @@ defmodule Oneiroi.Sunna.Queue do
 
   # A gated activity is done on the revision its review approved, named.
   defp pin_ok(s, task, act, pin) do
-    if act.type in G.gated_types(),
-      do: approved_pin_ok(review_of(s, task, act), pin),
-      else: :ok
+    cond do
+      act.type in G.gated_types() ->
+        approved_pin_ok(review_of(s, task, act), pin)
+
+      # A promotion with a review in front of it is done on the revision
+      # that review approved; with none, or none approving, on any (sunna#105).
+      act.type in G.guarded_types() ->
+        case review_of(s, task, act) do
+          %{approved_pin: approved} = review when is_binary(approved) ->
+            approved_pin_ok(review, pin)
+
+          _no_review ->
+            :ok
+        end
+
+      true ->
+        :ok
+    end
   end
 
   defp approved_pin_ok(%{approved_pin: approved}, pin) when is_binary(approved) do
@@ -858,7 +873,7 @@ defmodule Oneiroi.Sunna.Queue do
     ids = Enum.map(layers, fn layer -> Enum.map(layer, & &1.id) end)
 
     G.shape_errors(ids, specs) != [] or
-      Enum.any?(specs, fn {_id, a} -> a.type in G.gated_types() and is_nil(a.artifact) end)
+      Enum.any?(specs, fn {_id, a} -> a.type in G.artifact_types() and is_nil(a.artifact) end)
   end
 
   # Scarlett's third guard: an import carries no approvals, so a task
@@ -1028,7 +1043,9 @@ defmodule Oneiroi.Sunna.Queue do
     ids = for {layer, i} <- Enum.with_index(specs), do: Enum.map(layer, &"#{i + 1}.#{&1.pos}")
 
     G.shape_errors(ids, keyed) == [] and
-      Enum.all?(keyed, fn {_k, t} -> t.type not in G.gated_types() or not is_nil(t.artifact) end) and
+      Enum.all?(keyed, fn {_k, t} ->
+        t.type not in G.artifact_types() or not is_nil(t.artifact)
+      end) and
       Enum.all?(keyed, fn {k, t} -> throwback_earlier?(k, t.throwback, keyed) end)
   end
 

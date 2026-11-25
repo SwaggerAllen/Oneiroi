@@ -37,7 +37,9 @@ defmodule Oneiroi.Brain.LabelPropagation do
   was found. A record by the witness or the platform is the common room
   plus what it cites. A record with no turn found, nothing kept and
   nothing cited is left as it is. Only records whose labels change are
-  recorded, as one `LabelsDerived`, beside the writes' own events.
+  recorded, as one `LabelsDerived`, beside the writes' own events. A
+  record she classified herself (kumbukumbu#110) is its classification,
+  to what cites it as well, and is never derived again.
   """
 
   alias Oneiroi.Actor
@@ -94,7 +96,7 @@ defmodule Oneiroi.Brain.LabelPropagation do
   end
 
   defp changed({node, base}, ctx) do
-    case closure(node, ctx) do
+    case if(classified(node, ctx), do: nil, else: closure(node, ctx)) do
       nil ->
         []
 
@@ -449,11 +451,25 @@ defmodule Oneiroi.Brain.LabelPropagation do
   # A node's direct labels and edges: a record of the range from phase
   # one; anything else read now.
   defp node_base(node, ctx) do
-    case Map.fetch(ctx.bases, node) do
-      {:ok, base} -> base
-      :error -> outside(node, ctx)
+    case {classified(node, ctx), Map.fetch(ctx.bases, node)} do
+      {labels, _} when is_list(labels) -> %{labels: labels, edges: [], kept: labels, found: true}
+      {nil, {:ok, base}} -> base
+      {nil, :error} -> outside(node, ctx)
     end
   end
+
+  # Her own classification of a record (kumbukumbu#110): it stands, and
+  # is never derived again.
+  defp classified(node, ctx) when elem(node, 0) in [:journal, :letter, :self_letter] do
+    {kind, id} = record_key(node)
+
+    case Kumbukumbu.classified_labels(ctx.resident_id, kind, [id]) do
+      %{^id => labels} -> labels
+      _none -> nil
+    end
+  end
+
+  defp classified(_node, _ctx), do: nil
 
   defp outside({:turn, ref}, ctx),
     do: %{labels: Kumbukumbu.turn_label_set(ctx.resident_id, ref), edges: []}

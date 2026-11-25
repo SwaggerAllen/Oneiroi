@@ -116,19 +116,25 @@ defmodule Oneiroi.Sunna.QueueGraphTest do
           type: "review",
           artifact: "design/x",
           destination: "house",
-          action: "promote-to-house"
+          action: "merge"
         },
-        "promote" => %{type: "promote-to-house", artifact: "design/x", destination: "house"},
+        "promote" => %{type: "merge", artifact: "design/x", destination: "house"},
+        "share" => %{type: "promote-to-house", artifact: "design/x", destination: "house"},
         "other-review" => %{
           type: "review",
           artifact: "design/y",
           destination: "house",
-          action: "promote-to-house"
+          action: "merge"
         }
       }
 
     test "a gated activity right after a review of the same artifact, destination and action holds" do
       assert G.shape_errors([["draft"], ["review"], ["promote"]], specs()) == []
+    end
+
+    test "a promotion needs no review in front of it (sunna#105)" do
+      assert G.shape_errors([["draft"], ["share"]], specs()) == []
+      assert G.shape_errors([["share"]], specs()) == []
     end
 
     test "a gated activity without its review in the layer before is refused" do

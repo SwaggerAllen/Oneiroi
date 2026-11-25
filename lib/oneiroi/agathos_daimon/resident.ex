@@ -1597,10 +1597,19 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     domain? = (person?(p) and slug?(d)) or (p == "*" and d == "common-room")
 
     domain? and policy["default"] in ["allow", "deny"] and
+      description_ok?(Map.get(policy, "description")) and
       audiences_ok?(Map.get(policy, "allow", [])) and audiences_ok?(Map.get(policy, "deny", []))
   end
 
   defp policy_ok?(_policy), do: false
+
+  # What a domain covers, in a line or two (agathos-daimon#62): what a
+  # tag is decided by when a slug alone is not enough.
+  @description_limit 300
+  defp description_ok?(nil), do: true
+
+  defp description_ok?(d),
+    do: is_binary(d) and String.length(d) <= @description_limit
 
   defp audiences_ok?(list) when is_list(list) and length(list) <= @policies,
     do: Enum.all?(list, &audience_ok?/1)

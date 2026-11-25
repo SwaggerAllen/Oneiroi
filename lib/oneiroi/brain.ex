@@ -521,6 +521,12 @@ defmodule Oneiroi.Brain do
   end
 
   @impl Oneiroi.Sunna.Wake
+  @doc "A promote-to-house activity done by the platform, no turn (sunna#104): her document at its approved revision."
+  defexport(promote_activity(resident_id, household_id, task, act),
+    do: HouseQueue.promote_activity(resident_id, household_id, task, act)
+  )
+
+  @impl Oneiroi.Sunna.Wake
   @doc "One part of a check-in's note (sunna#28), read from records now; nil for a key the brain does not read."
   defexport(checkin_part(resident_id, key), do: Checkin.part(resident_id, key, Tools.writes()))
 

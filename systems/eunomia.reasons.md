@@ -256,3 +256,9 @@ more.
 
 ## #34
 The form the judge is asked for is three labelled lines, and models set labels in Markdown as often as not. A reader that took `**VERDICT:** CLEAN` for no verdict at all failed every such review closed, so a clean message sat refused for hours while the judge had answered it. The marks carry no meaning in the answer; reading past them changes nothing the judge said, and an answer that names no verdict is still refused.
+
+## #35
+A filtered answer is the provider declining the material, not the judge failing the form; the same request will be declined again, so asking twice (kumbukumbu#108) spends money and changes nothing. A second model from another provider reads under another filter. Leaving it unset by default keeps the choice of which model may read a resident's held-back material with the witness.
+
+## #36
+The judge reads what a resident's context held and decides whether her words carry it; a judge from the same model family as the residents shares their blind spots and their training on what to say about themselves, which is the opposite of a second reader. And in practice the Claude default never answered: its provider filtered the material whole, so every review that needed it failed closed. The witness's choice had been Gemini from the start; the placeholder outlived it.

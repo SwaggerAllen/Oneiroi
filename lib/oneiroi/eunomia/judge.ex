@@ -130,15 +130,45 @@ defmodule Oneiroi.Eunomia.Judge do
         candidate: candidate
       })
 
-    request = Request.new(model, [prompt, %{role: :user, content: "Your verdict?"}])
+    messages = [prompt, %{role: :user, content: "Your verdict?"}]
 
-    with {:ok, %Result{content: content} = result} <-
-           Nisaba.call(resident_id, :judge, request, actor(model)),
+    with {:ok, %Result{} = result, model} <- answered(resident_id, model, messages),
          {:ok, verdict, reasons} <- read_disclosure(result) do
       {:ok,
-       %{verdict: verdict, reasons: reasons, quote: parse_quote(content || ""), model: model}}
+       %{
+         verdict: verdict,
+         reasons: reasons,
+         quote: parse_quote(result.content || ""),
+         model: model
+       }}
     end
   end
+
+  # A review the provider's filter refused to read (eunomia#35; the
+  # witness's logs, 2026-11-25: every unreadable answer was finish
+  # content_filter, 0 tokens) goes once to the fallback model when one is
+  # set; the same model would only refuse again.
+  defp answered(resident_id, model, messages) do
+    with {:ok, %Result{} = result} <- asked(resident_id, model, messages) do
+      fallback = Config.fetch!(:eunomia, :judge_fallback_model)
+
+      if filtered?(result) and is_binary(fallback) and fallback not in ["", model],
+        do: answered_by(resident_id, fallback, messages),
+        else: {:ok, result, model}
+    end
+  end
+
+  defp answered_by(resident_id, model, messages) do
+    with {:ok, %Result{} = result} <- asked(resident_id, model, messages),
+         do: {:ok, result, model}
+  end
+
+  defp asked(resident_id, model, messages),
+    do: Nisaba.call(resident_id, :judge, Request.new(model, messages), actor(model))
+
+  defp filtered?(%Result{finish_reason: "content_filter"}), do: true
+  defp filtered?(%Result{refusal?: true, content: content}), do: String.trim(content || "") == ""
+  defp filtered?(_result), do: false
 
   # An unreadable answer's shape carries how the call ended (eunomia#34;
   # the witness, 2026-11-24: four answers of 0 characters in two seconds,

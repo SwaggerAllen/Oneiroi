@@ -468,3 +468,5 @@ reach; checking the words before they are written catches the shape of
 a garble; spacing her changes means a turn that loops cannot rewrite her
 in a loop. None of it decides what she may say about herself.
 
+## #62
+A slug is a name, not a boundary: "duet" or "secrets" tells a tagger the drawer exists, not what goes in it, and a backfill tagging a month of conversations from a slug alone guessed at the edges. The description is the edge in words. It lives in the agreement because it is part of the policy: widening what "recovery" covers moves material into a domain that reaches no one, and narrowing it lets material out, so either party changing it alone would change what the other agreed to. Short by rule, because it is read in every turn's context and beside every slug in the backfill's note.

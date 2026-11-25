@@ -90,6 +90,65 @@ defmodule Oneiroi.Brain.HouseQueue do
     end
   end
 
+  @doc """
+  A `promote-to-house` activity done by the platform with no agent turn
+  (sunna#104; the witness, 2026-11-25: "promoting from a resident
+  workspace to a house workspace shouldn't need an agent, it could just
+  happen"): her own document, named by the activity, promoted as hers at
+  the revision it was approved at (its citation's pin, else the latest
+  approval of it in an earlier layer, else her latest draft), the house's
+  terms the default. The library's own checks run as for her tool, and a
+  refusal leaves the activity hers to do in a run.
+  """
+  def promote_activity(resident_id, household_id, task, act) do
+    her = Actor.new(:resident, resident_id)
+
+    with %{layers: layers} <- Sunna.queue_task(household_id, task),
+         acts = List.flatten(layers),
+         %{artifact: artifact} = a when is_binary(artifact) <-
+           Enum.find(acts, &(&1.act_id == act)),
+         {:ok, path} <- own_path(artifact),
+         {:ok, %{finished: true}} <-
+           promote(her, path, household_id, task, act, %{
+             "commit" => approved_at(artifact, a, acts),
+             "note" => "Promoted by the house queue: #{act}, at the revision its review approved."
+           }) do
+      :ok
+    else
+      {:ok, %{refused: refused}} -> {:error, refused}
+      {:error, _} = refused -> refused
+      _other -> {:error, Sunna.Error.new(:sunna_queue_invalid, :sunna_queue_promote_unnamed)}
+    end
+  end
+
+  # Her own citation's path: `<slug>:<path>[@pin]`, never the house's.
+  defp own_path("house/" <> _), do: :error
+
+  defp own_path(citation) do
+    case citation |> String.split("@", parts: 2) |> hd() |> String.split(":", parts: 2) do
+      [_slug, path] when path != "" -> {:ok, String.trim(path)}
+      _ -> :error
+    end
+  end
+
+  defp approved_at(artifact, a, acts) do
+    bare = artifact |> String.split("@", parts: 2) |> hd()
+
+    case String.split(artifact, "@", parts: 2) do
+      [_cite, pin] when pin != "" ->
+        String.trim(pin)
+
+      _unpinned ->
+        acts
+        |> Enum.filter(
+          &(&1.layer < a.layer and is_binary(&1.approved_pin) and is_binary(&1.artifact) and
+              hd(String.split(&1.artifact, "@", parts: 2)) == bare)
+        )
+        |> Enum.max_by(& &1.layer, fn -> %{approved_pin: nil} end)
+        |> Map.get(:approved_pin)
+    end
+  end
+
   defp cited_pin(household_id, task, act) do
     with %{layers: layers} <- Sunna.queue_task(household_id, task),
          %{artifact: artifact} when is_binary(artifact) <-

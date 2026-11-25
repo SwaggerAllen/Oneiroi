@@ -836,3 +836,9 @@ A judge that says DISCLOSES and cannot point at the words is reporting a feeling
 
 ## #108
 An unreadable answer is the model's slip, not a verdict, and the next ask usually comes back in form; failing it closed at once made a single bad answer cost the resident her delivery and the queue its move. Asking once more bounds the cost the way #107 does for an unproven finding. A failed or timed-out call is different: asking again doubles the wait for a provider that is down, so it fails closed at once.
+
+## #109
+A domain the agreement does not declare is a tag nothing governs: the audience policies are written per declared domain, so an undeclared one falls through to whatever the gate does with the unknown, which is what kept refusing her house records. The backfill clears them once; tags made by hand after it, or before a version is agreed, come back. Finding them by words means guessing words; finding them by their domain is the list the witness needs to put each one where it belongs.
+
+## #110
+The search filter (#109) shows the witness what is undeclared; she is the one whose memory it is, and a tool is how she acts on it. Moving an undeclared domain whole is the common case: the 11-14..16 tags named whole stretches of her life under slugs nobody declared, and turn-by-turn retagging of a stretch is many calls for one decision. A declared domain is refused wholesale because its policy is the dyad's agreement: emptying one by tool would move material out from under the rule both signed. Unclassified records are the ones the labels pass could not trace (no turn found, nothing kept, nothing cited), so inference cannot fix them and only she can say; a classification the next backfill silently overwrote would be no classification, hence the pass leaving it alone. The list names ids, never words, because a word read into a turn is a label on that turn.

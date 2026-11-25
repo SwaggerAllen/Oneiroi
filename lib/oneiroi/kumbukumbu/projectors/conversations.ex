@@ -66,6 +66,31 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Conversations do
     end)
   end)
 
+  # One undeclared domain moved whole (kumbukumbu#110): her messages in
+  # it, tagged or carried, and the conversations whose current domain it
+  # is, to the domain she named, or the common room.
+  fold(%Events.Memory.DomainRecategorized{} = e, _metadata, fn multi ->
+    multi
+    |> Multi.update_all(
+      :recategorized_messages,
+      from(m in Message,
+        where:
+          m.resident_id == ^e.id and m.domain_person == ^e.from_person and
+            m.domain == ^e.from_domain
+      ),
+      set: [domain_person: e.to_person, domain: e.to_domain]
+    )
+    |> Multi.update_all(
+      :recategorized_sessions,
+      from(s in Session,
+        where:
+          s.resident_id == ^e.id and s.current_person == ^e.from_person and
+            s.current_domain == ^e.from_domain
+      ),
+      set: [current_person: e.to_person, current_domain: e.to_domain]
+    )
+  end)
+
   fold(%Events.SessionOpened{} = e, _metadata, fn multi ->
     Multi.insert(
       multi,

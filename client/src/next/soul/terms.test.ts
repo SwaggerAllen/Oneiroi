@@ -22,4 +22,11 @@ describe('the agreement\'s domain terms', () => {
     expect(withPolicies({ x: true }, [policy])).toEqual({ x: true, domain_policies: [policy] });
     expect(withPolicies({ x: true }, [])).toEqual({ x: true });
   });
+
+  it('says and carries what a domain covers, trimmed, and drops a blank one (agathos-daimon#62)', () => {
+    const policy = { domain: { person: 'account:a', domain: 'golf' }, description: '  Rounds, swing practice and the club.  ', default: 'deny' as const, allow: [], deny: [] };
+    expect(policyWords(policy, persons, 'Lily')).toBe('your golf (Rounds, swing practice and the club.): reaches no audience past you two by default');
+    expect(withPolicies({}, [policy]).domain_policies).toEqual([{ ...policy, description: 'Rounds, swing practice and the club.' }]);
+    expect(withPolicies({}, [{ ...policy, description: ' ' }]).domain_policies).toEqual([{ domain: policy.domain, default: 'deny', allow: [], deny: [] }]);
+  });
 });

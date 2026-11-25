@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dropBefore, flip, moveTask, toArranged, toBatch, type Entries } from './backlogMoves';
+import { dropBefore, flip, moveEntry, moveTask, toArranged, toBatch, type Entries } from './backlogMoves';
 
 const start: Entries = [
   { kind: 'batch', number: 1, name: null, open: true, top: true, tasks: [12, 9] },
@@ -26,6 +26,11 @@ describe('the backlog arrangement (sunna#103)', () => {
   it('drops a dragged task before another: into its batch, or standing alone', () => {
     expect(toArranged(dropBefore(start, 14, 17))[2]).toEqual({ batch: 2, tasks: [15, 14, 17], open: false });
     expect(toArranged(dropBefore(start, 9, 16)).slice(0, 3)).toEqual([{ batch: 1, tasks: [12], open: true }, { task: 9, open: false }, { task: 16, open: false }]);
+  });
+
+  it('moves a whole batch to the top or the bottom', () => {
+    expect(toArranged(moveEntry(start, 2, 'top'))[0]).toEqual({ batch: 2, tasks: [15, 17], open: false });
+    expect(toArranged(moveEntry(start, 0, 'bottom')).slice(-1)).toEqual([{ batch: 1, tasks: [12, 9], open: true }]);
   });
 
   it('opens and closes an entry, and sends no empty batch', () => {

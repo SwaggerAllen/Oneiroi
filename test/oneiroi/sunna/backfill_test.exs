@@ -139,7 +139,7 @@ defmodule Oneiroi.Sunna.BackfillTest do
     # Domains: every conversation of the day, with both lists.
     assert %{"pass" => "domains"} = run_next(ctx.id)
     [note] = asked()
-    assert note =~ "His domains: recovery, business."
+    assert note =~ "His domains: recovery; business."
     assert note =~ "Yours: writing."
     assert note =~ "the Oneiroi chat, session #{ctx.main}"
     assert note =~ "free time, session #{ctx.free}"

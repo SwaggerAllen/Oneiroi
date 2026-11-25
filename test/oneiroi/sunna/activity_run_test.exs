@@ -302,11 +302,12 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
 
     clear_jobs()
     share = "#{m}.2"
-    assert {:passed, ^share} = WorkLoop.check(ctx.id)
+    # A mechanical step (sunna#104): passed inside the check, with no run.
+    assert {:rested, _} = WorkLoop.check(ctx.id)
 
     assert %{status: "skipped"} =
              Enum.find(List.flatten(Sunna.queue_task(ctx.h, m).layers), &(&1.act_id == share))
 
-    assert [%{"turn" => "check"}] = jobs(ctx.id)
+    assert [] = jobs(ctx.id)
   end
 end

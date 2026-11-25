@@ -69,9 +69,10 @@ describe('a template checked before it is saved (§6.1)', () => {
     expect(templateProblems([[draft], [review], [promote]])).toEqual([]);
   });
 
-  it('names a gated activity with no review in front of it, or none of its artifact', () => {
-    expect(templateProblems([[draft], [promote]])[0]).toMatch(/^2\.1 \(promote-to-house\) needs a review/);
-    expect(templateProblems([[draft], [review], [{ ...promote, artifact: 'other' }]]).some((p) => /^3\.1 \(promote-to-house\) needs a review/.test(p))).toBe(true);
+  it('names a gated activity with no review in front of it; a promotion needs none, only its artifact (sunna#105)', () => {
+    const merge = { ...promote, name: 'Merge', type: 'merge' };
+    expect(templateProblems([[draft], [merge]])[0]).toMatch(/^2\.1 \(merge\) needs a review/);
+    expect(templateProblems([[draft], [promote]])).toEqual([]);
     expect(templateProblems([[draft], [review], [{ ...promote, artifact: null }]])).toContain('3.1 (promote-to-house) needs an artifact slot.');
   });
 

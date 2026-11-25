@@ -218,6 +218,9 @@ defmodule Oneiroi.Kumbukumbu.Store do
       field(:labels, {:array, :map})
       field(:edges, {:array, :map})
       field(:derived_at, :utc_datetime_usec)
+      # Set when she classified the record herself (kumbukumbu#110): the
+      # labels pass leaves the row alone from then on.
+      field(:classified_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}
@@ -565,6 +568,25 @@ defmodule Oneiroi.Kumbukumbu.Store do
         )
       )
 
+  @doc "The records of `kind` she classified herself (kumbukumbu#110), `{record_id, labels}`; all of them when `ids` is nil."
+  def classified_labels(kind, nil),
+    do:
+      Repo.all(
+        from(d in DerivedLabel,
+          where: d.kind == ^kind and not is_nil(d.classified_at),
+          select: {d.record_id, d.labels}
+        )
+      )
+
+  def classified_labels(kind, ids),
+    do:
+      Repo.all(
+        from(d in DerivedLabel,
+          where: d.kind == ^kind and d.record_id in ^ids and not is_nil(d.classified_at),
+          select: {d.record_id, d.labels}
+        )
+      )
+
   @doc "The newest `limit` letters' envelopes (kumbukumbu#74): who to whom, when, read by whom; never the words."
   @spec letter_envelopes(pos_integer()) :: [map()]
   def letter_envelopes(limit),
@@ -798,6 +820,40 @@ defmodule Oneiroi.Kumbukumbu.Store do
     )
     |> Repo.all()
     |> Enum.reverse()
+  end
+
+  @doc "Each domain her messages are in (kumbukumbu#110), with how many messages and conversations, and the first and last instant."
+  def domain_pairs do
+    Repo.all(
+      from(m in Message,
+        where: not is_nil(m.domain) and m.role != "tool",
+        group_by: [m.domain_person, m.domain],
+        order_by: [asc: min(m.sent_at)],
+        select: %{
+          person: m.domain_person,
+          domain: m.domain,
+          messages: count(m.hash),
+          sessions: count(m.session_key, :distinct),
+          first_at: min(m.sent_at),
+          last_at: max(m.sent_at)
+        }
+      )
+    )
+  end
+
+  @doc "The turns that named a domain by its tag (kumbukumbu#110), oldest first, at most `limit`: where a domain begins in each conversation."
+  def tag_points_of(person, domain, limit) do
+    Repo.all(
+      from(m in Message,
+        where:
+          m.domain_tagged and m.domain_person == ^person and m.domain == ^domain and
+            m.role != "tool",
+        group_by: [m.session_key, m.turn_ref],
+        order_by: [asc: min(m.sent_at)],
+        limit: ^limit,
+        select: %{session_key: m.session_key, turn_ref: m.turn_ref, at: min(m.sent_at)}
+      )
+    )
   end
 
   @doc """
@@ -1083,12 +1139,30 @@ defmodule Oneiroi.Kumbukumbu.Store do
         {:conversations, [_ | _] = kinds}, q ->
           from([_m, s] in q, where: s.kind in ^kinds)
 
+        # By domain (kumbukumbu#109): one declared, the common room, or
+        # every domain the agreement does not declare, to recategorize.
+        {:domain, filter}, q ->
+          in_domain(q, filter)
+
         _other, q ->
           q
       end)
 
     rows = Repo.all(query)
     {Enum.take(rows, limit), length(rows) > limit}
+  end
+
+  defp in_domain(q, :common), do: from([m, _s] in q, where: is_nil(m.domain))
+
+  defp in_domain(q, {:is, person, domain}),
+    do: from([m, _s] in q, where: m.domain_person == ^person and m.domain == ^domain)
+
+  defp in_domain(q, {:undeclared, declared}) do
+    q = from([m, _s] in q, where: not is_nil(m.domain))
+
+    Enum.reduce(declared, q, fn %{person: p, domain: d}, q ->
+      from([m, _s] in q, where: not (m.domain_person == ^p and m.domain == ^d))
+    end)
   end
 
   @doc """

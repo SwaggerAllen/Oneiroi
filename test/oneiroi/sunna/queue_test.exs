@@ -239,8 +239,35 @@ defmodule Oneiroi.Sunna.QueueTest do
   end
 
   test "an import carries no approvals: it cannot start at a gated layer", ctx do
+    # A promotion needs no approval (sunna#105): an import may start there.
+    assert {:ok, _} = doc_to_pr(ctx, slug: "at-share", attrs: [start_layer: 3])
+
+    # A merge does.
     assert {:error, %{kind: :sunna_queue_import_gated}} =
-             doc_to_pr(ctx, attrs: [start_layer: 3])
+             Queues.open_task(
+               ctx.h,
+               %{
+                 project: "queue",
+                 slug: "at-merge",
+                 title: "Merge it",
+                 outcome: "merged",
+                 start_layer: 3,
+                 layers: [
+                   [%{type: "draft", assignee: ctx.a_lily, artifact: "lily:design/x"}],
+                   [
+                     %{
+                       type: "review",
+                       assignee: ctx.a_andrew,
+                       artifact: "pr",
+                       destination: "main",
+                       action: "merge"
+                     }
+                   ],
+                   [%{type: "merge", assignee: ctx.a_andrew, artifact: "pr", destination: "main"}]
+                 ]
+               },
+               ctx.lily
+             )
 
     {:ok, n} = doc_to_pr(ctx, slug: "moved", attrs: [start_layer: 2, links: ["lily:design/x"]])
     assert %{status: "done", imported: true} = act(ctx, n, "#{n}.1")

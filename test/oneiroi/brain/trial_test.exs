@@ -413,6 +413,9 @@ defmodule Oneiroi.Brain.TrialTest do
     {"classification_answer", %{path: "design/note.md", accept: false}},
     # Her classification (seshat#102): answered as it would be, nothing kept.
     {"document_classify", %{path: "design/note.md", domain: "none"}},
+    # Her recategorizing (kumbukumbu#110): answered as it would be.
+    {"domain_recategorize", %{from: "business", to: "none"}},
+    {"record_classify", %{kind: "letter", id: "1", domain: "none"}},
     # Her prefix (agathos-daimon#50): answered as it would be, nothing retired.
     {"identity_file_retire", %{file: "GOALS.md", note: "migrated"}}
   ]

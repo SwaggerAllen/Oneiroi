@@ -163,8 +163,45 @@ defmodule Oneiroi.Kumbukumbu.Projectors.Memory do
             derived_at: e.at
           }
 
+    # Her classification stands over a derivation (kumbukumbu#110).
     Multi.insert_all(multi, :derived_labels, DerivedLabel, rows,
-      on_conflict: {:replace, [:labels, :edges, :derived_at]},
+      on_conflict:
+        from(d in DerivedLabel,
+          where: d.resident_id == ^e.id and is_nil(d.classified_at),
+          update: [
+            set: [
+              labels: fragment("EXCLUDED.labels"),
+              edges: fragment("EXCLUDED.edges"),
+              derived_at: fragment("EXCLUDED.derived_at")
+            ]
+          ]
+        ),
+      conflict_target: [:resident_id, :kind, :record_id]
+    )
+  end)
+
+  # Her classification of a record (kumbukumbu#110): its labels from now
+  # on, the edges the pass read kept as they were.
+  fold(%Events.RecordClassified{} = e, _metadata, fn multi ->
+    labels =
+      case e.domain do
+        nil -> [%{"kind" => "common_room"}]
+        domain -> [%{"person" => e.person, "domain" => domain}]
+      end
+
+    Multi.insert(
+      multi,
+      :classified,
+      %DerivedLabel{
+        resident_id: e.id,
+        kind: e.kind,
+        record_id: e.record_id,
+        labels: labels,
+        edges: [],
+        derived_at: e.at,
+        classified_at: e.at
+      },
+      on_conflict: [set: [labels: labels, derived_at: e.at, classified_at: e.at]],
       conflict_target: [:resident_id, :kind, :record_id]
     )
   end)
