@@ -8,6 +8,7 @@ defmodule Oneiroi.Brain.Plugins.Pins do
   import Oneiroi.Brain.Plugin, only: [section: 4]
 
   alias Oneiroi.AgathosDaimon.Local
+  alias Oneiroi.Brain.Pieces
   alias Oneiroi.Kumbukumbu
 
   @impl Oneiroi.Brain.Plugin
@@ -33,16 +34,21 @@ defmodule Oneiroi.Brain.Plugins.Pins do
         []
 
       pins ->
+        zone = Local.zone(turn.resident_id)
+        lines = for p <- pins, do: {p.number, Kumbukumbu.Index.line(p, zone)}
+
         text =
           "# Pinned\n\nThe moments you pinned: decisions, kept in front of you always and never ranked. bookmark_open(number) reads any.\n\n" <>
-            Enum.map_join(pins, "\n", &Kumbukumbu.Index.line(&1, Local.zone(turn.resident_id)))
+            Enum.map_join(lines, "\n", &elem(&1, 1))
 
-        section(
-          "pins",
+        # Each pin its own piece, by its bookmark's domain (kumbukumbu#111).
+        "pins"
+        |> section(
           text,
           "the pins (kumbukumbu#45): #{length(pins)} decisions in the stable prefix, never ranked",
           %{refs: Enum.map(pins, & &1.number)}
         )
+        |> Pieces.put(Pieces.bookmarks(turn.resident_id, lines))
     end
   end
 end

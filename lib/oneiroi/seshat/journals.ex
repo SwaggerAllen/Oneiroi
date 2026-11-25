@@ -222,14 +222,15 @@ defmodule Oneiroi.Seshat.Journals do
     day = today(resident_id)
 
     entries =
-      for e <- Scope.resident(resident_id, fn -> Store.journal_entries(day) end) do
+      for e <- derived_entries(resident_id, day) do
         %{
           number: e.number,
+          ref: "journal/#{day}/#{e.number}",
           kind: e.kind,
           at: e.at,
           first: first_line(Map.get(e, :summary) || e.text),
           done: not is_nil(e.done_at),
-          # Its writing turn's labels (kumbukumbu#84), for whoever shows it.
+          # Its labels as they stand (kumbukumbu#84, #101), for whoever shows it.
           labels: Map.get(e, :labels)
         }
       end
@@ -240,6 +241,41 @@ defmodule Oneiroi.Seshat.Journals do
   defp first_line(text) do
     line = text |> String.split("\n") |> Enum.find("", &(String.trim(&1) != "")) |> String.trim()
     if String.length(line) > 140, do: String.slice(line, 0, 139) <> "…", else: line
+  end
+
+  # A day's rows, each with its labels as they stand: derived again
+  # where they were (kumbukumbu#101), else as kept.
+  defp derived_entries(resident_id, day),
+    do:
+      Oneiroi.Kumbukumbu.with_derived(
+        resident_id,
+        "journal",
+        Scope.resident(resident_id, fn -> Store.journal_entries(day) end),
+        &"#{&1.day}/#{&1.number}"
+      )
+
+  @doc """
+  Today's journal as the brain reads it, with its rows as pieces
+  (kumbukumbu#111): `{text, [%{ref, labels, text}]}`, each piece's words
+  the exact line the row renders to, its labels the row's as they stand.
+  """
+  @spec text_pieces(String.t()) :: {String.t(), [map()]}
+  def text_pieces(resident_id) do
+    day = today(resident_id)
+
+    case derived_entries(resident_id, day) do
+      [] ->
+        {"", []}
+
+      entries ->
+        viewed = Enum.map(entries, &viewed/1)
+
+        pieces =
+          for e <- viewed,
+              do: %{ref: "journal/#{day}/#{e.number}", labels: Map.get(e, :labels), text: line(e)}
+
+        {render(day, viewed), pieces}
+    end
   end
 
   @doc "Today's journal as the section the brain reads; empty when the day has no entry."

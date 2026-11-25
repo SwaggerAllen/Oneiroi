@@ -7,6 +7,8 @@ defmodule Oneiroi.Brain.Plugins.Index do
 
   import Oneiroi.Brain.Plugin, only: [section: 4]
 
+  alias Oneiroi.Brain.Pieces
+
   @impl Oneiroi.Brain.Plugin
   def manifest,
     do: %{
@@ -18,9 +20,9 @@ defmodule Oneiroi.Brain.Plugins.Index do
     }
 
   @impl Oneiroi.Brain.Plugin
-  def sections(_turn, %{index: index}) do
-    section(
-      "index",
+  def sections(turn, %{index: index}) do
+    "index"
+    |> section(
       index.text,
       index_reason(index),
       %{
@@ -31,6 +33,8 @@ defmodule Oneiroi.Brain.Plugins.Index do
         seeds: index.seeds
       }
     )
+    # Each line its own piece, by its bookmark's domain (kumbukumbu#111).
+    |> Pieces.put(Pieces.bookmarks(turn.resident_id, Pieces.numbered_lines(index.text)))
   end
 
   # The near-miss record (spec §5, P6): the bookmarks the index ranked

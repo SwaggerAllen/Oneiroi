@@ -1223,6 +1223,14 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     end
   end
 
+  @doc "The bookmarks a turn's feedback said it used (kumbukumbu#112), by number."
+  def feedback_used(resident_id, turn_ref) do
+    for "bookmark/" <> n <-
+          Scope.resident(resident_id, fn -> Store.feedback_targets(turn_ref) end),
+        {number, ""} <- [Integer.parse(n)],
+        do: number
+  end
+
   @doc "Each domain her messages are in (kumbukumbu#110): `%{person, domain, messages, sessions, first_at, last_at}`."
   def domain_pairs(resident_id), do: Scope.resident(resident_id, fn -> Store.domain_pairs() end)
 

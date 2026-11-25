@@ -1349,8 +1349,13 @@ defmodule Oneiroi.Brain.Turn do
     %{sections: sections, injections: injections, messages: messages}
   end
 
-  # A section that carries its own labels (kumbukumbu#84: today's
-  # journal, by its rows) is decided by them, its words with them.
+  # A section of pieces (kumbukumbu#111: the journal by its rows, the
+  # timeline and the bookmark lanes by their lines) is decided piece by
+  # piece; one that carries its own labels (kumbukumbu#84) by them.
+  defp assembled_name(%{pieces: pieces, label: label, message: %{content: text}})
+       when is_list(pieces),
+       do: {label, {:pieces, pieces}, text}
+
   defp assembled_name(%{labels: labels, label: label, message: %{content: text}})
        when is_list(labels),
        do: {label, labels, text}
@@ -1362,7 +1367,12 @@ defmodule Oneiroi.Brain.Turn do
   defp note_labelled(%{trial?: true}, _sections), do: :ok
 
   defp note_labelled(turn, sections) do
-    for %{labels: labels, label: label, message: %{content: text}} <- sections,
+    for %{pieces: pieces, label: label} <- sections,
+        is_list(pieces),
+        do: Kumbukumbu.note_pieces(turn.resident_id, Map.get(turn, :turn_ref), label, pieces)
+
+    for %{labels: labels, label: label, message: %{content: text}} = s <- sections,
+        not is_list(Map.get(s, :pieces)),
         is_list(labels),
         do:
           Kumbukumbu.note_read_labelled(
@@ -1450,10 +1460,24 @@ defmodule Oneiroi.Brain.Turn do
           ]
       end
 
-    {Enum.filter(sections, &(&1.label in kept.sections)), kept.rows, note ++ guidance}
+    sections =
+      for s <- sections, s.label in kept.sections, do: cut(s, Map.get(kept.cut, s.label, []))
+
+    {sections, kept.rows, note ++ guidance}
   end
 
   defp for_audience(_turn, sections, rows), do: {sections, rows, []}
+
+  # The pieces this audience may not hear, cut out of their section's
+  # words (kumbukumbu#111): the rest of the section stays.
+  defp cut(section, []), do: section
+
+  defp cut(%{pieces: pieces, message: %{content: text} = message} = section, refs) do
+    {held, kept} = Enum.split_with(pieces, &(&1.ref in refs))
+    text = Enum.reduce(held, text, &String.replace(&2, &1.text <> "\n", "", global: false))
+    text = Enum.reduce(held, text, &String.replace(&2, &1.text, "", global: false))
+    %{section | pieces: kept, message: %{message | content: text}}
+  end
 
   # The transcript's window. Compacted (brain#60's `on`): the messages
   # since the session's compaction, under its summary. Truncated (`off`,

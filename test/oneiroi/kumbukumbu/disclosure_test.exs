@@ -12,6 +12,7 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.Pieces
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Eunomia.Judge
   alias Oneiroi.Fixtures
@@ -169,17 +170,33 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
         ctx.lily
       )
 
-    :ok =
-      Kumbukumbu.note_sections(ctx.id, "t-now", %{
-        "index" => "Bookmarks, newest first:\n##{held} the noon meeting"
-      })
+    say(ctx, "t-2", "The tomatoes came in.", nil)
+
+    {:ok, common} =
+      Kumbukumbu.add_bookmark(
+        ctx.id,
+        %{session_key: ctx.key, anchor_ref: "t-2", line: "the tomatoes", summary: "red"},
+        ctx.lily
+      )
+
+    # The index as a real turn notes it (kumbukumbu#111): each line a
+    # piece, by its own bookmark's domain.
+    pieces =
+      Pieces.bookmarks(ctx.id, [
+        {held, "##{held} the noon meeting"},
+        {common, "##{common} the tomatoes"}
+      ])
+
+    :ok = Kumbukumbu.note_pieces(ctx.id, "t-now", "index", pieces)
 
     assert post(ctx, "A good day.") =~ "Posted"
     asked = :persistent_term.get({FakeJudge, :asked})
 
-    # The bookmark is its line in the index, never its anchor turn, and
-    # the index's own furniture is no piece (kumbukumbu#105).
+    # The bookmark is its line in the index, never its anchor turn; the
+    # common room's line is no piece; the index's furniture is never one
+    # (kumbukumbu#105, #111).
     assert Enum.any?(asked.fragments, &(&1.text == "##{held} the noon meeting"))
+    refute Enum.any?(asked.fragments, &(&1.text =~ "the tomatoes"))
     refute Enum.any?(asked.fragments, &(&1.text =~ "Bookmarks, newest first"))
     refute Enum.any?(asked.fragments, &(&1.text =~ "Its anchor turn"))
   end
@@ -205,7 +222,6 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
     # Each held message as itself, and of the lanes the turn was given,
     # what is the held domain's or cannot be placed (kumbukumbu#105).
     assert shown =~ "about The meeting at noon, ninety days."
-    assert shown =~ "#7 the meeting at noon"
     assert asked.audience == "household:#{ctx.household}"
 
     # Recorded on her stream, by hash and refs, never the words.

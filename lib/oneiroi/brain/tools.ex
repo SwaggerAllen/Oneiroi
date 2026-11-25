@@ -33,6 +33,7 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.Brain.FreeTime
   alias Oneiroi.Brain.HouseQueue
   alias Oneiroi.Brain.Introspection
+  alias Oneiroi.Brain.LabelPropagation
   alias Oneiroi.Brain.PluginConsent
   alias Oneiroi.Brain.Pulls
   alias Oneiroi.Brain.QueueTools
@@ -44,6 +45,7 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.HuginnMuninn
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
+  alias Oneiroi.Nisaba.Prompt
   alias Oneiroi.Seshat
   alias Oneiroi.Seshat.Citations
   alias Oneiroi.Xenia
@@ -102,7 +104,7 @@ defmodule Oneiroi.Brain.Tools do
     journal_add journal_done scene_write
     contract_propose contract_agree contract_decline contract_renew contract_safe revision_add
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
-    keepsake_register document_archive
+    keepsake_register document_archive delivery_redo
     platform_report triage_move
     external_add external_fetch plugin_propose plugin_answer plugin_off
     kind_define kind_gate kind_gate_answer route_define route_ask theme_propose
@@ -351,6 +353,26 @@ defmodule Oneiroi.Brain.Tools do
           whose: %{type: "string", enum: ["witness", "mine"]}
         },
         [:domain]
+      ),
+      tool(
+        "delivery_redo",
+        "Redo what a withheld delivery was for, composed without what held it (kumbukumbu#113): when a letter, a post, a queue move or any delivery past you and your witness is withheld by policy, this queues a fresh turn of this conversation whose context leaves out everything that audience may not hear (each left-out piece named to you by citation and domain), so what it writes never held it and needs no judge. audience and to name the audience as the refusal did (household; person and a housemate's name; workspace, conversation or correspondent and its id); ask is what that turn should do, in your words, since it will not see this one's reasoning whole. End this turn after calling it; the redo runs when this turn is done.",
+        %{
+          audience: %{
+            type: "string",
+            enum: [
+              "household",
+              "person",
+              "workspace",
+              "correspondent",
+              "publication",
+              "researcher"
+            ]
+          },
+          to: %{type: "string"},
+          ask: %{type: "string"}
+        },
+        [:audience, :ask]
       ),
       tool(
         "domain_review",
@@ -1715,11 +1737,13 @@ defmodule Oneiroi.Brain.Tools do
   # disclosure judge. One kept no labels (written before they were kept)
   # is unclassified, never inferred.
 
-  # The writing turn's labels, for an artifact that keeps them; nil for
-  # a trial or a call with no turn.
-  defp labelled(%{trial?: true}), do: nil
+  # The labels an artifact keeps (kumbukumbu#112): its writing turn's
+  # domain, what its words cite, and what the turn's feedback says it
+  # used, never what merely sat in the turn's context; nil for a trial
+  # or a call with no turn.
+  defp labelled(%{trial?: true}, _text), do: nil
 
-  defp labelled(turn) do
+  defp labelled(turn, text) do
     key = Map.get(turn, :session_key)
     ref = Map.get(turn, :turn_ref)
 
@@ -1727,12 +1751,12 @@ defmodule Oneiroi.Brain.Tools do
       do: %{
         session_key: key,
         turn_ref: ref,
-        labels: Kumbukumbu.turn_labels(turn.resident_id, key, ref)
+        labels: LabelPropagation.written(turn.resident_id, key, ref, to_string(text || ""))
       }
   end
 
-  defp letter_labels(turn) do
-    case labelled(turn) do
+  defp letter_labels(turn, text) do
+    case labelled(turn, text) do
       %{turn_ref: ref, labels: labels} -> %{turn_ref: ref, labels: labels}
       nil -> %{}
     end
@@ -3384,6 +3408,22 @@ defmodule Oneiroi.Brain.Tools do
            "Tagged: turn #{ref} is in #{domain || "the common room"}, and this conversation is from here on until a message names another."
   end
 
+  # A withheld delivery redone without what held it (kumbukumbu#113): a
+  # fresh turn of this conversation, composed for the audience.
+  defp call("delivery_redo", args, turn) do
+    ask = args["ask"] |> to_string() |> String.trim()
+
+    with {:ok, %{"kind" => kind, "id" => id}} <-
+           redo_audience(args["audience"], args["to"], turn),
+         :ok <- redo_ask(ask) do
+      audience = Kumbukumbu.audience(kind, id)
+      note = Prompt.render!("delivery_redo", %{audience: "#{kind}:#{id}", ask: ask})
+      redo_wake(turn, note, audience)
+
+      "Queued: a fresh turn of this conversation, composed for #{kind}:#{id}, runs when this one ends. What that audience may not hear is left out of it and named to it. End this turn now; anything more it delivers past the dyad is still held."
+    end
+  end
+
   # What is left to recategorize (kumbukumbu#110).
   defp call("domain_review", args, turn) do
     which = args["which"] || "both"
@@ -3589,23 +3629,15 @@ defmodule Oneiroi.Brain.Tools do
   # `used` through `feedback`, which is what teaches the use rules.
   defp call("memory_feedback", args, turn) do
     numbers = args["used"] |> List.wrap() |> Enum.flat_map(&feedback_number/1) |> Enum.uniq()
-    uses = Enum.map(numbers, &%{target: "bookmark/#{&1}", stage: "used", via: "feedback"})
-    # An empty list still says the feedback came: a turn where nothing helped.
-    uses =
-      if uses == [],
-        do: [%{target: "turn/#{turn.turn_ref}", stage: "used", via: "feedback"}],
-        else: uses
 
-    case Kumbukumbu.record_retrieval(
-           turn.resident_id,
-           turn.session_key,
-           turn.turn_ref,
-           uses,
-           turn.resident
-         ) do
-      :ok when numbers == [] -> "Noted: none of them helped this turn."
-      :ok -> "Noted: #{Enum.map_join(numbers, ", ", &"##{&1}")} helped."
-      other -> other
+    # Only what this turn was shown (kumbukumbu#112): feedback labels what
+    # the turn wrote, so a number it never saw is refused, by name.
+    case unseen(turn, numbers) do
+      [] ->
+        feedback(numbers, turn)
+
+      missing ->
+        "#{@not_done}#{Enum.map_join(missing, ", ", &"##{&1}")} #{if length(missing) == 1, do: "was", else: "were"} not in front of you this turn (not in your pins, index, timeline or madeleine, and not opened). Give only the bookmarks this turn showed you; an empty list says none helped."
     end
   end
 
@@ -3646,7 +3678,7 @@ defmodule Oneiroi.Brain.Tools do
            turn.resident_id,
            args["text"],
            turn.resident,
-           labelled(turn)
+           labelled(turn, args["text"])
          ) do
       {:ok, n} -> "Letter ##{n} written to your next self."
       other -> other
@@ -4391,7 +4423,7 @@ defmodule Oneiroi.Brain.Tools do
            args["register"],
            args["summary"],
            turn.resident,
-           labelled(turn)
+           labelled(turn, args["text"])
          ) do
       {:ok, %{day: day, number: n, kind: kind}} -> "Added #{kind} #{n} to #{day}."
       other -> other
@@ -6316,6 +6348,50 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  defp unseen(turn, numbers) do
+    case Kumbukumbu.shown_bookmarks(turn.resident_id, Map.get(turn, :turn_ref)) do
+      nil -> []
+      shown -> Enum.reject(numbers, &MapSet.member?(shown, &1))
+    end
+  end
+
+  defp feedback(numbers, turn) do
+    uses = Enum.map(numbers, &%{target: "bookmark/#{&1}", stage: "used", via: "feedback"})
+    # An empty list still says the feedback came: a turn where nothing helped.
+    uses =
+      if uses == [],
+        do: [%{target: "turn/#{turn.turn_ref}", stage: "used", via: "feedback"}],
+        else: uses
+
+    case Kumbukumbu.record_retrieval(
+           turn.resident_id,
+           turn.session_key,
+           turn.turn_ref,
+           uses,
+           turn.resident
+         ) do
+      :ok when numbers == [] ->
+        "Noted: none of them helped this turn."
+
+      :ok ->
+        relabel(turn)
+        "Noted: #{Enum.map_join(numbers, ", ", &"##{&1}")} helped."
+
+      other ->
+        other
+    end
+  end
+
+  # What the turn wrote takes what it used (kumbukumbu#112); a trial
+  # wrote nothing.
+  defp relabel(%{trial?: true}), do: :ok
+
+  defp relabel(turn) do
+    day = Oneiroi.Sunna.today(turn.resident_id).day
+    {:ok, _} = LabelPropagation.run_turn(turn.resident_id, day, turn.turn_ref)
+    :ok
+  end
+
   defp feedback_number(n) when is_integer(n) and n > 0, do: [n]
 
   defp feedback_number(n) when is_binary(n) do
@@ -6380,6 +6456,34 @@ defmodule Oneiroi.Brain.Tools do
 
   defp present(s) when is_binary(s), do: if(String.trim(s) == "", do: nil, else: String.trim(s))
   defp present(_s), do: nil
+
+  defp redo_audience(none, _to, _turn) when none in [nil, "", "none"],
+    do: @not_done <> "name the audience the delivery was withheld from."
+
+  defp redo_audience(kind, to, turn), do: oracle_audience(kind, to, turn)
+
+  defp redo_ask(""), do: @not_done <> "say in ask what the fresh turn should do."
+  defp redo_ask(_ask), do: :ok
+
+  # Queued on the session behind this turn, from outside its process: the
+  # session runs one turn at a time, and this one is still running. The
+  # session is named at the call, not aliased: it reaches the turn, which
+  # reaches these tools (the compile-connected rule's reason). A trial
+  # queues nothing.
+  defp redo_wake(%{trial?: true}, _note, _audience), do: :ok
+
+  defp redo_wake(turn, note, audience) do
+    session = Module.concat([Oneiroi, Brain, Session])
+
+    {:ok, _pid} =
+      Task.start(fn ->
+        session.wake(turn.resident_id, turn.session_key, note, Map.get(turn, :purpose, :chat),
+          audience: audience
+        )
+      end)
+
+    :ok
+  end
 
   # Named and unresolved is refused, never read as hers (kumbukumbu#92).
   defp oracle_audience(none, _to, _turn) when none in [nil, "", "none"], do: {:ok, nil}
@@ -6465,7 +6569,7 @@ defmodule Oneiroi.Brain.Tools do
                  in_reply_to: integer(args["in_reply_to"]),
                  keepsake: keepsake
                },
-               letter_labels(turn)
+               letter_labels(turn, args["text"])
              ),
              turn.resident
            ) do
@@ -6501,7 +6605,7 @@ defmodule Oneiroi.Brain.Tools do
             in_reply_to: integer(args["in_reply_to"]),
             open: args["open"] == true
           },
-          letter_labels(turn)
+          letter_labels(turn, args["text"])
         )
 
       case Kumbukumbu.send_sibling_letter(me, turn.session_key, sibling, attrs, turn.resident) do
@@ -6636,26 +6740,29 @@ defmodule Oneiroi.Brain.Tools do
       to_string(args["path"] || ""),
       to_string(args["content"] || ""),
       turn.resident,
-      provenance: provenance(turn)
+      provenance: provenance(turn, args["content"])
     )
     |> written(turn)
   end
 
-  # The writing turn and its ledger (seshat#100, kumbukumbu#83): the
-  # words inherit the taint of the context that wrote them. A trial
-  # writes nothing.
-  defp provenance(%{trial?: true}), do: nil
+  # The writing turn and its labels as a kept ledger (seshat#100,
+  # kumbukumbu#112): the words take their writing turn's domain and what
+  # they cite, never the whole context that wrote them. A trial writes
+  # nothing.
+  defp provenance(%{trial?: true}, _content), do: nil
 
-  defp provenance(turn) do
-    key = Map.get(turn, :session_key)
-    ref = Map.get(turn, :turn_ref)
+  defp provenance(turn, content) do
+    case labelled(turn, content) do
+      nil ->
+        nil
 
-    if is_binary(ref),
-      do: %{
-        session_key: key,
-        turn_ref: ref,
-        ledger: Kumbukumbu.turn_ledger(turn.resident_id, key, ref)
-      }
+      %{labels: labels} = l ->
+        %{
+          session_key: l.session_key,
+          turn_ref: l.turn_ref,
+          ledger: Kumbukumbu.labels_ledger(labels)
+        }
+    end
   end
 
   defp move_document(args, turn) do

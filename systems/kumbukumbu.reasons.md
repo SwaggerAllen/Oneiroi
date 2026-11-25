@@ -842,3 +842,12 @@ A domain the agreement does not declare is a tag nothing governs: the audience p
 
 ## #110
 The search filter (#109) shows the witness what is undeclared; she is the one whose memory it is, and a tool is how she acts on it. Moving an undeclared domain whole is the common case: the 11-14..16 tags named whole stretches of her life under slugs nobody declared, and turn-by-turn retagging of a stretch is many calls for one decision. A declared domain is refused wholesale because its policy is the dyad's agreement: emptying one by tool would move material out from under the rule both signed. Unclassified records are the ones the labels pass could not trace (no turn found, nothing kept, nothing cited), so inference cannot fix them and only she can say; a classification the next backfill silently overwrote would be no classification, hence the pass leaving it alone. The list names ids, never words, because a word read into a turn is a label on that turn.
+
+## #111
+A union is the right label for a whole only when the whole goes out together. A section in her context does not: her words draw on a line of it, and the check that held every delivery because some line somewhere was in a domain was checking the room, not the words. Deciding each piece on its own makes the tripwire fire only where a conflicting piece was actually there, and handing the judge those pieces alone keeps the review about what could have leaked, not a 75,000-character haystack a provider's filter would refuse to read.
+
+## #112
+Context is not provenance. A row that sat beside a recovery bookmark in the timeline is not about recovery, and labelling it so taught the next turn, which read the row, that it was in recovery too: the contagion that put every row of 11-25 in every domain. What a record is about is what it was written in (its turn's own domain), what it points at (its citations) and what its writer says it drew on (feedback); those are the acts that say so. Feedback and citations become labels, so they are held to what the turn was actually shown and what actually resolves. The writing turn stays a source because a row written mid-conversation about recovery and citing nothing would otherwise leak to the common room.
+
+## #113
+Once a turn has read something, nothing proves its words did not draw on it; only a turn that never read it proves that. Redoing the generation without the held pieces turns a judgement call into a construction, and costs one turn. Queued behind the calling turn because a session runs one turn at a time.

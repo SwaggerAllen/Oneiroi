@@ -1636,6 +1636,10 @@ defmodule Oneiroi.Seshat do
   @spec journal_lines(String.t()) :: {String.t(), [map()]}
   defexport(journal_lines(resident_id), do: Journals.lines(resident_id))
 
+  @doc "Today's journal with its rows as pieces, each its line and labels (kumbukumbu#111)."
+  @spec journal_text_pieces(String.t()) :: {String.t(), [map()]}
+  defexport(journal_text_pieces(resident_id), do: Journals.text_pieces(resident_id))
+
   @doc "Today's journal as the section the brain reads."
   @spec journal_text(String.t()) :: String.t()
   defexport(journal_text(resident_id), do: Journals.text(resident_id))

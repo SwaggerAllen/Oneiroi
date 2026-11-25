@@ -597,6 +597,46 @@ defmodule Oneiroi.Kumbukumbu do
       )
   )
 
+  @doc """
+  The bookmarks a turn was shown (kumbukumbu#112): every bookmark piece
+  its sections held and every bookmark it opened, by number; nil when the
+  turn kept no reads at all (a restart's turn, or a script), so a caller
+  cannot tell.
+  """
+  @spec shown_bookmarks(String.t(), String.t() | nil) :: MapSet.t() | nil
+  defexport(shown_bookmarks(resident_id, turn_ref),
+    do:
+      case TurnReads.of(resident_id, turn_ref) do
+        [] ->
+          nil
+
+        reads ->
+          for i <- reads,
+              "bookmark/" <> n <- [Map.get(i, :ref) || ""],
+              {number, ""} <- [Integer.parse(n)],
+              into: MapSet.new(),
+              do: number
+      end
+  )
+
+  @doc "The bookmarks a turn's feedback said it used (kumbukumbu#112), by number."
+  @spec feedback_used(String.t(), String.t()) :: [pos_integer()]
+  defexport(feedback_used(resident_id, turn_ref),
+    do: Memories.feedback_used(resident_id, turn_ref)
+  )
+
+  @doc "Each numbered bookmark's labels by its anchor turn's domain (kumbukumbu#111): `%{number => labels}`."
+  @spec bookmark_labels(String.t(), [pos_integer()]) :: %{pos_integer() => [map()]}
+  defexport(bookmark_labels(resident_id, numbers),
+    do: Ledger.bookmark_labels(resident_id, numbers)
+  )
+
+  @doc "A section of pieces was in a turn's context (kumbukumbu#111): each piece joins its ledger by its own labels, with its own words for a judge."
+  @spec note_pieces(String.t(), String.t() | nil, String.t(), [map()]) :: :ok
+  defexport(note_pieces(resident_id, turn_ref, name, pieces),
+    do: TurnReads.note(resident_id, turn_ref, Ledger.piece_inputs(name, pieces))
+  )
+
   @doc "A turn read a derived artifact (kumbukumbu#84): its kept labels join the turn's ledger, with its words for a judge; none kept is unclassified."
   @spec note_read_labelled(
           String.t(),

@@ -12,14 +12,17 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
   - the window's last messages, each its domain, or the common room
     when it has none (the witness's answer 3: the default classification
     is the common room);
-  - the lanes filtered to the conversation's current domain (pins, the
-    index, the madeleine, the character exemplars): that domain;
-  - the timeline's bookmarks, every domain they hold (that lane is not
-    filtered);
+  - the character, where and domain lanes: the conversation's current
+    domain;
+  - the sections of pieces (kumbukumbu#111: today's journal, the
+    timeline, the pins, the index, the madeleine), each piece by its own
+    record's labels, noted as the turn assembles;
   - what the turn read deliberately (`TurnReads`).
 
-  A generated answer inherits all of it (§3.5), so a delivery checks the
-  union: in `:hard` mode, against the audience it would reach.
+  A delivery checks the union of what its turn held: in `:hard` mode,
+  against the audience it would reach. What a record the turn writes
+  keeps is narrower (kumbukumbu#112): its turn's domain, its citations,
+  its feedback.
   """
 
   alias Oneiroi.AgathosDaimon
@@ -49,8 +52,7 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
   defp window_inputs(resident_id, session_key, window),
     do:
       identity(resident_id) ++
-        messages(resident_id, session_key, window) ++
-        lanes(resident_id, session_key) ++ timeline(resident_id)
+        messages(resident_id, session_key, window) ++ lanes(resident_id, session_key)
 
   @doc "The window's messages, labelled by their domains, one input per stored row (kumbukumbu#81)."
   def message_inputs(resident_id, session_key, window \\ @window),
@@ -105,6 +107,20 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
           text: text,
           labels: read_label(label)
         }
+  end
+
+  @doc """
+  A section's pieces as inputs (kumbukumbu#111): each piece (`%{ref,
+  labels, text}`, its words an exact span of the section) one input per
+  label, its own words with it, so what a delivery is held by, and what a
+  judge is shown, is that piece and never the section around it.
+  """
+  def piece_inputs(name, pieces) do
+    Enum.flat_map(pieces, fn p ->
+      "section/#{name}/#{p.ref}"
+      |> read_inputs(p.ref, p.labels, p.text)
+      |> Enum.map(&Map.put(&1, :piece, p.ref))
+    end)
   end
 
   defp read_label(label) do
@@ -286,7 +302,10 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
   # into this room. Those of unsure provenance are unclassified; the rest
   # (her prompt, her own files, her state, her plans) are the
   # common room.
-  @lane_sections ~w(pins index madeleine character where domain)
+  # Pins, the index, the madeleine, the journal and the timeline carry
+  # their pieces' own labels (kumbukumbu#111): each line its bookmark's or
+  # its row's, never the room's.
+  @lane_sections ~w(character where domain)
   @unclassified_sections ~w(summary self-conversation)
 
   @doc """
@@ -304,12 +323,26 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
 
     sections =
       Enum.flat_map(Enum.uniq(names), fn
+        # A section of pieces (kumbukumbu#111): each piece its own inputs.
+        {name, {:pieces, pieces}, _text} ->
+          name |> piece_inputs(pieces) |> Enum.map(&Map.put(&1, :section, name))
+
         # A section with labels of its own (kumbukumbu#84), one input each.
         {name, labels, text} ->
-          read_inputs("section/" <> name, name, labels, text)
+          "section/"
+          |> Kernel.<>(name)
+          |> read_inputs(name, labels, text)
+          |> Enum.map(&Map.put(&1, :section, name))
 
         name ->
-          [%{id: "section/" <> name, ref: name, labels: section_label(name, lane, timeline)}]
+          [
+            %{
+              id: "section/" <> name,
+              ref: name,
+              section: name,
+              labels: section_label(name, lane, timeline)
+            }
+          ]
       end)
 
     numbered = Enum.with_index(rows)
@@ -325,6 +358,7 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
 
     decision = Audience.decide_for(resident_id, sections ++ messages, audience, :soft)
     kept = MapSet.new(decision.allowed)
+    pieced = for {name, {:pieces, _}, _text} <- names, into: MapSet.new(), do: name
 
     TurnReads.assembled(
       resident_id,
@@ -333,12 +367,23 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
     )
 
     %{
-      # A section is kept when every input it was decided by is.
+      # A section is kept when every input it was decided by is; a
+      # section of pieces always is, without the pieces held (`cut`).
       sections:
         sections
-        |> Enum.group_by(& &1.ref)
-        |> Enum.filter(fn {_ref, ins} -> Enum.all?(ins, &(&1.id in kept)) end)
+        |> Enum.group_by(& &1.section)
+        |> Enum.filter(fn {name, ins} ->
+          MapSet.member?(pieced, name) or Enum.all?(ins, &(&1.id in kept))
+        end)
         |> Enum.map(&elem(&1, 0)),
+      cut:
+        for(
+          i <- sections,
+          MapSet.member?(pieced, i.section),
+          i.id not in kept,
+          reduce: %{},
+          do: (acc -> Map.update(acc, i.section, [i.piece], &Enum.uniq([i.piece | &1])))
+        ),
       # Her soul is never withheld and never taints (kumbukumbu#91, the
       # witness's ruling): the lines her annotations keep from this
       # audience are named to her as guidance, each with why.
@@ -441,6 +486,12 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
   # in a domain, never the common room's; the other lanes whole.
   defp fragment(resident_id, sections, %{id: "lanes"} = input) do
     case for(name <- @lane_sections, text = sections[name], is_binary(text), do: {name, text}) do
+      # The turn's sections were kept and none of them is a lane: the
+      # lanes held nothing to show (kumbukumbu#111: the bookmark lanes are
+      # pieces of their own). Kept nothing at all: unproven.
+      [] when map_size(sections) > 0 ->
+        %{ref: "the turn's memory lanes", text: ""}
+
       [] ->
         nil
 
@@ -558,6 +609,29 @@ defmodule Oneiroi.Kumbukumbu.Ledger do
           text: Enum.map_join(messages, "\n", &"#{&1.role}: #{&1.content}")
         }
     end
+  end
+
+  @doc """
+  Each numbered bookmark's labels, by its anchor turn's domain
+  (kumbukumbu#111): `%{number => [%{"person", "domain"}] | [%{"kind" =>
+  "common_room"}]}`; a number not found is left out.
+  """
+  def bookmark_labels(_resident_id, []), do: %{}
+
+  def bookmark_labels(resident_id, numbers) do
+    anchors = Scope.resident(resident_id, fn -> Store.bookmark_anchors(Enum.uniq(numbers)) end)
+
+    resident_id
+    |> Domains.attach(anchors)
+    |> Map.new(fn b ->
+      labels =
+        case b.domain_key do
+          nil -> [%{"kind" => "common_room"}]
+          %{person: p, domain: d} -> [%{"person" => p, "domain" => d}]
+        end
+
+      {b.number, labels}
+    end)
   end
 
   @doc "The labels of inputs a tool read: a bookmark opened, a transcript turn read."

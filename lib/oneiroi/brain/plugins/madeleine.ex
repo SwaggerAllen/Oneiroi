@@ -8,6 +8,7 @@ defmodule Oneiroi.Brain.Plugins.Madeleine do
   import Oneiroi.Brain.Plugin, only: [section: 4]
 
   alias Oneiroi.AgathosDaimon.Local
+  alias Oneiroi.Brain.Pieces
   alias Oneiroi.Kumbukumbu
 
   @impl Oneiroi.Brain.Plugin
@@ -44,9 +45,11 @@ defmodule Oneiroi.Brain.Plugins.Madeleine do
   end
 
   defp madeleine_section(turn, recall) do
-    section(
-      "madeleine",
-      madeleine_text(recall, Local.zone(turn.resident_id)),
+    zone = Local.zone(turn.resident_id)
+
+    "madeleine"
+    |> section(
+      madeleine_text(recall, zone),
       recall &&
         "the madeleine (spec §6.3, P10), by nearness and never by rank: #{recall.reason}",
       # The text rides the row, as the index's does, so the recall is
@@ -56,7 +59,14 @@ defmodule Oneiroi.Brain.Plugins.Madeleine do
         refs: (recall && [recall.bookmark.number]) || []
       }
     )
+    # The recalled bookmark is its own piece (kumbukumbu#111).
+    |> Pieces.put(recalled(turn.resident_id, recall, zone))
   end
+
+  defp recalled(_resident_id, nil, _zone), do: []
+
+  defp recalled(resident_id, %{bookmark: b}, zone),
+    do: Pieces.bookmarks(resident_id, [{b.number, recall_body(b, zone)}])
 
   defp madeleine(%{preview?: true}, _vector, _indexed), do: nil
 
@@ -66,7 +76,12 @@ defmodule Oneiroi.Brain.Plugins.Madeleine do
   defp madeleine_text(nil, _zone), do: ""
 
   defp madeleine_text(%{bookmark: b}, zone) do
-    "# A madeleine\n\nAdjacent to this and unheard for a while, surfaced by nearness and not by rank; whether it belongs here is mine to decide.\n\n##{b.number} #{Local.day(zone, b.anchor_at)}: #{b.line}" <>
-      if(b.summary in [nil, ""], do: "", else: "\n#{b.summary}")
+    "# A madeleine\n\nAdjacent to this and unheard for a while, surfaced by nearness and not by rank; whether it belongs here is mine to decide.\n\n" <>
+      recall_body(b, zone)
   end
+
+  defp recall_body(b, zone),
+    do:
+      "##{b.number} #{Local.day(zone, b.anchor_at)}: #{b.line}" <>
+        if(b.summary in [nil, ""], do: "", else: "\n#{b.summary}")
 end
