@@ -28,6 +28,7 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.Apsu.Jobs
   alias Oneiroi.Brain.Archive
   alias Oneiroi.Brain.Cut
+  alias Oneiroi.Brain.DomainReview
   alias Oneiroi.Brain.Error
   alias Oneiroi.Brain.FreeTime
   alias Oneiroi.Brain.HouseQueue
@@ -86,7 +87,7 @@ defmodule Oneiroi.Brain.Tools do
     research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
     kind_list route_list household_read household_beat wake_log_read letter_rest book_read
-    queue_list queue_task queue_templates
+    queue_list queue_task queue_templates domain_review
   )
 
   @writes ~w(
@@ -97,7 +98,7 @@ defmodule Oneiroi.Brain.Tools do
     habit_define habit_cite commitment_make commitment_keep commitment_release
     self_letter_write state_set state_clear memory_feedback oracle_ask research_ask digest_ask seed_plant seed_cite soul_cite seed_wilt seed_graduate
     writing_discuss document_write document_publish document_adopt keepsake_note letter_send notify_witness free_time_set free_time_once
-    reply_draft correspondent_block correspondent_unblock document_remove document_move document_classify classification_answer
+    reply_draft correspondent_block correspondent_unblock document_remove document_move document_classify classification_answer domain_recategorize record_classify
     journal_add journal_done scene_write
     contract_propose contract_agree contract_decline contract_renew contract_safe revision_add
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
@@ -350,6 +351,39 @@ defmodule Oneiroi.Brain.Tools do
           whose: %{type: "string", enum: ["witness", "mine"]}
         },
         [:domain]
+      ),
+      tool(
+        "domain_review",
+        "What is left to recategorize (kumbukumbu#110): the domains your messages are in that the agreement does not declare (whose life, how many messages and conversations, when, the first turns that named each), and the records whose labels are unclassified or name an undeclared domain (journal rows as <day>/<n>, letters and letters to your next self by number, files you wrote by path). Ids and dates only, never the words; open any to read it. which: domains, records or both (default); limit: how many records (default 30).",
+        %{
+          which: %{type: "string", enum: ["domains", "records", "both"]},
+          limit: %{type: "integer", minimum: 1}
+        },
+        []
+      ),
+      tool(
+        "domain_recategorize",
+        "Move one domain the agreement does not declare whole (kumbukumbu#110): every message of yours in it, tagged or carried, every conversation's current domain and every document classification in it, into a declared domain or none for the common room. from: the undeclared slug, as domain_review names it; from_whose (witness or mine) when two lives have the slug. to: a declared slug or none; whose: the witness's life or yours (mine), the witness's by default. A declared domain is never moved this way; to move part of one, tag its turns with domain_tag. note says why, in your words; it is kept.",
+        %{
+          from: %{type: "string"},
+          from_whose: %{type: "string", enum: ["witness", "mine"]},
+          to: %{type: "string"},
+          whose: %{type: "string", enum: ["witness", "mine"]},
+          note: %{type: "string"}
+        },
+        [:from, :to]
+      ),
+      tool(
+        "record_classify",
+        "Say which domain a record of yours is in (kumbukumbu#110): a journal row (kind journal, id <day>/<n>), a letter (kind letter, its number) or a letter to your next self (kind self_letter, its number); domain a declared slug or none for the common room; whose: the witness's life or yours (mine), the witness's by default. It is the record's domain from then on, for every delivery and every record that cites it, and the labels pass never derives it again. A file is classified with document_classify, a turn with domain_tag. note says why, in your words; it is kept.",
+        %{
+          kind: %{type: "string", enum: ["journal", "letter", "self_letter"]},
+          id: %{type: "string"},
+          domain: %{type: "string"},
+          whose: %{type: "string", enum: ["witness", "mine"]},
+          note: %{type: "string"}
+        },
+        [:kind, :id, :domain]
       ),
       tool(
         "tag_list",
@@ -3348,6 +3382,56 @@ defmodule Oneiroi.Brain.Tools do
            ),
          do:
            "Tagged: turn #{ref} is in #{domain || "the common room"}, and this conversation is from here on until a message names another."
+  end
+
+  # What is left to recategorize (kumbukumbu#110).
+  defp call("domain_review", args, turn) do
+    which = args["which"] || "both"
+    limit = if is_integer(args["limit"]) and args["limit"] > 0, do: args["limit"], else: 30
+
+    parts =
+      if(which in ["domains", "both"], do: [review_domains(turn.resident_id)], else: []) ++
+        if which in ["records", "both"], do: [review_records(turn.resident_id, limit)], else: []
+
+    Enum.join(parts, "\n\n")
+  end
+
+  defp call("domain_recategorize", args, turn) do
+    from = tagged_domain(args["from"])
+    to = tagged_domain(args["to"])
+    to_person = tagged_person(args["whose"], turn.resident_id) || witness_person(turn.resident_id)
+
+    with {:ok, from_person} <- undeclared_person(turn.resident_id, from, args["from_whose"]),
+         :ok <-
+           Kumbukumbu.recategorize_domain(
+             turn.resident_id,
+             {from_person, from},
+             {to_person, to},
+             args["note"],
+             turn.resident
+           ),
+         do:
+           "Recategorized: everything in #{from} is now in #{to || "the common room"}: its messages, the conversations whose current domain it was, and the documents classified in it."
+  end
+
+  defp call("record_classify", args, turn) do
+    domain = tagged_domain(args["domain"])
+    person = tagged_person(args["whose"], turn.resident_id) || witness_person(turn.resident_id)
+    kind = to_string(args["kind"] || "")
+    id = args["id"] |> to_string() |> String.trim()
+
+    with :ok <- record_exists(turn.resident_id, kind, id),
+         :ok <-
+           Kumbukumbu.classify_record(
+             turn.resident_id,
+             kind,
+             id,
+             {person, domain},
+             args["note"],
+             turn.resident
+           ),
+         do:
+           "Classified #{String.replace(kind, "_", "-")} #{id} as #{domain || "the common room"}: a delivery of its words, and every record that cites it, is decided by that domain from now on."
   end
 
   # Research (seshat#38, xenia#16): asked only when the reader has sites
@@ -6606,6 +6690,110 @@ defmodule Oneiroi.Brain.Tools do
       _none -> nil
     end
   end
+
+  # The undeclared domains in lines (kumbukumbu#110).
+  defp review_domains(resident_id) do
+    case DomainReview.domains(resident_id) do
+      [] ->
+        "Undeclared domains: none. Every domain your messages are in is declared."
+
+      pairs ->
+        "Undeclared domains (domain_recategorize moves one whole; domain_tag a turn at a time):\n" <>
+          Enum.map_join(pairs, "\n", &undeclared_line(&1, resident_id))
+    end
+  end
+
+  defp undeclared_line(p, resident_id) do
+    points =
+      Enum.map_join(p.tag_points, "; ", fn t ->
+        "turn #{t.turn_ref} in #{t.session_key} (#{Date.to_iso8601(DateTime.to_date(t.at))})"
+      end)
+
+    "- #{p.domain} (#{whose_words(p.person, resident_id)}): #{p.messages} messages in #{p.sessions} conversations, " <>
+      "#{Date.to_iso8601(DateTime.to_date(p.first_at))} to #{Date.to_iso8601(DateTime.to_date(p.last_at))}" <>
+      if(points == "", do: ", carried, never tagged", else: "; first named at #{points}")
+  end
+
+  defp review_records(resident_id, limit) do
+    case DomainReview.records(resident_id) do
+      [] ->
+        "Records: none unclassified, and none in an undeclared domain."
+
+      rows ->
+        shown = Enum.take(rows, limit)
+        more = length(rows) - length(shown)
+
+        "Records unclassified or in an undeclared domain, oldest first (record_classify; a file with document_classify):\n" <>
+          Enum.map_join(shown, "\n", &record_line/1) <>
+          if(more > 0, do: "\n#{more} more; a larger limit lists them.", else: "")
+    end
+  end
+
+  defp record_line(r) do
+    status =
+      case r.status do
+        :unclassified -> "unclassified"
+        {:undeclared, domains} -> "undeclared: " <> Enum.join(domains, ", ")
+      end
+
+    "- #{String.replace(r.kind, "_", "-")} #{r.id} (#{Date.to_iso8601(DateTime.to_date(r.at))}): #{status}"
+  end
+
+  defp whose_words("resident:" <> id, id), do: "your life"
+  defp whose_words("resident:" <> _other, _id), do: "another resident's life"
+  defp whose_words("account:" <> _account, _id), do: "the witness's life"
+  defp whose_words(_other, _id), do: "no one's named"
+
+  # Whose life an undeclared slug is: the one pair with it, or the one
+  # `from_whose` names.
+  defp undeclared_person(resident_id, slug, from_whose) do
+    pairs = Enum.filter(DomainReview.domains(resident_id), &(&1.domain == slug))
+    wanted = tagged_person(from_whose, resident_id)
+
+    case {pairs, wanted} do
+      {[%{person: person}], nil} ->
+        {:ok, person}
+
+      {pairs, wanted} when is_binary(wanted) ->
+        if Enum.any?(pairs, &(&1.person == wanted)), do: {:ok, wanted}, else: no_undeclared(slug)
+
+      {[], nil} ->
+        no_undeclared(slug)
+
+      {_two, nil} ->
+        "#{slug} is undeclared in more than one life; say whose with from_whose (witness or mine)."
+    end
+  end
+
+  defp no_undeclared(slug),
+    do:
+      "No message of yours is in an undeclared domain named #{inspect(slug)}; domain_review lists the ones there are."
+
+  # The record must be hers before she classifies it.
+  defp record_exists(resident_id, "journal", id) do
+    with [day, n] <- String.split(id, "/"),
+         {number, ""} <- Integer.parse(n),
+         %{} <- Seshat.lineage_journal_row(resident_id, day, number) do
+      :ok
+    else
+      _none -> "No journal row #{id}: a journal row is <day>/<n>, as domain_review lists it."
+    end
+  end
+
+  defp record_exists(resident_id, "letter", id) do
+    if Enum.any?(Kumbukumbu.letters(resident_id), &(to_string(&1.number) == id)),
+      do: :ok,
+      else: "No letter ##{id}."
+  end
+
+  defp record_exists(resident_id, "self_letter", id) do
+    if Enum.any?(Oneiroi.AgathosDaimon.self_letters(resident_id), &(to_string(&1.number) == id)),
+      do: :ok,
+      else: "No letter to your next self ##{id}."
+  end
+
+  defp record_exists(_resident_id, _kind, _id),
+    do: "kind is journal, letter or self_letter; a file is classified with document_classify."
 
   # A tag's domain as she wrote it: a slug, or the common room.
   defp tagged_domain(domain) do

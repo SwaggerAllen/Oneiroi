@@ -255,4 +255,24 @@ defmodule Oneiroi.Kumbukumbu.Events.Memory do
     # on their own events, as history; this is a new decision beside them.
     use Oneiroi.Event, version: 1, fields: [:id, :day, :records, :note]
   end
+
+  defmodule DomainRecategorized do
+    # One undeclared domain moved whole (kumbukumbu#110): every message
+    # of hers in `from_person`/`from_domain`, tagged or carried, every
+    # conversation's current domain and every document classification in
+    # it, now in `to_person`/`to_domain` (nil: the common room). Hers, a
+    # recategorization of what no agreement declared; a declared domain
+    # is never moved this way.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :from_person, :from_domain, :to_person, :to_domain, :note]
+  end
+
+  defmodule RecordClassified do
+    # Her classification of a record that keeps labels (kumbukumbu#110):
+    # a journal row (`<day>/<n>`), a letter or a letter to her next self
+    # (its number), in `person`/`domain` (nil: the common room). It
+    # stands over what the labels pass derives, which never overwrites it.
+    use Oneiroi.Event, version: 1, fields: [:id, :kind, :record_id, :person, :domain, :note]
+  end
 end

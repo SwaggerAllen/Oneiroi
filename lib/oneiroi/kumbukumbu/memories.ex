@@ -1150,6 +1150,95 @@ defmodule Oneiroi.Kumbukumbu.Memories do
     with {:ok, _} <- dispatch(command), do: :ok
   end
 
+  @doc """
+  One domain her agreement does not declare moved whole to a declared
+  one, or the common room (kumbukumbu#110): her messages in it, tagged
+  or carried, her conversations' current domain, her documents'
+  classifications. Refused for a declared domain, which moves by
+  agreement, and for a target the agreement does not declare.
+  """
+  def recategorize_domain(
+        resident_id,
+        {from_person, from_domain},
+        {to_person, to_domain},
+        note,
+        %Actor{} = actor
+      ) do
+    cond do
+      AgathosDaimon.domain_declared?(resident_id, from_person, from_domain) ->
+        {:error,
+         Error.new(:kumbukumbu_domain_declared, :kumbukumbu_memories_recategorize_declared,
+           domain: from_domain
+         )}
+
+      to_domain != nil and not AgathosDaimon.domain_declared?(resident_id, to_person, to_domain) ->
+        {:error,
+         Error.new(:kumbukumbu_domain_undeclared, :kumbukumbu_memories_recategorize_undeclared,
+           domain: to_domain,
+           declared: Enum.map(AgathosDaimon.declared_domains(resident_id), & &1.domain)
+         )}
+
+      true ->
+        command = %Commands.RecategorizeDomain{
+          actor: actor,
+          at: Clock.now(),
+          id: resident_id,
+          from_person: from_person,
+          from_domain: from_domain,
+          to_person: to_person,
+          to_domain: to_domain,
+          note: note
+        }
+
+        with {:ok, _} <- dispatch(command), do: :ok
+    end
+  end
+
+  @doc """
+  Her classification of a record that keeps labels (kumbukumbu#110): a
+  journal row (`<day>/<n>`), a letter or a letter to her next self, in a
+  declared domain or the common room (`domain` nil). The labels pass
+  leaves it as she set it.
+  """
+  def classify_record(resident_id, kind, record_id, {person, domain}, note, %Actor{} = actor) do
+    if domain != nil and not AgathosDaimon.domain_declared?(resident_id, person, domain) do
+      {:error,
+       Error.new(:kumbukumbu_domain_undeclared, :kumbukumbu_memories_classify_undeclared,
+         domain: domain,
+         declared: Enum.map(AgathosDaimon.declared_domains(resident_id), & &1.domain)
+       )}
+    else
+      command = %Commands.ClassifyRecord{
+        actor: actor,
+        at: Clock.now(),
+        id: resident_id,
+        kind: kind,
+        record_id: to_string(record_id),
+        person: person,
+        domain: domain,
+        note: note
+      }
+
+      with {:ok, _} <- dispatch(command), do: :ok
+    end
+  end
+
+  @doc "Each domain her messages are in (kumbukumbu#110): `%{person, domain, messages, sessions, first_at, last_at}`."
+  def domain_pairs(resident_id), do: Scope.resident(resident_id, fn -> Store.domain_pairs() end)
+
+  @doc "The turns that named a domain by its tag, oldest first, at most `limit` (kumbukumbu#110)."
+  def tag_points_of(resident_id, person, domain, limit),
+    do: Scope.resident(resident_id, fn -> Store.tag_points_of(person, domain, limit) end)
+
+  @doc "The records of `kind` she classified herself (kumbukumbu#110): `%{record_id => labels}`; every one when `ids` is nil."
+  def classified_labels(resident_id, kind, ids) do
+    ids = if ids, do: Enum.map(ids, &to_string/1)
+
+    resident_id
+    |> Scope.resident(fn -> Store.classified_labels(kind, ids) end)
+    |> Map.new()
+  end
+
   @doc "The derived labels of records of `kind` by id (kumbukumbu#101): `%{record_id => labels}`, only those derived."
   def derived_labels(resident_id, kind, ids) do
     ids = Enum.map(ids, &to_string/1)

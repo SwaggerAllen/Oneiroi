@@ -96,6 +96,8 @@ defmodule Oneiroi.Kumbukumbu do
       Events.Memory.HouseLettersRead,
       Events.Memory.LabelsDerived,
       Events.Memory.UndeclaredDomainsCleared,
+      Events.Memory.DomainRecategorized,
+      Events.Memory.RecordClassified,
       Store.DerivedLabel,
       Store.Revision,
       Store.HouseLetter,
@@ -383,6 +385,8 @@ defmodule Oneiroi.Kumbukumbu do
       {Oneiroi.Kumbukumbu.Events.Memory.HouseLettersRead, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.LabelsDerived, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.UndeclaredDomainsCleared, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.DomainRecategorized, 1},
+      {Oneiroi.Kumbukumbu.Events.Memory.RecordClassified, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagProposed, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagApproved, 1},
       {Oneiroi.Kumbukumbu.Events.Memory.TagRejected, 1},
@@ -444,6 +448,14 @@ defmodule Oneiroi.Kumbukumbu do
       {:kumbukumbu_revision_text_invalid,
        "a revision is one text of at most 2,000 characters, not blank",
        remedy: "say what is right"},
+      {:kumbukumbu_record_kind_invalid,
+       "a record classified here is a journal row (`<day>/<n>`), a letter or a letter to her next self (its number), and one she has (kumbukumbu#110)",
+       remedy:
+         "name journal, letter or self_letter and its id; a file is classified with document_classify, a turn's messages with domain_tag"},
+      {:kumbukumbu_domain_declared,
+       "only a domain the agreement does not declare is recategorized whole (kumbukumbu#110): a declared one moves by agreement",
+       remedy:
+         "name a domain domain_review lists as undeclared; to move one turn of a declared domain, tag that turn"},
       {:kumbukumbu_domain_undeclared,
        "that domain is not declared in the agreement in force: a domain is named only once the dyad has declared it with its policy (kumbukumbu#90, agathos-daimon#57)",
        remedy:
@@ -1464,6 +1476,47 @@ defmodule Oneiroi.Kumbukumbu do
   @spec clear_undeclared_domains(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(clear_undeclared_domains(resident_id, actor),
     do: Memories.clear_undeclared_domains(resident_id, actor)
+  )
+
+  @doc "One undeclared domain moved whole to a declared one or the common room (kumbukumbu#110); each side `{person, domain}`, the target's domain nil for the common room."
+  @spec recategorize_domain(
+          String.t(),
+          {String.t(), String.t()},
+          {String.t() | nil, String.t() | nil},
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) :: :ok | {:error, term()}
+  defexport(recategorize_domain(resident_id, from, to, note, actor),
+    do: Memories.recategorize_domain(resident_id, from, to, note, actor)
+  )
+
+  @doc "Her classification of a journal row, letter or letter to her next self (kumbukumbu#110); `{person, domain}`, domain nil for the common room."
+  @spec classify_record(
+          String.t(),
+          String.t(),
+          String.t() | integer(),
+          {String.t() | nil, String.t() | nil},
+          String.t() | nil,
+          Oneiroi.Actor.t()
+        ) :: :ok | {:error, term()}
+  defexport(classify_record(resident_id, kind, record_id, class, note, actor),
+    do: Memories.classify_record(resident_id, kind, record_id, class, note, actor)
+  )
+
+  @doc "Each domain her messages are in (kumbukumbu#110): `%{person, domain, messages, sessions, first_at, last_at}`."
+  @spec domain_pairs(String.t()) :: [map()]
+  defexport(domain_pairs(resident_id), do: Memories.domain_pairs(resident_id))
+
+  @doc "The turns that named a domain by its tag, oldest first, at most `limit` (kumbukumbu#110)."
+  @spec tag_points_of(String.t(), String.t(), String.t(), pos_integer()) :: [map()]
+  defexport(tag_points_of(resident_id, person, domain, limit),
+    do: Memories.tag_points_of(resident_id, person, domain, limit)
+  )
+
+  @doc "The records of `kind` she classified herself (kumbukumbu#110): `%{record_id => labels}`; every one when `ids` is nil."
+  @spec classified_labels(String.t(), String.t(), [term()] | nil) :: %{String.t() => [map()]}
+  defexport(classified_labels(resident_id, kind, ids),
+    do: Memories.classified_labels(resident_id, kind, ids)
   )
 
   @doc ~s[Records a day's derived labels (kumbukumbu#101): each `%{"kind", "record_id", "labels", "edges"}`.]

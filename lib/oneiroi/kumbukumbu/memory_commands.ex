@@ -131,4 +131,13 @@ defmodule Oneiroi.Kumbukumbu.MemoryCommands do
   defmodule DeriveLabels do
     use Oneiroi.Command, fields: [:id, :day, :records, :note]
   end
+
+  defmodule RecategorizeDomain do
+    use Oneiroi.Command,
+      fields: [:id, :from_person, :from_domain, :to_person, :to_domain, :note]
+  end
+
+  defmodule ClassifyRecord do
+    use Oneiroi.Command, fields: [:id, :kind, :record_id, :person, :domain, :note]
+  end
 end

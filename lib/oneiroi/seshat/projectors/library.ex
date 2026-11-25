@@ -5,6 +5,7 @@ defmodule Oneiroi.Seshat.Projectors.Library do
   import Ecto.Query, only: [from: 2]
 
   alias Ecto.Multi
+  alias Oneiroi.Kumbukumbu.Events.Memory.DomainRecategorized
   alias Oneiroi.Kumbukumbu.Events.Memory.UndeclaredDomainsCleared
   alias Oneiroi.Seshat.Events
   alias Oneiroi.Seshat.Kinds
@@ -78,6 +79,30 @@ defmodule Oneiroi.Seshat.Projectors.Library do
 
       {:ok, :cleared}
     end)
+  end)
+
+  # One undeclared domain moved whole (kumbukumbu#110): the documents she
+  # classified into it, and his proposals of it, now name hers.
+  fold(%DomainRecategorized{} = e, _metadata, fn multi ->
+    multi
+    |> Multi.update_all(
+      :recategorized_classified,
+      from(d in Document,
+        where:
+          d.resident_id == ^e.id and d.class_person == ^e.from_person and
+            d.class_domain == ^e.from_domain
+      ),
+      set: [class_person: e.to_person, class_domain: e.to_domain]
+    )
+    |> Multi.update_all(
+      :recategorized_proposed,
+      from(d in Document,
+        where:
+          d.resident_id == ^e.id and d.proposed_person == ^e.from_person and
+            d.proposed_domain == ^e.from_domain
+      ),
+      set: [proposed_person: e.to_person, proposed_domain: e.to_domain]
+    )
   end)
 
   fold(%Events.DocumentWritten{} = e, _metadata, fn multi ->
