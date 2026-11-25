@@ -10,6 +10,8 @@ defmodule Oneiroi.Kumbukumbu.DeclaredDomainsTest do
 
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.BackfillNotes
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Fixtures
   alias Oneiroi.Kumbukumbu
@@ -204,7 +206,7 @@ defmodule Oneiroi.Kumbukumbu.DeclaredDomainsTest do
     assert AgathosDaimon.domain_descriptions(ctx.id) == %{{his, "recovery"} => covers}
 
     # The backfill's lists say it beside the slug.
-    at = Oneiroi.Apsu.Clock.now()
+    at = Clock.now()
 
     :ok =
       Kumbukumbu.capture(
@@ -219,7 +221,7 @@ defmodule Oneiroi.Kumbukumbu.DeclaredDomainsTest do
     day = Oneiroi.Sunna.today(ctx.id).day
 
     assert {:ok, note} =
-             Oneiroi.Brain.BackfillNotes.note(ctx.id, "domains", day, 1, %{"his" => ["recovery"]})
+             BackfillNotes.note(ctx.id, "domains", day, 1, %{"his" => ["recovery"]})
 
     assert note =~ "His domains: recovery (#{covers})."
 
