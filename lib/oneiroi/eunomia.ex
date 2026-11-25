@@ -153,9 +153,9 @@ defmodule Oneiroi.Eunomia do
        usage:
          "how many tests one regression run may hold; a bound on the witness's spend and the grader's deck"},
       {:judge_model, "EUNOMIA_JUDGE_MODEL",
-       default: "anthropic/claude-sonnet-4.5",
+       default: "google/gemini-4-argon",
        usage:
-         "the platform's judge model (F41), used unless the witness chooses another; a dated slug is what comparability wants and this default is a placeholder the author pins, not measured"},
+         "the platform's judge model (F41), used unless the witness chooses another: never a Claude model, so the judge is not the family the residents run on, and the Claude family's content filter refused the held-back material it is shown (eunomia#36)"},
       {:judge_fallback_model, "EUNOMIA_JUDGE_FALLBACK_MODEL",
        required: false,
        usage:
