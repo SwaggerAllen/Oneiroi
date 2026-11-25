@@ -131,6 +131,63 @@ defmodule Oneiroi.Sunna.MechanicalTest do
     refute WorkLoop.due?(ctx.id) and act(ctx, n, "#{n}.2").view == "ready"
   end
 
+  # sunna#105 (the witness, 2026-11-25: "promotion doesn't necessarily
+  # need a review step before it"): a promote step alone opens, and the
+  # platform promotes her latest draft.
+  test "a promotion with no review in front of it opens and is done on her latest draft", ctx do
+    {:ok, _} =
+      Seshat.write(
+        ctx.id,
+        "design/plain.md",
+        "---\ntitle: Plain\n---\n\nNo review needed.\n",
+        ctx.wren
+      )
+
+    {:ok, n} =
+      Sunna.queue_open_task(
+        ctx.h,
+        %{
+          project: "p",
+          slug: "plain",
+          title: "Share it plainly",
+          outcome: "in the house",
+          layers: [
+            [
+              %{
+                type: "promote-to-house",
+                assignee: "resident:#{ctx.id}",
+                artifact: "#{ctx.slug}:design/plain.md",
+                destination: "house"
+              }
+            ]
+          ]
+        },
+        ctx.wren
+      )
+
+    _ = WorkLoop.check(ctx.id)
+    assert %{status: "done"} = act(ctx, n, "#{n}.1")
+
+    {:ok, %{content: copy}} =
+      Seshat.household_read(ctx.andrew, "shared/#{ctx.slug}/design/plain.md")
+
+    assert copy =~ "No review needed."
+
+    # A promotion still names what it promotes.
+    assert {:error, %{kind: :sunna_queue_shape}} =
+             Sunna.queue_open_task(
+               ctx.h,
+               %{
+                 project: "p",
+                 slug: "none",
+                 title: "Nothing named",
+                 outcome: "x",
+                 layers: [[%{type: "promote-to-house", assignee: "resident:#{ctx.id}"}]]
+               },
+               ctx.wren
+             )
+  end
+
   defp act(ctx, n, id),
     do: Enum.find(List.flatten(Sunna.queue_task(ctx.h, n).layers), &(&1.act_id == id))
 end

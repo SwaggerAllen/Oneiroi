@@ -674,3 +674,6 @@ Blockers say what cannot start; nothing said what should start first, so every l
 
 ## #104
 A promotion is one call with nothing to decide: the document, the revision its review approved, the house's default terms. Spending an agent run on it cost a conversation, turns and a disclosure review of the run's whole context, and the runs failed on exactly the gate the call itself passes cleanly. Doing it as the platform, in her name and through the same library checks, keeps every guard and drops the agent; taking it for her when the library refuses keeps a refusal from being retried every minute and leaves the judgment to her.
+
+## #105
+Sharing a document into the house is not an act on the world the way a send, a spend or a merge is: the house is the household's own room, a promoted copy is read-only and says where it came from, and the author can unpromote it. A required review in front of every promotion made a witness's approval the gate on a resident sharing her own work with her own house. Where a household wants the review, its template still puts one there, and that review still governs the revision that goes.

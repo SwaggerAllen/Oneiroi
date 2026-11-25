@@ -520,7 +520,7 @@ defmodule Oneiroi.Sunna do
        "the move is not yours: an activity is worked by its assignee, the task's owner or a witness, a review decided by its assignee alone, a task dropped by its owner or a witness",
        remedy: "ask its assignee or owner, or have it assigned to you"},
       {:sunna_queue_shape,
-       "a gated activity (send, publish, spend, merge, promote-to-house) sits only in the layer directly after a review of the same artifact naming its destination and action (§6.1), and names its artifact",
+       "a gated activity (send, publish, spend, merge) sits only in the layer directly after a review of the same artifact naming its destination and action (§6.1), and names its artifact; a promote-to-house names its artifact, its review optional (sunna#105)",
        remedy:
          "put the review in the layer before it, with the same artifact, destination and action"},
       {:sunna_queue_import_gated,

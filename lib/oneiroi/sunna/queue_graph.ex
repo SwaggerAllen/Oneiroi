@@ -31,10 +31,19 @@ defmodule Oneiroi.Sunna.QueueGraph do
   """
 
   @finished ~w(done skipped)
-  @gated ~w(send publish spend merge promote-to-house)
+  @gated ~w(send publish spend merge)
+  # A promotion needs no review in front of it (sunna#105; the witness,
+  # 2026-11-25), but one that stands there still governs it.
+  @guarded @gated ++ ~w(promote-to-house)
 
-  @doc "The activity types a review must stand in front of (§6.1)."
+  @doc "The activity types a review must stand in front of (§6.1); promote-to-house no longer (sunna#105)."
   def gated_types, do: @gated
+
+  @doc "The activity types a review in front of them governs when there is one (sunna#105): the gated types and promote-to-house."
+  def guarded_types, do: @guarded
+
+  @doc "The activity types that act on a named artifact and so must name one."
+  def artifact_types, do: @guarded
 
   @doc "Whether a task is complete: dropped, or every layer done or skipped."
   def complete?(%{status: "dropped"}, _acts), do: true

@@ -49,8 +49,11 @@ export const slugify = (s: string) =>
 
 // ---- templates (sunna#83, #88) ----
 
-/** The activity types a review must stand in front of (§6.1), as the server's `gated_types/0`. */
-export const GATED = ['send', 'publish', 'spend', 'merge', 'promote-to-house'];
+/** The activity types a review must stand in front of (§6.1), as the server's `gated_types/0`; promote-to-house no longer (sunna#105). */
+export const GATED = ['send', 'publish', 'spend', 'merge'];
+
+/** The activity types that act on a named artifact, as the server's `artifact_types/0`. */
+export const ARTIFACT_BOUND = [...GATED, 'promote-to-house'];
 
 /** The roles a template's activity is held by, resolved to members when a task opens. */
 export const ROLES = ['author', 'witness', 'peer', 'builder', 'unknown'] as const;
@@ -76,7 +79,7 @@ export const position = (layer: number, index: number) => `${layer + 1}.${index 
 
 /**
  * What the server will refuse, said before saving (the shape rule, §6.1):
- * a gated activity needs an artifact slot and, in the layer directly
+ * an activity on an artifact needs its slot; a gated one, in the layer directly
  * before it, a review of the same slot naming its destination and
  * action; a throwback names an activity in an earlier layer. One line per
  * problem, by position.
@@ -90,8 +93,8 @@ export function templateProblems(layers: TemplateSpec[][]): string[] {
       const at = position(i, j);
       if (!s.name.trim()) problems.push(`${at} needs a name.`);
       if (!s.type.trim()) problems.push(`${at} needs a verb.`);
+      if (ARTIFACT_BOUND.includes(s.type) && !s.artifact) problems.push(`${at} (${s.type}) needs an artifact slot.`);
       if (GATED.includes(s.type)) {
-        if (!s.artifact) problems.push(`${at} (${s.type}) needs an artifact slot.`);
         const before = i > 0 ? layers[i - 1] : [];
         const reviewed = before.some((r) => r.type === 'review' && (r.artifact ?? null) === (s.artifact ?? null) && (r.destination ?? null) === (s.destination ?? null) && r.action === s.type);
         if (!reviewed) problems.push(`${at} (${s.type}) needs a review of the same artifact, for ${s.type}${s.destination ? ` to ${s.destination}` : ''}, in the layer before it.`);
