@@ -162,4 +162,74 @@ defmodule Oneiroi.Kumbukumbu.DeclaredDomainsTest do
                )
     end
   end
+
+  # agathos-daimon#62 (the witness, 2026-11-25: "domain tags need to have
+  # a line or two of description or else auto tagging doesn't always
+  # work right"): what a domain covers rides its policy, and is said
+  # wherever a tag is decided.
+  test "a domain's description is agreed with it, said where a tag is decided, and carried",
+       ctx do
+    his = "account:" <> ctx.witness.id
+    covers = "Meetings, the sponsor, the steps; not the gym."
+
+    policy = fn description ->
+      %{
+        "domain" => %{"person" => his, "domain" => "recovery"},
+        "description" => description,
+        "default" => "deny"
+      }
+    end
+
+    assert {:error, %{kind: :agathos_daimon_terms_invalid}} =
+             AgathosDaimon.propose_contract(
+               ctx.id,
+               %{"domain_policies" => [policy.(String.duplicate("x", 301))]},
+               "too long",
+               "described",
+               ctx.andrew
+             )
+
+    {:ok, v} =
+      AgathosDaimon.propose_contract(
+        ctx.id,
+        %{"domain_policies" => [policy.(covers)]},
+        "What recovery covers.",
+        "described",
+        ctx.andrew
+      )
+
+    :ok = AgathosDaimon.agree_contract(ctx.id, v, "yes", ctx.lily)
+
+    assert AgathosDaimon.contract_text(ctx.id) =~ "your witness's: recovery (#{covers}), reaches"
+    assert AgathosDaimon.domain_descriptions(ctx.id) == %{{his, "recovery"} => covers}
+
+    # The backfill's lists say it beside the slug.
+    at = Oneiroi.Apsu.Clock.now()
+
+    :ok =
+      Kumbukumbu.capture(
+        ctx.id,
+        ctx.key,
+        "t-1",
+        at,
+        [%{role: :user, content: "A meeting tonight.", sent_at: at, actor: ctx.andrew}],
+        ctx.andrew
+      )
+
+    day = Oneiroi.Sunna.today(ctx.id).day
+
+    assert {:ok, note} =
+             Oneiroi.Brain.BackfillNotes.note(ctx.id, "domains", day, 1, %{"his" => ["recovery"]})
+
+    assert note =~ "His domains: recovery (#{covers})."
+
+    # Her version with the domain and no description keeps the words in force.
+    run(ctx, "contract_propose", %{
+      note: "mine",
+      domains: [%{whose: "witness", domain: "recovery", default: "deny"}]
+    })
+
+    assert %{open: %{terms: %{"domain_policies" => [%{"description" => ^covers}]}}} =
+             AgathosDaimon.contract(ctx.id)
+  end
 end

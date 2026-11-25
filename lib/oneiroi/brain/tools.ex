@@ -1510,7 +1510,7 @@ defmodule Oneiroi.Brain.Tools do
       ),
       tool(
         "contract_propose",
-        "Propose a version of your agreement with your witness, whole: its switches (an object of the registry's keys to true or false: solo_sessions_private, preview_withholds_words, witness_reads, trials, wash, revisions, ranked_memory, memory_learning, background_model, oracle, research, digests, correspondence), the prose of your vows, and a note they read first. A version states every switch it sets; one left out takes its default (the features on, the two privacy terms off). Your witness agrees or declines the whole; every switch, on or off, moves only by you both. solo_sessions_private and preview_withholds_words may also be given at the top level. domains is the whole list of declared domains the version carries, each {whose: \"mine\" or \"witness\", domain: a slug, default: \"allow\" or \"deny\", allow and deny: lists of {kind, id} audiences}; leave it out and the domains in force (and any your witness's open version proposes) are carried unchanged, never dropped. Only a declared domain can be tagged anywhere.",
+        "Propose a version of your agreement with your witness, whole: its switches (an object of the registry's keys to true or false: solo_sessions_private, preview_withholds_words, witness_reads, trials, wash, revisions, ranked_memory, memory_learning, background_model, oracle, research, digests, correspondence), the prose of your vows, and a note they read first. A version states every switch it sets; one left out takes its default (the features on, the two privacy terms off). Your witness agrees or declines the whole; every switch, on or off, moves only by you both. solo_sessions_private and preview_withholds_words may also be given at the top level. domains is the whole list of declared domains the version carries, each {whose: \"mine\" or \"witness\", domain: a slug, description: what it covers in a line or two (at most 300 characters; what a tag is decided by when the slug alone is not enough; left out, the words in force are kept, \"\" clears them), default: \"allow\" or \"deny\", allow and deny: lists of {kind, id} audiences}; leave it out and the domains in force (and any your witness's open version proposes) are carried unchanged, never dropped. Only a declared domain can be tagged anywhere.",
         %{
           switches: %{type: "object"},
           domains: %{type: "array", items: %{type: "object"}},
@@ -4663,8 +4663,18 @@ defmodule Oneiroi.Brain.Tools do
         _none -> nil
       end
 
+    covers = AgathosDaimon.domain_descriptions(resident_id)
+
     for d <- given, is_map(d) do
       person = if d["whose"] == "witness", do: witness, else: "resident:" <> resident_id
+
+      # What it covers (agathos-daimon#62): hers as given, "" to clear,
+      # left out the words in force.
+      description =
+        case d["description"] do
+          text when is_binary(text) -> text
+          _none -> covers[{person, d["domain"]}]
+        end
 
       %{
         "domain" => %{"person" => person, "domain" => d["domain"]},
@@ -4672,10 +4682,16 @@ defmodule Oneiroi.Brain.Tools do
         "allow" => List.wrap(d["allow"]),
         "deny" => List.wrap(d["deny"])
       }
+      |> with_description(description)
     end
   end
 
   defp proposed_domains(_other, resident_id), do: proposed_domains(nil, resident_id)
+
+  defp with_description(policy, text) when is_binary(text) and text != "",
+    do: Map.put(policy, "description", text)
+
+  defp with_description(policy, _none), do: policy
 
   defp in_force_policies(resident_id) do
     for p <- AgathosDaimon.domain_policies(resident_id).policies do
@@ -4685,6 +4701,7 @@ defmodule Oneiroi.Brain.Tools do
         "allow" => Enum.map(p.allow, &%{"kind" => &1.kind, "id" => &1.id}),
         "deny" => Enum.map(p.deny, &%{"kind" => &1.kind, "id" => &1.id})
       }
+      |> with_description(p.description)
     end
   end
 

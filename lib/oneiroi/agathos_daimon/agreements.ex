@@ -184,6 +184,7 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       Enum.map(policies, fn p ->
         %{
           domain: %{person: p["domain"]["person"], domain: p["domain"]["domain"]},
+          description: description(p["description"]),
           default: p["default"],
           allow: Enum.map(Map.get(p, "allow", []), &%{kind: &1["kind"], id: &1["id"]}),
           deny: Enum.map(Map.get(p, "deny", []), &%{kind: &1["kind"], id: &1["id"]})
@@ -191,6 +192,27 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
       end)
 
   def policies_of(_terms), do: []
+
+  defp description(d) when is_binary(d) do
+    case String.trim(d) do
+      "" -> nil
+      d -> d
+    end
+  end
+
+  defp description(_none), do: nil
+
+  @doc """
+  What each declared domain covers, in its own words (agathos-daimon#62):
+  `%{{person, domain} => description}`, only those that have one.
+  """
+  def domain_descriptions(resident_id) do
+    for %{domain: %{person: p, domain: d}, description: text} <-
+          domain_policies(resident_id).policies,
+        is_binary(text),
+        into: %{},
+        do: {{p, d}, text}
+  end
 
   @doc "Moves a switch to its declared safe value, either party alone, with a note (agathos-daimon#38); `{:ok, :already}` when it is there."
   def move_to_safety(resident_id, key, note, %Actor{} = actor) do
@@ -421,7 +443,8 @@ defmodule Oneiroi.AgathosDaimon.Agreements do
         do: "reaches any audience by default",
         else: "reaches no audience past you two by default"
 
-    "#{whose(p.domain.person)} #{p.domain.domain}, #{reach}" <> grants_words(p)
+    covers = if p.description, do: " (#{p.description})", else: ""
+    "#{whose(p.domain.person)} #{p.domain.domain}#{covers}, #{reach}" <> grants_words(p)
   end
 
   defp whose("resident:" <> _id), do: "yours:"

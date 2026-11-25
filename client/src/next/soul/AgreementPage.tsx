@@ -6,7 +6,7 @@ import { useSubject } from '../state/resident';
 import { NoteAction, PageHead } from './NoteAction';
 import { day, switchChanges } from './soul';
 import * as css from './soul.css';
-import { personOf, policyWords, samePolicyDomain, withPolicies, type Persons, type Who } from './terms';
+import { DESCRIPTION_LIMIT, personOf, policyWords, samePolicyDomain, withPolicies, type Persons, type Who } from './terms';
 
 const GROUPS: { id: string; title: string }[] = [
   { id: 'privacy', title: 'PRIVACY' },
@@ -161,10 +161,11 @@ function PolicyEditor({ policies, persons, name, households, onChange }: { polic
   const [who, setWho] = useState<Who>('witness');
   const [slug, setSlug] = useState('');
   const [fallback, setFallback] = useState<'deny' | 'allow'>('deny');
+  const [covers, setCovers] = useState('');
   const fresh = slug.trim().toLowerCase();
   const person = personOf(who, persons);
   const candidate: DomainPolicy | null =
-    person && person !== '*' && SLUG.test(fresh) ? { domain: { person, domain: fresh }, default: fallback, allow: [], deny: [] } : null;
+    person && person !== '*' && SLUG.test(fresh) ? { domain: { person, domain: fresh }, ...(covers.trim() ? { description: covers.trim() } : {}), default: fallback, allow: [], deny: [] } : null;
   const ok = candidate !== null && !policies.some((p) => samePolicyDomain(p, candidate));
   const replace = (p: DomainPolicy, next: DomainPolicy) => onChange(policies.map((x) => (samePolicyDomain(x, p) ? next : x)));
   const commonRoom = policies.find(isCommonRoom);
@@ -187,6 +188,16 @@ function PolicyEditor({ policies, persons, name, households, onChange }: { polic
       {policies.map((p) => (
         <div key={`${p.domain.person}/${p.domain.domain}`} className={css.formRow}>
           <span className={css.plain}>{policyWords(p, persons, name)}</span>
+          {!isCommonRoom(p) && (
+            <input
+              className={css.input}
+              value={p.description ?? ''}
+              maxLength={DESCRIPTION_LIMIT}
+              onChange={(e) => replace(p, { ...p, description: e.target.value })}
+              placeholder="What it covers, in a line or two"
+              aria-label={`What ${p.domain.domain} covers`}
+            />
+          )}
           <GrantAdder households={households} onAdd={(side, grant) => replace(p, { ...p, [side]: [...p[side], grant] })} />
           {[...p.allow.map((g) => ['allow', g] as const), ...p.deny.map((g) => ['deny', g] as const)].map(([side, g]) => (
             <button
@@ -209,6 +220,14 @@ function PolicyEditor({ policies, persons, name, households, onChange }: { polic
           <option value="resident">{name}'s</option>
         </select>
         <input className={css.input} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="recovery" aria-label="The domain to declare" />
+        <input
+          className={css.input}
+          value={covers}
+          maxLength={DESCRIPTION_LIMIT}
+          onChange={(e) => setCovers(e.target.value)}
+          placeholder="What it covers, in a line or two"
+          aria-label="What the domain covers"
+        />
         <select className={css.select} value={fallback} onChange={(e) => setFallback(e.target.value as 'deny' | 'allow')} aria-label="Its default">
           <option value="deny">reaches no audience past you two by default</option>
           <option value="allow">reaches any audience by default</option>
@@ -220,6 +239,7 @@ function PolicyEditor({ policies, persons, name, households, onChange }: { polic
           onClick={() => {
             if (candidate && ok) onChange([...policies, candidate]);
             setSlug('');
+            setCovers('');
           }}
         >
           Declare the domain

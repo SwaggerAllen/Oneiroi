@@ -1323,6 +1323,8 @@ export interface Agreement {
 /** One domain's disclosure policy (agathos-daimon#53): declared in the agreement, decided by the dyad. */
 export interface DomainPolicy {
   domain: { person: string; domain: string };
+  /** What the domain covers, in a line or two (agathos-daimon#62): what a tag is decided by when the slug alone is not enough. */
+  description?: string | null;
   default: 'allow' | 'deny';
   allow: { kind: string; id: string }[];
   deny: { kind: string; id: string }[];

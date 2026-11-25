@@ -1573,9 +1573,21 @@ defmodule Oneiroi.Brain.Turn do
       %{person: person, domain: domain} ->
         section(
           "domain",
-          Prompt.render!("domain_now", %{domain: domain, whose: whose(turn, person)}),
+          Prompt.render!("domain_now", %{
+            domain: domain,
+            whose: whose(turn, person),
+            covers: covers(turn.resident_id, person, domain)
+          }),
           "the domain this conversation is in now (kumbukumbu#72): #{domain}, as last named"
         )
+    end
+  end
+
+  # What the domain covers, where its agreement says (agathos-daimon#62).
+  defp covers(resident_id, person, domain) do
+    case Oneiroi.AgathosDaimon.domain_descriptions(resident_id)[{person, domain}] do
+      nil -> ""
+      text -> " It covers: #{text}"
     end
   end
 

@@ -37,10 +37,14 @@ export function withPolicies(terms: Record<string, boolean>, policies: DomainPol
 // The wire shape a policy is agreed in: its own fields, nothing the read added.
 const wirePolicy = (p: DomainPolicy): DomainPolicy => ({
   domain: { person: p.domain.person, domain: p.domain.domain },
+  ...(p.description?.trim() ? { description: p.description.trim() } : {}),
   default: p.default,
   allow: p.allow.map((g) => ({ kind: g.kind, id: g.id })),
   deny: p.deny.map((g) => ({ kind: g.kind, id: g.id })),
 });
+
+/** The longest a domain's description may be (agathos-daimon#62). */
+export const DESCRIPTION_LIMIT = 300;
 
 export const samePolicyDomain = (a: DomainPolicy, b: DomainPolicy) =>
   a.domain.person === b.domain.person && a.domain.domain === b.domain.domain;
@@ -53,7 +57,8 @@ export function policyWords(p: DomainPolicy, persons: Persons, name: string): st
   const grants = (gs: { kind: string; id: string }[]) => gs.map((g) => `${g.kind}:${g.id}`).join(', ');
   const allow = p.allow.length ? `; allows ${grants(p.allow)}` : '';
   const deny = p.deny.length ? `; denies ${grants(p.deny)}` : '';
-  return `${whose} ${p.domain.domain}: ${p.default === 'allow' ? 'reaches any audience by default' : 'reaches no audience past you two by default'}${allow}${deny}`;
+  const covers = p.description?.trim() ? ` (${p.description.trim()})` : '';
+  return `${whose} ${p.domain.domain}${covers}: ${p.default === 'allow' ? 'reaches any audience by default' : 'reaches no audience past you two by default'}${allow}${deny}`;
 }
 
 const grantList = (gs: { kind: string; id: string }[]) => gs.map((g) => `${g.kind}:${g.id}`).join(', ');

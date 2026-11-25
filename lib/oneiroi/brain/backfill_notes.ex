@@ -20,6 +20,7 @@ defmodule Oneiroi.Brain.BackfillNotes do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon
   alias Oneiroi.AgathosDaimon.Local
   alias Oneiroi.Brain.NightPasses
   alias Oneiroi.Config
@@ -51,12 +52,14 @@ defmodule Oneiroi.Brain.BackfillNotes do
         if n == 1, do: {:ok, _} = Kumbukumbu.clear_undeclared(resident_id, from, to, @actor)
 
         points = Kumbukumbu.day_tag_points(resident_id, from, to)
+        {his_person, her_person} = persons(resident_id)
+        covers = AgathosDaimon.domain_descriptions(resident_id)
 
         {:ok,
          Prompt.render!("backfill_domains", %{
            day: day,
-           his: words(lists["his"]),
-           hers: words(lists["hers"]),
+           his: words(lists["his"], his_person, covers),
+           hers: words(lists["hers"], her_person, covers),
            conversations: Enum.map_join(rows, "\n", &conversation_line(&1, scenes)),
            named: named_words(points),
            unnamed: unnamed_words(unnamed(rows, points)),
@@ -221,7 +224,27 @@ defmodule Oneiroi.Brain.BackfillNotes do
   defp kind_words("round"), do: "a round"
   defp kind_words(kind), do: kind
 
-  defp words([]), do: "none named yet; name them as you go"
-  defp words(nil), do: "none named yet; name them as you go"
-  defp words(list), do: Enum.join(list, ", ")
+  # Each domain with what it covers where its agreement says
+  # (agathos-daimon#62): a slug alone does not always tell a tag.
+  defp words(none, _person, _covers) when none in [nil, []],
+    do: "none named yet; name them as you go"
+
+  defp words(list, person, covers),
+    do:
+      Enum.map_join(list, "; ", fn slug ->
+        case covers[{person, slug}] do
+          nil -> slug
+          text -> "#{slug} (#{text})"
+        end
+      end)
+
+  defp persons(resident_id) do
+    case AgathosDaimon.fetch(resident_id) do
+      {:ok, %{account_id: account}} when is_binary(account) ->
+        {"account:" <> account, "resident:" <> resident_id}
+
+      _none ->
+        {nil, "resident:" <> resident_id}
+    end
+  end
 end
