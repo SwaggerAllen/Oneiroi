@@ -287,6 +287,12 @@ defmodule Oneiroi.Sunna.Events do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id]
   end
 
+  defmodule ActivityRunsReset do
+    # One activity's runs given back by the witness, on its task
+    # (sunna#106): its count since it last moved starts over.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :act]
+  end
+
   defmodule WorkCareSkipped do
     # The witness skips the free-time wait (sunna#76), with a note: a
     # free-time pass begun before this instant no longer holds the work

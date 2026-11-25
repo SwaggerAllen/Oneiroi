@@ -6,7 +6,7 @@ import { Confirm, Field, Said, Select, TextArea } from '../settings/common';
 import * as css from '../settings/settings.css';
 import { useAct } from '../settings/useAct';
 import { HOUSE } from './keys';
-import { actName, documentRows, drawLayers, forkNote, fromLine, GATED, glyph, LETS, nameOf, pairedHolders, pin, rearranged, replacedDocument, roleChoices, since, TYPES, withPaired, type DrawnLayer, type Names } from './queueText';
+import { actName, documentRows, outOfRuns, drawLayers, forkNote, fromLine, GATED, glyph, LETS, nameOf, pairedHolders, pin, rearranged, replacedDocument, roleChoices, since, TYPES, withPaired, type DrawnLayer, type Names } from './queueText';
 import * as w from './work.css';
 import { useWorkNav, workPath } from './workRoutes';
 
@@ -615,10 +615,13 @@ function Moves({ task, a, names, overview, layers }: { task: number; a: QueueAct
               </button>
             </div>
           )}
-          {stuck && (
+          {stuck && !outOfRuns(a) && (
             <button type="button" className={css.secondary} disabled={act.busy || !note.trim()} onClick={() => move('reopen', { note }, `${actName(a)} is open again.`)}>
               Reopen
             </button>
+          )}
+          {overview.me.startsWith('witness:') && a.assignee.startsWith('resident:') && (
+            <RunsBack residentId={a.assignee.slice('resident:'.length)} a={a} busy={act.busy} onGive={() => move('runs_back', { note: note || undefined }, `${actName(a)} has its runs back${outOfRuns(a) ? ' and is open again' : ''}.`)} />
           )}
           <div className={css.row}>
             <Confirm label="Skip" confirm="Skip it, with the note?" disabled={act.busy || !note.trim()} onConfirm={() => move('skip', { note }, `${actName(a)} skipped.`)} />
@@ -637,3 +640,24 @@ function Moves({ task, a, names, overview, layers }: { task: number; a: QueueAct
   );
 }
 
+/**
+ * A resident's activity's runs (sunna#101, #106): how many it has had since
+ * it last moved, and the witness's give-back, here on its task. One out of
+ * runs is blocked, and giving them back opens it again.
+ */
+function RunsBack({ residentId, a, busy, onGive }: { residentId: string; a: QueueActivity; busy: boolean; onGive: () => void }) {
+  const line = useQuery({ queryKey: ['resident', residentId, 'settings', 'work'], queryFn: () => api.work(residentId) });
+  const runs = line.data?.activity_runs?.find((r) => r.act === a.act_id)?.runs ?? 0;
+  const bound = line.data?.runs_an_activity ?? 20;
+  if (runs === 0 && !outOfRuns(a)) return null;
+  return (
+    <div className={css.row}>
+      <span className={css.note}>
+        {runs} of {bound} runs since it last moved{outOfRuns(a) ? '; out of runs, so blocked' : ''}.
+      </span>
+      <button type="button" className={css.secondary} disabled={busy} onClick={onGive}>
+        Give the runs back
+      </button>
+    </div>
+  );
+}

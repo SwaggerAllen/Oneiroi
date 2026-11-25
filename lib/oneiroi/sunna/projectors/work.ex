@@ -223,6 +223,16 @@ defmodule Oneiroi.Sunna.Projectors.Work do
     |> queue(e.id, runs_on_day: 0, rested_reason: nil, rested_at: nil)
   end)
 
+  # One activity's runs given back (sunna#106).
+  fold(%Events.ActivityRunsReset{} = e, _metadata, fn multi ->
+    multi
+    |> Multi.delete_all(
+      :act_runs,
+      from(r in WorkActivityRuns, where: r.resident_id == ^e.id and r.act == ^e.act)
+    )
+    |> queue(e.id, rested_reason: nil, rested_at: nil)
+  end)
+
   fold(%Events.WorkCareSkipped{} = e, _metadata, fn multi ->
     queue(multi, e.id, care_skipped_at: e.at, rested_reason: nil, rested_at: nil)
   end)

@@ -75,8 +75,8 @@ header's bell and gear. Built 2026-11-10.
     turning them on answers it too.
 - **Settings:**
   - one group of the resident's sections: Theme (below); Ledger, Kinds
-    and routes, Profiles keys and connections, Notifications, Regression
-    and Work queue, each closing the sheet and opening its own page over
+    and routes, Profiles keys and connections, Notifications and
+    Regression (Work queue retired, sunna#106), each closing the sheet and opening its own page over
     the tabs (`screens/next-settings.md`); Correspondence, still opening in the
     current client;
   - Send feedback, and Operator for platform roles;

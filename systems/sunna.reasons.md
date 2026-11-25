@@ -677,3 +677,6 @@ A promotion is one call with nothing to decide: the document, the revision its r
 
 ## #105
 Sharing a document into the house is not an act on the world the way a send, a spend or a merge is: the house is the household's own room, a promoted copy is read-only and says where it came from, and the author can unpromote it. A required review in front of every promotion made a witness's approval the gate on a resident sharing her own work with her own house. Where a household wants the review, its template still puts one there, and that review still governs the revision that goes.
+
+## #106
+A spent activity passed by silently looked, from the queue, like an activity that was fine and a line that had stopped: the reason lived on a settings page nobody opened, and the give-back with it. A block is what the queue already says when a step cannot go on, and it says why where the step is shown; the give-back belongs on the same screen, next to the step it frees. Blocking also lets the line go on to the next thing, where a held line stopped everything for one activity.

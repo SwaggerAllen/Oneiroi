@@ -50,6 +50,9 @@ export const slugify = (s: string) =>
 // ---- templates (sunna#83, #88) ----
 
 /** The activity types a review must stand in front of (§6.1), as the server's `gated_types/0`; promote-to-house no longer (sunna#105). */
+/** Whether an activity was blocked for running out of runs (sunna#106): its runs, given back on its task, open it again. */
+export const outOfRuns = (a: { view: string; reason: string | null }) => a.view === 'blocked' && (a.reason ?? '').startsWith('out of runs');
+
 export const GATED = ['send', 'publish', 'spend', 'merge'];
 
 /** The activity types that act on a named artifact, as the server's `artifact_types/0`. */

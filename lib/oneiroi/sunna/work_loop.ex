@@ -45,6 +45,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
   @free_time_window 3 * 3600
   # How long a work turn waits when care comes first.
   @care_wait 600
+  # What an activity blocked for its runs says (sunna#106).
+  @out_of_runs "out of runs"
   # What a line waiting on her free time says (sunna#75).
   @care_reason "waiting: a free-time pass is underway, and care comes first; work resumes when it closes"
 
@@ -59,6 +61,56 @@ defmodule Oneiroi.Sunna.WorkLoop do
       :ok
     end
   end
+
+  @doc """
+  The witness gives one activity's runs back, on its task (sunna#106):
+  its holder's count for it starts over, and if it was blocked for running
+  out it is opened again, with the note. The holder's loop checks at once.
+  """
+  def runs_back(household_id, task, act, note, %Actor{} = actor) do
+    with {:ok, a} <- queue_activity(household_id, task, act),
+         {:ok, resident_id} <- resident_holder(a),
+         {:ok, _} <-
+           dispatch(%Commands.ResetActivityRuns{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             act: act,
+             note: note
+           }),
+         :ok <- reopen_spent(household_id, task, a, note, actor) do
+      worker().enqueue_check(resident_id)
+      :ok
+    end
+  end
+
+  defp queue_activity(household_id, task, act) do
+    found =
+      case Queues.task(household_id, task) do
+        %{layers: layers} -> layers |> List.flatten() |> Enum.find(&(&1.act_id == act))
+        nil -> nil
+      end
+
+    if found,
+      do: {:ok, found},
+      else: {:error, Error.new(:sunna_queue_no_such_activity, :sunna_work_runs_back_absent)}
+  end
+
+  defp resident_holder(%{assignee: "resident:" <> id}), do: {:ok, id}
+
+  defp resident_holder(_other),
+    do: {:error, Error.new(:sunna_queue_invalid, :sunna_work_runs_back_not_a_resident)}
+
+  # Opened again only when running out is what blocked it: another block
+  # is a person's, and theirs to clear.
+  defp reopen_spent(household_id, task, %{status: "blocked", reason: reason} = a, note, actor)
+       when is_binary(reason) do
+    if String.starts_with?(reason, @out_of_runs),
+      do: Queues.reopen(household_id, task, a.act_id, note, actor),
+      else: :ok
+  end
+
+  defp reopen_spent(_household_id, _task, _a, _note, _actor), do: :ok
 
   @doc """
   The witness skips the free-time wait (sunna#76), with a note: a pass
@@ -253,14 +305,16 @@ defmodule Oneiroi.Sunna.WorkLoop do
       not house_running?(resident_id) ->
         rest(resident_id, "paused: the house queue is paused")
 
+      # Out of runs is blocked (sunna#106; the witness, 2026-11-25: "A
+      # task that's out of runs should be blocked"): on the queue, said
+      # why, given back on its task; the line goes on to the next.
+      spent != [] ->
+        Enum.each(spent, &block_spent(resident_id, &1))
+        worker().enqueue_check(resident_id)
+        :blocked_spent
+
       # Nothing ready is no reason to stop (sunna#92, #94): the house's
       # work arrives any time, and the tick starts it once it is ready.
-      is_nil(card) and spent != [] ->
-        rest(
-          resident_id,
-          "holding: #{Enum.join(spent, ", ")} had #{Config.fetch!(:sunna, :work_runs_an_activity)} runs each with nothing moving; your witness can give runs back"
-        )
-
       is_nil(card) ->
         rest(resident_id, "running, holding: nothing of yours is ready in what is open")
 
@@ -359,6 +413,19 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
   defp start_or_pass(resident_id, card), do: start_activity(resident_id, card)
 
+  defp block_spent(resident_id, card) do
+    bound = Config.fetch!(:sunna, :work_runs_an_activity)
+
+    Queues.block(
+      card.household,
+      card.task,
+      card.act,
+      "#{@out_of_runs}: #{bound} runs with nothing moving; your witness gives them back on its task",
+      nil,
+      Actor.new(:resident, resident_id)
+    )
+  end
+
   defp house_running?(resident_id) do
     case Oneiroi.Gaia.resident_household(resident_id) do
       %{id: h} -> QueueState.running?(h)
@@ -390,7 +457,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
           |> Enum.split_with(&(Map.get(runs, &1.act, 0) >= bound))
 
         card = List.first(left)
-        {card && Map.put(card, :household, h), Enum.map(spent, & &1.act)}
+        {card && Map.put(card, :household, h), Enum.map(spent, &Map.put(&1, :household, h))}
 
       _none ->
         {nil, []}

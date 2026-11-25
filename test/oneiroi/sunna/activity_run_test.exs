@@ -190,10 +190,12 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
   end
 
   # sunna#101 (the witness, 2026-11-24: "20 per work item to stop
-  # runaway loops, but no global limit, or maybe like 1000"): an activity
-  # run twenty times with nothing moving it is passed by, said so; the
-  # witness's give-back resets it, and a run that moves it starts it over.
-  test "an activity run twenty times with nothing moving is passed by until the runs come back",
+  # runaway loops"), sunna#106 (2026-11-25: "A task that's out of runs
+  # should be blocked", the give-back on its task): an activity run twenty
+  # times with nothing moving is blocked on the queue, said why, and the
+  # line goes on; the witness gives its runs back on its task, which opens
+  # it again; a run that moves it starts its count over.
+  test "an activity out of runs is blocked, and its runs given back on its task open it again",
        ctx do
     n = ctx.n
     act = "#{n}.1"
@@ -206,12 +208,20 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
     assert %{activity_runs: [%{act: ^act, runs: 20}], runs_an_activity: 20, runs_a_day: 1000} =
              Sunna.work_queue(ctx.id)
 
-    assert {:rested, "holding: " <> why} = WorkLoop.check(ctx.id)
-    assert why =~ "#{act} had 20 runs each with nothing moving"
-    refute WorkLoop.due?(ctx.id)
+    assert :blocked_spent = WorkLoop.check(ctx.id)
+    %{layers: layers} = Sunna.queue_task(ctx.h, n)
+    blocked = layers |> List.flatten() |> Enum.find(&(&1.act_id == act))
+    assert blocked.status == "blocked"
+    assert blocked.reason =~ "out of runs: 20 runs with nothing moving"
 
-    # His give-back resets each activity's runs with the day's.
-    :ok = Sunna.work_reset_runs(ctx.id, "go again", ctx.andrew)
+    # Nothing else of hers is ready: the line says so, and is not held.
+    assert {:rested, "running, holding: nothing of yours is ready" <> _} = WorkLoop.check(ctx.id)
+
+    # Hers alone to refuse; his, on the task, opens it again.
+    assert {:error, _} =
+             Sunna.queue_runs_back(ctx.h, n, act, "mine", Actor.new(:resident, ctx.id))
+
+    :ok = Sunna.queue_runs_back(ctx.h, n, act, "go again", ctx.andrew)
     assert %{activity_runs: []} = Sunna.work_queue(ctx.id)
     assert {:started, ^act} = WorkLoop.check(ctx.id)
 

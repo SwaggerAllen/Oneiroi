@@ -982,4 +982,4 @@ export interface ResidentThread {
   doc: { path: string; commit: string | null; present: boolean } | null;
 }
 
-export type QueueMove = 'take' | 'finish' | 'skip' | 'block' | 'reopen' | 'fail' | 'assign' | 'decide';
+export type QueueMove = 'take' | 'finish' | 'skip' | 'block' | 'reopen' | 'fail' | 'assign' | 'decide' | 'runs_back';

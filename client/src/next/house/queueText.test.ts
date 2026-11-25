@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QueueActivity, QueueCard, QueueDocument } from '../../api/types';
-import { actName, blockedLine, blockerLine, holderChoices, holdersOf, holderWords, pairedHolders, replacedDocument, stepStatus, withPaired, documentRows, drawLayers, forkNote, fromLine, nameOf, placeOf, pinOf, postKind, rearranged, roleChoices, sentence, since, slugify, taskSummaries, templateProblems, unpinned, withMd } from './queueText';
+import { actName, blockedLine, blockerLine, holderChoices, holdersOf, holderWords, outOfRuns, pairedHolders, replacedDocument, stepStatus, withPaired, documentRows, drawLayers, forkNote, fromLine, nameOf, placeOf, pinOf, postKind, rearranged, roleChoices, sentence, since, slugify, taskSummaries, templateProblems, unpinned, withMd } from './queueText';
 
 const names = { 'resident:l': 'Lily', 'witness:a': 'Andrew' };
 
@@ -262,3 +262,10 @@ describe("a card's step, where it stands (2026-11-23)", () => {
   });
 });
 
+describe('runs (sunna#106)', () => {
+  it('knows an activity blocked for running out of runs from any other block', () => {
+    expect(outOfRuns({ view: 'blocked', reason: 'out of runs: 20 runs with nothing moving; your witness gives them back on its task' })).toBe(true);
+    expect(outOfRuns({ view: 'blocked', reason: 'waits on the review' })).toBe(false);
+    expect(outOfRuns({ view: 'active', reason: null })).toBe(false);
+  });
+});

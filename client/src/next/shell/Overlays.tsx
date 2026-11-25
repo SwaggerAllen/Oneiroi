@@ -88,7 +88,7 @@ const HREF: Record<string, string> = {
   library: '#/records',
   chat: '#/chat/mail',
   inbox: '#/chat/mail',
-  work: '#/settings/work',
+  work: '#/settings/queue',
   queue: '#/settings/queue',
   kinds: '#/settings/kinds',
   schedule: '#/time',
@@ -386,7 +386,6 @@ function Settings() {
         <Row label="Profiles, keys and connections" onClick={open('connections')} />
         <Row label="Notifications" onClick={open('notifications')} />
         <Row label="Regression" onClick={open('regression')} />
-        <Row label="Work queue" onClick={open('work')} />
         <Row label="Backups, imports and reports" onClick={open('backups')} />
         <Row label="Substack presence" onClick={open('presence')} />
         {unspoken && <Row label={`Delete ${name}`} onClick={open('delete')} />}

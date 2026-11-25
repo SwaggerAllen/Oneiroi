@@ -11,7 +11,6 @@ import { Presence } from './Presence';
 import { Regression } from './Regression';
 import * as css from './settings.css';
 import { useShell } from '../state/store';
-import { Work } from './Work';
 import { HouseWork } from '../house/Work';
 
 const TITLES: Record<SettingsSection, string> = {
@@ -20,7 +19,6 @@ const TITLES: Record<SettingsSection, string> = {
   connections: 'Profiles, keys and connections',
   notifications: 'Notifications',
   regression: 'Regression',
-  work: 'Work queue',
   queue: 'Work',
   backups: 'Backups, imports and reports',
   presence: 'Substack presence',
@@ -44,7 +42,6 @@ export function SettingsPage({ section, onBack }: { section: SettingsSection; on
     connections: `Your key, what holds a token for ${name}, and where the reader may go.`,
     notifications: `Whether ${name} can reach you on this device.`,
     regression: `Trying models as ${name}: trials, runs graded blind, and the chat model.`,
-    work: `${name}'s queue: underway, next, and waiting on you.`,
     queue: 'The house queue: what waits on you, and on everyone, across the house.',
     backups: `Where ${name}'s records are pushed each night, conversations brought from ChatGPT, and the report ladder.`,
     presence: `${name} reading the community you follow, and what that earned, waiting on your word before it goes out as Allen Strut.`,
@@ -66,7 +63,6 @@ export function SettingsPage({ section, onBack }: { section: SettingsSection; on
         {section === 'connections' && <Connections />}
         {section === 'notifications' && <Notifications />}
         {section === 'regression' && <Regression />}
-        {section === 'work' && <Work />}
         {section === 'queue' && <HouseWork />}
         {section === 'backups' && <Backups />}
         {section === 'presence' && <Presence />}

@@ -31,12 +31,15 @@ export function isTabHash(hash: string): boolean {
 // Settings sections are full pages inside the house (`#/settings/<section>`),
 // over the tabs rather than in one: the tabs stay mounted underneath and
 // come back as they were.
-export const SETTINGS = ['ledger', 'kinds', 'connections', 'notifications', 'regression', 'work', 'queue', 'backups', 'presence', 'delete'] as const;
+// The resident's own Work queue page is retired (sunna#106): its levers
+// are on the house queue, and an old link to it opens the queue.
+export const SETTINGS = ['ledger', 'kinds', 'connections', 'notifications', 'regression', 'queue', 'backups', 'presence', 'delete'] as const;
 export type SettingsSection = (typeof SETTINGS)[number];
 
 /** The section a hash opens, or null when it is not a settings page. */
 export function parseSettings(hash: string): SettingsSection | null {
   const [first, second] = hash.replace(/^#\/?/, '').split('/');
+  if (first === 'settings' && second === 'work') return 'queue';
   return first === 'settings' && (SETTINGS as readonly string[]).includes(second) ? (second as SettingsSection) : null;
 }
 
