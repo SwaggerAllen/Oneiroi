@@ -680,3 +680,6 @@ Sharing a document into the house is not an act on the world the way a send, a s
 
 ## #106
 A spent activity passed by silently looked, from the queue, like an activity that was fine and a line that had stopped: the reason lived on a settings page nobody opened, and the give-back with it. A block is what the queue already says when a step cannot go on, and it says why where the step is shown; the give-back belongs on the same screen, next to the step it frees. Blocking also lets the line go on to the next thing, where a held line stopped everything for one activity.
+
+## #107
+A step with no judgement in it has no reason to queue behind the one resident whose name it carries: her line, her free time and the backlog's open entries all order the work that needs her, and a promotion needs only the platform. Handing a failed one to her run turned a library refusal into an agent's afternoon; a block says what failed where it can be fixed.

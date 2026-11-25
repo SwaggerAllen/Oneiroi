@@ -4,7 +4,9 @@ defmodule Oneiroi.Sunna.MechanicalTest do
   from a resident workspace to a house workspace shouldn't need an agent,
   it could just happen"): her promote-to-house step is done by the
   platform as hers, at the revision its review approved, with no run;
-  one it cannot do is taken for her run, and not tried again.
+  wherever its task sits in the backlog and whatever her line is doing
+  (sunna#107); one it cannot do is blocked with the library's reason, never
+  handed to her line; an unfilled template slot waits.
   """
   use Oneiroi.DataCase, async: false
 
@@ -113,7 +115,7 @@ defmodule Oneiroi.Sunna.MechanicalTest do
              String.starts_with?(approved, pin)
   end
 
-  test "a promotion the platform cannot do is taken for her run, and not tried again", ctx do
+  test "a promotion the platform cannot do is blocked with why, never handed to her line", ctx do
     n = ctx.open.("design/missing.md")
 
     :ok =
@@ -126,9 +128,39 @@ defmodule Oneiroi.Sunna.MechanicalTest do
       )
 
     _ = WorkLoop.check(ctx.id)
-    assert %{view: "active"} = act(ctx, n, "#{n}.2")
-    # Taken, it is no longer a mechanical step: the next check leaves it to her run.
-    refute WorkLoop.due?(ctx.id) and act(ctx, n, "#{n}.2").view == "ready"
+
+    assert %{status: "blocked", reason: "the platform could not promote it: " <> _} =
+             act(ctx, n, "#{n}.2")
+
+    refute WorkLoop.due?(ctx.id)
+  end
+
+  # sunna#107 (the witness, 2026-11-25: "for mechanical steps like promote
+  # doc, it shouldn't need to wait on a resident being free"): a promotion
+  # in a closed backlog entry is done all the same, its citation resolved
+  # as every citation is (no `.md` named), and an unfilled slot waits.
+  test "a promotion is done wherever its task sits in the backlog, its citation resolved", ctx do
+    # The top entry: something else of the house's, open.
+    _top = ctx.open.("design/other.md")
+
+    {:ok, _} =
+      Seshat.write(
+        ctx.id,
+        "design/later.md",
+        "---\ntitle: Later\n---\n\nClosed, still shared.\n",
+        ctx.wren
+      )
+
+    n = ctx.open.("design/later")
+    :ok = HouseQueue.decide(ctx.h, n, "#{n}.1", %{outcome: "approved", note: "good"}, ctx.andrew)
+    _ = WorkLoop.check(ctx.id)
+
+    assert %{status: "done"} = act(ctx, n, "#{n}.2")
+
+    {:ok, %{content: copy}} =
+      Seshat.household_read(ctx.andrew, "shared/#{ctx.slug}/design/later.md")
+
+    assert copy =~ "Closed, still shared."
   end
 
   # sunna#105 (the witness, 2026-11-25: "promotion doesn't necessarily

@@ -335,12 +335,16 @@ defmodule Oneiroi.Sunna.WorkLoop do
   # ---- mechanical activities (sunna#104) ----
 
   # A step that needs no agent is done by the platform the moment it is
-  # hers and ready in what is open (the witness, 2026-11-25: "promoting
-  # from a resident workspace to a house workspace shouldn't need an
-  # agent, it could just happen"): a promote-to-house of her own document,
-  # through the wake port, as hers; one of a house document passes
-  # itself (sunna#95). One the platform cannot do (the library refused
-  # it) is taken for her, so her next run does it, and is not tried again.
+  # hers and ready (the witness, 2026-11-25: "promoting from a resident
+  # workspace to a house workspace shouldn't need an agent, it could just
+  # happen"; and "for mechanical steps like promote doc, it shouldn't need
+  # to wait on a resident being free", sunna#107): a promote-to-house of
+  # her own document, through the wake port, as hers, whatever her line is
+  # doing and wherever its task sits in the backlog; one of a house
+  # document passes itself (sunna#95); one whose document is a template
+  # slot nobody has filled waits for it. One the platform cannot do is
+  # blocked, the library's refusal its reason, for a person to fix and
+  # reopen; never handed to her line.
   defp mechanical(resident_id) do
     if house_running?(resident_id),
       do: resident_id |> mechanical_cards() |> Enum.map(&mechanically(resident_id, &1)),
@@ -358,8 +362,13 @@ defmodule Oneiroi.Sunna.WorkLoop do
         h
         |> Queues.waiting_on("resident:#{resident_id}")
         |> Map.fetch!(:ready)
-        |> Enum.filter(&(&1.type == "promote-to-house" and &1.view == "ready"))
-        |> in_backlog_order(order)
+        # Active too: one taken for her line before this (a refusal then
+        # handed it to her run) is the platform's again, unless her line
+        # is running it now.
+        |> Enum.filter(&(&1.type == "promote-to-house" and &1.view in ["ready", "active"]))
+        |> Enum.reject(&(slot?(&1.artifact) or &1.act == running_act(resident_id)))
+        # The backlog orders them, open first, but holds none back.
+        |> Enum.sort_by(&Map.get(order, &1.task, {:closed, 0}))
         |> Enum.map(&Map.put(&1, :household, h))
 
       _none ->
@@ -391,11 +400,34 @@ defmodule Oneiroi.Sunna.WorkLoop do
       :ok ->
         :ok
 
-      _refused ->
-        _ = Queues.take(card.household, card.task, card.act, Actor.new(:resident, resident_id))
-        :taken
+      refused ->
+        _ =
+          Queues.block(
+            card.household,
+            card.task,
+            card.act,
+            "the platform could not promote it: #{refused_words(refused)}; fix it and reopen it",
+            nil,
+            Actor.new(:resident, resident_id)
+          )
+
+        :blocked
     end
   end
+
+  defp running_act(resident_id) do
+    case Scope.resident(resident_id, fn -> Store.work_queue() end) do
+      %{running_act: act} -> act
+      nil -> nil
+    end
+  end
+
+  defp slot?("slot:" <> _), do: true
+  defp slot?(_artifact), do: false
+
+  defp refused_words({:error, %{meaning: meaning}}) when is_binary(meaning), do: meaning
+  defp refused_words(:no_port), do: "this deployment has no promotion port"
+  defp refused_words(other), do: inspect(other)
 
   defp start_or_pass(resident_id, %{type: "promote-to-house", artifact: "house/" <> _} = card) do
     her = Actor.new(:resident, resident_id)
