@@ -769,13 +769,6 @@ defmodule Oneiroi.Seshat do
     do: Oneiroi.Seshat.QueueIndex.render(household_id, task)
   )
 
-  @doc "Commits every resident's old work queue to the household repository at cutover (sunna#80, §6.2): `residents` as `[{id, name}]`; answers the commit."
-  @spec household_commit_old_queue(String.t(), [{String.t(), String.t()}], Oneiroi.Actor.t()) ::
-          {:ok, term()} | {:error, term()}
-  defexport(household_commit_old_queue(household_id, residents, actor),
-    do: Oneiroi.Seshat.QueueIndex.commit_old_queue(household_id, residents, actor)
-  )
-
   @doc "A resident unpromotes a copy (seshat#99): no longer current; its words and provenance stay."
   @spec household_unpromote(Oneiroi.Actor.t(), String.t()) :: {:ok, map()} | {:error, term()}
   defexport(household_unpromote(actor, name), do: Household.unpromote(actor, name))

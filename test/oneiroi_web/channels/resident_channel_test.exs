@@ -39,12 +39,16 @@ defmodule OneiroiWeb.ResidentChannelTest do
        ctx do
     {:ok, _reply, _socket} = join_as(ctx.witness.id, ctx.resident.id)
     me = Actor.new(:resident, ctx.resident.id, "fake/model")
-    {:ok, n} = Oneiroi.Sunna.work_add(ctx.resident.id, "The brief", "drafted", me)
-    :ok = Oneiroi.Sunna.work_hold(ctx.resident.id, n, "your word on two wordings", nil, me)
+
+    {:ok, n} =
+      Oneiroi.AgathosDaimon.ask(ctx.resident.id, "act", "Post the essay", "It is done.", me)
+
+    {:ok, _} =
+      Oneiroi.AgathosDaimon.ask(ctx.resident.id, "act", "Post the note", "It is done.", me)
 
     # Several notices, one list, carrying what changed.
     assert_push "needs_you", %{entries: entries}, 5_000
-    assert Enum.any?(entries, &(&1.kind == "work_held" and &1.ref == n))
+    assert Enum.any?(entries, &(&1.kind == "ask" and &1.ref == n))
     refute_push "needs_you", _again, 1_500
   end
 

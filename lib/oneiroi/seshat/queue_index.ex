@@ -8,9 +8,9 @@ defmodule Oneiroi.Seshat.QueueIndex do
   note. Written by the platform, never by hand: an edit is overwritten by
   the next render, and the queue is where the task changes.
 
-  Also the cutover's record of the old queue (§6.2):
-  `records/work-queue-at-cutover.md`, every resident's Sunna work queue as
-  it stood, and its raw rows beside it as JSON.
+  The cutover's record of the old queue (§6.2) was written here once, at
+  `records/work-queue-at-cutover.md`; the old queue retired (sunna#102)
+  and that record stays in the house's history.
   """
 
   alias Oneiroi.Actor
@@ -113,70 +113,6 @@ defmodule Oneiroi.Seshat.QueueIndex do
     note = if h.note, do: ": #{h.note}", else: ""
     "- #{Calendar.strftime(h.at, "%Y-%m-%d %H:%M")}Z #{what}#{pin} (#{who})#{note}"
   end
-
-  # ---- the old queue at cutover (§6.2) ----
-
-  @doc """
-  Writes every resident's Sunna work queue into the household repository
-  as `records/work-queue-at-cutover.md` and its raw rows as
-  `records/work-queue-at-cutover.json`, in one commit by `actor`;
-  answers the commit.
-  """
-  def commit_old_queue(household_id, residents, %Actor{} = actor) do
-    queues = for {id, name} <- residents, do: {name, Sunna.work_queue(id)}
-
-    raw =
-      Jason.encode!(
-        for({name, q} <- queues, do: %{resident: name, items: Enum.map(q.items, &plain/1)}),
-        pretty: true
-      )
-
-    md = """
-    # The work queue at cutover
-
-    Every resident's Sunna work queue as it stood when the house queue took
-    the work (sunna#80, lily:design/queue-ia §6.2). The rows and events stay
-    in place, read-only, so the revert is one step; this is the readable
-    record of exactly what moved. Raw rows: `records/work-queue-at-cutover.json`.
-
-    #{Enum.map_join(queues, "\n", &old_queue/1)}
-    """
-
-    Records.write(
-      household_id,
-      [
-        {"records/work-queue-at-cutover.md", md},
-        {"records/work-queue-at-cutover.json", raw <> "\n"}
-      ],
-      "The old work queue, at cutover",
-      actor
-    )
-  end
-
-  defp old_queue({name, %{items: items}}) do
-    rows =
-      case items do
-        [] -> "Empty."
-        items -> Enum.map_join(items, "\n", &old_item/1)
-      end
-
-    "## #{name}\n\n#{rows}\n"
-  end
-
-  defp old_item(i) do
-    extra =
-      cond do
-        i.status == "held" -> " — held: #{i.held_ask}"
-        i.status == "blocked" -> " — blocked on #{i.blocked_on}"
-        true -> ""
-      end
-
-    wrap = if i.shipped, do: "\n  - last wrap: #{i.shipped}", else: ""
-    "- ##{i.number} [#{i.status}] #{i.what}#{extra}\n  - done when: #{i.done_when}#{wrap}"
-  end
-
-  defp plain(%{__struct__: _} = row), do: row |> Map.from_struct() |> Map.delete(:__meta__)
-  defp plain(row), do: row
 
   defp name("claude-code:" <> id = a, names) do
     case names["resident:" <> id] do

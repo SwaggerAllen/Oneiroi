@@ -545,8 +545,6 @@ export interface NeedsYouEntry {
     | 'ask'
     | 'piece_to_review'
     | 'piece_to_publish'
-    | 'work_held'
-    | 'work_blocked'
     | 'plugin_proposal'
     | 'kind_gate_proposal'
     | 'theme_proposal'
@@ -605,40 +603,14 @@ export interface FeedbackReport {
   filed_at: string;
 }
 
-// The work queue (sunna#33): long items in priority order, either
-// party's, and the loop that runs them one at a time.
-export interface WorkItem {
-  number: number;
-  what: string;
-  done_when: string;
-  status: 'open' | 'in_work' | 'blocked' | 'done' | 'dropped' | string;
-  blocked_on: string | null;
-  // Held for the witness (sunna#54): what it asks of him, who held it, when.
-  held_ask?: string | null;
-  held_by?: string | null;
-  held_at?: string | null;
-  position: number;
-  added_by: string;
-  added_at: string;
-  note: string | null;
-  moved_by: string | null;
-  moved_at: string | null;
-  shipped: string | null;
-  slipped: string | null;
-  why: string | null;
-  wrapped_at: string | null;
-  runs: number;
-  session_key: string | null;
-  // How long it has been in work (sunna#58): its first run's start, and
-  // the seconds its ended runs took; empty on an item that ran before.
-  first_started_at?: string | null;
-  worked_seconds?: number;
-}
-
+// A resident's work line (sunna#33, #86): what runs on it from the house
+// queue, why it rests, and its runs. The old queue's items are retired
+// (sunna#102).
 export interface WorkQueue {
-  items: WorkItem[];
-  running: number | null;
   running_since: string | null;
+  // The house queue activity running on the line (sunna#86): its id and task.
+  running_act: string | null;
+  running_task: number | null;
   rested: string | null;
   rested_at: string | null;
   runs_today: number;
@@ -646,17 +618,9 @@ export interface WorkQueue {
   /** Her runs of each house queue activity since it last moved (sunna#101). */
   activity_runs?: { act: string; runs: number }[];
   runs_an_activity?: number;
+  /** The last run the platform ended rather than she (sunna#100). */
+  cut?: { act: string; key: string | null; since: string | null; at: string | null } | null;
   budget: { cap: number; spent: number; left: number; period: string } | null;
-  // Armed by her for a batch, off once the queue clears (sunna#35).
-  armed: boolean;
-  armed_at?: string | null;
-  // Who armed it (sunna#43): her tool, or his button.
-  armed_by?: 'resident' | 'witness' | null;
-  // A house queue activity running on the line (sunna#86), and whether
-  // the house queue has the line since the cutover (sunna#84).
-  running_act?: string | null;
-  running_task?: number | null;
-  house_queue?: boolean;
 }
 
 // A plugin, as the agreement shows it (brain#68, agathos-daimon#37):
@@ -929,18 +893,28 @@ export interface QueueSpec {
 export interface QueueOverview {
   household_id: string;
   me: string;
-  cut_over: boolean;
   /** The house queue's one switch (sunna#94): it runs unless paused. */
   paused?: boolean;
   paused_at?: string | null;
-  cut_at: string | null;
-  commit: string | null;
   members: QueueMember[];
   projects: { slug: string; name: string; owner: string; status: 'open' | 'closed' }[];
   templates: { name: string; title: string; layers: QueueSpec[][] }[];
   starters: { name: string; title: string; layers: QueueSpec[][] }[];
   tasks: QueueTask[];
 }
+
+/** The backlog (sunna#103): entries in priority order, open or closed, the top always open. */
+export type BacklogEntry = { kind: 'batch'; number: number; name: string | null; open: boolean; top: boolean; tasks: number[] } | { kind: 'task'; number: number; open: boolean; top: boolean };
+
+export type BacklogFinished = { kind: 'batch'; number: number; name: string | null; at: string } | { kind: 'task'; number: number; status: 'complete' | 'dropped'; batch: number | null; at: string };
+
+export interface QueueBacklog {
+  entries: BacklogEntry[];
+  finished: BacklogFinished[];
+}
+
+/** One entry as the arrangement sends it. */
+export type BacklogArranged = { batch: number; tasks: number[]; open: boolean } | { task: number; open: boolean };
 
 export interface QueueWaiting {
   who: string;

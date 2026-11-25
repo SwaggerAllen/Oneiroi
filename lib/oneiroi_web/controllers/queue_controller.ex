@@ -22,7 +22,7 @@ defmodule OneiroiWeb.QueueController do
 
   operation(:show,
     summary:
-      "The house queue's overview: whether the household has cut over and at which commit, the members as the queue names them, the projects, the templates (and the starters the platform ships), and the tasks open first",
+      "The house queue's overview: whether it is paused, the members as the queue names them, the projects, the templates (and the starters the platform ships), and the tasks open first",
     responses: [ok: {"the queue", "application/json", %Schema{type: :object}}]
   )
 
@@ -33,12 +33,9 @@ defmodule OneiroiWeb.QueueController do
     json(conn, %{
       household_id: h,
       me: me(conn),
-      cut_over: state.cut_over,
       # The house queue's one switch (sunna#94).
       paused: state.paused == true,
       paused_at: state.paused_at,
-      cut_at: state.cut_at,
-      commit: state.commit,
       members: Sunna.queue_members(h),
       projects: Enum.map(Sunna.queue_projects(h), &project/1),
       templates: Enum.map(Sunna.queue_templates(h), &template/1),
@@ -323,33 +320,6 @@ defmodule OneiroiWeb.QueueController do
     done(conn, Sunna.queue_drop(conn.assigns.household_id, int(number), p["note"], actor(conn)))
   end
 
-  operation(:snapshot,
-    summary:
-      "The cutover's first step (§6.2): every resident's old work queue committed to the household repository as records/work-queue-at-cutover.md with its raw rows; answers the commit the cutover then names. A witness's",
-    responses: [ok: {"the commit", "application/json", %Schema{type: :object}}]
-  )
-
-  def snapshot(conn, _params) do
-    case Brain.queue_snapshot(conn.assigns.household_id, actor(conn)) do
-      {:ok, sha} -> json(conn, %{commit: sha})
-      {:error, e} -> error(conn, 422, e)
-    end
-  end
-
-  operation(:cut_over,
-    summary:
-      "Turns the house queue on (§6.2): commit names the house repository commit holding the old queue, note says why; a witness's",
-    request_body: {"commit and note", "application/json", %Schema{type: :object}},
-    responses: [ok: {"done", "application/json", %Schema{type: :object}}]
-  )
-
-  def cut_over(conn, p),
-    do:
-      done(
-        conn,
-        Sunna.queue_cut_over(conn.assigns.household_id, p["commit"], p["note"], actor(conn))
-      )
-
   operation(:pause,
     summary:
       "Pauses the house queue for every resident (sunna#94): nothing starts on anyone's line until it runs again; a witness's, with a note",
@@ -369,14 +339,41 @@ defmodule OneiroiWeb.QueueController do
   def resume(conn, p),
     do: done(conn, Sunna.queue_resume(conn.assigns.household_id, p["note"], actor(conn)))
 
-  operation(:cut_back,
-    summary: "The one-step revert (§6.2): the old queue's screens and loop back on, with a note",
-    request_body: {"the note", "application/json", %Schema{type: :object}},
+  operation(:backlog,
+    summary:
+      "The backlog (sunna#103): the open tasks' entries in priority order, each a batch (number, name, tasks in order) or a task in no batch, open or closed, the top always open; and what finished, newest first",
+    responses: [ok: {"the backlog", "application/json", %Schema{type: :object}}]
+  )
+
+  def backlog(conn, _params), do: json(conn, Sunna.queue_backlog(conn.assigns.household_id))
+
+  operation(:arrange,
+    summary:
+      "Arranges the backlog (sunna#103), a witness's: entries in order, each {batch, tasks, open} or {task, open}; every resident's line checks at once",
+    request_body: {"the entries", "application/json", %Schema{type: :object}},
     responses: [ok: {"done", "application/json", %Schema{type: :object}}]
   )
 
-  def cut_back(conn, p),
-    do: done(conn, Sunna.queue_cut_back(conn.assigns.household_id, p["note"], actor(conn)))
+  def arrange(conn, p),
+    do:
+      done(
+        conn,
+        Sunna.queue_arrange(conn.assigns.household_id, List.wrap(p["entries"]), actor(conn))
+      )
+
+  operation(:make_batch,
+    summary:
+      "Makes the next numbered batch of the backlog (sunna#103), a witness's, with an optional name",
+    request_body: {"the name", "application/json", %Schema{type: :object}},
+    responses: [ok: {"its number", "application/json", %Schema{type: :object}}]
+  )
+
+  def make_batch(conn, p) do
+    case Sunna.queue_make_batch(conn.assigns.household_id, p["name"], actor(conn)) do
+      {:ok, n} -> json(conn, %{number: n})
+      other -> done(conn, other)
+    end
+  end
 
   # ---- helpers ----
 

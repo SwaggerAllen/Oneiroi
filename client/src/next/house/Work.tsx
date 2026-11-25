@@ -2,13 +2,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api/client';
 import type { QueueCard, QueueOverview } from '../../api/types';
-import { Card, Confirm, Field, Said, Select, TextArea } from '../settings/common';
+import { Card, Field, Said, Select, TextArea } from '../settings/common';
 import * as css from '../settings/settings.css';
 import { useAct } from '../settings/useAct';
 import { useShell } from '../state/store';
 import { DocumentScreen } from './DocumentScreen';
 import { HOUSE } from './keys';
 import { BackfillPanel } from './BackfillPanel';
+import { Backlog } from './Backlog';
 import { actName, blockedLine, holdersOf, nameOf, since, slugify, stepStatus, taskSummaries, unpinned, type Names, type TaskSummary } from './queueText';
 import { ActivityPage, NewActivityPage, TaskPage, Who } from './TaskPage';
 import { TemplateActivity, TemplateEditor } from './TemplateEditor';
@@ -72,17 +73,14 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
   const [project, setProject] = useState('');
   const tasks = q.tasks.filter((t) => !project || t.project === project);
   const all = whose === 'all';
+  // The backlog (sunna#103): the house's order, open and closed.
+  const backlog = whose === 'backlog';
   const { mine, others, later } = taskSummaries(tasks, cards.data ?? [], all ? q.me : holdersOf(whose));
   const you = whose === q.me || all;
   const who = you ? 'Your' : `${nameOf(names, whose)}'s`;
   const members = q.members.filter((m) => m.assignee !== q.me);
   return (
     <>
-      {!q.cut_over && (
-        <p className={css.note}>
-          The house queue is not on yet: the old work queues still run. Build the templates and move the work in progress, then turn it on below.
-        </p>
-      )}
       <div className={w.top}>
         <h1 className={w.pageTitle}>Work</h1>
         {q.templates.length > 0 && (
@@ -103,6 +101,9 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
         <button type="button" className={w.segment} aria-pressed={all} onClick={() => setWhose('all')}>
           Everyone
         </button>
+        <button type="button" className={w.segment} aria-pressed={backlog} onClick={() => setWhose('backlog')}>
+          Backlog
+        </button>
       </div>
       <div className={w.segmented} role="group" aria-label="Filters">
         <select className={w.select} aria-label="Project" value={project} onChange={(e) => setProject(e.target.value)}>
@@ -114,10 +115,11 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
           ))}
         </select>
       </div>
-      {q.cut_over && <QueueSwitch overview={q} />}
-      {q.cut_over && whose.startsWith('resident:') && <LineStatus residentId={whose.slice('resident:'.length)} name={nameOf(names, whose)} />}
+      <QueueSwitch overview={q} />
+      {whose.startsWith('resident:') && <LineStatus residentId={whose.slice('resident:'.length)} name={nameOf(names, whose)} />}
       {cards.isPending && <p className={css.note}>Reading…</p>}
-      {cards.data && (
+      {backlog && cards.data && <Backlog overview={q} names={names} cards={cards.data} />}
+      {!backlog && cards.data && (
         <>
           <h2 className={w.section}>{who} move · {mine.length}</h2>
           {mine.length === 0 && <p className={css.note}>{you ? 'Nothing waits on you.' : `Nothing waits on ${nameOf(names, whose)}.`}</p>}
@@ -383,15 +385,12 @@ function NewTask({ overview, citation, onBack }: { overview: QueueOverview; cita
 
 
 /**
- * The witness's setup (§6.2, §7): the
- * templates copied from the platform's starters, and the cutover: the
- * old queue committed first, then the house queue turned on naming that
- * commit, and the one-step revert.
+ * The witness's setup (§7): the templates copied from the platform's
+ * starters. The cutover from the old queues and its revert are retired
+ * with them (sunna#102).
  */
 function Setup({ overview: q }: { overview: QueueOverview }) {
   const act = useAct();
-  const [commit, setCommit] = useState(q.commit ?? '');
-  const [note, setNote] = useState('');
   if (!q.me.startsWith('witness:')) return null;
   const missing = q.starters.filter((s) => !q.templates.some((t) => t.name === s.name));
   return (
@@ -403,26 +402,6 @@ function Setup({ overview: q }: { overview: QueueOverview }) {
           Add {s.name} ({s.title})
         </button>
       ))}
-      {q.cut_over ? (
-        <>
-          <p className={css.note}>
-            On since {q.cut_at ? new Date(q.cut_at).toLocaleString() : '—'}; the old queue is committed at {q.commit?.slice(0, 7)} and kept read-only.
-          </p>
-          <Field label="Why it goes back" value={note} onChange={(e) => setNote(e.target.value)} />
-          <Confirm label="Revert to the old queue" confirm="Revert? The old queue's loop and screens come back on." disabled={act.busy || !note.trim()} onConfirm={() => void act.run(() => api.queueCutBack(note).then(() => 'Reverted.'), QUEUE)} />
-        </>
-      ) : (
-        <>
-          <div className={css.row}>
-            <button type="button" className={css.secondary} disabled={act.busy} onClick={() => void act.run(() => api.queueSnapshot().then((r) => (setCommit(r.commit), `The old queue is committed at ${r.commit.slice(0, 7)}.`)), QUEUE)}>
-              Commit the old queue
-            </button>
-            {commit && <span className={css.mono}>{commit.slice(0, 7)}</span>}
-          </div>
-          <Field label="Why it goes on now" value={note} onChange={(e) => setNote(e.target.value)} />
-          <Confirm label="Turn the house queue on" confirm="Turn it on? The old queues go read-only." disabled={act.busy || !commit || !note.trim() || q.templates.length === 0} onConfirm={() => void act.run(() => api.queueCutOver(commit, note).then(() => 'The house queue is on.'), QUEUE)} />
-        </>
-      )}
       <Said said={act.said} />
     </Card>
   );

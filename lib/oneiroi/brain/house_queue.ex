@@ -90,35 +90,6 @@ defmodule Oneiroi.Brain.HouseQueue do
     end
   end
 
-  @doc "Commits the old work queues of the household's residents (§6.2): a witness's; answers the commit."
-  def snapshot(household_id, %Actor{kind: :witness} = actor) do
-    if Oneiroi.Gaia.household_member?(household_id, actor) do
-      residents =
-        for %{kind: "resident", id: id, name: name} <-
-              Oneiroi.Gaia.household_members(household_id),
-            do: {id, name}
-
-      case Seshat.household_commit_old_queue(household_id, residents, actor) do
-        {:ok, sha} when is_binary(sha) -> {:ok, sha}
-        {:ok, :nothing} -> {:ok, last_commit(household_id)}
-        other -> other
-      end
-    else
-      {:error, Sunna.Error.new(:sunna_queue_not_a_member, :sunna_queue_snapshot_member)}
-    end
-  end
-
-  def snapshot(_household_id, %Actor{}),
-    do: {:error, Sunna.Error.new(:sunna_queue_not_yours, :sunna_queue_snapshot_witness)}
-
-  # Unchanged since an earlier snapshot: the commit that last wrote it.
-  defp last_commit(household_id) do
-    case Oneiroi.SimaQian.household_log(household_id, "records/work-queue-at-cutover.md", 1) do
-      {:ok, [%{sha: sha} | _]} -> sha
-      _none -> nil
-    end
-  end
-
   defp cited_pin(household_id, task, act) do
     with %{layers: layers} <- Sunna.queue_task(household_id, task),
          %{artifact: artifact} when is_binary(artifact) <-

@@ -118,21 +118,19 @@ defmodule Oneiroi.Sunna.QueueCommands do
     use Oneiroi.Command, fields: [:id, :task], decision: true
   end
 
-  # The cutover (§6.2): the old queue committed at `commit`, the new one
-  # on; and its one-step revert.
-  defmodule CutOver do
-    use Oneiroi.Command, fields: [:id, :commit], decision: true
-  end
-
-  defmodule CutBack do
-    use Oneiroi.Command, fields: [:id], decision: true
-  end
-
   defmodule PauseQueue do
     use Oneiroi.Command, fields: [:id], decision: true
   end
 
   defmodule ResumeQueue do
     use Oneiroi.Command, fields: [:id], decision: true
+  end
+
+  defmodule MakeBatch do
+    use Oneiroi.Command, fields: [:id, :name], bounds: [name: 80]
+  end
+
+  defmodule ArrangeBacklog do
+    use Oneiroi.Command, fields: [:id, :entries]
   end
 end

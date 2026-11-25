@@ -24,8 +24,7 @@ defmodule Oneiroi.Brain.NeedsYou.Queue do
   def entries(resident_id) do
     with {:ok, %{account_id: account_id}} when is_binary(account_id) <-
            AgathosDaimon.fetch(resident_id),
-         %{id: household_id, members: members} <- Gaia.resident_household(resident_id),
-         true <- Sunna.queue_cut_over?(household_id) do
+         %{id: household_id, members: members} <- Gaia.resident_household(resident_id) do
       residents = for m <- members, m.kind == "resident", do: "resident:#{m.id}"
       me = "resident:#{resident_id}"
       first? = List.first(residents) == me

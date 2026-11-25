@@ -8,6 +8,8 @@ import type {
   ResidentThread,
   QueueMove,
   QueueOverview,
+  QueueBacklog,
+  BacklogArranged,
   QueueSpec,
   QueueTaskPage,
   QueueWaiting,
@@ -764,6 +766,9 @@ export const api = {
     call<{ activity: HouseActivity[] }>('GET', `/v1/household/activity${residentId ? `?resident_id=${encodeURIComponent(residentId)}` : ''}`),
   // The house queue (sunna#80): one queue a household, every member's.
   queue: () => call<QueueOverview>('GET', '/v1/household/queue'),
+  queueBacklog: () => call<QueueBacklog>('GET', '/v1/household/queue/backlog'),
+  queueArrange: (entries: BacklogArranged[]) => call<{ ok: true }>('PUT', '/v1/household/queue/backlog', { entries }),
+  queueMakeBatch: (name: string | null) => call<{ number: number }>('POST', '/v1/household/queue/batches', { name }),
   queueWaiting: (who?: string) => call<QueueWaiting>('GET', `/v1/household/queue/waiting${who ? `?who=${encodeURIComponent(who)}` : ''}`),
   queueActivities: (filter: { who?: string; view?: string[]; project?: string }) => {
     const q = new URLSearchParams();
@@ -803,9 +808,6 @@ export const api = {
   residentThreadPost: (residentId: string, post: { title?: string; content?: string; doc?: string }) => call<{ path: string }>('POST', `/v1/residents/${residentId}/threads`, post),
   residentThreadReply: (residentId: string, thread: string, content: string) => call<unknown>('POST', `/v1/residents/${residentId}/threads/replies`, { thread, content }),
   queueDrop: (task: number, note: string) => call<{ ok: true }>('POST', `/v1/household/queue/tasks/${task}/drop`, { note }),
-  queueSnapshot: () => call<{ commit: string }>('POST', '/v1/household/queue/snapshot'),
-  queueCutOver: (commit: string, note: string) => call<{ ok: true }>('POST', '/v1/household/queue/cutover', { commit, note }),
-  queueCutBack: (note: string) => call<{ ok: true }>('POST', '/v1/household/queue/cutback', { note }),
   queuePause: (note: string) => call<{ ok: true }>('POST', '/v1/household/queue/pause', { note }),
   queueResume: (note: string) => call<{ ok: true }>('POST', '/v1/household/queue/resume', { note }),
   householdPost: (post: { title?: string; content: string; kind?: string; path?: string; doc?: string; ballot?: { bundle: BallotItem[]; term_days: number; note: string } }) =>
@@ -1129,17 +1131,7 @@ export const api = {
   answerKindGate: (residentId: string, number: number, agree: boolean, note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/kinds/gates/${number}/answer`, { agree, note }),
   pluginOff: (residentId: string, key: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/plugins/${encodeURIComponent(key)}/off`, { note }),
-  addWork: (residentId: string, what: string, doneWhen: string) =>
-    call<{ number: number }>('POST', `/v1/residents/${residentId}/work`, { what, done_when: doneWhen }),
-  moveWork: (residentId: string, number: number, status: string, blockedOn: string | null, note: string) =>
-    call<void>('POST', `/v1/residents/${residentId}/work/${number}/status`, { status, blocked_on: blockedOn, note }),
-  // Held for the witness (sunna#54): the ask says what is needed of him; release is moveWork back to open.
-  holdWork: (residentId: string, number: number, ask: string, note: string | null) =>
-    call<void>('POST', `/v1/residents/${residentId}/work/${number}/status`, { status: 'held', ask, note }),
-  orderWork: (residentId: string, order: number[]) => call<void>('PUT', `/v1/residents/${residentId}/work/order`, { order }),
-  armWork: (residentId: string) => call<void>('POST', `/v1/residents/${residentId}/work/arm`),
-  disarmWork: (residentId: string) => call<void>('POST', `/v1/residents/${residentId}/work/disarm`),
-  // The day's runs given back (sunna#53): the witness's, with a note.
+  // The runs given back (sunna#53, #101): the witness's, with a note.
   resetWorkRuns: (residentId: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/work/reset-runs`, { note }),
   // The free-time wait skipped (sunna#76): the witness's, with a note.
   skipWorkCare: (residentId: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/work/skip-care`, { note }),

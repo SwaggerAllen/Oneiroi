@@ -1,77 +1,34 @@
 import { describe, expect, it } from 'vitest';
 import { RequestFailed } from '../../api/client';
-import type { RegressionCard, RegressionRunDetail, RoutesData, WorkItem, WorkQueue } from '../../api/types';
-import { answerLine, argumentsText, blockedLine, capLine, lines, loopLine, movedUp, routeOk, saidOf, setupCommand, span, timeLine, withCard } from './logic';
-
-const item = (number: number, status = 'open', extra: Partial<WorkItem> = {}): WorkItem => ({
-  number,
-  what: `item ${number}`,
-  done_when: 'done',
-  status,
-  blocked_on: null,
-  position: number,
-  added_by: 'witness',
-  added_at: '2026-11-01T00:00:00Z',
-  note: null,
-  moved_by: null,
-  moved_at: null,
-  shipped: null,
-  slipped: null,
-  why: null,
-  wrapped_at: null,
-  runs: 0,
-  session_key: null,
-  ...extra,
-});
+import type { RegressionCard, RegressionRunDetail, RoutesData, WorkQueue } from '../../api/types';
+import { answerLine, argumentsText, capLine, lines, loopLine, routeOk, saidOf, setupCommand, span, withCard } from './logic';
 
 const queue = (over: Partial<WorkQueue> = {}): WorkQueue => ({
-  items: [item(1), item(2)],
-  running: null,
   running_since: null,
+  running_act: null,
+  running_task: null,
   rested: null,
   rested_at: null,
   runs_today: 1,
   runs_a_day: 6,
   budget: null,
-  armed: false,
   ...over,
 });
 
-describe('the work queue', () => {
-  it('moves an item one place up among the live ones, skipping finished items', () => {
-    const items = [item(1), item(9, 'done'), item(2), item(3, 'blocked')];
-    expect(movedUp(items, 3)).toEqual([1, 3, 2]);
-    expect(movedUp(items, 1)).toBeNull();
-    expect(movedUp(items, 9)).toBeNull();
-  });
-
-  it('says who armed the line and what is left of its cap', () => {
-    const line = loopLine('Mira', queue({ armed: true, armed_by: 'resident', running: 2, budget: { cap: 5e9, spent: 1e9, left: 4e9, period: 'day' } }));
-    expect(line).toBe('Running item #2 now. 1 of 6 runs today. Work line: armed by Mira, $4.00 left of $5.00 a day.');
-    expect(loopLine('Mira', queue())).toBe("Mira's loop has not run yet. Work line: off, waiting for Mira to arm it.");
-    expect(loopLine('Mira', queue({ items: [item(1, 'done')] }))).toContain('the queue is clear');
-  });
-
-  it('says how long an item has been in work (sunna#58)', () => {
+describe('the work line', () => {
+  it('says what runs, for how long, and what is left of its cap (sunna#86, #102)', () => {
     const now = Date.parse('2026-11-13T12:00:00Z');
-    const running = { running: 36, running_since: '2026-11-13T10:30:00Z' };
+    const running = queue({ running_act: '12.1', running_task: 12, running_since: '2026-11-13T10:30:00Z', budget: { cap: 5e9, spent: 1e9, left: 4e9, period: 'day' } });
+    expect(loopLine('Mira', running, now)).toBe('Running activity 12.1 of task #12, for 1h 30m. 1 of 6 runs today; work budget: $4.00 left of $5.00 a day.');
+    expect(loopLine('Mira', queue({ rested: 'holding: nothing is ready' }))).toBe('Resting: holding: nothing is ready. 1 of 6 runs today; work budget: no cap.');
+    expect(loopLine('Mira', queue())).toBe("Mira's line has not run yet. 1 of 6 runs today; work budget: no cap.");
+  });
+
+  it('says a span in its largest two units', () => {
     expect(span(30)).toBe('under a minute');
     expect(span(45 * 60)).toBe('45m');
     expect(span(2 * 3600)).toBe('2h');
     expect(span(26 * 3600 + 60)).toBe('1d 2h');
-    const it36 = item(36, 'in_work', { runs: 4, first_started_at: '2026-11-11T09:00:00Z', worked_seconds: 5 * 3600 });
-    expect(timeLine(it36, running, now)).toBe('running 1h 30m this run · 6h 30m in work over 4 runs since 2026-11-11');
-    expect(timeLine({ ...it36, status: 'open' }, { running: null, running_since: null }, now)).toBe('5h in work over 4 runs since 2026-11-11');
-    expect(timeLine(item(3, 'open', { runs: 2 }), running, now)).toBe('2 runs');
-    expect(loopLine('Mira', queue({ ...running, items: [it36] }), now)).toContain('Running item #36 now, for 1h 30m.');
-  });
-
-  it('reads what blocks an item as another item', () => {
-    const items = [item(1), item(2)];
-    expect(blockedLine('#2', items)).toBe('blocked on #2: item 2');
-    expect(blockedLine('2', items)).toBe('blocked on #2: item 2');
-    expect(blockedLine('the reviewer', items)).toBe('blocked on the reviewer');
-    expect(blockedLine(null, items)).toBe('blocked on something unnamed');
   });
 });
 

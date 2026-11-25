@@ -415,17 +415,6 @@ defmodule Oneiroi.Brain do
   @spec needs_you(String.t()) :: [map()]
   defexport(needs_you(resident_id), do: NeedsYou.list(resident_id))
 
-  @doc """
-  The cutover's first step (sunna#80, lily:design/queue-ia §6.2): every
-  resident's old work queue committed to the household repository as
-  `records/work-queue-at-cutover.md` with its raw rows; a witness's.
-  Answers the commit, which the cutover then names.
-  """
-  @spec queue_snapshot(String.t(), Oneiroi.Actor.t()) :: {:ok, String.t()} | {:error, term()}
-  defexport(queue_snapshot(household_id, actor),
-    do: HouseQueue.snapshot(household_id, actor)
-  )
-
   @doc "Takes a house queue activity (sunna#80), its artifact's head read now for the pin guard."
   @spec queue_take(String.t(), pos_integer(), String.t(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}

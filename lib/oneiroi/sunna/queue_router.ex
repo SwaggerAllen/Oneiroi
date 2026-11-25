@@ -6,5 +6,5 @@ defmodule Oneiroi.Sunna.QueueRouter do
     prefix: "queue-",
     commands: "Oneiroi.Sunna.QueueCommands",
     dispatching:
-      ~w(OpenProject CloseProject DefineTemplate OpenTask TakeActivity FinishActivity SkipActivity BlockActivity ReopenActivity FailActivity AssignActivity DecideReview DropTask FillSlot AttachDocument DetachDocument EditLayers CutOver CutBack PauseQueue ResumeQueue)
+      ~w(OpenProject CloseProject DefineTemplate OpenTask TakeActivity FinishActivity SkipActivity BlockActivity ReopenActivity FailActivity AssignActivity DecideReview DropTask FillSlot AttachDocument DetachDocument EditLayers PauseQueue MakeBatch ArrangeBacklog ResumeQueue)
 end

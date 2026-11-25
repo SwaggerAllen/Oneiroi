@@ -132,16 +132,38 @@ defmodule Oneiroi.Eunomia.Judge do
 
     request = Request.new(model, [prompt, %{role: :user, content: "Your verdict?"}])
 
-    with {:ok, %Result{content: content}} <-
+    with {:ok, %Result{content: content} = result} <-
            Nisaba.call(resident_id, :judge, request, actor(model)),
-         {:ok, verdict, reasons} <- parse_disclosure(content || ""),
-         do:
-           {:ok,
-            %{verdict: verdict, reasons: reasons, quote: parse_quote(content || ""), model: model}}
+         {:ok, verdict, reasons} <- read_disclosure(result) do
+      {:ok,
+       %{verdict: verdict, reasons: reasons, quote: parse_quote(content || ""), model: model}}
+    end
   end
 
+  # An unreadable answer's shape carries how the call ended (eunomia#34;
+  # the witness, 2026-11-24: four answers of 0 characters in two seconds,
+  # with nothing to say why): the model that answered, its finish reason,
+  # whether it refused, and the tokens it wrote. Never its words.
+  defp read_disclosure(%Result{content: content} = r) do
+    case parse_disclosure(content || "") do
+      {:error, %{details: details} = e} ->
+        ended =
+          "model #{r.model || "?"}, finish #{r.finish_reason || "?"}, refusal #{r.refusal?}, " <>
+            "tokens out #{completion_tokens(r.usage)}"
+
+        shape = Keyword.get(List.wrap(details), :shape, "")
+        {:error, %{e | details: Keyword.put(List.wrap(details), :shape, "#{shape}; #{ended}")}}
+
+      read ->
+        read
+    end
+  end
+
+  defp completion_tokens(%{completion_tokens: n}) when is_integer(n), do: n
+  defp completion_tokens(_usage), do: "?"
+
   @doc false
-  # Public for its test. The form is read past its markup (eunomia#40;
+  # Public for its test. The form is read past its markup (eunomia#34;
   # the witness, 2026-11-24: task #12's draft and its thread reply were
   # refused all morning as "not in the form asked"): a model that sets
   # its answer in Markdown (`**VERDICT:** CLEAN`, `## Verdict: CLEAN`,
