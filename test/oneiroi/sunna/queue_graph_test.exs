@@ -6,6 +6,7 @@ defmodule Oneiroi.Sunna.QueueGraphTest do
   """
   use ExUnit.Case, async: true
 
+  alias Oneiroi.Sunna.Queue
   alias Oneiroi.Sunna.QueueGraph, as: G
 
   defp act(id, task, status, extra \\ %{}),
@@ -145,5 +146,15 @@ defmodule Oneiroi.Sunna.QueueGraphTest do
       # A review of another artifact doesn't stand in.
       assert G.shape_errors([["other-review"], ["promote"]], specs()) == ["promote"]
     end
+  end
+
+  # sunna#108 (the witness, 2026-11-25: task 14 showed two design
+  # documents, one cited with its `.md` and one without): a document's
+  # key resolves as its citation does.
+  test "a document's key is its citation resolved, pin and extension alike" do
+    key = Queue.doc_key("lily:design/succession-protocol-delta")
+    assert key == "lily:design/succession-protocol-delta.md"
+    assert Queue.doc_key("lily:design/succession-protocol-delta.md@abc1234") == key
+    assert Queue.doc_key("house/strut:doc/design/x.md") == "house/strut:doc/design/x.md"
   end
 end

@@ -22,7 +22,11 @@ defmodule OneiroiWeb.WorkController do
     responses: [ok: {"the queue", "application/json", %Schema{type: :object}}]
   )
 
-  def index(conn, %{"id" => id}), do: json(conn, Sunna.work_queue(id))
+  def index(conn, %{"id" => id}) do
+    q = Sunna.work_queue(id)
+    # Where the running turn is (brain#119): receipts, never words.
+    json(conn, Map.put(q, :progress, q.running_key && Oneiroi.Brain.progress(id, q.running_key)))
+  end
 
   operation(:reset_runs,
     summary:

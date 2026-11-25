@@ -5,5 +5,6 @@ defmodule Oneiroi.Sunna.WorkRouter do
     aggregate: "Oneiroi.Sunna.Work",
     prefix: "work-",
     commands: "Oneiroi.Sunna.Commands",
-    dispatching: ~w(RestWork ResetWorkRuns SkipCareWait StartActivityRun EndActivityRun)
+    dispatching:
+      ~w(RestWork ResetWorkRuns ResetActivityRuns SkipCareWait StartActivityRun EndActivityRun)
 end

@@ -116,7 +116,7 @@ function TaskList({ overview: q, names }: { overview: QueueOverview; names: Name
         </select>
       </div>
       <QueueSwitch overview={q} />
-      {whose.startsWith('resident:') && <LineStatus residentId={whose.slice('resident:'.length)} name={nameOf(names, whose)} />}
+      {whose.startsWith('resident:') && <LineStatus residentId={whose.slice('resident:'.length)} name={nameOf(names, whose)} witness={q.me.startsWith('witness:')} />}
       {cards.isPending && <p className={css.note}>Reading…</p>}
       {backlog && cards.data && <Backlog overview={q} names={names} cards={cards.data} />}
       {!backlog && cards.data && (
@@ -186,14 +186,45 @@ function QueueSwitch({ overview: q }: { overview: QueueOverview }) {
 /**
  * Where a resident's line stands (the witness, 2026-11-23: steps that
  * looked stalled were waiting on her free time): what it runs, or why it
- * rests. Read only: the queue's one switch is above.
+ * rests. The queue's one switch is above; a line waiting on her free time
+ * can go ahead by the witness's hand, with a note (sunna#76), here since
+ * her own Work queue page is retired (sunna#106). An activity's runs are
+ * given back on its task.
  */
-function LineStatus({ residentId, name }: { residentId: string; name: string }) {
+function LineStatus({ residentId, name, witness }: { residentId: string; name: string; witness: boolean }) {
   const line = useQuery({ queryKey: ['resident', residentId, 'settings', 'work'], queryFn: () => api.work(residentId), refetchOnWindowFocus: true });
+  const [note, setNote] = useState('');
+  const act = useAct();
   if (!line.data) return null;
   const q = line.data;
   const now = q.running_act ? `running ${q.running_act}${q.running_task ? ` of task #${q.running_task}` : ''}` : (q.rested ?? 'idle');
-  return <p className={css.note}>{name}'s line: {now}</p>;
+  const waiting = !q.running_act && (q.rested ?? '').startsWith('waiting: a free-time pass');
+  return (
+    <div className={css.column}>
+      <p className={css.note}>
+        {name}'s line: {now}
+      </p>
+      {witness && waiting && (
+        <div className={w.segmented} role="group" aria-label="Work ahead of free time">
+          <input className={w.select} aria-label="Why work goes ahead (she reads it)" placeholder="Why work goes ahead (she reads it)" value={note} onChange={(e) => setNote(e.target.value)} />
+          <button
+            type="button"
+            className={css.secondary}
+            disabled={act.busy}
+            onClick={() =>
+              void act.run(
+                () => api.skipWorkCare(residentId, note.trim() || 'Work goes ahead of this free-time pass.').then(() => 'Work goes ahead; the loop checks now.'),
+                ['resident', residentId, 'settings', 'work'],
+              )
+            }
+          >
+            Start work now
+          </button>
+        </div>
+      )}
+      <Said said={act.said} />
+    </div>
+  );
 }
 
 /**

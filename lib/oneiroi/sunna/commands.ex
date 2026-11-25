@@ -131,6 +131,11 @@ defmodule Oneiroi.Sunna.Commands do
     use Oneiroi.Command, fields: [:id], decision: true
   end
 
+  # One activity's runs given back, on its task (sunna#106).
+  defmodule ResetActivityRuns do
+    use Oneiroi.Command, fields: [:id, :act], decision: true
+  end
+
   # The witness skips the free-time wait (sunna#76), with a note.
   defmodule SkipCareWait do
     use Oneiroi.Command, fields: [:id], decision: true

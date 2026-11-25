@@ -54,6 +54,7 @@ defmodule Oneiroi.Brain do
   alias Oneiroi.Brain.NightPasses
   alias Oneiroi.Brain.PluginConsent
   alias Oneiroi.Brain.Preview
+  alias Oneiroi.Brain.Progress
   alias Oneiroi.Brain.QueueDocs
   alias Oneiroi.Brain.Reactions
   alias Oneiroi.Brain.Retry
@@ -306,7 +307,8 @@ defmodule Oneiroi.Brain do
       {:brain_sessions, :local},
       {:brain_turns, :local},
       {:brain_needs_you_watchers, :local},
-      {:brain_needs_you_live, :local}
+      {:brain_needs_you_live, :local},
+      {:brain_progress, :local}
     ]
 
   # The oracle's reads (brain#49): on demand, no cron. The needs-you
@@ -338,6 +340,8 @@ defmodule Oneiroi.Brain do
       # computes it once a burst of notices for them.
       {Registry, keys: :duplicate, name: :brain_needs_you_watchers},
       Oneiroi.Brain.NeedsYou.Live,
+      # Where each running turn is (brain#119), receipts only.
+      Oneiroi.Brain.Progress,
       # The button to Lily (gaia#20): each platform report a letter.
       Oneiroi.Brain.Triage
     ]
@@ -355,6 +359,12 @@ defmodule Oneiroi.Brain do
           {:ok, [String.t()]} | {:error, term()}
   defexport(retry_credit_failures(resident_id, actor),
     do: Retry.credits(resident_id, actor)
+  )
+
+  @doc "Where a conversation's running turn is (brain#119): the turn, when it started, what it is doing and since when, its rounds and tool calls; nil when none was seen. Never words."
+  @spec progress(String.t(), String.t() | nil) :: map() | nil
+  defexport(progress(resident_id, session_key),
+    do: Progress.of(resident_id, session_key)
   )
 
   @doc "Free time remembered (brain#53): the latest runs, newest first, with the conversation each ran in, its turns, and the receipts of what it made."

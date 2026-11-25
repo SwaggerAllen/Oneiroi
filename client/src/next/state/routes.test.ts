@@ -85,6 +85,8 @@ describe('settings pages', () => {
 
   it('reads and writes a section, and nothing else as one', () => {
     expect(parseSettings('#/settings/ledger')).toBe('ledger');
+    // The retired Work queue page opens the house queue (sunna#106).
+    expect(parseSettings('#/settings/work')).toBe('queue');
     expect(parseSettings(formatSettings('regression'))).toBe('regression');
     expect(parseSettings('#/settings/nowhere')).toBeNull();
     expect(parseSettings('#/records/doc/x')).toBeNull();
@@ -95,8 +97,8 @@ describe('settings pages', () => {
     const s = useShell.getState();
     s.setTab('records');
     s.push('doc/a');
-    s.setPage('work');
-    expect(useShell.getState().page).toBe('work');
+    s.setPage('ledger');
+    expect(useShell.getState().page).toBe('ledger');
     useShell.getState().setPage(null);
     expect(useShell.getState().tab).toBe('records');
     expect(topOf(useShell.getState().stacks, 'records')).toBe('doc/a');

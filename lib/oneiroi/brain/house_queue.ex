@@ -121,13 +121,20 @@ defmodule Oneiroi.Brain.HouseQueue do
     end
   end
 
-  # Her own citation's path: `<slug>:<path>[@pin]`, never the house's.
+  # Her own citation's path: `<slug>:<kind>/<ref>[@pin]`, resolved as
+  # every citation is (`.md` added where the ref has no extension), never
+  # the house's. Read by hand before, `lily:design/x` named no file
+  # (14.3, 2026-11-25).
   defp own_path("house/" <> _), do: :error
 
   defp own_path(citation) do
-    case citation |> String.split("@", parts: 2) |> hd() |> String.split(":", parts: 2) do
-      [_slug, path] when path != "" -> {:ok, String.trim(path)}
-      _ -> :error
+    with [_slug, cited] when cited != "" <-
+           citation |> String.split("@", parts: 2) |> hd() |> String.split(":", parts: 2),
+         [kind, ref] <- cited |> String.trim() |> String.split("/", parts: 2) do
+      {:ok, Seshat.citation_path(kind, ref)}
+    else
+      [_slug, cited] when cited != "" -> {:ok, Seshat.citation_path("root", String.trim(cited))}
+      _other -> :error
     end
   end
 

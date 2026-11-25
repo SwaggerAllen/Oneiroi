@@ -119,6 +119,7 @@ defmodule Oneiroi.Sunna do
       Commands.WakeForLetters,
       Commands.RestWork,
       Commands.ResetWorkRuns,
+      Commands.ResetActivityRuns,
       Commands.SkipCareWait,
       Commands.StartActivityRun,
       Commands.EndActivityRun,
@@ -133,6 +134,7 @@ defmodule Oneiroi.Sunna do
       Events.WorkArmed,
       Events.WorkDisarmed,
       Events.WorkRunsReset,
+      Events.ActivityRunsReset,
       Events.WorkCareSkipped,
       Events.ActivityRunStarted,
       Events.ActivityRunEnded,
@@ -432,6 +434,7 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.WorkArmed, 1},
       {Oneiroi.Sunna.Events.WorkDisarmed, 1},
       {Oneiroi.Sunna.Events.WorkRunsReset, 1},
+      {Oneiroi.Sunna.Events.ActivityRunsReset, 1},
       {Oneiroi.Sunna.Events.WorkCareSkipped, 1}
     ]
   end
@@ -700,6 +703,13 @@ defmodule Oneiroi.Sunna do
   @spec work_reset_runs(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(work_reset_runs(resident_id, note, actor),
     do: WorkLoop.reset_runs_by(resident_id, note, actor)
+  )
+
+  @doc "Gives one activity's runs back on its task (sunna#106): the witness's, with a note; an activity blocked for running out is opened again, and the loop checks."
+  @spec queue_runs_back(String.t(), pos_integer(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_runs_back(household_id, task, act, note, actor),
+    do: WorkLoop.runs_back(household_id, task, act, note, actor)
   )
 
   @doc "Skips the free-time wait (sunna#76): the witness's, with a note; the loop checks at once."

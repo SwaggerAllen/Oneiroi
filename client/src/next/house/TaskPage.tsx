@@ -6,7 +6,7 @@ import { Confirm, Field, Said, Select, TextArea } from '../settings/common';
 import * as css from '../settings/settings.css';
 import { useAct } from '../settings/useAct';
 import { HOUSE } from './keys';
-import { actName, documentRows, drawLayers, forkNote, fromLine, GATED, glyph, LETS, nameOf, pairedHolders, pin, rearranged, replacedDocument, roleChoices, since, TYPES, withPaired, type DrawnLayer, type Names } from './queueText';
+import { actName, documentRows, outOfRuns, runNowLine, drawLayers, forkNote, fromLine, GATED, glyph, LETS, nameOf, pairedHolders, pin, rearranged, replacedDocument, roleChoices, since, TYPES, withPaired, type DrawnLayer, type Names } from './queueText';
 import * as w from './work.css';
 import { useWorkNav, workPath } from './workRoutes';
 
@@ -112,9 +112,15 @@ export function TaskPage({ number, names, overview }: { number: number; names: N
         <LayersDrawn layers={drawLayers(layers, task.open_layer)} names={names} me={overview.me} onOpen={(id) => nav(workPath.activity(task.number, id))} />
         {waiting.length > 0 && <p className={css.meta}>Waiting on this task: {waiting.map((a) => `${actName(a)} (#${a.task})`).join(', ')}</p>}
       </section>
-      <details className={css.card}>
+      <details className={css.card} open={layers.flat().some((a) => a.view === 'active')}>
         <summary className={css.heading}>History · {history.length}</summary>
         <History rows={history} names={names} />
+        {layers
+          .flat()
+          .filter((a) => a.view === 'active' && a.assignee.startsWith('resident:'))
+          .map((a) => (
+            <RunNow key={a.act_id} a={a} names={names} />
+          ))}
       </details>
       {mayEdit && (
         <div className={css.row}>
@@ -221,6 +227,8 @@ function TaskDocuments({ number, documents, layers, mayEdit }: { number: number;
                     Cancel
                   </button>
                 </div>
+                {/* Said where it was asked (the witness, 2026-11-25: a refusal at the section's foot read as nothing happening). */}
+                <Said said={act.said} />
               </div>
             )}
           </li>
@@ -245,6 +253,7 @@ function TaskDocuments({ number, documents, layers, mayEdit }: { number: number;
                 Cancel
               </button>
             </div>
+            <Said said={act.said} />
           </div>
         ) : (
           <div>
@@ -253,7 +262,7 @@ function TaskDocuments({ number, documents, layers, mayEdit }: { number: number;
             </button>
           </div>
         ))}
-      <Said said={act.said} />
+      {changing === null && !adding && <Said said={act.said} />}
     </section>
   );
 }
@@ -615,10 +624,13 @@ function Moves({ task, a, names, overview, layers }: { task: number; a: QueueAct
               </button>
             </div>
           )}
-          {stuck && (
+          {stuck && !outOfRuns(a) && (
             <button type="button" className={css.secondary} disabled={act.busy || !note.trim()} onClick={() => move('reopen', { note }, `${actName(a)} is open again.`)}>
               Reopen
             </button>
+          )}
+          {overview.me.startsWith('witness:') && a.assignee.startsWith('resident:') && (
+            <RunsBack residentId={a.assignee.slice('resident:'.length)} a={a} busy={act.busy} onGive={() => move('runs_back', { note: note || undefined }, `${actName(a)} has its runs back${outOfRuns(a) ? ' and is open again' : ''}.`)} />
           )}
           <div className={css.row}>
             <Confirm label="Skip" confirm="Skip it, with the note?" disabled={act.busy || !note.trim()} onConfirm={() => move('skip', { note }, `${actName(a)} skipped.`)} />
@@ -637,3 +649,39 @@ function Moves({ task, a, names, overview, layers }: { task: number; a: QueueAct
   );
 }
 
+/**
+ * A resident's activity's runs (sunna#101, #106): how many it has had since
+ * it last moved, and the witness's give-back, here on its task. One out of
+ * runs is blocked, and giving them back opens it again.
+ */
+function RunsBack({ residentId, a, busy, onGive }: { residentId: string; a: QueueActivity; busy: boolean; onGive: () => void }) {
+  const line = useQuery({ queryKey: ['resident', residentId, 'settings', 'work'], queryFn: () => api.work(residentId) });
+  const runs = line.data?.activity_runs?.find((r) => r.act === a.act_id)?.runs ?? 0;
+  const bound = line.data?.runs_an_activity ?? 20;
+  if (runs === 0 && !outOfRuns(a)) return null;
+  return (
+    <div className={css.row}>
+      <span className={css.note}>
+        {runs} of {bound} runs since it last moved{outOfRuns(a) ? '; out of runs, so blocked' : ''}.
+      </span>
+      <button type="button" className={css.secondary} disabled={busy} onClick={onGive}>
+        Give the runs back
+      </button>
+    </div>
+  );
+}
+
+/**
+ * Where a resident's run of this activity is now (brain#119; the witness,
+ * 2026-11-25: "some kind of intermediate status report in history at the
+ * bottom of the task page to see if something is hanging"): how long it
+ * has run, its turn, what that turn is doing and for how long, its rounds
+ * and tool calls. Receipts, never words; read again every 15 seconds.
+ */
+function RunNow({ a, names }: { a: QueueActivity; names: Names }) {
+  const residentId = a.assignee.slice('resident:'.length);
+  const line = useQuery({ queryKey: ['resident', residentId, 'settings', 'work'], queryFn: () => api.work(residentId), refetchInterval: 15_000 });
+  const q = line.data;
+  if (!q || q.running_act !== a.act_id) return null;
+  return <p className={w.runNow}>{runNowLine(q, nameOf(names, a.assignee))}</p>;
+}

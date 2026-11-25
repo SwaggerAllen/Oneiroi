@@ -204,7 +204,7 @@ defmodule OneiroiWeb.QueueController do
 
   operation(:move,
     summary:
-      "Moves an activity: take, finish (note, result), skip (note), block (reason, waits_on), reopen (note), fail (reason), assign (assignee, note), or decide a review (outcome approved, changes or declined; pin, return_to, withhold, note)",
+      "Moves an activity: take, finish (note, result), skip (note), block (reason, waits_on), reopen (note), fail (reason), runs_back (note: the witness gives a resident's activity its runs back, sunna#106), assign (assignee, note), or decide a review (outcome approved, changes or declined; pin, return_to, withhold, note)",
     parameters: [
       number: [in: :path, type: :integer],
       act: [in: :path, type: :string],
@@ -403,6 +403,9 @@ defmodule OneiroiWeb.QueueController do
 
   defp apply_move("reopen", p, {h, n, act}, a), do: Sunna.queue_reopen(h, n, act, p["note"], a)
   defp apply_move("fail", p, {h, n, act}, a), do: Sunna.queue_fail(h, n, act, p["reason"], a)
+
+  defp apply_move("runs_back", p, {h, n, act}, a),
+    do: Sunna.queue_runs_back(h, n, act, blank(p["note"]) || "runs given back", a)
 
   defp apply_move("assign", p, {h, n, act}, a),
     do: Sunna.queue_assign(h, n, act, p["assignee"], blank(p["note"]), a)

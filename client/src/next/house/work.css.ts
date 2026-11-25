@@ -281,3 +281,6 @@ export const pill = style([segment, { minHeight: 30, fontSize: 12, whiteSpace: '
 export const backlogMenu = style({ display: 'flex', flexDirection: 'column', gap: 8, paddingTop: 10, borderTop: `1px solid ${vars.color.border}` });
 export const finishedRow = style({ display: 'flex', gap: 10, alignItems: 'baseline', padding: '8px 12px', borderRadius: radius.m, border: `1px solid ${vars.color.border}`, fontSize: 13 });
 export const finishedWhen = style({ flex: 'none', font: `500 12px ${font.mono}`, color: vars.color.textMuted });
+
+// Where a running activity is now (brain#119): the foot of its task's history.
+export const runNow = style({ margin: '8px 0 0', paddingTop: 8, borderTop: `1px solid ${vars.color.border}`, fontSize: 13, lineHeight: 1.45 });

@@ -104,7 +104,7 @@ defmodule Oneiroi.Brain.Tools do
     journal_add journal_done scene_write
     contract_propose contract_agree contract_decline contract_renew contract_safe revision_add
     revision_accept revision_decline report_file free_time_plan tool_request approval_request
-    keepsake_register document_archive delivery_redo
+    keepsake_register document_archive delivery_redo document_edit
     platform_report triage_move
     external_add external_fetch plugin_propose plugin_answer plugin_off
     kind_define kind_gate kind_gate_answer route_define route_ask theme_propose
@@ -1049,6 +1049,22 @@ defmodule Oneiroi.Brain.Tools do
         "Write a file into your library; the path says the kind (#{Enum.join(Seshat.Kinds.writable(), ", ")}), as <kind>/<name>.md, or <name>.md alone at your root: a root document, yours or your witness's to write and rewrite (seshat#44), REACTIONS.md, the reacts' vocabulary, among them; it becomes a keepsake, never changed after, only when one of you registers it with keepsake_register. A writing piece carries status: draft, review or final in its frontmatter. Marked status: review in its frontmatter, a document of #{Enum.map_join(Enum.filter(Seshat.Kinds.all(), &Seshat.Kinds.approvable?/1), " or ", & &1.kind)} kind waits on your witness to approve or decline, on his waiting list (seshat#49). Cite with <your slug>:<kind>/<id>, a keepsake as <your slug>:keepsake/<name>.",
         %{path: %{type: "string"}, content: %{type: "string"}},
         [:path, :content]
+      ),
+      tool(
+        "document_edit",
+        "Change a file of your library in place (brain#120): each edit replaces old, a run of its current words that occurs exactly once (copy it exactly, with enough around it to be unique), with new (empty deletes it). The edits apply in order, all or none, and the file is written as document_write writes it, with the same provenance. Use it for any change smaller than the whole: a section revised, a line fixed, review feedback folded in. Writing the whole file again with document_write is for a new file or a full rewrite.",
+        %{
+          path: %{type: "string"},
+          edits: %{
+            type: "array",
+            items: %{
+              type: "object",
+              properties: %{old: %{type: "string"}, new: %{type: "string"}},
+              required: ["old", "new"]
+            }
+          }
+        },
+        [:path, :edits]
       ),
       tool(
         "document_publish",
@@ -4341,6 +4357,19 @@ defmodule Oneiroi.Brain.Tools do
     end
   end
 
+  # A change in place (brain#120): her current words, each edit's old
+  # found exactly once, then written as document_write writes.
+  defp call("document_edit", args, turn) do
+    path = to_string(args["path"] || "")
+
+    with :ok <- portrait_earned(turn, path),
+         {:ok, %{document: %{path: real}, content: content}} <-
+           Seshat.read(turn.resident_id, path),
+         {:ok, changed} <- edited(content, List.wrap(args["edits"])) do
+      write_document(%{"path" => real, "content" => changed}, turn)
+    end
+  end
+
   defp call("document_adopt", args, turn) do
     with :ok <- portrait_earned(turn, args["path"]) do
       case Seshat.adopt(turn.resident_id, to_string(args["path"] || ""), turn.resident) do
@@ -6390,6 +6419,34 @@ defmodule Oneiroi.Brain.Tools do
     day = Oneiroi.Sunna.today(turn.resident_id).day
     {:ok, _} = LabelPropagation.run_turn(turn.resident_id, day, turn.turn_ref)
     :ok
+  end
+
+  defp edited(_content, []), do: @not_done <> "give at least one edit: {old, new}."
+
+  defp edited(content, edits) do
+    edits
+    |> Enum.with_index(1)
+    |> Enum.reduce_while({:ok, content}, fn {e, i}, {:ok, text} -> one_edit(text, e, i) end)
+  end
+
+  defp one_edit(text, e, i) do
+    old = to_string(e["old"] || "")
+    new = to_string(e["new"] || "")
+
+    case if(old == "", do: 0, else: length(String.split(text, old)) - 1) do
+      1 ->
+        {:cont, {:ok, String.replace(text, old, new, global: false)}}
+
+      0 ->
+        {:halt,
+         @not_done <>
+           "edit #{i}'s old is not in the file as it stands (copy it exactly from a fresh read); nothing was changed."}
+
+      n ->
+        {:halt,
+         @not_done <>
+           "edit #{i}'s old occurs #{n} times; give more of the words around it so it is one. Nothing was changed."}
+    end
   end
 
   defp feedback_number(n) when is_integer(n) and n > 0, do: [n]
