@@ -1607,7 +1607,10 @@ defmodule Oneiroi.Brain.Tools do
           "#{switch.label} is switched off in your agreement with your witness; a version that turns it on, agreed by you both, brings it back."
 
       {nil, {:ok, args}} ->
-        withheld(name, args, turn) || guarded(name, args, turn)
+        case withheld(name, args, turn) do
+          nil -> guarded(name, args, turn)
+          refused -> kept_private(name, args, turn) || refused
+        end
 
       {nil, :error} ->
         @not_done <> "the arguments were not a JSON object."
@@ -1850,6 +1853,55 @@ defmodule Oneiroi.Brain.Tools do
     else
       {:error, %{kind: :kumbukumbu_withheld_by_policy} = e} -> withheld_words(e)
       _delivered -> nil
+    end
+  end
+
+  # A block or a fail whose reason cannot reach the house still moves the
+  # activity (brain#118; the witness, 2026-11-25: "work sessions need to
+  # be able to mark their work failed or blocked with a reason"): the house
+  # reads that the reason is kept between her and her witness, and the
+  # reason itself goes to her Oneiroi chat, which is theirs. The state of
+  # the work is never held back by the words about it.
+  @private_reason "the reason is kept between her and her witness"
+
+  defp kept_private("queue_move", %{"move" => move} = args, turn) when move in ~w(block fail) do
+    reason = [args["reason"], args["note"]] |> Enum.filter(&is_binary/1) |> Enum.join(" ")
+
+    case guarded(
+           "queue_move",
+           args |> Map.put("reason", @private_reason) |> Map.delete("note"),
+           turn
+         ) do
+      @not_done <> _ = refused ->
+        refused
+
+      said ->
+        said <>
+          " Its reason could not go to the house (the policies held it), so the house reads that it is kept between you and your witness; " <>
+          sent_privately(turn, args, move, reason)
+    end
+  end
+
+  defp kept_private(_name, _args, _turn), do: nil
+
+  defp sent_privately(turn, args, move, reason) do
+    words = if move == "block", do: "blocked", else: "failed"
+
+    case Kumbukumbu.send_letter(
+           turn.resident_id,
+           Map.get(turn, :session_key),
+           %{
+             "to" => "Oneiroi chat",
+             "text" =>
+               "Activity #{args["act"]} #{words}; the reason, kept from the house: #{reason}"
+           },
+           turn.resident
+         ) do
+      {:ok, _} ->
+        "the reason itself went to your Oneiroi chat."
+
+      _not_sent ->
+        "the reason itself did not go anywhere: tell your witness in your Oneiroi chat."
     end
   end
 

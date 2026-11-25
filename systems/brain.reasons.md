@@ -986,3 +986,6 @@ moment of joining, costs one call and closes the gap.
 
 ## #117
 A take moves a card from ready to active and says nothing; refusing it because the room once held a private domain made the gate stop work the policy never meant to touch, with no words to show anyone. Limiting the pass to queue moves keeps the rule where its premise is checked: their candidate names every field that carries words.
+
+## #118
+A blocked or failed activity is a fact the house needs to plan by; why it is blocked may be the private part. Holding the whole move back made the queue lie (the activity stayed active while nobody worked it) to protect a sentence. Splitting them keeps both true: the house sees the state, the witness gets the reason, and nothing the policies hold crosses.

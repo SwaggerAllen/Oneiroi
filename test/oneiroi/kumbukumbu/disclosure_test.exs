@@ -430,6 +430,50 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
     assert said =~ "the meeting"
   end
 
+  # brain#118 (the witness, 2026-11-25: "work sessions need to be able to
+  # mark their work failed or blocked with a reason"): the move records;
+  # the house reads that the reason is kept, and the reason goes to her
+  # Oneiroi chat, which is the dyad's.
+  test "a block whose reason the house may not hear still records, the reason kept for the dyad",
+       ctx do
+    judge(FakeJudge)
+    :ok = Oneiroi.Sunna.queue_open_project(ctx.household, %{slug: "p", name: "P"}, ctx.lily)
+
+    {:ok, n} =
+      Oneiroi.Sunna.queue_open_task(
+        ctx.household,
+        %{
+          project: "p",
+          slug: "b",
+          title: "Blocked one",
+          outcome: "done",
+          layers: [[%{type: "draft", assignee: "resident:#{ctx.id}"}]]
+        },
+        ctx.lily
+      )
+
+    act = "#{n}.1"
+
+    said =
+      Tools.run(
+        "queue_move",
+        Jason.encode!(%{task: n, act: act, move: "block", reason: "until the meeting is over"}),
+        tool_turn(ctx)
+      )
+
+    assert said =~ "block recorded"
+    assert said =~ "kept between you and your witness"
+
+    assert %{status: "blocked", reason: "the reason is kept between her and her witness"} =
+             Enum.find(
+               List.flatten(Oneiroi.Sunna.queue_task(ctx.household, n).layers),
+               &(&1.act_id == act)
+             )
+
+    # From the Oneiroi chat itself there is nowhere else to send it: she is told to say it there.
+    assert said =~ "tell your witness in your Oneiroi chat"
+  end
+
   # eunomia#35 (the witness's logs, 2026-11-25: every unreadable answer
   # was the provider's content filter, 0 tokens): a filtered review goes
   # once to the fallback model when one is set, and fails closed when not.
