@@ -416,6 +416,8 @@ defmodule Oneiroi.Brain.TrialTest do
     # Her recategorizing (kumbukumbu#110): answered as it would be.
     {"domain_recategorize", %{from: "business", to: "none"}},
     {"record_classify", %{kind: "letter", id: "1", domain: "none"}},
+    # A redo (kumbukumbu#113): answered as it would be, nothing queued.
+    {"delivery_redo", %{audience: "workspace", to: "w-1", ask: "Finish it."}},
     # Her prefix (agathos-daimon#50): answered as it would be, nothing retired.
     {"identity_file_retire", %{file: "GOALS.md", note: "migrated"}}
   ]

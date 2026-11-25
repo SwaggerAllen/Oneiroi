@@ -155,15 +155,34 @@ defmodule Oneiroi.Kumbukumbu.FileDisclosureTest do
     refute asked()
   end
 
-  test "the laundering case: written in the common room by a turn that held recovery, it is recovery's",
+  # kumbukumbu#112 (the witness, 2026-11-25: cut "takes the domain just
+  # because it's in context"): a file takes its writing turn's domain and
+  # what it cites, never the window it was written beside.
+  test "written in the common room beside recovery, it is the common room's; citing recovery, recovery's",
        ctx do
     say(ctx, "t-1", "The meeting at noon, ninety days.", "recovery")
     # The conversation moves back to the common room; the window still holds it.
     say(ctx, "t-2", "The garden at noon.", nil)
     write(ctx, "t-write")
 
-    assert promote(ctx, "t-later") =~ "recovery"
+    assert promote(ctx, "t-later") =~ "Promoted"
     refute asked()
+
+    # The same words citing the recovery turn carry its domain.
+    {:ok, %{slug: slug}} = AgathosDaimon.fetch(ctx.id)
+
+    run(
+      ctx,
+      "document_write",
+      %{
+        path: "design/note.md",
+        content:
+          "---\ntitle: A note\n---\n\nThe garden at noon, after #{slug}:transcript/#{ctx.key}/t-1.\n"
+      },
+      "t-cite"
+    )
+
+    assert promote(ctx, "t-later-2") =~ "recovery"
   end
 
   test "classified the common room by its author, it goes; the classification is kept on her stream",

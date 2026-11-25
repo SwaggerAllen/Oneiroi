@@ -1587,6 +1587,27 @@ defmodule Oneiroi.Kumbukumbu.Store do
     )
   end
 
+  @doc "The bookmarks a turn's feedback said it used (kumbukumbu#112): their targets, `bookmark/<n>`."
+  def feedback_targets(turn_ref),
+    do:
+      Repo.all(
+        from(u in RetrievalUse,
+          where: u.turn_ref == ^turn_ref and u.via == "feedback" and u.stage == "used",
+          distinct: true,
+          select: u.target
+        )
+      )
+
+  @doc "The anchors of the bookmarks numbered (kumbukumbu#111): `%{number, session_key, anchor_ref}`, for their domains."
+  def bookmark_anchors(numbers),
+    do:
+      Repo.all(
+        from(b in Bookmark,
+          where: b.number in ^numbers,
+          select: %{number: b.number, session_key: b.session_key, anchor_ref: b.anchor_ref}
+        )
+      )
+
   @doc "One bookmark by number, with its tags."
   @spec bookmark(pos_integer()) :: Bookmark.t() | nil
   def bookmark(number) do
