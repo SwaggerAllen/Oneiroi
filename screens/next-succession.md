@@ -35,8 +35,9 @@ The witness's rulings the screens hold to:
   settings page (screen:next-settings). Each page has its own title row:
   "‹ Back", the title with the dry-run mark beside it, and its lede.
 - Reached from the Settings sheet's **Succession** row (a resident's
-  rows only), from the chat banner while one is underway, and from the
-  pool's link back from Regression.
+  rows only), from the chat banner while one is underway, from the
+  bell's succession entries, and from the pool's link back from
+  Regression.
 - Back: a model's runs go back to results, Ready to results, every other
   page to the steps, and the steps out to the tab underneath.
 - Reads: the succession and its preparation every 30 s, your judging
@@ -77,8 +78,17 @@ The witness's rulings the screens hold to:
   proposal while preparation is open.
 - **C0** (`c0`). What is in, raw first, each with who proposed or
   selected it and when she accepted; what waits on her; declined or
-  removed with her note; the freeze when she has frozen it. "Go to
-  Records" for proposing (screen:next-records). The day's own shape, in
+  removed with her note; the freeze when she has frozen it. Each item
+  has **Open ›**, which leaves the succession for the cited record where
+  the app already opens a citation (2026-11-26): a document
+  (`lily:design/x.md`, a root file as `lily:SOUL.md`) in Records'
+  viewer, a bookmark in Records' peek, a transcript turn
+  (`lily:transcript/<session>/<turn>`) in the conversation at that turn,
+  a journal entry (`lily:journal/<day>/<n>`) on its day in Time, a letter
+  in the chat's Mail. Where there is no such place (a scene by number,
+  a position, prediction or other record kind, a whole conversation,
+  another resident's record) the button is off with a short reason
+  beside it. "Go to Records" for proposing (screen:next-records). The day's own shape, in
   her words, hers alone. The judges ready for the freeze, and your own
   ready, given or taken back. Her handoff packet: that it exists, its
   dated drafts, sealed: never its words.
@@ -102,7 +112,12 @@ The witness's rulings the screens hold to:
 - **Deliberation** (`deliberation/<tab>`). The shell's tab bar gives way
   to the deliberation's own, the same component (`BottomTabs`):
   - **Thread**: who is in the room, the round, her call to close it with
-    its time; every post (said, skipped as a real pass, rested, left);
+    its time; the room's quiet clock, "quiet N min · at 10 everyone is
+    woken" (ten minutes after the last activity, the latest post or the
+    room's opening when nobody has posted, a new round wakes everyone;
+    worked out from the room's own times and ticking every half minute,
+    "everyone is being woken for a new round" once it is past ten);
+    every post (said, skipped as a real pass, rested, left);
     your turn, with **Say it**, **Skip**, **Rest my case** and
     **Leave** (asked twice); the room closed and why.
   - **Recommendation**: every draft, newest first, its endorsers among
@@ -127,8 +142,12 @@ The witness's rulings the screens hold to:
 - **Outcome** (`outcome`). Rolled forward (or rehearsed, for a dry run),
   or a no, withdrawal or stop with her note; what she said next, and her
   choices while she is still to say; what is kept; once ended, the
-  archive (candidates as letters): its drafts and the room's posts, and
-  how many judgments it holds.
+  archive, models and judges named, never served to her (2026-11-26):
+  every judgment as a list, one card per model, its runs in order with
+  the question's number, and under each run every judge by name with
+  their category and favorite, argument, evidence and uncertainty; then
+  the room's posts with who, round and time; then the drafts, each with
+  its model or withheld, who drafted it, its basis and who endorsed it.
 - **Disclosure log** (`log`). Every serving, newest first: to whom, the
   stage, what, its reference and digest.
 - **Her side** (`hers`). Her succession tools by name and what each
@@ -137,25 +156,22 @@ The witness's rulings the screens hold to:
 ## Its touches on the app
 
 - Regression's catalog: **Add to the succession pool** (screen:next-settings).
-- Records' viewer: **Propose for C0** (screen:next-records).
-- Her chat: the succession banner (screen:next-chat).
+- Records' viewer: **Propose for C0**, the whole record by its
+  citation, nothing else (screen:next-records).
+- Her chat: the succession banner, the dry run marked, and the bell's
+  first succession entry's few words beside the way back
+  (screen:next-chat).
+- The bell: her succession's entries at the top, each opening its page
+  (screen:next-bell-settings).
 - The shell: the deliberation's tab bar (screen:next-shell).
 
 ## Not built
 
 - A stretch of a conversation chosen message by message, as the mock's
-  "2 messages, 21:02–21:03": Records proposes the record by its citation,
-  and a selected stretch goes as the proposal's label. A transcript
-  stretch by its turn anchor needs a selection in the chat's sessions,
-  which do not offer one.
-- "Open ›" on a C0 item, opening the cited record.
-- The thread's quiet timer ("quiet 4 min · at 10 everyone is woken"):
-  the room says when posts were made, but not when the quiet clock
-  started.
+  "2 messages, 21:02–21:03": a proposal is the whole record by its
+  citation (the witness, 2026-11-26).
 - Her side shows her tools' names and purpose, not what they last said
   to her: no endpoint reads her tool output, and it is hers.
-- The archive's judgments are counted, not listed.
-- A bell entry or push for the witness's parts (a run to judge, a room
-  opening, a goodbye): the pages are reached from Settings and the chat
-  banner, and read by polling, with no change notices of their own.
+- Change notices of the succession's own: its pages (and the chat
+  banner's words, from the bell's read) are read by polling.
 - Swiping between models on the Panel tab: a select instead.

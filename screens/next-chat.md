@@ -13,8 +13,13 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
 - **The succession banner** (screen:next-succession, 2026-11-25): while a
   succession of hers is underway, a banner under the switch, its words
   following the state ("Succession · her farewell is open"), the dry run
-  marked, and "Back to the succession ›" (to the farewell page during
-  the farewell, else its steps). Goodbyes are said here, in her ordinary
+  marked with the "Dry run" chip beside them (wrapping under them on a
+  narrow screen, never hidden), and "Back to the succession ›". When the
+  bell holds a succession entry for you (2026-11-26), its few words ("4
+  to judge", "Your turn", "Your goodbye") sit beside the link in an amber
+  chip that gives way first when the line is short, and the banner opens
+  that entry's page; otherwise it opens the farewell page during the
+  farewell, else the steps. Goodbyes are said here, in her ordinary
   chat; nothing else about the chat changes.
 - **Conversation:**
   - The main session's newest page is read from the query cache, so a

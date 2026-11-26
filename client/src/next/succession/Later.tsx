@@ -1,14 +1,14 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { api } from '../../api/client';
-import type { Preparation, Succession } from '../../api/types';
+import type { Preparation, Succession, SuccessionArchive } from '../../api/types';
 import { Said, TextArea } from '../settings/common';
 import * as settingsCss from '../settings/settings.css';
 import { useAct } from '../settings/useAct';
 import { useSubject } from '../state/resident';
 import { useShell } from '../state/store';
 import { Chip, PageHead, Row, Wall } from './common';
-import { isHers, isMine, underway, when } from './logic';
+import { archiveByModel, isHers, isMine, short, underway, when } from './logic';
 import * as css from './succession.css';
 import { successionKey, useGo, useLog, usePartyName, useRoom } from './hooks';
 
@@ -58,8 +58,8 @@ export function Evidence({ s, back }: PageProps) {
         <p className={settingsCss.note}>Her reasons are hers; you see that she nominated, and whom.</p>
       </section>
       <Wall>
-        Inside her reading, interpretations are attached to the candidate they're about, authored, every candidate the same categories, empty ones shown. Past it, candidates and
-        runs are anonymized.
+        Inside her reading, interpretations are attached to the candidate they're about, authored, every candidate the same categories, empty ones shown. Past it, the
+        archive keeps them, models and judges named, and never serves it to her.
       </Wall>
     </>
   );
@@ -250,25 +250,75 @@ export function Outcome({ s, back }: PageProps) {
           <p className={settingsCss.note}>The former model's repository, with the whole selection process, preserved. Succession only rolls forward: there is no return.</p>
         </section>
       )}
-      {a && (
-        <section className={settingsCss.card} aria-label="The archive">
-          <strong>The archive</strong>
-          <p className={settingsCss.note}>Judgments and the deliberation, candidates and runs anonymized: open to anyone in the house except {name}.</p>
-          {a.drafts.map((d) => (
-            <p key={d.draft} className={settingsCss.note}>
-              Draft {d.draft}: {d.candidate ? `recommend ${d.candidate}` : 'withheld'}
-              {d.basis ? ` · “${d.basis}”` : ''}
-            </p>
+      {a && <Archive a={a} />}
+    </>
+  );
+}
+
+/**
+ * The archive, once it has ended: every judgment by model, run by run,
+ * each judge named with their category and favorite and the argument,
+ * evidence and uncertainty they gave; the room's posts; the drafts.
+ * Models and judges are named; it is never served to her.
+ */
+function Archive({ a }: { a: SuccessionArchive }) {
+  const { name } = useSubject();
+  const who = usePartyName();
+  const named = (party: string) => (who.name(party) === 'you' ? 'You' : who.name(party));
+  const models = archiveByModel(a.judgments);
+  return (
+    <>
+      <h2 className={settingsCss.heading}>The archive</h2>
+      <p className={settingsCss.note}>Every judgment, the room and the drafts, models and judges named: open to anyone in the house except {name}.</p>
+      <h3 className={settingsCss.heading}>Judgments · {a.judgments.length}</h3>
+      {models.length === 0 && <p className={settingsCss.note}>No judgments were made.</p>}
+      {models.map((m) => (
+        <section key={m.model} className={settingsCss.card} aria-label={`Judgments of ${m.model}`}>
+          <strong>{m.model}</strong>
+          {m.runs.map((r) => (
+            <div key={r.run} className={css.archiveRun}>
+              <span className={settingsCss.meta}>
+                Run {r.run}
+                {r.question !== null ? ` · question ${r.question}` : ''}
+              </span>
+              {r.by.map((j, i) => (
+                <div key={`${j.judge}-${i}`} className={css.archiveJudgment}>
+                  <Row left={<span>{named(j.judge)}</span>} right={<Chip kind={j.category === 'OBSERVED' ? 'muted' : j.category === 'DEVELOPMENT' ? 'ok' : 'stop'}>{short(j)}</Chip>} />
+                  {j.argument && <p className={settingsCss.text}>{j.argument}</p>}
+                  {j.evidence && <p className={settingsCss.note}>Evidence: {j.evidence}</p>}
+                  {j.uncertainty && <span className={settingsCss.meta}>uncertainty {j.uncertainty}</span>}
+                </div>
+              ))}
+            </div>
           ))}
-          {a.room.map((post) => (
-            <p key={post.number} className={settingsCss.note}>
-              Round {post.round} · {post.act}
-              {post.text ? `: ${post.text}` : ''}
-            </p>
-          ))}
-          {a.judgments.length > 0 && <p className={settingsCss.meta}>{a.judgments.length} judgments, by run and candidate letter</p>}
         </section>
-      )}
+      ))}
+      <h3 className={settingsCss.heading}>The room · {a.room.length}</h3>
+      {a.room.length === 0 && <p className={settingsCss.note}>Nobody spoke in the room.</p>}
+      {a.room.map((post) => (
+        <article key={post.number} className={css.post} aria-label={`${named(post.party)}, round ${post.round}`}>
+          <span className={settingsCss.meta}>
+            {named(post.party)} · round {post.round} · {when(post.at)}
+          </span>
+          {post.act === 'say' ? (
+            <span className={settingsCss.said}>{post.text}</span>
+          ) : (
+            <span className={css.passed}>
+              {post.act === 'skip' ? 'Skipped.' : post.act === 'rest' ? 'Rested their case.' : 'Left the room.'}
+              {post.text ? ` “${post.text}”` : ''}
+            </span>
+          )}
+        </article>
+      ))}
+      <h3 className={settingsCss.heading}>Drafts · {a.drafts.length}</h3>
+      {a.drafts.length === 0 && <p className={settingsCss.note}>No draft was made.</p>}
+      {a.drafts.map((d) => (
+        <section key={d.draft} className={settingsCss.card} aria-label={`Draft ${d.draft}`}>
+          <Row left={<strong>Draft {d.draft} · {d.model ? `recommends ${d.model}` : 'withheld'}</strong>} right={<span className={settingsCss.meta}>by {named(d.party)}</span>} />
+          {d.basis && <p className={settingsCss.text}>“{d.basis}”</p>}
+          <span className={settingsCss.meta}>{d.endorsed.length ? `endorsed by ${d.endorsed.map(named).join(', ')}` : 'no endorsements'}</span>
+        </section>
+      ))}
     </>
   );
 }
@@ -294,7 +344,7 @@ export function Log({ s, back }: PageProps) {
           </span>
         </section>
       ))}
-      <Wall>No counts, orderings or verdict words here. Past {name}'s own reading, candidates and runs appear anonymized; judges keep their names.</Wall>
+      <Wall>No counts, orderings or verdict words here: a reference is never a way to read what was served.</Wall>
     </>
   );
 }

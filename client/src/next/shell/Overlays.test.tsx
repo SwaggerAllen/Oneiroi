@@ -49,6 +49,37 @@ describe('the bell', () => {
     await waitFor(() => expect(answer).toHaveBeenCalledWith('r1', 1, true, 'Agreed, cut it.'));
   });
 
+  // The witness, 2026-11-26: her succession's parts at the top, each opening its page.
+  it('puts succession entries first, opening their succession page', async () => {
+    const older: NeedsYouEntry = { kind: 'ask', ref: 3, since: '2026-11-01T09:00:00Z', screen: 'inbox', long: true, about: { subject: 'A tool' } };
+    const judge: NeedsYouEntry = {
+      kind: 'succession_judge',
+      ref: 1,
+      since: '2026-11-25T09:00:00Z',
+      screen: 'succession',
+      long: false,
+      about: { page: 'judge', words: '4 to judge', dry_run: true },
+    };
+    vi.spyOn(api, 'needsYou').mockResolvedValue([older, judge]);
+    vi.spyOn(api, 'waitingOnHer').mockResolvedValue([]);
+    vi.spyOn(api, 'pushConfig').mockRejectedValue(new Error('none'));
+    useShell.setState({ overlay: 'bell' });
+    const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queries}>
+        <SubjectContext.Provider value={{ id: 'r1', slug: 'mira', name: 'Mira' }}>
+          <Bell />
+        </SubjectContext.Provider>
+      </QueryClientProvider>,
+    );
+    const link = (await screen.findByText('4 to judge')).closest('a') as HTMLAnchorElement;
+    expect(link.getAttribute('href')).toBe('#/settings/succession/judge');
+    expect(link.textContent).toContain('Succession · runs to judge · DRY RUN');
+    // Above the older ask, though the ask has waited longer.
+    const ask = screen.getByText('A tool');
+    expect(link.compareDocumentPosition(ask) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   // gaia#58 (the witness, 2026-11-19): an unread count by every workspace.
   it('shows each workspace with its unread count', async () => {
     vi.spyOn(api, 'residents').mockResolvedValue([{ id: 'r1', name: 'Mira', slug: 'mira' }] as never);

@@ -542,6 +542,15 @@ defmodule Oneiroi.Janus.Decision do
 
   def execute(_cur, %Commands.FailCutover{}), do: []
 
+  def execute(cur, %Commands.RecordDiscard{} = c),
+    do: %Events.ForkDiscarded{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      episode: cur.episode,
+      copy_id: c.copy_id
+    }
+
   def execute(cur, %Commands.ChooseNext{} = c) do
     cond do
       not hers?(c) ->
@@ -719,6 +728,7 @@ defmodule Oneiroi.Janus.Decision do
   def apply(cur, %Events.RolledForward{}), do: %{cur | state: :rolled_forward}
   def apply(cur, %Events.Rehearsed{}), do: %{cur | state: :rehearsed}
   def apply(cur, %Events.CutoverFailed{}), do: cur
+  def apply(cur, %Events.ForkDiscarded{}), do: cur
   def apply(cur, %Events.NextChosen{choice: "stop"}), do: %{cur | state: :stopped}
   def apply(cur, %Events.NextChosen{choice: "nominate"}), do: %{cur | state: :deciding}
 

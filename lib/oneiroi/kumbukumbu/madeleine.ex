@@ -99,7 +99,10 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
   embedded yet, or the provider's failure. Bills under `purpose`.
   """
   @spec query(String.t(), String.t(), Actor.t(), atom()) :: [float()] | nil
-  def query(resident_id, text, %Actor{} = actor, purpose \\ :embeddings) when is_binary(text) do
+  # `ledger`: whose ledger the embedding bills, the resident's own unless
+  # a trial says (a succession's runs on her fork bill to her, janus#13).
+  def query(resident_id, text, %Actor{} = actor, purpose \\ :embeddings, ledger \\ nil)
+      when is_binary(text) do
     model = Config.fetch!(:kumbukumbu, :embedding_model)
 
     cond do
@@ -112,7 +115,7 @@ defmodule Oneiroi.Kumbukumbu.Madeleine do
         nil
 
       true ->
-        case embed(resident_id, model, [text], actor, purpose) do
+        case embed(ledger || resident_id, model, [text], actor, purpose) do
           {:ok, [vector]} -> vector
           _failed -> nil
         end

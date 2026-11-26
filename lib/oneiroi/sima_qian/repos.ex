@@ -85,6 +85,9 @@ defmodule Oneiroi.SimaQian.Repos do
   def write(_repo, [], _message, _author), do: {:ok, :nothing}
   def write(repo, changes, message, author), do: client().write(repo, changes, message, author)
 
+  @doc "Deletes a resident's repository; only a succession's fork copy's, which the caller has checked (sima-qian#70)."
+  def delete({:resident, _id} = repo), do: client().delete(repo)
+
   @doc "The repository's history, or a path's, newest first: `%{sha, at, author, subject}`."
   def log(repo, path, limit), do: client().log(repo, path, limit)
 

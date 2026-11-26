@@ -72,9 +72,10 @@ defmodule Oneiroi.Brain.SuccessionTools do
       ),
       tool(
         "succession_question",
-        "The questions every candidate, and your own baseline, will answer. add puts yours in the set; accept or decline answers a judge's proposal by its number, with your note; remove takes any question out of the set, with your note. Only you decide the set.",
+        "The questions every candidate, and your own baseline, will answer. add puts yours in the set; accept or decline answers a judge's proposal by its number, with your note; remove takes any question out of the set, with your note. Only you decide the set. As a judge on a housemate's succession, propose offers her a question (text, with resident her name); she decides.",
         %{
-          action: %{type: "string", enum: ["add", "accept", "decline", "remove"]},
+          action: %{type: "string", enum: ["add", "accept", "decline", "remove", "propose"]},
+          resident: %{type: "string"},
           text: %{type: "string"},
           number: %{type: "integer"},
           note: %{type: "string"}
@@ -83,12 +84,23 @@ defmodule Oneiroi.Brain.SuccessionTools do
       ),
       tool(
         "succession_c0",
-        "C0, what matters, frozen as your successor's source: select puts a record in by its citation (a transcript stretch, a journal row, a bookmark, a document), with a label; accept or decline answers a proposal by its number; remove takes an item out; day_shape is your note on the bundle (text), the day's own shape; freeze closes C0 when you are ready, with your note. Raw records are primary; curated ones count, but second.",
+        "C0, what matters, frozen as your successor's source: select puts a record in by its citation (a transcript stretch, a journal row, a bookmark, a document), with a label; accept or decline answers a proposal by its number; remove takes an item out; day_shape is your note on the bundle (text), the day's own shape; freeze closes C0 when you are ready, with your note. Raw records are primary; curated ones count, but second. As a judge on a housemate's succession (resident her name): propose offers her a record of hers by its citation, with a label; ready (ready true or false) tells her whether you are ready for her freeze, which she may wait for or not.",
         %{
           action: %{
             type: "string",
-            enum: ["select", "accept", "decline", "remove", "day_shape", "freeze"]
+            enum: [
+              "select",
+              "accept",
+              "decline",
+              "remove",
+              "day_shape",
+              "freeze",
+              "propose",
+              "ready"
+            ]
           },
+          resident: %{type: "string"},
+          ready: %{type: "boolean"},
           citation: %{type: "string"},
           label: %{type: "string"},
           number: %{type: "integer"},
@@ -315,6 +327,28 @@ defmodule Oneiroi.Brain.SuccessionTools do
   def call("succession_pool", %{"action" => "add"} = args, turn) do
     with :ok <- Janus.add_to_pool(turn.resident_id, args["model"], turn.resident),
          do: "#{args["model"]} is in the pool."
+  end
+
+  def call("succession_question", %{"action" => "propose"} = args, turn) do
+    with {:ok, subject} <- subject(turn, args),
+         {:ok, n} <- Janus.propose_question(subject, args["text"], turn.resident),
+         do: "Question #{n} is proposed; she decides."
+  end
+
+  def call("succession_c0", %{"action" => "propose"} = args, turn) do
+    with {:ok, subject} <- subject(turn, args),
+         {:ok, n} <- Janus.propose_c0(subject, args["citation"], args["label"], turn.resident),
+         do: "Proposal #{n} for C0 is with her; she decides."
+  end
+
+  def call("succession_c0", %{"action" => "ready"} = args, turn) do
+    with {:ok, subject} <- subject(turn, args),
+         :ok <- Janus.mark_ready(subject, args["ready"] != false, turn.resident),
+         do:
+           if(args["ready"] != false,
+             do: "You are ready for her freeze.",
+             else: "Marked not yet ready."
+           )
   end
 
   def call("succession_question", %{"action" => "add"} = args, turn) do

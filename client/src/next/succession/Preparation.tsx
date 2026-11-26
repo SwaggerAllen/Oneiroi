@@ -7,7 +7,7 @@ import { useAct } from '../settings/useAct';
 import { useSubject } from '../state/resident';
 import { useShell } from '../state/store';
 import { Chip, PageHead, Row, Wall } from './common';
-import { isHers, isMine, poolNote, preparing, price, tokens, when } from './logic';
+import { isHers, isMine, placeOf, poolNote, preparing, price, tokens, when } from './logic';
 import * as css from './succession.css';
 import { successionKey, usePartyName } from './hooks';
 
@@ -221,6 +221,25 @@ export function Questions({ s, p, back }: PageProps) {
   );
 }
 
+/**
+ * Open ›, on a C0 item: the cited record where the app already opens one
+ * (Records, the chat at a turn, Time at a day), leaving the succession for
+ * it; a kind with nowhere to open shows the button off, saying why.
+ */
+function OpenCited({ citation }: { citation: string }) {
+  const { slug } = useSubject();
+  const go = useShell((x) => x.go);
+  const place = placeOf(citation, slug);
+  return (
+    <div className={settingsCss.row}>
+      <button type="button" className={settingsCss.secondary} disabled={!('to' in place)} onClick={() => 'to' in place && go(place.to)}>
+        Open ›
+      </button>
+      {'reason' in place && <span className={settingsCss.note}>{place.reason}</span>}
+    </div>
+  );
+}
+
 /** C0 (the C0 board): what is in, what waits on her, her day's shape, the judges' ready, her sealed packet. */
 export function C0({ s, p, back }: PageProps) {
   const { id, name } = useSubject();
@@ -257,6 +276,7 @@ export function C0({ s, p, back }: PageProps) {
           <Row left={describe(c)} right={<Chip kind={c.kind === 'raw' ? 'ok' : 'muted'}>{c.kind.toUpperCase()}</Chip>} />
           {c.label && <span className={settingsCss.meta}>{c.citation}</span>}
           <p className={settingsCss.note}>{byLine(c)}</p>
+          <OpenCited citation={c.citation} />
         </section>
       ))}
       <h2 className={settingsCss.heading}>Waiting on {name} · {waiting.length}</h2>
@@ -264,19 +284,21 @@ export function C0({ s, p, back }: PageProps) {
         <section key={c.number} className={settingsCss.card} aria-label={describe(c)}>
           <Row left={describe(c)} right={<Chip kind="wait">proposed</Chip>} />
           <p className={settingsCss.note}>{byLine(c)}</p>
+          <OpenCited citation={c.citation} />
         </section>
       ))}
       {closed.map((c) => (
         <section key={c.number} className={settingsCss.card} aria-label={describe(c)}>
           <Row left={describe(c)} right={<Chip kind={STATE_CHIP[c.state]}>{c.state}</Chip>} />
           {c.note && <p className={settingsCss.note}>Her note: “{c.note}”</p>}
+          <OpenCited citation={c.citation} />
         </section>
       ))}
       {preparing(s) && !frozen && (
         <Card title="Propose from Records">
           <p className={settingsCss.note}>
-            While preparation is open, every record you read in Records has “Propose for C0”: the whole document, or a stretch of it you select. It reaches {name} with your
-            name and the date; she accepts it or not.
+            While preparation is open, every record you read in Records has “Propose for C0”: the whole record, by its citation. It reaches {name} with your name and
+            the date; she accepts it or not.
           </p>
           <button type="button" className={settingsCss.linkButton} onClick={() => setTab('records')}>
             Go to Records ›

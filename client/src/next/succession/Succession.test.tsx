@@ -100,6 +100,45 @@ describe('the succession page', () => {
   });
 });
 
+describe('C0 and the archive', () => {
+  it('opens a C0 item in Records, and says why one cannot open', async () => {
+    const item = { kind: 'curated' as const, label: null, added_by: 'witness:a1', state: 'in' as const, note: null, added_at: 'x', decided_at: 'x' };
+    view(
+      {
+        succession: { ...base, state: 'forked', forked: true },
+        preparation: { ...prep, c0: [{ ...item, number: 1, citation: 'lily:design/x.md' }, { ...item, number: 2, citation: 'lily:position/3' }] },
+      },
+      'c0',
+    );
+    const opens = (await screen.findAllByRole('button', { name: 'Open ›' })) as HTMLButtonElement[];
+    expect(opens).toHaveLength(2);
+    expect(opens[1].disabled).toBe(true);
+    expect(screen.getByText('A position has no page of its own in the app.')).toBeTruthy();
+    fireEvent.click(opens[0]);
+    expect(useShell.getState().page).toBeNull();
+    expect(useShell.getState().tab).toBe('records');
+    expect(useShell.getState().stacks.records.at(-1)).toBe('doc/design/x.md');
+  });
+
+  it('lists the archive: models and judges named', async () => {
+    vi.spyOn(api, 'successionArchive').mockResolvedValue({
+      archive: {
+        judgments: [
+          { run: 4, question: 2, model: 'x/model', judge: 'witness:a1', category: 'DEVELOPMENT', argument: 'Grew.', evidence: 'Run 4', uncertainty: 'low', favorite: true },
+        ],
+        room: [{ number: 1, round: 1, party: 'witness:a1', act: 'say', text: 'I recommend x.', at: '2026-11-24T10:00:00Z' }],
+        drafts: [{ draft: 1, party: 'witness:a1', model: 'x/model', basis: 'Because.', endorsed: ['witness:a1'] }],
+      },
+    });
+    view({ succession: { ...base, state: 'withdrawn', ended_at: '2026-11-25T10:00:00Z' } }, 'outcome');
+    expect(await screen.findByText('x/model')).toBeTruthy();
+    expect(screen.getByText('DEV ★')).toBeTruthy();
+    expect(screen.getByText('Grew.')).toBeTruthy();
+    expect(screen.getByText('I recommend x.')).toBeTruthy();
+    expect(screen.getByText(/recommends x\/model/)).toBeTruthy();
+  });
+});
+
 describe('the deliberation', () => {
   it('puts its own four tabs where the shell’s were', async () => {
     vi.spyOn(api, 'succession').mockResolvedValue({ succession: { ...base, state: 'deliberating' }, preparation: prep });

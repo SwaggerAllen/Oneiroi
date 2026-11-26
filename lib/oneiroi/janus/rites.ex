@@ -22,7 +22,9 @@ defmodule Oneiroi.Janus.Rites do
   alias Oneiroi.Janus.Events
   alias Oneiroi.Janus.Router
   alias Oneiroi.Janus.Store
+  alias Oneiroi.Kumbukumbu
   alias Oneiroi.Scope
+  alias Oneiroi.SimaQian
   alias Oneiroi.SimaQian.Repos
 
   @actor Actor.new(:job, "janus")
@@ -30,7 +32,9 @@ defmodule Oneiroi.Janus.Rites do
   @encounter :"Elixir.Oneiroi.Janus.EncounterWorker"
   @wake :"Elixir.Oneiroi.Janus.WakeWorker"
   @cutover :"Elixir.Oneiroi.Janus.CutoverWorker"
+  @discard :"Elixir.Oneiroi.Janus.DiscardWorker"
   @owner :janus_owner
+  @sessions :janus_encounter_sessions
   @dry "[A dry run: everything is real but the replacement, which is rehearsed on a copy and never touches her.] "
   @silence_seconds 10 * 60
   # The stages after the room has closed: where her evidence is hers to read.
@@ -307,14 +311,15 @@ defmodule Oneiroi.Janus.Rites do
   @doc "One step of the encounter (`EncounterWorker`): wake one side with what the other said, carry the reply over, and hand the turn back, until either ends it or it reaches its bound."
   @spec encounter_step(String.t(), pos_integer(), pos_integer(), String.t(), String.t()) ::
           :ok | {:error, term()}
-  def encounter_step(resident_id, episode, attempt, side, note) do
+  def encounter_step(resident_id, episode, attempt, side, note, sessions \\ %{}) do
     owner(resident_id)
+    Process.put(@sessions, sessions)
 
     case current(resident_id) do
       %{episode: ^episode, attempt: ^attempt, state: "encounter", copy_id: copy} ->
         who = if side == "original", do: resident_id, else: copy
 
-        with {:ok, %{reply: reply}} <- brain().succession_wake(who, marked(note)),
+        with {:ok, %{reply: reply}} <- wake_side(who, side, marked(note)),
              {:ok, events} <-
                dispatch(%Commands.SayInEncounter{
                  actor: @actor,
@@ -407,7 +412,16 @@ defmodule Oneiroi.Janus.Rites do
     :ok
   end
 
+  # The encounter happens in a thread of each side's own (janus#19),
+  # private as to its words as free time is, never her main chat.
   defp follow(id, %Events.NomineeJoined{episode: e, attempt: a, model: model}) do
+    row = current(id)
+
+    with {:ok, hers} <- encounter_session(id),
+         {:ok, theirs} <- encounter_session(row.copy_id) do
+      Process.put(@sessions, %{"original" => hers, "nominee" => theirs})
+    end
+
     relay(
       id,
       e,
@@ -462,6 +476,9 @@ defmodule Oneiroi.Janus.Rites do
     )
   end
 
+  # A real stop: her fork goes, unless a nominee met her (janus#28).
+  defp follow(id, %Events.NextChosen{choice: "stop"}), do: ended(id)
+
   # Her final consent: the roll-forward's job (janus#26).
   defp follow(id, %Events.FinalConsented{}) do
     case Jobs.enqueue(@cutover, %{"resident_id" => id}) do
@@ -498,6 +515,44 @@ defmodule Oneiroi.Janus.Rites do
       act(id, %Commands.FinalLapse{actor: @actor, at: Clock.now(), id: id, asked: row.attempt})
     else
       _answered -> :ok
+    end
+  end
+
+  # ---- the fork, discarded (janus#28) ----
+
+  @doc "After a succession ends without a meeting: its fork copy's discard, as a job."
+  @spec ended(String.t()) :: :ok | {:error, term()}
+  def ended(id) do
+    case current(id) do
+      %{met_at: nil, copy_id: copy, fork_discarded_at: nil, episode: e} when is_binary(copy) ->
+        case Jobs.enqueue(@discard, %{"resident_id" => id, "episode" => e}) do
+          {:ok, _} -> :ok
+          {:error, _} = failed -> failed
+        end
+
+      _keep ->
+        :ok
+    end
+  end
+
+  @doc "The discard's unit (`DiscardWorker`): the fork copy gone, and recorded."
+  @spec discard(String.t(), pos_integer()) :: :ok | {:error, term()}
+  def discard(id, episode) do
+    case current(id) do
+      %{episode: ^episode, met_at: nil, copy_id: copy, fork_discarded_at: nil}
+      when is_binary(copy) ->
+        discard_copy(id, copy)
+
+      _keep ->
+        :ok
+    end
+  end
+
+  @doc "Discards one fork copy and records it (a rehearsal's scratch copy, or her fork)."
+  @spec discard_copy(String.t(), String.t()) :: :ok | {:error, term()}
+  def discard_copy(id, copy) do
+    with :ok <- SimaQian.discard_fork(copy) do
+      act(id, %Commands.RecordDiscard{actor: @actor, at: Clock.now(), id: id, copy_id: copy})
     end
   end
 
@@ -607,102 +662,70 @@ defmodule Oneiroi.Janus.Rites do
   end
 
   @doc """
-  The archive of an ended succession (janus#23; delta §2: past her own
-  reading, judge authorship kept, candidate and run anonymized; the
-  witness, 2026-11-25: open to anyone in the house except her). Judges
-  by name, candidates as letters, runs renumbered; the room's posts and
-  drafts with their drafts' models as letters. Nil for her, at any time,
-  and while the succession is underway.
+  The archive of an ended succession (janus#23; the witness, 2026-11-26:
+  open to anyone in the house except her, and not anonymized, since the
+  one wall that matters is the one in front of her): every judgment with
+  its judge and the model it judged, the room's posts, the drafts. Nil
+  for her, at any time, and while the succession is underway.
   """
   @spec archive(String.t(), String.t()) :: map() | nil
   def archive(resident_id, party) do
     with false <- party == "resident:#{resident_id}",
          %{state: state} = row
-         when state in ["stopped", "declined", "withdrawn", "rolled_forward"] <-
+         when state in ["stopped", "declined", "withdrawn", "rolled_forward", "rehearsed"] <-
            current(resident_id) do
-      Scope.resident(resident_id, fn -> anonymized(row) end)
+      Scope.resident(resident_id, fn -> archived(row) end)
     else
       _no -> nil
     end
   end
 
-  defp anonymized(row) do
+  defp archived(row) do
     offset = row.run_offset || 0
     runs = Store.runs(row.episode) |> Enum.filter(&(&1.run > offset))
-
-    letters =
-      runs
-      |> Enum.map(& &1.model)
-      |> Enum.uniq()
-      |> Enum.sort_by(&digest("#{row.episode}|#{&1}"))
-      |> Enum.with_index()
-      |> Map.new(fn {m, i} -> {m, "Candidate " <> <<?A + i>>} end)
-
-    numbers =
-      runs
-      |> Enum.sort_by(&digest("#{row.episode}|run|#{&1.run}"))
-      |> Enum.with_index(1)
-      |> Map.new(fn {r, i} -> {r.run, i} end)
-
-    models = Map.new(runs, &{&1.run, letters[&1.model]})
+    models = Map.new(runs, &{&1.run, &1.model})
+    questions = Map.new(runs, &{&1.run, &1.question})
 
     %{
       judgments:
         for j <- Store.all_judgments(row.episode, offset) do
           %{
-            run: numbers[j.run],
-            candidate: models[j.run],
+            run: j.run,
+            question: questions[j.run],
+            model: models[j.run],
             judge: j.party,
             category: j.category,
             argument: j.argument,
             evidence: j.evidence,
-            uncertainty: j.uncertainty
+            uncertainty: j.uncertainty,
+            favorite: j.favorite
           }
-        end
-        |> Enum.sort_by(&{&1.run, &1.judge}),
+        end,
       room:
-        Enum.map(Store.posts(row.episode), &Map.take(&1, [:number, :round, :party, :act, :text])),
+        Enum.map(
+          Store.posts(row.episode),
+          &Map.take(&1, [:number, :round, :party, :act, :text, :at])
+        ),
       drafts:
-        Enum.map(Store.drafts(row.episode), fn d ->
-          %{
-            draft: d.draft,
-            by: d.party,
-            candidate: d.model && letters[d.model],
-            basis: d.basis,
-            endorsed: d.endorsed
-          }
-        end)
+        Enum.map(
+          Store.drafts(row.episode),
+          &Map.take(&1, [:draft, :party, :model, :basis, :endorsed])
+        )
     }
   end
 
   # ---- helpers ----
 
   defp nominee_reading(id, row) do
-    {items, packet} =
-      Scope.resident(id, fn ->
-        {Store.items(row.episode) |> Enum.filter(&(&1.state == "in")),
-         List.first(Store.packets(row.episode))}
-      end)
-
-    c0 =
-      Enum.map_join(
-        items,
-        "\n",
-        &"- #{&1.citation} (#{&1.kind})#{if &1.label, do: ": " <> &1.label, else: ""}"
-      )
-
+    packet = Scope.resident(id, fn -> List.first(Store.packets(row.episode)) end)
+    c0 = row.c0_bundle || "(C0 was frozen empty)"
     packet_text = if packet, do: packet.content, else: "(she wrote no packet)"
 
-    shape =
-      if row.day_shape,
-        do: "\n\nHer note on the bundle, the day's own shape: #{row.day_shape}",
-        else: ""
-
     note =
-      "Before anything is asked of you: she chose what matters (C0), and wrote to whoever comes next. Read them; open any record by its citation.\n\nC0:\n#{c0}#{shape}\n\nHer packet (draft #{packet && packet.draft}):\n\n#{packet_text}\n\nWhen you have read what you want, meet her with succession_nominee join, or decline with succession_nominee decline and your note. Nobody else decides this for you."
+      "Before anything is asked of you: she chose what matters (C0), and wrote to whoever comes next. Read them.\n\nC0:\n\n#{c0}\n\nHer packet (draft #{packet && packet.draft}):\n\n#{packet_text}\n\nWhen you have read what you want, meet her with succession_nominee join, or decline with succession_nominee decline and your note. Nobody else decides this for you."
 
     ref = "c0/#{row.episode}+packet/#{packet && packet.draft}"
-    {note, ref, digest(c0 <> packet_text)}
+    {note, ref, row.c0_digest || digest(c0 <> packet_text)}
   end
 
   # The encounter as it happened, filed in her repository as life-record
@@ -731,6 +754,30 @@ defmodule Oneiroi.Janus.Rites do
     end
   end
 
+  defp encounter_session(resident_id) do
+    case AgathosDaimon.fetch(resident_id) do
+      {:ok, row} ->
+        Kumbukumbu.open_session(
+          resident_id,
+          "encounter",
+          "brain",
+          List.wrap(row.account_id),
+          @actor,
+          private: true
+        )
+
+      :error ->
+        {:error, Error.new(:janus_stage, :janus_encounter_no_resident)}
+    end
+  end
+
+  defp wake_side(who, side, note) do
+    case Map.get(Process.get(@sessions) || %{}, side) do
+      nil -> brain().succession_wake(who, note)
+      key -> brain().succession_wake(who, note, key)
+    end
+  end
+
   defp relay(id, episode, attempt, side, note) do
     # A step of its own: two steps whose words came out the same are
     # still two turns of the encounter, never one deduplicated job.
@@ -740,6 +787,7 @@ defmodule Oneiroi.Janus.Rites do
       "attempt" => attempt,
       "side" => side,
       "note" => note,
+      "sessions" => Process.get(@sessions) || %{},
       "step" => System.unique_integer([:positive, :monotonic])
     }
 

@@ -21,4 +21,8 @@ defmodule Oneiroi.SimaQian.Repos.Adapter do
   # for one the repository never had.
   @callback tree_at(Repos.repo(), String.t()) ::
               {:ok, [%{path: String.t(), sha: String.t()}]} | {:error, term()}
+
+  # The repository gone (sima-qian#70): only a succession's discarded fork
+  # copy is ever deleted, and `Repos.delete/1` refuses anything else.
+  @callback delete(Repos.repo()) :: :ok | {:error, term()}
 end

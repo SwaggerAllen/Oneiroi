@@ -19,6 +19,7 @@ defmodule Oneiroi.Janus.Successions do
   alias Oneiroi.Config
   alias Oneiroi.Config.Secret
   alias Oneiroi.Gaia
+  alias Oneiroi.Janus.C0
   alias Oneiroi.Janus.Commands
   alias Oneiroi.Janus.Error
   alias Oneiroi.Janus.Events
@@ -93,8 +94,16 @@ defmodule Oneiroi.Janus.Successions do
 
   @doc "She stops a succession underway."
   @spec stop(String.t(), String.t(), Actor.t()) :: :ok | {:error, term()}
-  def stop(resident_id, note, actor),
-    do: done(%Commands.StopSuccession{actor: actor, at: Clock.now(), id: resident_id, note: note})
+  def stop(resident_id, note, actor) do
+    with :ok <-
+           done(%Commands.StopSuccession{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             note: note
+           }),
+         do: Rites.ended(resident_id)
+  end
 
   @doc """
   Makes the fork copy for `episode` and records it (janus#4), or
@@ -318,8 +327,26 @@ defmodule Oneiroi.Janus.Successions do
 
   @doc "She freezes C0, with her note."
   @spec freeze_c0(String.t(), String.t(), Actor.t()) :: :ok | {:error, term()}
-  def freeze_c0(resident_id, note, actor),
-    do: done(%Commands.FreezeC0{actor: actor, at: Clock.now(), id: resident_id, note: note})
+  def freeze_c0(resident_id, note, actor) do
+    {bundle, digest} =
+      case status(resident_id) do
+        nil ->
+          {nil, nil}
+
+        row ->
+          items = Scope.resident(resident_id, fn -> Store.items(row.episode) end)
+          C0.render(resident_id, Enum.filter(items, &(&1.state == "in")), row.day_shape)
+      end
+
+    done(%Commands.FreezeC0{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      bundle: bundle,
+      digest: digest,
+      note: note
+    })
+  end
 
   @doc "A draft of her sealed handoff packet; returns the draft's number."
   @spec write_packet(String.t(), String.t(), Actor.t()) :: {:ok, pos_integer()} | {:error, term()}
@@ -474,7 +501,11 @@ defmodule Oneiroi.Janus.Successions do
   def answer(resident_id, episode, kind, n) do
     with %{episode: ^episode, state: "screening", copy_id: copy} = row <- status(resident_id),
          {:ok, model, question} <- what_to_answer(resident_id, row, kind, n),
-         result = brain().succession_trial(copy, model, question.text, @actor),
+         result =
+           brain().succession_trial(copy, model, question.text, @actor,
+             ledger: resident_id,
+             c0: row.c0_bundle
+           ),
          {:ok, events} <- dispatch(record(resident_id, kind, n, answered(result))) do
       if Enum.any?(events, &match?(%Events.ScreeningFinished{}, &1)),
         do: wake_judges(resident_id, episode)

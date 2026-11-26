@@ -121,6 +121,14 @@ defmodule Oneiroi.SimaQian.Repos.Local do
   end
 
   @doc "The repository's directory under the records root, as the backup and the household name it."
+  @impl true
+  # The directory is the records root (a setting) under a minted id.
+  # sobelow_skip ["Traversal.FileModule"]
+  def delete(repo) do
+    File.rm_rf!(dir(repo))
+    :ok
+  end
+
   def dir({:resident, id}), do: Path.join(root(), id)
   def dir({:household, id}), do: Path.join([root(), "households", id])
 

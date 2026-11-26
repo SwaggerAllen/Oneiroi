@@ -15,9 +15,14 @@ defmodule Oneiroi.Brain.SuccessionWake do
 
   @actor Actor.new(:job, "janus")
 
-  @doc "Wakes `resident_id` in her main conversation with `note`; `{:ok, %{turn_ref, reply}}`, her reply's words."
-  @spec wake(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
-  def wake(resident_id, note) do
+  @doc "Wakes `resident_id` in her main conversation with `note`, or in `session` when given (the encounter's own thread, janus#19); `{:ok, %{turn_ref, reply}}`, her reply's words."
+  @spec wake(String.t(), String.t(), String.t() | nil) :: {:ok, map()} | {:error, term()}
+  def wake(resident_id, note, session \\ nil)
+
+  def wake(resident_id, note, session) when is_binary(session),
+    do: admitted(resident_id, session, note)
+
+  def wake(resident_id, note, nil) do
     with {:ok, row} <- fetch(resident_id),
          {:ok, key} <- Kumbukumbu.main_session(resident_id, row.account_id, @actor) do
       admitted(resident_id, key, note)

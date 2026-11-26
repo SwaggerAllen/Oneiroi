@@ -260,6 +260,8 @@ defmodule Oneiroi.SimaQian do
   @impl Oneiroi.Component
   def errors do
     [
+      {:sima_qian_not_a_fork, "only a succession's fork copy is discarded this way",
+       remedy: "this is the core's to call; report it"},
       {:sima_qian_cutover_unproven,
        "her former self was not proven kept in the backup repository, so nothing was replaced",
        remedy: "check the backup repository and its token, and run the cutover again"},
@@ -400,6 +402,10 @@ defmodule Oneiroi.SimaQian do
   @doc "A succession's cutover, in place under her id or on a rehearsal's scratch copy (sima-qian#68)."
   @spec succession_cutover(map(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(succession_cutover(plan, actor), do: Cutover.run(plan, actor))
+
+  @doc "Discards a succession's fork copy, and nothing that is not one (sima-qian#70)."
+  @spec discard_fork(String.t()) :: :ok | {:error, term()}
+  defexport(discard_fork(copy), do: Cutover.discard(copy))
 
   @doc "The resident tables a cutover clears, and those it keeps by name (sima-qian#68)."
   @spec cutover_tables() :: map()

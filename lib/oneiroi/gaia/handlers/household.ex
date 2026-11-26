@@ -12,7 +12,7 @@ defmodule Oneiroi.Gaia.Handlers.Household do
   from the log's origin, so the accounts and residents that came before
   the household are given theirs on first boot.
   """
-  use Commanded.Event.Handler,
+  use Oneiroi.Handler,
     application: Oneiroi.Commanded,
     name: "gaia_household_members",
     consistency: :strong

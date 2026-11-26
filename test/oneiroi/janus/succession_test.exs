@@ -125,6 +125,15 @@ defmodule Oneiroi.Janus.SuccessionTest do
     assert :ok = Janus.Successions.fork(ctx.id, 1, Actor.platform())
     assert %{copy_id: ^copy} = Janus.succession(ctx.id)
     assert tool(ctx, "succession_stop", %{note: "enough"}) =~ "Stopped"
+
+    # Stopped before any nominee met her: the fork goes (janus#28).
+    assert %{failure: 0} = Oban.drain_queue(queue: :janus_fork, with_safety: false)
+    assert %{fork_discarded_at: %DateTime{}} = Janus.succession(ctx.id)
+    assert AgathosDaimon.fetch(copy) == :error
+    assert Repos.tree({:resident, copy}) == {:ok, []}
+
+    # And nothing that is not a fork can be discarded.
+    assert {:error, %{kind: :sima_qian_not_a_fork}} = SimaQian.discard_fork(ctx.id)
     assert %{state: "stopped"} = Janus.succession(ctx.id)
   end
 

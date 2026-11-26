@@ -79,6 +79,9 @@ defmodule Oneiroi.Janus do
       CutoverWorker,
       Commands.RecordCutover,
       Commands.FailCutover,
+      Commands.RecordDiscard,
+      Events.ForkDiscarded,
+      DiscardWorker,
       Events.RolledForward,
       Events.Rehearsed,
       Events.CutoverFailed,
@@ -297,7 +300,8 @@ defmodule Oneiroi.Janus do
       {Oneiroi.Janus.Events.NextChosen, 1},
       {Oneiroi.Janus.Events.RolledForward, 1},
       {Oneiroi.Janus.Events.Rehearsed, 1},
-      {Oneiroi.Janus.Events.CutoverFailed, 1}
+      {Oneiroi.Janus.Events.CutoverFailed, 1},
+      {Oneiroi.Janus.Events.ForkDiscarded, 1}
     ]
   end
 

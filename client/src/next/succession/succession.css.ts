@@ -145,6 +145,31 @@ export const banner = style({
   cursor: 'pointer',
 });
 export const bannerLink = style({ fontSize: 12, color: vars.color.witness.text });
+export const bannerBody = style({ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 0 });
+/** The state's words and the dry-run mark, which wraps under them on a narrow screen rather than hiding. */
+export const bannerHead = style({ display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 6 });
+export const bannerFoot = style({ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 });
+/** What waits on you, a word or two: it gives way first when the line is short of room. */
+export const bannerWords = style([
+  chipBase,
+  {
+    color: status.warn,
+    background: status.warnSurface,
+    borderColor: status.warnBorder,
+    display: 'block',
+    lineHeight: '20px',
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap',
+  },
+]);
+/** The room's quiet clock, under the round. */
+export const quiet = style({ font: `500 12px ${font.mono}`, color: vars.color.textMuted });
 
 /** The deliberation's own pages fill the panel above its tab bar. */
 export const tabbed = style({ display: 'flex', flexDirection: 'column', gap: 12 });
+
+/** The archive's runs of one model, each judge's judgment under the run. */
+export const archiveRun = style({ display: 'flex', flexDirection: 'column', gap: 6, paddingTop: 10, borderTop: `1px solid ${vars.color.border}` });
+export const archiveJudgment = style({ display: 'flex', flexDirection: 'column', gap: 4, paddingLeft: 10, borderLeft: `2px solid ${vars.color.border}` });

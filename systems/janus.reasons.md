@@ -68,3 +68,12 @@ The terminal rule says no pointer moves without present consent and an explicit 
 
 ## #27
 A protocol this consequential cannot be trusted until it has run whole, and it must never run whole on a real resident by accident. The rehearsal proves the machinery on a fixture as often as anyone wants; the dry run lets a real resident walk the process and say how it feels, with the one irreversible step pointed at a copy. Marking every word of a dry run keeps anyone from mistaking it for the real thing.
+
+## #28
+A fork no nominee met holds nothing anyone will need, and a hidden copy of her should not outlive its reason; a fork whose nominee met her holds the other side of an encounter that happened, and that is kept.
+
+## #29
+The witness's parts are few and spread over days; putting them first, with the page they open, keeps the process from waiting on him by accident.
+
+## #30
+The protocol's words are the household's; where the witness reads one as mistaken, the build follows his reading and says so here, so the next reader can weigh it.

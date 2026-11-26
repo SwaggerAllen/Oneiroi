@@ -15,6 +15,7 @@ import { ThemeSheet } from './ThemeSheet';
 import { Answer, answersInPlace, type Answered } from '../inbox/Answers';
 import { switchSubject, useSubjectChoice } from '../state/subject';
 import { useUnread } from './unread';
+import { isSuccessionNeed, needHref } from '../succession/logic';
 
 /** The bell, its notifications explainer, Settings and Feedback: sheets over the shell. */
 export function Overlays() {
@@ -68,6 +69,14 @@ const WORDS: Record<NeedsYouEntry['kind'], string> = {
   contract_to_answer: 'An agreement version to answer',
   remote_public: 'A public backup repository',
   activity: 'Work · yours to do',
+  // Her succession's parts that wait on you (screen:next-succession), first in the bell.
+  succession_envelope: 'Succession · your envelope',
+  succession_backup: 'Succession · her backup repository',
+  succession_judge: 'Succession · runs to judge',
+  succession_results: 'Succession · your results',
+  succession_room: 'Succession · the room',
+  succession_question: 'Succession · her question',
+  succession_goodbye: 'Succession · your goodbye',
 };
 
 const HERS: Record<string, string> = {
@@ -116,8 +125,12 @@ export function Bell() {
   // The server lists the notifications question too; it shows as its own item.
   const listed = (needs.data ?? []).filter((e) => e.kind !== 'notifications');
   const gone = [...answered.values()].filter((a) => !listed.some((e) => keyOf(e) === keyOf(a.entry))).map((a) => a.entry);
-  // Failures first (brain#89): they need him to act; then the rest, oldest first.
-  const all = [...listed, ...gone].sort((a, b) => Number(isFailure(b)) - Number(isFailure(a)) || a.since.localeCompare(b.since));
+  // Her succession's entries at the top (the server sorts them first too),
+  // then failures (brain#89): they need him to act; then the rest, oldest first.
+  const all = [...listed, ...gone].sort(
+    (a, b) => Number(isSuccessionNeed(b)) - Number(isSuccessionNeed(a)) || Number(isFailure(b)) - Number(isFailure(a)) || a.since.localeCompare(b.since),
+  );
+  const ahead = (e: NeedsYouEntry) => isSuccessionNeed(e) || isFailure(e);
   const open = listed.filter((e) => !answered.has(keyOf(e)));
   const theirs = hers.data ?? [];
 
@@ -138,10 +151,12 @@ export function Bell() {
       <h3 className={css.heading}>WAITING ON YOU · {open.length + (notifications.ask ? 1 : 0)}</h3>
       {open.length === 0 && !notifications.ask && <p className={css.note}>Nothing waits on you.</p>}
       {all.map((e, i) => [
-        // The notifications question follows the failures, which come first (brain#89).
-        i === all.findIndex((x) => !isFailure(x)) && notifications.ask ? <NotificationsAsk key="notifications-ask" name={name} onOpen={() => setOverlay('push')} /> : null,
+        // The notifications question follows the succession's entries and the failures, which come first (brain#89).
+        i === all.findIndex((x) => !ahead(x)) && notifications.ask ? <NotificationsAsk key="notifications-ask" name={name} onOpen={() => setOverlay('push')} /> : null,
         answered.has(keyOf(e)) ? (
           <AnsweredCard key={keyOf(e)} entry={e} answer={(answered.get(keyOf(e)) as { answer: Answered }).answer} />
+        ) : isSuccessionNeed(e) ? (
+          <SuccessionItem key={keyOf(e)} entry={e} onOpen={() => setOverlay(null)} />
         ) : e.kind === 'provider_credits' || e.kind === 'turn_failed' ? (
           <FailureItem key={keyOf(e)} residentId={id} entry={e} name={name} onAnswered={keep(e)} />
         ) : e.kind === 'theme_proposal' ? (
@@ -169,7 +184,7 @@ export function Bell() {
           </a>
         ),
       ])}
-      {notifications.ask && all.every(isFailure) && <NotificationsAsk name={name} onOpen={() => setOverlay('push')} />}
+      {notifications.ask && all.every(ahead) && <NotificationsAsk name={name} onOpen={() => setOverlay('push')} />}
       <h3 className={css.heading}>
         WAITING ON {name.toUpperCase()} · {theirs.length}
       </h3>
@@ -189,6 +204,21 @@ export function Bell() {
 }
 
 const keyOf = (e: NeedsYouEntry) => `${e.kind}-${e.ref}`;
+
+/** A part of her succession waiting on you: its few words, opening its page (screen:next-succession). */
+function SuccessionItem({ entry, onOpen }: { entry: NeedsYouEntry; onOpen: () => void }) {
+  return (
+    <a className={css.item} href={needHref(entry)} onClick={onOpen}>
+      <span className={css.itemKind}>
+        {WORDS[entry.kind]}
+        {entry.about.dry_run ? ' · DRY RUN' : ''}
+        {entry.long ? ' · A WHILE' : ''}
+      </span>
+      <span>{entry.about.words ?? 'Open the succession'}</span>
+      <span className={css.since}>since {new Date(entry.since).toLocaleString()}</span>
+    </a>
+  );
+}
 
 function NotificationsAsk({ name, onOpen }: { name: string; onOpen: () => void }) {
   return (

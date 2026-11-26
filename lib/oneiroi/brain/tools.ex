@@ -4779,7 +4779,9 @@ defmodule Oneiroi.Brain.Tools do
   # A trial's query embeddings bill as the trial's calls do, under
   # regression to the run's actor, which the resident's ledger view
   # omits (eunomia#12); a turn's bill to the dyad as embeddings.
-  defp embedding(%{trial?: true, payer: payer}), do: {payer, :regression}
+  defp embedding(%{trial?: true, payer: payer} = turn),
+    do: {payer, Map.get(turn, :purpose, :regression)}
+
   defp embedding(turn), do: {turn.resident, :embeddings}
 
   # Resolution is the read's and marks each reference it resolved

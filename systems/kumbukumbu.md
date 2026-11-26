@@ -269,6 +269,8 @@ Carried from spec §6.3; the reason for each is there.
 - **#113 A withheld delivery can be redone without what held it.** (The witness, 2026-11-25: "agents need a way to redo the generation with the offending entries removed".) `delivery_redo` (a write: `audience` and `to` as `oracle_ask` names one, and `ask`, what the redo should do, in her words) queues a fresh turn of the same conversation, from outside its process, behind the turn that called it, composed for that audience by the soft path (#81): what it may not hear is left out of its context and named to her by citation and domain, so what it writes never held it and its delivery needs no judge. The wake's note is `priv/prompts/delivery_redo.md`. A trial queues nothing. The judge stays for words she wants to keep as written.
 - **#114 Tool calls can be counted by model without their words leaving.** (janus#11.) `tool_call_counts/4`: a resident's `tool` rows in `[from, to)` grouped by the model on the row, each group's calls and how many of their answers begin with one of the given failure texts (the brain's own answers to a call it could not run), counted in the database. Only the counts cross the boundary.
 
+- **#115 A succession's encounter is a session of its own.** (janus#19.) Kind `encounter`, titled "The encounter", opened private as free time is: the witness sees what it did, never what it said.
+
 ## #8 Initial vs target
 
 Initial (P1, slice 2): #1, with the brain's turns and an adapter's

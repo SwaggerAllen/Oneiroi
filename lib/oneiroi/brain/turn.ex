@@ -112,13 +112,17 @@ defmodule Oneiroi.Brain.Turn do
   witness's, for the card (eunomia#31): it rides the return and nothing
   else, never the session topic, a capture or a log.
   """
-  @spec trial(String.t(), String.t(), String.t(), Actor.t(), atom()) ::
+  @spec trial(String.t(), String.t(), String.t(), Actor.t(), keyword()) ::
           {:ok, Result.t(), [Oneiroi.Eunomia.Trial.step()]} | {:error, term()}
-  def trial(resident_id, model, prompt, %Actor{} = actor, purpose \\ :regression)
+  # `opts`: `purpose` (regression unless said), `ledger` (the resident
+  # whose ledger the calls bill, the trial's own unless said: a
+  # succession's runs answer on her fork and bill to her, janus#13) and
+  # `c0` (C0 rendered, a section of its own: janus#13).
+  def trial(resident_id, model, prompt, %Actor{} = actor, opts \\ [])
       when is_binary(model) and is_binary(prompt) do
     case Oneiroi.AgathosDaimon.fetch(resident_id) do
       {:ok, row} ->
-        trial_for(row, resident_id, model, prompt, actor, purpose)
+        trial_for(row, resident_id, model, prompt, actor, opts)
 
       :error ->
         {:error,
@@ -181,7 +185,7 @@ defmodule Oneiroi.Brain.Turn do
     |> Enum.reject(&is_nil/1)
   end
 
-  defp trial_for(row, resident_id, model, prompt, payer, purpose) do
+  defp trial_for(row, resident_id, model, prompt, payer, opts) do
     turn = %{
       resident_id: resident_id,
       # A session key nobody opened, the shape a real one has: no
@@ -196,7 +200,9 @@ defmodule Oneiroi.Brain.Turn do
       trial?: true,
       minted: %{},
       as: :user,
-      purpose: purpose,
+      purpose: Keyword.get(opts, :purpose, :regression),
+      ledger: Keyword.get(opts, :ledger) || resident_id,
+      c0: Keyword.get(opts, :c0),
       notices: [],
       injections: [],
       tools: [],
@@ -587,7 +593,7 @@ defmodule Oneiroi.Brain.Turn do
     do: Nisaba.call(turn.resident_id, :oracle, request, turn.resident)
 
   defp ask(%{trial?: true} = turn, request),
-    do: Nisaba.call(turn.resident_id, turn.purpose, request, turn.payer)
+    do: Nisaba.call(turn.ledger, turn.purpose, request, turn.payer)
 
   defp ask(turn, request) do
     case stop_asked() do
@@ -1300,7 +1306,7 @@ defmodule Oneiroi.Brain.Turn do
   defp build(row, turn, text) do
     count = Config.fetch!(:brain, :transcript_messages)
     {rest, index} = turn_sections(row, turn, text)
-    sections = prefix_sections(row, turn) ++ rest
+    sections = prefix_sections(row, turn) ++ rest ++ c0_section(turn)
     keep_sections(turn, sections)
 
     # The inline stamps (brain#58) only under BRAIN_HISTORY_STAMPS (#59).
@@ -1630,6 +1636,18 @@ defmodule Oneiroi.Brain.Turn do
   end
 
   defp whose(_turn, _person), do: "another's life"
+
+  # C0, rendered at her freeze, for a succession's trial (janus#13): the
+  # fork's memory holds her life, never her choosing.
+  defp c0_section(%{trial?: true, c0: bundle}) when is_binary(bundle) and bundle != "",
+    do:
+      section(
+        "c0",
+        Prompt.render!("succession_c0", %{bundle: bundle}),
+        "C0 (janus#13): what she chose as what matters, frozen before any candidate was asked, rendered whole"
+      )
+
+  defp c0_section(_turn), do: []
 
   defp where_section(%{trial?: true}, _session), do: []
   defp where_section(%{oracle?: true}, _session), do: []

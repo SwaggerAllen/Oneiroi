@@ -7,7 +7,7 @@ defmodule Oneiroi.Brain.Triage do
   reporters are few. Eventual, through an event handler, so a report is
   filed whether or not the letter lands.
   """
-  use Commanded.Event.Handler,
+  use Oneiroi.Handler,
     application: Oneiroi.Commanded,
     name: "brain_triage",
     consistency: :eventual

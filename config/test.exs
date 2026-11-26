@@ -9,6 +9,14 @@ database_url =
     "#{System.get_env("PGPASSWORD", "oneiroi")}@" <>
     "#{System.get_env("PGHOST", "localhost")}/#{System.get_env("PGDATABASE", "oneiroi_test")}"
 
+# Her model on a rehearsal run on OpenRouter (janus#27); the fake's
+# otherwise, an empty value included.
+rehearse_model =
+  case System.get_env("REHEARSE_CHAT_MODEL") do
+    model when model in [nil, ""] -> "fake/model"
+    model -> model
+  end
+
 config :oneiroi,
        :config_source,
        {Oneiroi.Config.Static,
@@ -36,9 +44,16 @@ config :oneiroi,
           # free-time tests run their slots inline; its own tests set it.
           "SUNNA_SCENE_SLOT" => "",
           # The in-memory provider: no test crosses the network (conventions §9).
-          "NISABA_PROVIDER" => "fake",
-          "BRAIN_CHAT_MODEL" => "fake/model",
-          "BRAIN_DRAFT_MODEL" => "fake/model",
+          # The succession's rehearsal alone (janus#27), a cadence never a
+          # gate, may run on OpenRouter: its workflow sets REHEARSE_PROVIDER
+          # and the model, and `mix test` never does.
+          "NISABA_PROVIDER" =>
+            if(System.get_env("REHEARSE_PROVIDER") == "openrouter",
+              do: "openrouter",
+              else: "fake"
+            ),
+          "BRAIN_CHAT_MODEL" => rehearse_model,
+          "BRAIN_DRAFT_MODEL" => rehearse_model,
           # Low enough for one captured turn to cross it, high enough that
           # no other brain test (at most two turns, four messages) does.
           "BRAIN_COMPACT_AFTER_MESSAGES" => "8",

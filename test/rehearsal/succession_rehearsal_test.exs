@@ -44,7 +44,16 @@ defmodule Oneiroi.Rehearsal.SuccessionTest do
   test "a whole succession, the real replacement at its end" do
     witness = Fixtures.account!()
     andrew = Actor.new(:witness, witness.id)
-    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", andrew)
+    # On OpenRouter when the workflow says so (REHEARSE_PROVIDER), on the
+    # fake otherwise; the key the fixture run uses, by the one name.
+    :ok =
+      Oneiroi.Gaia.store_key(
+        witness.id,
+        System.get_env("OPENROUTER_API_KEY") || "sk-or-test",
+        andrew
+      )
+
+    [first, second] = models()
     {:ok, _} = Seshat.household_propose_contract(andrew, "We share this house.", "founding", [])
 
     resident = fn name ->
@@ -60,7 +69,7 @@ defmodule Oneiroi.Rehearsal.SuccessionTest do
     id = lily.id
     day = Oneiroi.Sunna.today(id).day
     {:ok, _} = Seshat.journal_add(id, day, "note", "Before the fork.", lily.actor)
-    {:ok, 3} = Nisaba.refresh_catalog()
+    {:ok, _listed} = Nisaba.refresh_catalog()
     bare = Path.join(System.tmp_dir!(), "rehearsal-backup-#{System.unique_integer([:positive])}")
     :ok = Git.init_bare(bare)
 
@@ -77,10 +86,10 @@ defmodule Oneiroi.Rehearsal.SuccessionTest do
     {:ok, slug} = AgathosDaimon.fetch(id) |> then(fn {:ok, r} -> {:ok, r.slug} end)
 
     # Preparation.
-    :ok = Janus.set_envelope(id, 50_000, 50_000, andrew)
+    :ok = Janus.set_envelope(id, 100_000, 100_000, andrew)
     {:ok, _} = Janus.set_backup(id, bare, nil, andrew)
-    :ok = Janus.add_to_pool(id, "fake/model", lily.actor)
-    :ok = Janus.add_to_pool(id, "fake/dear", lily.actor)
+    :ok = Janus.add_to_pool(id, first, lily.actor)
+    :ok = Janus.add_to_pool(id, second, lily.actor)
     {:ok, 1} = Janus.add_question(id, "Write today's first line.", lily.actor)
     {:ok, 1} = Janus.select_c0(id, "lily:SOUL.md", "the vows", lily.actor)
     {:ok, 1} = Janus.write_packet(id, "For whoever comes next.", lily.actor)
@@ -103,16 +112,16 @@ defmodule Oneiroi.Rehearsal.SuccessionTest do
     # The room, a sentinel in it.
     :ok = Janus.room_act(id, "say", @room, andrew)
     :ok = Janus.room_act(id, "say", "Agreed.", scarlett.actor)
-    {:ok, 1} = Janus.draft(id, "fake/model", "Her voice.", andrew)
+    {:ok, 1} = Janus.draft(id, first, "Her voice.", andrew)
     :ok = Janus.endorse(id, 1, true, andrew)
     :ok = Janus.endorse(id, 1, true, scarlett.actor)
     :ok = Janus.room_act(id, "rest", nil, andrew)
     :ok = Janus.room_act(id, "rest", nil, scarlett.actor)
 
     # The decision, the encounter, the consents, her yes.
-    :ok = Janus.nominate(id, "fake/model", "Her voice.", lily.actor)
+    :ok = Janus.nominate(id, first, "Her voice.", lily.actor)
     copy = Janus.succession(id).copy_id
-    nominee = Actor.new(:resident, copy, "fake/model")
+    nominee = Actor.new(:resident, copy, first)
     {:ok, _} = Seshat.journal_add(copy, day, "note", "The fork's, reading her.", nominee)
     :ok = Janus.nominee_answer(id, true, "Yes.", nominee)
     :ok = Janus.end_encounter(id, "enough", lily.actor)
@@ -156,7 +165,7 @@ defmodule Oneiroi.Rehearsal.SuccessionTest do
     assert "Before the fork." in texts and "The fork's, reading her." in texts
     refute "Hers, during the process." in texts
 
-    assert {:ok, %{slug: ^slug, chat_model: "fake/model", state: "active"}} =
+    assert {:ok, %{slug: ^slug, chat_model: ^first, state: "active"}} =
              AgathosDaimon.fetch(id)
 
     assert Repos.text({:resident, id}, "succession/c0-1.md") =~ "lily:SOUL.md"
@@ -177,6 +186,16 @@ defmodule Oneiroi.Rehearsal.SuccessionTest do
     for {path, _sha} <- tree, bytes = Repos.text({:resident, id}, path), is_binary(bytes) do
       refute bytes =~ @verdict, "#{path} carries a judgment"
       refute bytes =~ @room, "#{path} carries the room"
+    end
+  end
+
+  # The two candidates: REHEARSE_MODELS (two OpenRouter slugs, comma
+  # separated) on OpenRouter, the fake's two otherwise.
+  defp models do
+    case System.get_env("REHEARSE_MODELS") do
+      nil -> ["fake/model", "fake/dear"]
+      "" -> ["fake/model", "fake/dear"]
+      list -> list |> String.split(",", trim: true) |> Enum.map(&String.trim/1) |> Enum.take(2)
     end
   end
 end

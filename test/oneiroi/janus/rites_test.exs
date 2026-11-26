@@ -210,6 +210,11 @@ defmodule Oneiroi.Janus.RitesTest do
 
     # Relayed to its bound, then filed in her repository as life-record.
     assert %{state: "consenting", encounter_ended_at: %DateTime{}} = Janus.succession(id)
+    # In a thread of its own (janus#19), never her main chat.
+    {:ok, main} = Kumbukumbu.main_session(id, ctx.witness.id, ctx.andrew)
+    {:ok, _, said} = Kumbukumbu.transcript({:resident, id}, main)
+    refute Enum.any?(said, &(&1.content =~ "chose to meet you"))
+
     filed = Repos.text({:resident, id}, "succession/encounter-1-1.md")
     assert filed =~ "**She**" and filed =~ "**The nominee**"
 
@@ -299,8 +304,7 @@ defmodule Oneiroi.Janus.RitesTest do
 
     assert Janus.archive(id, "resident:#{id}") == nil
     archive = Janus.archive(id, "witness:#{ctx.witness.id}")
-    assert [%{candidate: "Candidate " <> _} | _] = archive.judgments
-    refute inspect(archive) =~ "fake/"
+    assert [%{model: "fake/" <> _, judge: _} | _] = archive.judgments
   end
 
   defp witness_name(ctx) do
@@ -356,7 +360,9 @@ defmodule Oneiroi.Janus.RitesTest do
 
     assert %{state: "rehearsed", cutover_target: scratch} = Janus.succession(id)
     assert scratch not in [id, copy]
-    assert {:ok, %{chat_model: "fake/dear", state: "fork"}} = AgathosDaimon.fetch(scratch)
+    # The rehearsal's scratch copy is discarded once recorded (janus#28).
+    assert AgathosDaimon.fetch(scratch) == :error
+    assert %{fork_discarded_at: %DateTime{}} = Janus.succession(id)
     assert {:ok, %{chat_model: model, state: "active"}} = AgathosDaimon.fetch(id)
     assert model == before.chat_model
   end

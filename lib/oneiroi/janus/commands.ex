@@ -89,8 +89,9 @@ defmodule Oneiroi.Janus.Commands do
     use Oneiroi.Command, fields: [:id, :ready]
   end
 
+  # `bundle` is C0 rendered at the freeze (`Janus.C0`), `digest` its hash.
   defmodule FreezeC0 do
-    use Oneiroi.Command, decision: true, fields: [:id]
+    use Oneiroi.Command, decision: true, fields: [:id, :bundle, :digest]
   end
 
   defmodule WritePacket do
@@ -231,5 +232,9 @@ defmodule Oneiroi.Janus.Commands do
 
   defmodule FailCutover do
     use Oneiroi.Command, fields: [:id, :reason]
+  end
+
+  defmodule RecordDiscard do
+    use Oneiroi.Command, fields: [:id, :copy_id]
   end
 end

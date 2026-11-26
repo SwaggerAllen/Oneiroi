@@ -13,6 +13,19 @@ on:
         type: string
         required: false
         default: ""
+      provider:
+        description: fake (no model call), or openrouter (real calls on the fixture run's key)
+        type: choice
+        options: [fake, openrouter]
+        default: fake
+      chat_model:
+        description: On openrouter, her model (the baseline's), an OpenRouter slug
+        type: string
+        default: meta-llama/llama-3.1-8b-instruct
+      models:
+        description: On openrouter, the two candidates, comma separated; each must take tool calls
+        type: string
+        default: mistralai/mistral-small-3.2-24b-instruct,meta-llama/llama-3.3-70b-instruct
 
 permissions:
   contents: read
@@ -61,5 +74,12 @@ jobs:
       - name: database
         run: mix ecto.drop --quiet && mix ecto.create --quiet && mix ecto.migrate --quiet
 
+      # The one OpenRouter key, the fixture run's, by the one name the
+      # rehearsal reads; printed nowhere, and set only for openrouter.
       - name: rehearse
+        env:
+          REHEARSE_PROVIDER: ${{ inputs.provider }}
+          REHEARSE_CHAT_MODEL: ${{ inputs.provider == 'openrouter' && inputs.chat_model || '' }}
+          REHEARSE_MODELS: ${{ inputs.provider == 'openrouter' && inputs.models || '' }}
+          OPENROUTER_API_KEY: ${{ inputs.provider == 'openrouter' && secrets.OPENROUTER_API_KEY || '' }}
         run: mix oneiroi.succession.rehearse

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RoomJudgment, Succession } from '../../api/types';
 import { base } from './fixtures';
-import { countsOf, judgmentReady, nextUnjudged, panelRows, parentOf, partyName, poolNote, steps, underway } from './logic';
+import { archiveByModel, countsOf, isSuccessionNeed, judgmentReady, needHref, nextUnjudged, panelRows, parentOf, partyName, placeOf, poolNote, quiet, quietWords, steps, underway } from './logic';
 
 
 const kinds = (s: Succession) => steps(s).map((x) => x.kind[0]).join('');
@@ -124,5 +124,80 @@ describe('judging', () => {
     expect(parentOf('results/anthropic/claude-opus-5')).toBe('results');
     expect(parentOf('ready')).toBe('results');
     expect(parentOf('deliberation/panel')).toBe('');
+  });
+});
+
+describe('a C0 citation opens where the app opens it', () => {
+  it('a document in Records, a root file too', () => {
+    expect(placeOf('lily:design/x.md', 'lily')).toEqual({ to: { tab: 'records', path: 'doc/design/x.md' } });
+    expect(placeOf('lily:SOUL.md', 'lily')).toEqual({ to: { tab: 'records', path: 'doc/SOUL.md' } });
+    expect(placeOf('lily:etymologies/oneiric', 'lily')).toEqual({ to: { tab: 'records', path: 'doc/etymologies/oneiric.md' } });
+  });
+
+  it('a bookmark in its peek, a turn in the conversation, a journal entry on its day', () => {
+    expect(placeOf('lily:bookmark/12', 'lily')).toEqual({ to: { tab: 'records', path: 'cite/bookmark/12' } });
+    expect(placeOf('lily:transcript/abc-_9/t42', 'lily')).toEqual({ to: { tab: 'chat', path: 'turn/abc-_9/t42' } });
+    expect(placeOf('lily:journal/2026-11-20/4', 'lily')).toEqual({ to: { tab: 'time', path: 'day/2026-11-20' } });
+    expect(placeOf('lily:letter/7', 'lily')).toEqual({ to: { tab: 'chat', path: 'mail' } });
+  });
+
+  it('says why when there is nowhere to open', () => {
+    expect('reason' in placeOf('lily:position/3', 'lily')).toBe(true);
+    expect('reason' in placeOf('lily:scene/3', 'lily')).toBe(true);
+    expect('reason' in placeOf('lily:transcript/abc', 'lily')).toBe(true);
+    expect('reason' in placeOf('mira:design/x.md', 'lily')).toBe(true);
+    expect('reason' in placeOf('nothing', 'lily')).toBe(true);
+  });
+});
+
+describe("the room's quiet clock", () => {
+  const at = (min: number) => new Date(Date.parse('2026-11-26T10:00:00Z') + min * 60_000).toISOString();
+  const post = (n: number, min: number) => ({ number: n, round: 1, party: 'witness:a1', act: 'say' as const, text: 'x', at: at(min) });
+
+  it('counts from the latest post', () => {
+    const q = quiet({ opened_at: at(0), posts: [post(2, 5), post(1, 1)] }, Date.parse(at(9)));
+    expect(q).toEqual({ quiet: 4, left: 6 });
+    expect(quietWords(q as { quiet: number; left: number })).toBe('quiet 4 min · at 10 everyone is woken');
+  });
+
+  it('counts from the opening when nobody has posted', () => {
+    expect(quiet({ opened_at: at(0), posts: [] }, Date.parse(at(3)) + 59_000)).toEqual({ quiet: 3, left: 7 });
+    expect(quiet({ opened_at: null, posts: [] }, Date.now())).toBeNull();
+  });
+
+  it('at ten, everyone is being woken', () => {
+    const q = quiet({ opened_at: at(0), posts: [] }, Date.parse(at(12)));
+    expect(q).toEqual({ quiet: 12, left: 0 });
+    expect(quietWords(q as { quiet: number; left: number })).toContain('being woken');
+  });
+});
+
+describe('the bell entries of the succession', () => {
+  it('open their page under the succession', () => {
+    expect(needHref({ about: { page: 'deliberation/thread' } })).toBe('#/settings/succession/deliberation/thread');
+    expect(needHref({ about: { page: 'c0' } })).toBe('#/settings/succession/c0');
+    expect(needHref({ about: {} })).toBe('#/settings/succession');
+    expect(isSuccessionNeed({ kind: 'succession_goodbye' })).toBe(true);
+    expect(isSuccessionNeed({ kind: 'ask' })).toBe(false);
+  });
+});
+
+describe('the archive', () => {
+  it('groups judgments by model, then run, every judge together', () => {
+    const j = (run: number, model: string, judge: string) => ({
+      run,
+      question: run,
+      model,
+      judge,
+      category: 'OBSERVED' as const,
+      argument: null,
+      evidence: null,
+      uncertainty: null,
+      favorite: false,
+    });
+    const out = archiveByModel([j(3, 'b/m', 'witness:a1'), j(1, 'a/m', 'witness:a1'), j(1, 'a/m', 'resident:r1'), j(2, 'b/m', 'witness:a1')]);
+    expect(out.map((m) => m.model)).toEqual(['b/m', 'a/m']);
+    expect(out[0].runs.map((r) => r.run)).toEqual([2, 3]);
+    expect(out[1].runs[0].by).toHaveLength(2);
   });
 });

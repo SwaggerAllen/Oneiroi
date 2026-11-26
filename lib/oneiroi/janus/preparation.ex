@@ -183,7 +183,7 @@ defmodule Oneiroi.Janus.Preparation do
 
   def execute(cur, %Commands.ProposeQuestion{} = c) do
     cond do
-      not witness?(c) ->
+      not judge?(cur, c) ->
         {:error, Error.new(:janus_not_yours, :janus_question_propose_actor)}
 
       not text?(c.text, @question_chars) ->
@@ -288,7 +288,7 @@ defmodule Oneiroi.Janus.Preparation do
 
   def execute(cur, %Commands.ProposeC0{} = c) do
     cond do
-      not witness?(c) ->
+      not judge?(cur, c) ->
         {:error, Error.new(:janus_not_yours, :janus_c0_propose_actor)}
 
       not item?(c) ->
@@ -392,7 +392,7 @@ defmodule Oneiroi.Janus.Preparation do
 
   def execute(cur, %Commands.MarkReady{} = c) do
     cond do
-      not witness?(c) ->
+      not judge?(cur, c) ->
         {:error, Error.new(:janus_not_yours, :janus_ready_actor)}
 
       MapSet.member?(cur.ready, who(c)) == (c.ready == true) ->
@@ -429,6 +429,8 @@ defmodule Oneiroi.Janus.Preparation do
           id: c.id,
           episode: cur.episode,
           items: items,
+          bundle: c.bundle,
+          digest: c.digest,
           note: c.note
         }
     end
@@ -534,6 +536,21 @@ defmodule Oneiroi.Janus.Preparation do
 
   defp witness?(%{actor: %{kind: :witness}}), do: true
   defp witness?(_command), do: false
+
+  # Who proposes and marks ready (the witness, 2026-11-26: Scarlett's
+  # parity on judge functions): the witness, on the panel unless he
+  # left it, or anyone who joined it.
+  defp judge?(cur, %{actor: %{kind: kind, id: id}}) when kind in [:witness, :resident] do
+    party = "#{kind}:#{id}"
+
+    case Map.get(cur, :panel, %{})[party] do
+      :in -> true
+      :left -> false
+      _never -> kind == :witness
+    end
+  end
+
+  defp judge?(_cur, _command), do: false
 
   defp who(%{actor: %{kind: kind, id: id}}), do: {kind, id}
 

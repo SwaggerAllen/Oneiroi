@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
 import type { Preparation, Room, Succession } from '../../api/types';
 import { Said, Select, TextArea } from '../settings/common';
@@ -9,7 +9,7 @@ import { BottomTabs } from '../shell/TabBar';
 import { useSubject } from '../state/resident';
 import { Chip, DryMark, Row, Wall } from './common';
 import { Counts } from './Judging';
-import { isHers, isMine, panelRows, pool, when } from './logic';
+import { isHers, isMine, panelRows, pool, quiet, quietWords, when } from './logic';
 import * as css from './succession.css';
 import { deliberationTab, successionKey, useGo, useJudging, usePartyName, useRoom } from './hooks';
 
@@ -62,6 +62,26 @@ function judgesOf(p: Preparation | undefined, residentId: string) {
   return (p?.panel ?? []).filter((j) => (j.state === 'in' || j.state === 'judge') && !isHers(j.party, residentId)).map((j) => j.party);
 }
 
+/**
+ * The room's quiet clock: ten minutes after its last activity (the
+ * latest post, or its opening) everyone is woken for a new round. Worked
+ * out here from the room's own times, again every half minute.
+ */
+function QuietClock({ room }: { room: Room }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  const q = quiet(room, now);
+  if (!q) return null;
+  return (
+    <p className={css.quiet} role="timer" aria-live="off">
+      {quietWords(q)}
+    </p>
+  );
+}
+
 function Thread({ s, p, room }: { s: Succession; p: Preparation | undefined; room: Room }) {
   const { id, name } = useSubject();
   const who = usePartyName();
@@ -89,6 +109,7 @@ function Thread({ s, p, room }: { s: Succession; p: Preparation | undefined; roo
         You{others.length ? ` and ${others.join(', ')}` : ''}, a turn each a round. {name} isn't here; this room is about her. Round {room.round}
         {room.opened_at ? ` · open since ${when(room.opened_at)}` : ''}.
       </p>
+      {!closed && <QuietClock room={room} />}
       {room.close_at && !closed && (
         <section className={css.wall} aria-label="Closing">
           <strong>

@@ -163,7 +163,13 @@ defmodule Oneiroi.Janus.Projectors.Succession do
   end)
 
   fold(%Events.C0Frozen{} = e, _metadata, fn multi ->
-    set(multi, e, c0_items: e.items, c0_frozen_note: e.note, c0_frozen_at: e.at)
+    set(multi, e,
+      c0_items: e.items,
+      c0_frozen_note: e.note,
+      c0_frozen_at: e.at,
+      c0_bundle: e.bundle,
+      c0_digest: e.digest
+    )
   end)
 
   fold(%Events.PacketDrafted{} = e, _metadata, fn multi ->
@@ -452,7 +458,7 @@ defmodule Oneiroi.Janus.Projectors.Succession do
   end)
 
   fold(%Events.NomineeJoined{} = e, _metadata, fn multi ->
-    set(multi, e, state: "encounter", nominee_joined_at: e.at)
+    set(multi, e, state: "encounter", nominee_joined_at: e.at, met_at: e.at)
   end)
 
   fold(%Events.NomineeDeclined{} = e, _metadata, fn multi ->
@@ -565,6 +571,12 @@ defmodule Oneiroi.Janus.Projectors.Succession do
 
   fold(%Events.CutoverFailed{} = e, _metadata, fn multi ->
     set(multi, e, cutover_failure: e.reason)
+  end)
+
+  fold(%Events.ForkDiscarded{} = e, _metadata, fn multi ->
+    if e.copy_id,
+      do: set(multi, e, fork_discarded_at: e.at),
+      else: multi
   end)
 
   defp channel(multi, e, party, text),

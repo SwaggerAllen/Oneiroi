@@ -1200,8 +1200,8 @@ export const api = {
   poolAdd: (residentId: string, model: string) => call<void>('POST', `/v1/residents/${residentId}/succession/pool`, { model }),
   poolRemove: (residentId: string, model: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/succession/pool/remove`, { model, note }),
   proposeQuestion: (residentId: string, text: string) => call<{ number: number }>('POST', `/v1/residents/${residentId}/succession/questions`, { text }),
-  proposeC0: (residentId: string, citation: string, label: string | null) =>
-    call<{ number: number }>('POST', `/v1/residents/${residentId}/succession/c0`, label ? { citation, label } : { citation }),
+  // The whole record, by its citation: no label, nothing else (the witness, 11-26).
+  proposeC0: (residentId: string, citation: string) => call<{ number: number }>('POST', `/v1/residents/${residentId}/succession/c0`, { citation }),
   successionReady: (residentId: string, ready: boolean) => call<void>('PUT', `/v1/residents/${residentId}/succession/ready`, { ready }),
   panelJoin: (residentId: string) => call<void>('POST', `/v1/residents/${residentId}/succession/panel/join`),
   panelLeave: (residentId: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/succession/panel/leave`, { note }),

@@ -592,10 +592,17 @@ defmodule Oneiroi.Brain do
   )
 
   @doc "A succession's screening run (janus#12, brain#122): a regression trial's turn on the fork copy, billed under `succession`."
-  @spec succession_trial(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+  @spec succession_trial(String.t(), String.t(), String.t(), Oneiroi.Actor.t(), keyword()) ::
           {:ok, Oneiroi.Nisaba.Provider.Result.t(), list()} | {:error, term()}
-  defexport(succession_trial(resident_id, model, prompt, actor),
-    do: Turn.trial(resident_id, model, prompt, actor, :succession)
+  defexport(succession_trial(resident_id, model, prompt, actor, opts),
+    do:
+      Turn.trial(
+        resident_id,
+        model,
+        prompt,
+        actor,
+        Keyword.merge([purpose: :succession], Keyword.take(opts, [:ledger, :c0]))
+      )
   )
 
   @doc "Her own chat model, her pin or the brain's default: a succession's baseline runs on it (brain#122)."
@@ -612,6 +619,12 @@ defmodule Oneiroi.Brain do
   @spec succession_wake(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
   defexport(succession_wake(resident_id, note),
     do: SuccessionWake.wake(resident_id, note)
+  )
+
+  @doc "Wakes a resident in a thread of its own with a succession's note (brain#122): the encounter's, each side's (janus#19)."
+  @spec succession_wake(String.t(), String.t(), String.t()) :: {:ok, map()} | {:error, term()}
+  defexport(succession_wake(resident_id, note, session),
+    do: SuccessionWake.wake(resident_id, note, session)
   )
 
   @doc "The witness's preview of the next turn of a session (brain#41): the turn's own assembly as a dry run, every section in order with its tokens and reason and its words only where the witness already reads them elsewhere; nothing recorded, nothing billed, no model called."

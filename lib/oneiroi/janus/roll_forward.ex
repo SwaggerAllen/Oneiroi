@@ -22,6 +22,7 @@ defmodule Oneiroi.Janus.RollForward do
   alias Oneiroi.Apsu.Vault
   alias Oneiroi.Janus.Commands
   alias Oneiroi.Janus.Error
+  alias Oneiroi.Janus.Rites
   alias Oneiroi.Janus.Router
   alias Oneiroi.Janus.Store
   alias Oneiroi.Kumbukumbu
@@ -65,17 +66,7 @@ defmodule Oneiroi.Janus.RollForward do
              @actor
            ) do
       reindex(target)
-
-      record(%Commands.RecordCutover{
-        actor: @actor,
-        at: Clock.now(),
-        id: id,
-        target: target,
-        rehearsal: row.dry_run == true,
-        backup_commit: done.backup_commit,
-        commit: done.commit,
-        events: done.events
-      })
+      recorded(id, row, target, done)
     else
       {:error, error} = failed ->
         Logger.error("janus: a succession's cutover did not run", Oneiroi.Error.metadata(error))
@@ -90,6 +81,22 @@ defmodule Oneiroi.Janus.RollForward do
 
         failed
     end
+  end
+
+  # The act recorded; a rehearsal's scratch copy then discarded (janus#28).
+  defp recorded(id, row, target, done) do
+    with :ok <-
+           record(%Commands.RecordCutover{
+             actor: @actor,
+             at: Clock.now(),
+             id: id,
+             target: target,
+             rehearsal: row.dry_run == true,
+             backup_commit: done.backup_commit,
+             commit: done.commit,
+             events: done.events
+           }),
+         do: if(target != id, do: Rites.discard_copy(id, target), else: :ok)
   end
 
   # The cutover's serving, logged on her succession's own stream, which

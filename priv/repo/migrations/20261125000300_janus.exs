@@ -35,6 +35,8 @@ defmodule Oneiroi.Repo.Migrations.Janus do
       add(:c0_items, :integer)
       add(:c0_frozen_note, :text)
       add(:c0_frozen_at, :utc_datetime_usec)
+      add(:c0_bundle, :text)
+      add(:c0_digest, :text)
       # Screening and judging (janus#12 to #15).
       add(:baseline_model, :text)
       add(:screening_note, :text)
@@ -78,6 +80,10 @@ defmodule Oneiroi.Repo.Migrations.Janus do
       add(:cutover_commit, :text)
       add(:cutover_events, :integer)
       add(:cutover_failure, :text)
+      # When a nominee first met her, never cleared (janus#28), and when
+      # the fork was discarded.
+      add(:met_at, :utc_datetime_usec)
+      add(:fork_discarded_at, :utc_datetime_usec)
     end
 
     create(unique_index(:janus_succession, [:resident_id, :episode]))

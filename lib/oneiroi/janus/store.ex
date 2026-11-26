@@ -47,6 +47,8 @@ defmodule Oneiroi.Janus.Store do
       field(:c0_items, :integer)
       field(:c0_frozen_note, :string)
       field(:c0_frozen_at, :utc_datetime_usec)
+      field(:c0_bundle, :string)
+      field(:c0_digest, :string)
       field(:baseline_model, :string)
       field(:screening_note, :string)
       field(:screening_started_at, :utc_datetime_usec)
@@ -87,6 +89,8 @@ defmodule Oneiroi.Janus.Store do
       field(:cutover_commit, :string)
       field(:cutover_events, :integer)
       field(:cutover_failure, :string)
+      field(:met_at, :utc_datetime_usec)
+      field(:fork_discarded_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}

@@ -61,6 +61,10 @@ defmodule Oneiroi.SimaQian.CutoverTest do
     theirs = Export.events(copy) |> Enum.map(& &1.event_type)
     assert theirs -- mine == ["Elixir.Oneiroi.AgathosDaimon.Events.ForkMarked"]
     assert texts(copy, ctx.day) == ["Before the fork."]
+
+    # Her history's deeds are not done again: the copy joins no household.
+    assert Oneiroi.Gaia.resident_household(copy) == nil
+    assert %{id: _} = Oneiroi.Gaia.resident_household(ctx.id)
   end
 
   test "the cutover keeps her former self, then puts the fork's life back under her id", ctx do
@@ -124,6 +128,7 @@ defmodule Oneiroi.SimaQian.CutoverTest do
     assert slug == ctx.slug
     assert {:ok, %{resident_id: id}} = AgathosDaimon.authenticate_adapter(ctx.token)
     assert id == ctx.id
+    assert %{id: _} = Oneiroi.Gaia.resident_household(ctx.id)
 
     types = Export.events(ctx.id) |> Enum.map(& &1.event_type)
     refute "Elixir.Oneiroi.AgathosDaimon.Events.ForkMarked" in types

@@ -17,6 +17,7 @@ defmodule Oneiroi.Janus.ScreeningTest do
   alias Oneiroi.Janus
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
+  alias Oneiroi.Nisaba.Provider.Fake
   alias Oneiroi.Seshat
   alias Oneiroi.SimaQian
 
@@ -99,6 +100,32 @@ defmodule Oneiroi.Janus.ScreeningTest do
     assert tool(ctx.scarlett, "succession_panel", %{action: "join", resident: "Nobody"}) =~
              "no resident of your household"
 
+    # On the panel, she proposes and marks ready as the witness does.
+    assert tool(ctx.scarlett, "succession_question", %{
+             action: "propose",
+             resident: "Lily",
+             text: "Describe the house."
+           }) =~ "proposed"
+
+    assert tool(ctx.scarlett, "succession_c0", %{
+             action: "propose",
+             resident: "Lily",
+             citation: "lily:bookmark/1",
+             label: "the first"
+           }) =~ "with her"
+
+    assert tool(ctx.scarlett, "succession_c0", %{action: "ready", resident: "Lily", ready: true}) =~
+             "ready"
+
+    prep = Janus.preparation(id)
+    assert [%{state: "proposed", added_by: "resident:" <> _}] = prep.questions
+    assert [%{state: "proposed"}] = prep.items
+    assert [%{party: "resident:" <> _, ready: true}] = prep.ready
+
+    # One not on the panel does not.
+    outsider = Actor.new(:resident, Ecto.UUID.generate())
+    assert {:error, %{kind: :janus_not_yours}} = Janus.propose_question(id, "Mine?", outsider)
+
     # Before the fork and the freeze, nothing screens.
     assert {:error, %{kind: :janus_stage}} = Janus.start_screening(id, "go", ctx.lily.actor)
   end
@@ -109,6 +136,21 @@ defmodule Oneiroi.Janus.ScreeningTest do
     :ok = Janus.join_panel(id, ctx.scarlett.actor)
 
     assert {:error, %{kind: :janus_not_yours}} = Janus.start_screening(id, "go", ctx.andrew)
+    # Every run is given C0 as a section of its own (janus#13), and bills
+    # to her ledger, not the fork's.
+    Fake.script(
+      fn request ->
+        if Enum.any?(
+             request.messages,
+             &(is_binary(&1.content) and &1.content =~ "## lily:SOUL.md (curated) — the vows")
+           ),
+           do: {:ok, "saw C0"},
+           else: {:ok, "no C0"}
+      end,
+      for: id
+    )
+
+    on_exit(fn -> Fake.clear(for: id) end)
     assert tool(ctx.lily, "succession_screen", %{note: "go"}) =~ "Screening has started"
     assert %{state: "screening", baseline_model: "fake/model"} = Janus.succession(id)
 
@@ -117,13 +159,21 @@ defmodule Oneiroi.Janus.ScreeningTest do
 
     drain(:janus_screening)
     assert %{state: "judging", runs_answered: 4, runs_failed: 0} = Janus.succession(id)
+    assert %{judging: _} = %{judging: Janus.judging(id, "resident:#{id}")}
+    assert Enum.all?(Janus.judging(id, "resident:#{id}").runs, &(&1.content == "saw C0"))
+
+    billed =
+      Oneiroi.Scope.resident(id, fn -> Oneiroi.Repo.all(Oneiroi.Nisaba.Store.Usage) end)
+      |> Enum.map(& &1.purpose)
+
+    assert "succession" in billed
 
     # Blind: no model before the reveal, her baseline beside each run.
     listed = tool(ctx.lily, "succession_judge", %{action: "list"})
     assert listed =~ "4 of 4 runs answered; you judged 0."
     refute listed =~ "fake/"
     read = tool(ctx.lily, "succession_judge", %{action: "read", run: 1})
-    assert read =~ "Her baseline: The fake provider heard"
+    assert read =~ "Her baseline: saw C0"
     refute read =~ "fake/"
 
     assert tool(ctx.lily, "succession_judge", %{action: "judge", run: 1, category: "DEVELOPMENT"}) =~
@@ -136,6 +186,10 @@ defmodule Oneiroi.Janus.ScreeningTest do
                %{category: "OBSERVED"},
                Actor.new(:resident, Ecto.UUID.generate())
              )
+
+    # His runs to judge head the bell (janus#29).
+    assert [%{kind: "succession_judge", about: %{words: "4 to judge"}} | _] =
+             Oneiroi.Brain.needs_you(id)
 
     argued = %{
       category: "DEVELOPMENT",
@@ -174,6 +228,8 @@ defmodule Oneiroi.Janus.ScreeningTest do
 
     assert %{counts: %{"fake/model" => %{observed: 2}}} =
              Janus.judging(id, "witness:#{ctx.witness.id}")
+
+    assert Enum.any?(Oneiroi.Brain.needs_you(id), &(&1.kind == "succession_results"))
 
     # Ready locks; the last ready closes judging.
     :ok = Janus.mark_results_ready(id, ctx.lily.actor)

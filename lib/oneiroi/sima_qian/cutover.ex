@@ -73,6 +73,45 @@ defmodule Oneiroi.SimaQian.Cutover do
     end
   end
 
+  @doc """
+  Discards a succession's fork copy (sima-qian#70): its aggregates
+  stopped, every stream of its hard-deleted, its rows gone from every
+  resident table, its repository deleted. Refuses anything that is not
+  a fork copy (`fork_of` set, state `fork`): no real resident can be
+  reached through it.
+  """
+  @spec discard(String.t()) :: :ok | {:error, term()}
+  def discard(copy) do
+    case Oneiroi.AgathosDaimon.fetch(copy) do
+      {:ok, %{state: "fork", fork_of: source}} when is_binary(source) and source != copy ->
+        uuids = Export.stream_uuids(copy)
+        stop_aggregates(uuids)
+
+        with :ok <- delete_streams(uuids),
+             :ok <- clear_all(copy) do
+          Repos.delete({:resident, copy})
+        end
+
+      _not_a_fork ->
+        {:error, Error.new(:sima_qian_not_a_fork, :sima_qian_discard_not_a_fork)}
+    end
+  end
+
+  defp clear_all(copy) do
+    {:ok, id} = Ecto.UUID.dump(copy)
+    %{cleared: cleared, kept: kept} = tables()
+
+    Scope.platform(fn ->
+      for table <- cleared ++ kept do
+        # The table name is the catalog's own, never a request value.
+        # sobelow_skip ["SQL.Query"]
+        Repo.query!(~s|DELETE FROM "#{table}" WHERE resident_id = $1|, [id])
+      end
+    end)
+
+    :ok
+  end
+
   @doc "The resident tables the cutover clears for a target, and those it keeps by name."
   @spec tables() :: %{cleared: [String.t()], kept: [String.t()]}
   def tables do

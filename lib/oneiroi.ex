@@ -85,6 +85,7 @@ defmodule Oneiroi do
       Apsu.Vault,
       Apsu.Vault.Encrypted,
       Projection,
+      Handler,
       Repo,
       Router,
       Scope,

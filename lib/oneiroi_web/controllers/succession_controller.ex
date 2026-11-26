@@ -9,12 +9,19 @@ defmodule OneiroiWeb.SuccessionController do
 
   alias Oneiroi.AgathosDaimon.Error, as: ResidentError
   alias Oneiroi.Config.Secret
+  alias Oneiroi.Gaia
   alias Oneiroi.Janus
   alias OpenApiSpex.Schema
 
   tags(["succession"])
 
-  plug(:witnessed when action != :catalog)
+  # Her witness's own acts (janus#3, #5 to #7) stay his; a judge's
+  # (the panel, judging, the room, proposals and ready marks) are open to
+  # any human in her household, so a second witness in the house judges
+  # as he does once invited (the witness, 2026-11-26).
+  @witness_only [:propose, :withdraw, :backup, :envelope, :pool_add, :pool_remove, :log]
+  plug(:witnessed when action in @witness_only)
+  plug(:member when action not in @witness_only and action != :catalog)
 
   operation(:show,
     summary: "The resident's latest succession, or null",
@@ -680,6 +687,20 @@ defmodule OneiroiWeb.SuccessionController do
       next_choice: row.next_choice,
       next_note: row.next_note
     }
+
+  defp member(%{params: %{"id" => id}} = conn, opts) do
+    case witnesses?(conn, id) or housemate?(conn, id) do
+      true -> conn
+      false -> witnessed(conn, opts)
+    end
+  end
+
+  defp housemate?(conn, id) do
+    case Gaia.resident_household(id) do
+      %{id: household} -> Gaia.household_member?(household, actor(conn))
+      _none -> false
+    end
+  end
 
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),

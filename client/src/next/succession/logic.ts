@@ -1,4 +1,6 @@
-import type { Category, ModelCounts, Party, Preparation, RoomJudgment, Succession, SuccessionState } from '../../api/types';
+import type { Category, ModelCounts, NeedsYouEntry, SuccessionArchive, Party, Preparation, Room, RoomJudgment, Succession, SuccessionState } from '../../api/types';
+import { documentPath, RECORD_KINDS } from '../chat/cite';
+import { formatSettings, type Location } from '../state/routes';
 
 // What the succession's screens work out (screen:next-succession): the
 // step list from its state, whose a party is, counts for a witness. The
@@ -237,4 +239,93 @@ export function parentOf(path: string): string | null {
   if (first === 'results' && path !== 'results') return 'results';
   if (first === 'ready') return 'results';
   return '';
+}
+
+/**
+ * Where a C0 item's citation opens in the app, the way the app already
+ * opens a citation (Records' `doc/<path>` or `cite/<kind>/<ref>`, the
+ * chat at a turn, Time at a day): or, for a kind with no place to open,
+ * why not. A citation is `<slug>:<kind>/<ref>`, or `<slug>:<path>` for
+ * a document at the root of her records (`lily:SOUL.md`).
+ */
+export function placeOf(citation: string, slug: string): { to: Location } | { reason: string } {
+  const at = citation.trim().indexOf(':');
+  if (at < 0) return { reason: 'Not a citation the app can follow.' };
+  const own = citation.trim().slice(0, at);
+  const rest = citation.trim().slice(at + 1);
+  if (own !== slug) return { reason: "Not one of her records: it doesn't open here." };
+  const slash = rest.indexOf('/');
+  if (slash < 0) {
+    const path = documentPath({ kind: 'root', ref: rest });
+    return path ? { to: { tab: 'records', path: `doc/${path}` } } : { reason: 'Not a citation the app can follow.' };
+  }
+  const kind = rest.slice(0, slash);
+  const ref = rest.slice(slash + 1);
+  switch (kind) {
+    case 'transcript': {
+      // `<session>/<turn>`: the conversation, at that turn (as search opens it).
+      const [session, ...turn] = ref.split('/');
+      return session && turn.length ? { to: { tab: 'chat', path: `turn/${session}/${turn.join('/')}` } } : { reason: 'A whole conversation has no single place to open.' };
+    }
+    case 'bookmark':
+      return { to: { tab: 'records', path: `cite/bookmark/${ref}` } };
+    case 'journal': {
+      // `<day>/<entry>`: her journal for that day, in Time; a journal document opens in Records.
+      const day = /^(\d{4}-\d{2}-\d{2})(?:\/|$)/.exec(ref);
+      if (day && !/\.[A-Za-z0-9]+$/.test(ref)) return { to: { tab: 'time', path: `day/${day[1]}` } };
+      break;
+    }
+    case 'letter':
+      // Letters are read in the chat's Mail view, as search opens them.
+      return { to: { tab: 'chat', path: 'mail' } };
+    case 'scene':
+      return { reason: 'A scene opens from her conversation, not by its number.' };
+  }
+  if (RECORD_KINDS.has(kind)) return { reason: `A ${kind} has no page of its own in the app.` };
+  const path = documentPath({ kind, ref });
+  return path ? { to: { tab: 'records', path: `doc/${path}` } } : { reason: 'Not a citation the app can follow.' };
+}
+
+/** Minutes of quiet before the room wakes everyone for a new round (the server's rule). */
+export const QUIET_MINUTES = 10;
+
+/**
+ * The room's quiet clock: minutes since its last activity (the latest
+ * post's time, or when the room opened if nobody has posted), and how
+ * many are left before everyone is woken. Null with nothing to count from.
+ */
+export function quiet(room: Pick<Room, 'opened_at' | 'posts'>, now: number): { quiet: number; left: number } | null {
+  const times = room.posts.map((p) => Date.parse(p.at)).filter((t) => !Number.isNaN(t));
+  const last = times.length ? Math.max(...times) : room.opened_at ? Date.parse(room.opened_at) : NaN;
+  if (Number.isNaN(last)) return null;
+  const minutes = Math.max(0, Math.floor((now - last) / 60_000));
+  return { quiet: minutes, left: Math.max(0, QUIET_MINUTES - minutes) };
+}
+
+/** The quiet clock in words: "quiet 4 min · at 10 everyone is woken". */
+export function quietWords(q: { quiet: number; left: number }): string {
+  return q.left > 0 ? `quiet ${q.quiet} min · at ${QUIET_MINUTES} everyone is woken` : `quiet ${q.quiet} min · everyone is being woken for a new round`;
+}
+
+/** A bell entry of the succession's (needs_you), which the server sorts first. */
+export const isSuccessionNeed = (e: Pick<NeedsYouEntry, 'kind'>) => e.kind.startsWith('succession_');
+
+/** The succession page a bell entry opens: `#/settings/succession/<page>`, the steps when it names none. */
+export const needHref = (e: Pick<NeedsYouEntry, 'about'>) => formatSettings('succession', e.about.page ?? '');
+
+type ArchivedJudgment = SuccessionArchive['judgments'][number];
+
+/** The archive's judgments by model (in the order models first appear), each model's runs in order, every judge's judgment of a run together. */
+export function archiveByModel(judgments: ArchivedJudgment[]): { model: string; runs: { run: number; question: number | null; by: ArchivedJudgment[] }[] }[] {
+  const models = new Map<string, Map<number, ArchivedJudgment[]>>();
+  for (const j of judgments) {
+    const model = j.model ?? 'unknown model';
+    const runs = models.get(model) ?? new Map<number, ArchivedJudgment[]>();
+    runs.set(j.run, [...(runs.get(j.run) ?? []), j]);
+    models.set(model, runs);
+  }
+  return [...models.entries()].map(([model, runs]) => ({
+    model,
+    runs: [...runs.entries()].sort((a, b) => a[0] - b[0]).map(([run, by]) => ({ run, question: by[0].question, by })),
+  }));
 }

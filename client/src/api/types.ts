@@ -553,12 +553,17 @@ export interface NeedsYouEntry {
     | 'turn_failed'
     | 'contract_to_answer'
     | 'remote_public'
-    | 'activity';
+    | 'activity'
+    | SuccessionNeed;
   ref: number | string;
   since: string;
-  screen: 'inbox' | 'schedule' | 'agreement' | 'work' | 'queue' | 'kinds' | 'theme' | 'settings';
+  screen: 'inbox' | 'schedule' | 'agreement' | 'work' | 'queue' | 'kinds' | 'theme' | 'settings' | 'succession';
   long: boolean;
-  about: { kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; held_by?: string | null; key?: string; change?: string; note?: string; approvable?: boolean; seeds?: { ground: string; resident: string; witness: string }; reason?: string; retry?: string; session_key?: string; conversation?: string | null; failures?: Array<{ session_key: string; turn_ref: string; failed_at: string }> };
+  about: {
+    /** A succession entry's: the page under `#/settings/succession/`, a short phrase, and whether it is a dry run. */
+    page?: string;
+    words?: string;
+    dry_run?: boolean; kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; held_by?: string | null; key?: string; change?: string; note?: string; approvable?: boolean; seeds?: { ground: string; resident: string; witness: string }; reason?: string; retry?: string; session_key?: string; conversation?: string | null; failures?: Array<{ session_key: string; turn_ref: string; failed_at: string }> };
 }
 
 /** What waits on her: the witness's proposals and letters she hasn't answered or read (brain#76). */
@@ -1021,6 +1026,16 @@ export type SuccessionState =
   | 'declined'
   | 'withdrawn';
 
+/** The bell's succession entries (needs_you), which the server sorts first. */
+export type SuccessionNeed =
+  | 'succession_envelope'
+  | 'succession_backup'
+  | 'succession_judge'
+  | 'succession_results'
+  | 'succession_room'
+  | 'succession_question'
+  | 'succession_goodbye';
+
 /** A party to a succession: `witness:<account id>` or `resident:<resident id>`. */
 export type Party = string;
 
@@ -1216,10 +1231,25 @@ export interface DisclosureEntry {
   at: string;
 }
 
+/**
+ * An ended succession's archive: models and judges named (no longer
+ * anonymized), served to anyone in the house but never to her.
+ */
 export interface SuccessionArchive {
-  judgments: { run: number; candidate: string; judge: Party; category: Category; argument: string | null; evidence: string | null; uncertainty: Uncertainty | null }[];
-  room: { number: number; round: number; party: Party; act: string; text: string | null }[];
-  drafts: { draft: number; by: Party; candidate: string | null; basis: string | null; endorsed: Party[] }[];
+  judgments: {
+    run: number;
+    /** The question's number. */
+    question: number | null;
+    model: string | null;
+    judge: Party;
+    category: Category;
+    argument: string | null;
+    evidence: string | null;
+    uncertainty: Uncertainty | null;
+    favorite: boolean;
+  }[];
+  room: { number: number; round: number; party: Party; act: RoomPost['act']; text: string | null; at: string }[];
+  drafts: { draft: number; party: Party; model: string | null; basis: string | null; endorsed: Party[] }[];
 }
 
 export interface CatalogModel {

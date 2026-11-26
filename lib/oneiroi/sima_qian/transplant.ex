@@ -84,8 +84,10 @@ defmodule Oneiroi.SimaQian.Transplant do
       metadata:
         recorded.metadata
         |> Kernel.||(%{})
-        |> Map.drop(["fork_of", "imported", "cutover"])
+        |> Map.drop(["fork_of", "imported", "cutover", "transplanted"])
         |> Map.merge(metadata)
+        # Handlers pass over it (sima-qian#69): a move is not a deed.
+        |> Map.put("transplanted", true)
     }
   end
 

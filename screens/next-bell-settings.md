@@ -19,6 +19,14 @@ header's bell and gear. Built 2026-11-10.
   number.
   - Each entry names what it is, what it concerns, and how long it has
     waited.
+  - **Her succession's entries** (screen:next-succession, 2026-11-26)
+    come first, above failures and the notifications question, as the
+    server sorts them: "Succession · runs to judge", "· your results",
+    "· the room", "· her question", "· your goodbye", "· your envelope",
+    "· her backup repository", with "DRY RUN" on a dry run's. The line
+    is the entry's few words ("4 to judge", "Your turn", "She asked");
+    each opens its succession page (`#/settings/succession/<page>`, the
+    entry's `about.page`).
   - Asks, reply drafts, replies to send and pieces are answered in
     place (`screens/next-mail.md`); the rest open where they are decided,
     all in this client: an agreement entry Soul's agreement, a plugin
@@ -43,8 +51,8 @@ header's bell and gear. Built 2026-11-10.
     witness, 2026-11-13): run it again as what it was, "Run free time
     now", "Run a round now", "Run the <label> check-in now" or "Wake her
     now", and on the credits entry "Topped up? Run them all again".
-    Failures sort above everything else in the bell, the notifications
-    question included, and while one waits the bell's dot is the signal
+    Failures sort above everything else in the bell but her succession's
+    entries, the notifications question included, and while one waits the bell's dot is the signal
     red and its label says something failed. Both look like failures (the witness, 2026-11-13): the
     signal red border and label with ⚠, on a faint red wash, the same
     red on every theme. Dismissing settles the failures (marked lost); the bell's

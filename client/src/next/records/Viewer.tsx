@@ -59,7 +59,7 @@ export function Viewer({
 
   return (
     <ScrollArea label={path}>
-      <div className={css.viewer} data-c0-source>
+      <div className={css.viewer}>
         <BackBar onBack={onBack} />
         <div className={css.meta}>
           {targets[targets.length - 1]}

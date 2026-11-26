@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import type { CatalogModel } from '../../api/types';
 import { Said } from '../settings/common';
@@ -7,7 +7,7 @@ import { useAct } from '../settings/useAct';
 import { useSubject } from '../state/resident';
 import { useShell } from '../state/store';
 import { Chip, DryMark } from './common';
-import { isHers, preparing, stateWords, underway } from './logic';
+import { isHers, isSuccessionNeed, preparing, stateWords, underway } from './logic';
 import * as css from './succession.css';
 import { successionKey, usePartyName, useSuccession } from './hooks';
 
@@ -15,20 +15,33 @@ import { successionKey, usePartyName, useSuccession } from './hooks';
 // new screens for what the app already does. A banner in her chat, the
 // pool button on the catalog, and Propose for C0 in Records.
 
-/** Her chat's banner while a succession is underway: its words follow the state, and it leads back. */
+/**
+ * Her chat's banner while a succession is underway: its words follow the
+ * state, a dry run is marked, and it leads back. When something of the
+ * succession waits on you (the bell's first succession entry), its few
+ * words show beside the way back, which then opens that page.
+ */
 export function SuccessionBanner() {
-  const { name, kind } = useSubject();
+  const { id, name, kind } = useSubject();
   const setPage = useShell((x) => x.setPage);
   const q = useSuccession(kind !== 'house');
+  // The bell's own read, shared: its succession entries come first.
+  const bell = useQuery({ queryKey: ['resident', id, 'bell'], queryFn: () => api.needsYou(id), enabled: kind !== 'house' && underway(q.data?.succession) });
   const s = q.data?.succession;
   if (!underway(s)) return null;
+  const need = (bell.data ?? []).find(isSuccessionNeed);
+  const page = need?.about.page ?? (s.state === 'farewell' ? 'farewell' : '');
   return (
-    <button type="button" className={css.banner} onClick={() => setPage('succession', s.state === 'farewell' ? 'farewell' : '')}>
-      <span style={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-        <span>
-          Succession · {stateWords(s, name)} <DryMark s={s} />
+    <button type="button" className={css.banner} onClick={() => setPage('succession', page)}>
+      <span className={css.bannerBody}>
+        <span className={css.bannerHead}>
+          <span>Succession · {stateWords(s, name)}</span>
+          <DryMark s={s} />
         </span>
-        <span className={css.bannerLink}>Back to the succession ›</span>
+        <span className={css.bannerFoot}>
+          <span className={css.bannerLink}>Back to the succession ›</span>
+          {need?.about.words && <span className={css.bannerWords}>{need.about.words}</span>}
+        </span>
       </span>
       <span aria-hidden>›</span>
     </button>
@@ -67,38 +80,19 @@ export function PoolButton({ model }: { model: CatalogModel }) {
 
 /**
  * Propose for C0, on a record in Records while preparation is open: the
- * whole document, or a stretch of it you select first (its words go as
- * the label; the citation is the document's).
+ * whole record by its citation, nothing else (the witness, 11-26).
  */
 export function ProposeForC0({ citation }: { citation: string }) {
   const { id, name, kind } = useSubject();
   const q = useSuccession(kind !== 'house');
   const act = useAct();
-  const [stretch, setStretch] = useState('');
   const s = q.data?.succession;
-  const shown = preparing(s) && !q.data?.preparation?.c0_frozen_at;
-  // The last stretch selected on the page is kept, so pressing the button
-  // (which may clear the selection) still proposes it; Clear lets it go.
-  useEffect(() => {
-    if (!shown) return;
-    const on = () => {
-      const sel = document.getSelection();
-      const node = sel?.anchorNode;
-      const el = node instanceof Element ? node : node?.parentElement;
-      // Only a stretch of the record itself: its page carries `data-c0-source`.
-      if (!el?.closest('[data-c0-source]')) return;
-      const text = (sel?.toString() ?? '').trim().replace(/\s+/g, ' ');
-      if (text) setStretch(text.slice(0, 280));
-    };
-    document.addEventListener('selectionchange', on);
-    return () => document.removeEventListener('selectionchange', on);
-  }, [shown]);
-  if (!shown) return null;
+  if (!preparing(s) || q.data?.preparation?.c0_frozen_at) return null;
   return (
     <div className={`${settingsCss.card} ${css.now}`} role="group" aria-label="Propose for C0">
       <div className={settingsCss.row}>
-        <strong>{stretch ? 'Selected' : 'This record'}</strong>
-        {stretch && <span className={settingsCss.note}>“{stretch}”</span>}
+        <strong>This record</strong>
+        <span className={settingsCss.meta}>{citation}</span>
         <DryMark s={s} />
       </div>
       <div className={settingsCss.row}>
@@ -106,26 +100,12 @@ export function ProposeForC0({ citation }: { citation: string }) {
           type="button"
           className={settingsCss.primary}
           disabled={act.busy}
-          onClick={() => {
-            void act.run(
-              () =>
-                api.proposeC0(id, citation, stretch ? `“${stretch}”` : null).then((r) => {
-                  setStretch('');
-                  return `Proposed as C0 #${r.number}. It reaches ${name} with your name and today's date.`;
-                }),
-              successionKey(id),
-            );
-          }}
+          onClick={() => void act.run(() => api.proposeC0(id, citation).then((r) => `Proposed as C0 #${r.number}. It reaches ${name} with your name and today's date.`), successionKey(id))}
         >
-          {stretch ? 'Propose the selection for C0' : 'Propose for C0'}
+          Propose for C0
         </button>
-        {stretch && (
-          <button type="button" className={settingsCss.quiet} onClick={() => setStretch('')}>
-            Clear
-          </button>
-        )}
       </div>
-      <p className={settingsCss.note}>Shown while {name}'s succession is open. Goes to her as a proposal with your name and today's date; select a stretch first to propose just that.</p>
+      <p className={settingsCss.note}>Shown while {name}'s succession is open. The whole record goes to her as a proposal, with your name and today's date.</p>
       <Said said={act.said} />
     </div>
   );

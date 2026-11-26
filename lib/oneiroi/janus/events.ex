@@ -147,7 +147,13 @@ defmodule Oneiroi.Janus.Events do
   end
 
   defmodule C0Frozen do
-    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :episode, :items], export: false
+    # C0 frozen, rendered whole (janus#9, #13): what every candidate's
+    # trial is given as a section of its own, and the nominee reads.
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :episode, :items, :bundle, :digest],
+      export: false
   end
 
   defmodule PacketDrafted do
@@ -462,5 +468,11 @@ defmodule Oneiroi.Janus.Events do
 
   defmodule CutoverFailed do
     use Oneiroi.Event, version: 1, fields: [:id, :episode, :attempt, :reason], export: false
+  end
+
+  defmodule ForkDiscarded do
+    # A fork copy gone (janus#28): one whose nominee never met her, or a
+    # rehearsal's scratch copy.
+    use Oneiroi.Event, version: 1, fields: [:id, :episode, :copy_id], export: false
   end
 end

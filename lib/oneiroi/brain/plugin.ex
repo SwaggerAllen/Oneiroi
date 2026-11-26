@@ -70,8 +70,13 @@ defmodule Oneiroi.Brain.Plugin do
   # the reads' embeddings as its calls are billed, under regression to
   # the run's actor, which the resident's ledger view omits (eunomia
   # #10, #12).
-  def trial_reads(%{trial?: true, payer: payer}),
-    do: %{purpose: :regression, refresh: false, actor: payer}
+  def trial_reads(%{trial?: true, payer: payer} = turn),
+    do: %{
+      purpose: Map.get(turn, :purpose, :regression),
+      refresh: false,
+      actor: payer,
+      ledger: Map.get(turn, :ledger) || turn.resident_id
+    }
 
   def trial_reads(_turn), do: %{}
 end
