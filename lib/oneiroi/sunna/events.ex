@@ -250,7 +250,9 @@ defmodule Oneiroi.Sunna.Events do
     # (sunna#101): the activity was no longer hers to work when the run
     # ended, so its runs count from zero again. A version 1 event reads as
     # a run that ended on its own, the activity not known to have moved.
-    use Oneiroi.Event, version: 2, fields: [:id, :act, :stopped, :cut, :moved]
+    # Version 3 adds `stopped_by` (sunna#109): who stopped a stopped run,
+    # `witness` or `safe_word`, nil before it was kept.
+    use Oneiroi.Event, version: 3, fields: [:id, :act, :stopped, :cut, :moved, :stopped_by]
   end
 
   defimpl Commanded.Event.Upcaster, for: ActivityRunEnded do
@@ -291,6 +293,13 @@ defmodule Oneiroi.Sunna.Events do
     # One activity's runs given back by the witness, on its task
     # (sunna#106): its count since it last moved starts over.
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :act]
+  end
+
+  defmodule WorkResumed do
+    # The line rested by a stopped run taken up again (sunna#109): the
+    # witness's or hers, with a note. Before it, only her retired item
+    # list cleared that rest, so a house queue line stopped stayed so.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id]
   end
 
   defmodule WorkCareSkipped do

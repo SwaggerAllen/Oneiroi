@@ -857,3 +857,6 @@ Counting well-formed tool calls needs every resident's calls, and her solo sessi
 
 ## #115
 The encounter is hers and the nominee's; her main chat is shared with her witness, and a thread of its own, private like free time, keeps it between them while it still lands in each one's memory.
+
+## #116
+"Work" alone says nothing of which work; the run knows its task and activity when it opens the session, so the session can say so.

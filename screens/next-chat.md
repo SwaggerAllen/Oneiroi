@@ -107,6 +107,8 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
     private" and is never read.
   - Planned: check-ins and free time still ahead today, plus one-offs.
   - Today's other conversations.
+  - A work run's session shows its task and activity beside "Work"
+    (`Work · #12 The brief · review`, sunna#109).
 
 - **The navigator** (S2 merged; kumbukumbu#57, #58, seshat#52):
   - A slim track beside the conversation covers the last two weeks.

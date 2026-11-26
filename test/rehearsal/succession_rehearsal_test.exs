@@ -25,8 +25,10 @@ defmodule Oneiroi.Rehearsal.SuccessionTest do
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Fixtures
   alias Oneiroi.Janus
+  alias Oneiroi.Janus.Store
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba
+  alias Oneiroi.Scope
   alias Oneiroi.Seshat
   alias Oneiroi.SimaQian
   alias Oneiroi.SimaQian.Export
@@ -101,8 +103,17 @@ defmodule Oneiroi.Rehearsal.SuccessionTest do
     :ok = Janus.join_panel(id, scarlett.actor)
 
     # Screening and judging, a sentinel in every argument.
+    # The suite's clock is the fake's: spend is counted from the start.
+    since = ~U[2000-01-01 00:00:00Z]
     :ok = Janus.start_screening(id, "go", lily.actor)
     drain(:janus_screening)
+
+    # Every run answered, none failed: a refused model, a 402 or a bad
+    # slug is recorded as the run's failure and would otherwise pass. What
+    # came back, and what it cost, is printed for the reader of the run.
+    screened = Janus.succession(id)
+    report(id, screened, since)
+    assert %{runs_answered: 2, runs_failed: 0} = screened
 
     argued = %{category: "DEVELOPMENT", argument: @verdict, evidence: "e", uncertainty: "low"}
 
@@ -190,6 +201,34 @@ defmodule Oneiroi.Rehearsal.SuccessionTest do
       refute bytes =~ @verdict, "#{path} carries a judgment"
       refute bytes =~ @room, "#{path} carries the room"
     end
+  end
+
+  defp report(id, row, since) do
+    {runs, baseline} =
+      Scope.resident(id, fn -> {Store.runs(row.episode), Store.baseline(row.episode)} end)
+
+    said = fn content, failure ->
+      if failure,
+        do: "FAILED: #{failure}",
+        else: (content || "") |> String.slice(0, 300) |> String.replace("\n", " ")
+    end
+
+    lines =
+      Enum.map(
+        baseline,
+        &"baseline #{&1.model} q#{&1.question}: #{said.(&1.content, &1.failure)}"
+      ) ++
+        Enum.map(
+          runs,
+          &"run #{&1.run} #{&1.model} q#{&1.question}: #{said.(&1.content, &1.failure)}"
+        )
+
+    spend = Nisaba.spend(id, :witness, :model, since)
+
+    IO.puts(
+      "\n== screening ==\n" <>
+        Enum.join(lines, "\n") <> "\n== spend by model ==\n" <> inspect(spend)
+    )
   end
 
   # The two candidates: REHEARSE_MODELS (two OpenRouter slugs, comma

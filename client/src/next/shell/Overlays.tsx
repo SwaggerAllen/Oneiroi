@@ -69,6 +69,7 @@ const WORDS: Record<NeedsYouEntry['kind'], string> = {
   contract_to_answer: 'An agreement version to answer',
   remote_public: 'A public backup repository',
   activity: 'Work · yours to do',
+  work_stopped: 'Work · her line rests after a stop',
   // Her succession's parts that wait on you (screen:next-succession), first in the bell.
   succession_envelope: 'Succession · your envelope',
   succession_backup: 'Succession · her backup repository',
@@ -157,6 +158,8 @@ export function Bell() {
           <AnsweredCard key={keyOf(e)} entry={e} answer={(answered.get(keyOf(e)) as { answer: Answered }).answer} />
         ) : isSuccessionNeed(e) ? (
           <SuccessionItem key={keyOf(e)} entry={e} onOpen={() => setOverlay(null)} />
+        ) : e.kind === 'work_stopped' ? (
+          <WorkStoppedItem key={keyOf(e)} residentId={id} entry={e} onAnswered={keep(e)} onOpen={() => setOverlay(null)} />
         ) : e.kind === 'provider_credits' || e.kind === 'turn_failed' ? (
           <FailureItem key={keyOf(e)} residentId={id} entry={e} name={name} onAnswered={keep(e)} />
         ) : e.kind === 'theme_proposal' ? (
@@ -605,6 +608,46 @@ const CONVERSATION: Record<string, string> = {
   hands: 'the hands',
   adapter: 'an adapter',
 };
+
+/**
+ * Her work line rested by a stopped run (sunna#109): who stopped it, the
+ * task its activity failed on, and Resume, the only thing that takes the
+ * line up again.
+ */
+function WorkStoppedItem({ residentId, entry, onAnswered, onOpen }: { residentId: string; entry: NeedsYouEntry; onAnswered: (a: Answered) => void; onOpen: () => void }) {
+  const queries = useQueryClient();
+  const resume = useMutation({
+    mutationFn: () => api.resumeWork(residentId, 'resumed from the bell'),
+    onSuccess: () => {
+      onAnswered({ word: 'RESUMED', yes: true, note: '' });
+      void queries.invalidateQueries({ queryKey: ['resident', residentId, 'bell'] });
+    },
+  });
+  const task = entry.about.task;
+  return (
+    <div className={css.itemFailed} role="group" aria-label={WORDS.work_stopped}>
+      <span className={css.itemKindFailed}>
+        {'⏸ '}
+        {WORDS.work_stopped}
+        {entry.long ? ' · A WHILE' : ''}
+      </span>
+      <span>{entry.about.words}</span>
+      {task != null && (
+        <a className={css.since} href={`#/settings/queue/task/${task}${entry.about.act ? `/act/${entry.about.act}` : ''}`} onClick={onOpen}>
+          Task #{task}
+          {entry.about.act ? ` · activity ${entry.about.act}` : ''} failed with the stop
+        </a>
+      )}
+      <span className={css.since}>since {new Date(entry.since).toLocaleString()}</span>
+      <span style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+        <button type="button" className={css.primary} onClick={() => resume.mutate()} disabled={resume.isPending}>
+          Resume her work line
+        </button>
+        {resume.isError && <span className={css.since}>{(resume.error as Error).message}</span>}
+      </span>
+    </div>
+  );
+}
 
 /**
  * A turn that failed (brain#88): out of credits, one item for every turn

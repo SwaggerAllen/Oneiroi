@@ -379,7 +379,12 @@ to a human, so a flaky suite defeats the automation.
   connection; a cross-tenant job sets the scope per resident explicitly and
   is named in its system doc.
 - **The event store is scoped by stream naming**, read only through
-  Commanded; nothing reads `eventstore.*` directly.
+  Commanded; nothing reads `eventstore.*` directly. One named exception:
+  `Oneiroi.SimaQian.LogCopy` (sima-qian#72) writes a succession's fork
+  and cutover straight into the store's tables, because a copy through
+  the API puts her whole history in front of every subscription (it took
+  production down, 2026-11-26); its test pins the store's schema, so an
+  upgrade that changes the tables fails there first.
 - **A projector's query names its tenant.** Projectors run under the
   platform scope, so row-level security filters nothing they touch: a
   `where:` on a number, a ref, a slug or a session key alone reaches every

@@ -182,8 +182,9 @@ defmodule Oneiroi.Sunna.WorkLineTest do
     assert %{firings: [%{key: ^checkin, outcome: "deferred"}]} = Sunna.today(ctx.id)
   end
 
-  # brain#61: a stop ends the run unwrapped and rests the line; his
-  # give-back or his skip lifts the rest.
+  # brain#61, sunna#109: a stop ends the run unwrapped, fails its
+  # activity and rests the line; his give-back lifts the rest, and the
+  # activity runs again once reopened.
   test "a run she stops with her safe word ends unwrapped, and the line rests until he lifts it",
        ctx do
     key = started(ctx)
@@ -197,8 +198,14 @@ defmodule Oneiroi.Sunna.WorkLineTest do
     assert :stopped = WorkLoop.check(ctx.id)
     refute WorkLoop.due?(ctx.id)
 
-    :ok = Sunna.work_reset_runs(ctx.id, "go on when you're ready", ctx.andrew)
     act = ctx.act
+
+    assert %{view: "failed"} =
+             Enum.find(List.flatten(Sunna.queue_task(ctx.h, ctx.n).layers), &(&1.act_id == act))
+
+    :ok = Sunna.work_reset_runs(ctx.id, "go on when you're ready", ctx.andrew)
+    refute WorkLoop.check(ctx.id) == :stopped
+    :ok = Sunna.queue_reopen(ctx.h, ctx.n, act, "try it again", ctx.andrew)
     assert {:started, ^act} = WorkLoop.check(ctx.id)
   end
 

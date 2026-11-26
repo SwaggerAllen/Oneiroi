@@ -217,6 +217,8 @@ letters, an import and a lapse); the socket and the session channel.
 
 - **#123 A succession's parts waiting on the witness are in `needs_you`, first.** (janus#29.) `NeedsYou.Succession`, read through Janus's exports: kinds `succession_envelope`, `succession_backup`, `succession_judge`, `succession_results`, `succession_room`, `succession_question`, `succession_goodbye`, screen `succession`, `about` naming the page and a word or two; the list sorts them ahead of every other source.
 
+- **#124 A work line a stop rests is on the witness's bell.** (sunna#109.) `NeedsYou.WorkStopped`, kind `work_stopped`, screen `queue`: who stopped the run ("you stopped its run", "she stopped its run with her safe word"), the task and activity it failed, the run's conversation; it stands until the line is resumed, and the bell's entry carries Resume.
+
 ## #8 Initial vs target
 
 Initial (P1, slices 2 to 4): #1, over the main session, with the memory

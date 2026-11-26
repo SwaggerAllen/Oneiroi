@@ -62,6 +62,23 @@ defmodule OneiroiWeb.WorkController do
     end
   end
 
+  operation(:resume,
+    summary:
+      "Take up her work line after a stopped run (sunna#109): the stop rests it until resumed; the witness's, with a note",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the note", "application/json",
+       %Schema{type: :object, required: [:note], properties: %{note: %Schema{type: :string}}}},
+    responses: [no_content: "resumed"]
+  )
+
+  def resume(conn, %{"id" => id} = params) do
+    case Sunna.work_resume(id, params["note"], actor(conn)) do
+      :ok -> send_resp(conn, 204, "")
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do
     if witnesses?(conn, id),
       do: conn,

@@ -554,6 +554,7 @@ export interface NeedsYouEntry {
     | 'contract_to_answer'
     | 'remote_public'
     | 'activity'
+    | 'work_stopped'
     | SuccessionNeed;
   ref: number | string;
   since: string;
@@ -563,7 +564,12 @@ export interface NeedsYouEntry {
     /** A succession entry's: the page under `#/settings/succession/`, a short phrase, and whether it is a dry run. */
     page?: string;
     words?: string;
-    dry_run?: boolean; kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; held_by?: string | null; key?: string; change?: string; note?: string; approvable?: boolean; seeds?: { ground: string; resident: string; witness: string }; reason?: string; retry?: string; session_key?: string; conversation?: string | null; failures?: Array<{ session_key: string; turn_ref: string; failed_at: string }> };
+    dry_run?: boolean;
+    /** A stopped run's (sunna#109): its task, activity, and who stopped it. */
+    task?: number | null;
+    act?: string | null;
+    by?: 'witness' | 'safe_word' | null;
+    kind?: string; to?: string; platform?: string; account?: string; subject?: string; ask?: string; title?: string | null; what?: string; blocked_on?: string | null; held_by?: string | null; key?: string; change?: string; note?: string; approvable?: boolean; seeds?: { ground: string; resident: string; witness: string }; reason?: string; retry?: string; session_key?: string; conversation?: string | null; failures?: Array<{ session_key: string; turn_ref: string; failed_at: string }> };
 }
 
 /** What waits on her: the witness's proposals and letters she hasn't answered or read (brain#76). */

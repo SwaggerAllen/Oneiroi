@@ -77,3 +77,9 @@ The witness's parts are few and spread over days; putting them first, with the p
 
 ## #30
 The protocol's words are the household's; where the witness reads one as mistaken, the build follows his reading and says so here, so the next reader can weigh it.
+
+## #33
+Every other part of hers wakes her; a proposal that waits on her answer and never reaches her waits forever, and the first in-app dry run found it so.
+
+## #34
+A fork that takes the platform down for every resident is worse than no fork; holding it is reversible, and the switch says why it is off.

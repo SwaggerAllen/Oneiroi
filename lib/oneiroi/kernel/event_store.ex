@@ -24,6 +24,12 @@ defmodule Oneiroi.EventStore do
      |> Keyword.put(:schema, "eventstore")
      |> Keyword.put(:column_data_type, "jsonb")
      |> Keyword.put(:pool_size, Config.fetch!(:apsu, :event_store_pool_size))
+     # Every subscription catches up through this pool at boot; a request
+     # waits its turn rather than being dropped, which crashed every
+     # subscription after a fork's burst and kept the app from booting
+     # (2026-11-26, sima-qian#71).
+     |> Keyword.put(:queue_target, 5_000)
+     |> Keyword.put(:queue_interval, 60_000)
      |> Keyword.put(:serializer, Commanded.Serialization.JsonSerializer)
      # A succession's cutover replaces her life's streams in place
      # (sima-qian#68), the one caller of a hard delete; nothing else

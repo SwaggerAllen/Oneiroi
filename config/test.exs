@@ -88,6 +88,12 @@ config :oneiroi,
           "GAIA_VAPID_PRIVATE_KEY" => "PqvkdKHPz6XqjjvJw34EwXC230cSVIj4OGJPDEWp9x8",
           "EUNOMIA_LIVE_CHECK_MS" => "300",
           "SIMA_QIAN_ROOT" => "tmp/sima_qian_test",
+          # The fork's pause between batches (sima-qian#71) is the
+          # deployment's; the suite copies without waiting.
+          "SIMA_QIAN_TRANSPLANT_PAUSE_MS" => "0",
+          # Forks are held in production until the copy is redesigned
+          # (janus#34); the suite makes them.
+          "JANUS_FORKS" => "on",
           # Two chunks a request, so any index of three chunks or more is
           # batched and the order of the batches' vectors is tested.
           "SESHAT_EMBED_BATCH_INPUTS" => "2",

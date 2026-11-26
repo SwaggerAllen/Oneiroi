@@ -44,6 +44,8 @@ defmodule Oneiroi.Brain.NeedsYou do
     Oneiroi.Brain.NeedsYou.Remote,
     # The house queue's activities waiting on him (sunna#80).
     Oneiroi.Brain.NeedsYou.Queue,
+    # Her work line rested by a stopped run (sunna#109).
+    Oneiroi.Brain.NeedsYou.WorkStopped,
     # A succession's parts waiting on him (janus#29), first in the list.
     Oneiroi.Brain.NeedsYou.Succession
   ]

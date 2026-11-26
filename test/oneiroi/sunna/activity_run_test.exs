@@ -11,7 +11,9 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
 
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
+  alias Oneiroi.Brain.NeedsYou.WorkStopped
   alias Oneiroi.Fixtures
+  alias Oneiroi.Kumbukumbu
   alias Oneiroi.Nisaba.Provider.Fake
   alias Oneiroi.Sunna
   alias Oneiroi.Sunna.Commands
@@ -144,6 +146,58 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
              WorkLoop.check(ctx.id)
 
     refute WorkLoop.due?(ctx.id)
+  end
+
+  # sunna#109 (the witness, 2026-11-26: the line stalled after a stop
+  # with nothing on the task, its thread or the bell): a stopped run
+  # fails its activity, rests the line, names who on his bell, and only
+  # a resume takes the line up again.
+  test "a stopped run fails its activity, rests the line on his bell, and a resume takes it up",
+       ctx do
+    n = ctx.n
+    act = "#{n}.1"
+    Fake.script(fn _ -> {:ok, "Too much. OUROBOROS"} end, for: ctx.id)
+    clear_jobs()
+
+    assert {:started, ^act} = WorkLoop.check(ctx.id)
+    [%{"session_key" => key}] = jobs(ctx.id)
+    clear_jobs()
+
+    # The session is named for what proc'd it.
+    assert %{label: label} =
+             Enum.find(Kumbukumbu.sessions({:resident, ctx.id}), &(&1.key == key))
+
+    assert label =~ "##{n} The brief · "
+
+    assert :ok = WorkLoop.activity_turn(ctx.id, key, ctx.h, n, act, 1)
+
+    # Failed where the house reads it, its words not saying who.
+    assert %{view: "failed", reason: what} =
+             Enum.find(List.flatten(Sunna.queue_task(ctx.h, n).layers), &(&1.act_id == act))
+
+    assert what =~ "Stopped mid-run"
+    refute what =~ "safe word"
+
+    # The line rests, and his bell says why and who, with the run's place.
+    assert :stopped = WorkLoop.check(ctx.id)
+    refute WorkLoop.due?(ctx.id)
+
+    assert %{act: ^act, task: ^n, by: "safe_word", session_key: ^key} =
+             Sunna.work_stopped(ctx.id)
+
+    assert [%{kind: "work_stopped", about: %{words: words, task: ^n}}] =
+             WorkStopped.entries(ctx.id)
+
+    assert words =~ "safe word"
+
+    # Only a party resumes it; then it checks again, and the bell clears.
+    assert {:error, %{kind: :sunna_work_not_a_party}} =
+             Sunna.work_resume(ctx.id, "go", Actor.new(:job, "x"))
+
+    assert :ok = Sunna.work_resume(ctx.id, "taken up again", ctx.andrew)
+    assert nil == Sunna.work_stopped(ctx.id)
+    assert [] = WorkStopped.entries(ctx.id)
+    refute WorkLoop.check(ctx.id) == :stopped
   end
 
   # sunna#100 (the witness, 2026-11-24: "if the server restarts during a

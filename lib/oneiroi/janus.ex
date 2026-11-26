@@ -212,8 +212,22 @@ defmodule Oneiroi.Janus do
        cast: &__MODULE__.cast_brain/1,
        default: "brain",
        usage:
-         "which brain port answers a succession's screening runs and wakes its residents (janus#13): brain, the only one; named as an atom because the brain depends on this system for her tools"}
+         "which brain port answers a succession's screening runs and wakes its residents (janus#13): brain, the only one; named as an atom because the brain depends on this system for her tools"},
+      {:forks, "JANUS_FORKS",
+       cast: &__MODULE__.cast_on_off/1,
+       default: "off",
+       usage:
+         "whether a succession's yes makes its fork (janus#34): off until the fork no longer copies her whole life through the shared event log, which took production down on 2026-11-26; off, the fork is recorded as failed, saying so, and nothing is copied"}
     ]
+  end
+
+  @doc false
+  def cast_on_off("on"), do: {:ok, true}
+  def cast_on_off("off"), do: {:ok, false}
+
+  def cast_on_off(other) do
+    # oneiroi:allow error_site: Oneiroi.Config's cast contract, a report line at boot
+    {:error, "is #{inspect(other)}, expected on or off"}
   end
 
   @doc false
@@ -310,6 +324,10 @@ defmodule Oneiroi.Janus do
     [
       {:janus_underway, "a succession is already underway for this resident",
        remedy: "finish or stop it first"},
+      {:janus_forks_held,
+       "forks are held: a fork copied her whole life through the shared event log and took production down (janus#34)",
+       remedy:
+         "the witness turns JANUS_FORKS on once the fork no longer goes through the shared log; stop this succession meanwhile"},
       {:janus_no_succession, "no succession is underway for this resident",
        remedy: "propose one first"},
       {:janus_not_yours,

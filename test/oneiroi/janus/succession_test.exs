@@ -8,6 +8,8 @@ defmodule Oneiroi.Janus.SuccessionTest do
   """
   use Oneiroi.DataCase, async: false
 
+  import Ecto.Query, only: [from: 2]
+
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
@@ -59,6 +61,21 @@ defmodule Oneiroi.Janus.SuccessionTest do
 
     assert %{state: "proposed", dry_run: true, proposed_by: "witness:" <> _} =
              Janus.succession(ctx.id)
+
+    # She is woken to answer it (janus#33: proposing woke nobody).
+    [note] =
+      Oneiroi.Scope.platform(fn ->
+        Oneiroi.Repo.all(
+          from(j in Oban.Job,
+            where: j.worker == "Oneiroi.Janus.WakeWorker",
+            select: j.args["note"]
+          )
+        )
+      end)
+
+    assert note =~ "Your witness has proposed a dry run of your succession"
+    assert note =~ "a cheaper model, if you want it"
+    assert note =~ "succession_open"
 
     assert {:error, %{kind: :janus_underway}} =
              Janus.propose(ctx.id, false, "again", ctx.andrew)
