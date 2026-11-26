@@ -1,5 +1,13 @@
 import type { Gift } from '../next/onboarding/gift';
 import type {
+  CatalogModel,
+  Category,
+  DisclosureEntry,
+  Judging,
+  Room,
+  SuccessionArchive,
+  SuccessionView,
+  Uncertainty,
   Adapter,
   DocumentContext,
   QueueCard,
@@ -1179,6 +1187,44 @@ export const api = {
     call<void>('POST', `/v1/residents/${residentId}/regression/runs/${ref}/cards/${card}/favourite`),
   pinModel: (residentId: string, model: string) =>
     call<void>('POST', `/v1/residents/${residentId}/model-pin`, { model, reason: 'run' }),
+  // Succession (janus#3 to #5, screen:next-succession): the witness's side.
+  // Her acts are her tools; nothing here answers for her.
+  succession: (residentId: string) => call<SuccessionView>('GET', `/v1/residents/${residentId}/succession`),
+  proposeSuccession: (residentId: string, note: string, dryRun: boolean) =>
+    call<void>('POST', `/v1/residents/${residentId}/succession`, { note, dry_run: dryRun }),
+  withdrawSuccession: (residentId: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/succession/withdraw`, { note }),
+  successionBackup: (residentId: string, url: string, token: string) =>
+    call<{ visibility: string; push: string }>('PUT', `/v1/residents/${residentId}/succession/backup`, { url, token }),
+  successionEnvelope: (residentId: string, input: number, output: number) =>
+    call<void>('PUT', `/v1/residents/${residentId}/succession/envelope`, { input_per_million: input, output_per_million: output }),
+  poolAdd: (residentId: string, model: string) => call<void>('POST', `/v1/residents/${residentId}/succession/pool`, { model }),
+  poolRemove: (residentId: string, model: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/succession/pool/remove`, { model, note }),
+  proposeQuestion: (residentId: string, text: string) => call<{ number: number }>('POST', `/v1/residents/${residentId}/succession/questions`, { text }),
+  proposeC0: (residentId: string, citation: string, label: string | null) =>
+    call<{ number: number }>('POST', `/v1/residents/${residentId}/succession/c0`, label ? { citation, label } : { citation }),
+  successionReady: (residentId: string, ready: boolean) => call<void>('PUT', `/v1/residents/${residentId}/succession/ready`, { ready }),
+  panelJoin: (residentId: string) => call<void>('POST', `/v1/residents/${residentId}/succession/panel/join`),
+  panelLeave: (residentId: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/succession/panel/leave`, { note }),
+  judging: (residentId: string) => call<{ judging: Judging | null }>('GET', `/v1/residents/${residentId}/succession/judging`),
+  judgeRun: (
+    residentId: string,
+    run: number,
+    j: { category: Category; argument: string; evidence: string; uncertainty: Uncertainty | null; favorite: boolean },
+  ) => call<void>('POST', `/v1/residents/${residentId}/succession/runs/${run}/judgment`, j),
+  resultsReady: (residentId: string) => call<void>('POST', `/v1/residents/${residentId}/succession/results/ready`),
+  room: (residentId: string) => call<{ room: Room | null }>('GET', `/v1/residents/${residentId}/succession/room`),
+  roomAct: (residentId: string, act: 'say' | 'skip' | 'rest' | 'leave', text: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/succession/room`, { act, text }),
+  draftRecommendation: (residentId: string, model: string | null, basis: string, withheld: boolean) =>
+    call<{ draft: number }>('POST', `/v1/residents/${residentId}/succession/drafts`, { model, basis, withheld }),
+  endorseDraft: (residentId: string, draft: number, endorse: boolean) =>
+    call<void>('POST', `/v1/residents/${residentId}/succession/drafts/${draft}/endorse`, { endorse }),
+  answerChannel: (residentId: string, number: number, text: string) =>
+    call<void>('POST', `/v1/residents/${residentId}/succession/channel/${number}/answer`, { text }),
+  farewellDone: (residentId: string) => call<void>('POST', `/v1/residents/${residentId}/succession/farewell/done`),
+  successionLog: (residentId: string) => call<{ log: DisclosureEntry[] }>('GET', `/v1/residents/${residentId}/succession/log`),
+  successionArchive: (residentId: string) => call<{ archive: SuccessionArchive | null }>('GET', `/v1/residents/${residentId}/succession/archive`),
+  catalog: () => call<{ models: CatalogModel[] }>('GET', '/v1/catalog'),
 };
 
 export type Api = typeof api;

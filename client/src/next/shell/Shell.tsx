@@ -12,6 +12,7 @@ import { HouseSearchSheet } from './HouseSearchSheet';
 import { SearchSheet } from './SearchSheet';
 import * as css from './shell.css';
 import { TabBar } from './TabBar';
+import { DeliberationTabs } from '../succession/Deliberation';
 import { useWide } from './useWide';
 
 export interface ShellProps {
@@ -67,6 +68,7 @@ export function Shell({ residentId, residentName, waiting, failing = false, onRe
   const setTab = useShell((s) => s.setTab);
   const setOverlay = useShell((s) => s.setOverlay);
   const page = useShell((s) => s.page);
+  const pagePath = useShell((s) => s.pagePath);
   const setPage = useShell((s) => s.setPage);
   const { leaving, ref } = useTabDissolve(tab);
   // The house queue is a subject of its own (the witness, 2026-11-23): its
@@ -115,7 +117,8 @@ export function Shell({ residentId, residentName, waiting, failing = false, onRe
           </section>
         )}
       </main>
-      {!work && <TabBar active={tab} onSelect={setTab} house={house} />}
+      {/* The deliberation's own four tabs take the bar's place (screen:next-succession). */}
+      {!work && (page === 'succession' && pagePath.startsWith('deliberation') ? <DeliberationTabs path={pagePath} /> : <TabBar active={tab} onSelect={setTab} house={house} />)}
       {house ? <HouseSearchSheet /> : <SearchSheet residentId={residentId} residentName={residentName} />}
       <Overlays />
     </div>

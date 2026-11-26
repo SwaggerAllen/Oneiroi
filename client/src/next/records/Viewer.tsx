@@ -11,6 +11,7 @@ import * as reactCss from '../chat/reacts.css';
 import { ScrollArea } from '../shell/ScrollArea';
 import { useSubject } from '../state/resident';
 import { BackBar } from './BackBar';
+import { ProposeForC0 } from '../succession/Touches';
 import * as css from './records.css';
 
 /**
@@ -58,7 +59,7 @@ export function Viewer({
 
   return (
     <ScrollArea label={path}>
-      <div className={css.viewer}>
+      <div className={css.viewer} data-c0-source>
         <BackBar onBack={onBack} />
         <div className={css.meta}>
           {targets[targets.length - 1]}
@@ -88,6 +89,8 @@ export function Viewer({
           )}
         </div>
         {doc && <DocClass residentId={residentId} path={path} doc={doc} name={name} />}
+        {/* While her succession's preparation is open (screen:next-succession). */}
+        {doc && <ProposeForC0 citation={`${slug}:${path}`} />}
         {read.isPending && <p className={css.note}>Reading…</p>}
         {read.error && <p className={css.note}>This record couldn't be read.</p>}
         {read.data && <Markdown text={read.data.content} onCite={onCite} breaks={path.startsWith('human-correspondence/')} />}

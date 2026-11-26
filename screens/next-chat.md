@@ -10,6 +10,12 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
 
 - **Conversation | Sessions** switch. Both stay mounted, so the
   conversation keeps its place and its draft.
+- **The succession banner** (screen:next-succession, 2026-11-25): while a
+  succession of hers is underway, a banner under the switch, its words
+  following the state ("Succession · her farewell is open"), the dry run
+  marked, and "Back to the succession ›" (to the farewell page during
+  the farewell, else its steps). Goodbyes are said here, in her ordinary
+  chat; nothing else about the chat changes.
 - **Conversation:**
   - The main session's newest page is read from the query cache, so a
     change notice (apsu#24) refreshes it. Reaching the top reads older

@@ -386,6 +386,7 @@ function Settings() {
         <Row label="Profiles, keys and connections" onClick={open('connections')} />
         <Row label="Notifications" onClick={open('notifications')} />
         <Row label="Regression" onClick={open('regression')} />
+        <Row label="Succession" onClick={open('succession')} />
         <Row label="Backups, imports and reports" onClick={open('backups')} />
         <Row label="Substack presence" onClick={open('presence')} />
         {unspoken && <Row label={`Delete ${name}`} onClick={open('delete')} />}

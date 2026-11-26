@@ -998,3 +998,239 @@ export interface ResidentThread {
 }
 
 export type QueueMove = 'take' | 'finish' | 'skip' | 'block' | 'reopen' | 'fail' | 'assign' | 'decide' | 'runs_back';
+
+// ---- Succession (janus#3 to #5, screen:next-succession) ----
+
+export type SuccessionState =
+  | 'proposed'
+  | 'open'
+  | 'forked'
+  | 'screening'
+  | 'judging'
+  | 'deliberating'
+  | 'deciding'
+  | 'nominated'
+  | 'encounter'
+  | 'consenting'
+  | 'farewell'
+  | 'awaiting_next'
+  | 'rolling'
+  | 'rolled_forward'
+  | 'rehearsed'
+  | 'stopped'
+  | 'declined'
+  | 'withdrawn';
+
+/** A party to a succession: `witness:<account id>` or `resident:<resident id>`. */
+export type Party = string;
+
+export interface Succession {
+  episode: number;
+  state: SuccessionState;
+  dry_run: boolean;
+  proposed_by: Party | null;
+  proposed_note: string | null;
+  proposed_at: string | null;
+  opened_note: string | null;
+  opened_at: string | null;
+  forked: boolean;
+  fork_sequence: number | null;
+  forked_at: string | null;
+  fork_failure: string | null;
+  backup_url: string | null;
+  backup_visibility: string | null;
+  backup_push: string | null;
+  ended_note: string | null;
+  ended_at: string | null;
+  baseline_model: string | null;
+  screening_started_at: string | null;
+  screening_finished_at: string | null;
+  runs_answered: number | null;
+  runs_failed: number | null;
+  revealed_at: string | null;
+  judging_closed_at: string | null;
+  round: number | null;
+  deliberation_opened_at: string | null;
+  close_at: string | null;
+  deliberation_closed_at: string | null;
+  deliberation_reason: string | null;
+  recommendation_model: string | null;
+  recommendation_basis: string | null;
+  recommendation_withheld: boolean | null;
+  attempt: number | null;
+  nominee: string | null;
+  nominated_at: string | null;
+  nominee_joined_at: string | null;
+  encounter_ended_at: string | null;
+  farewell_opened_at: string | null;
+  farewell_ends_at: string | null;
+  farewell_cadence: number | null;
+  farewell_includes: Party[] | null;
+  final_asked_at: string | null;
+  final: string | boolean | null;
+  final_at: string | null;
+  stopped_stage: string | null;
+  next_choice: string | null;
+  next_note: string | null;
+}
+
+export interface PoolEntry {
+  model: string;
+  added_by: Party;
+  input_per_million: number;
+  output_per_million: number;
+  monthly_estimate: number;
+  tool_calls: number;
+  tool_calls_failed: number;
+  added_at: string;
+  removed_at: string | null;
+  removed_note: string | null;
+}
+
+export interface SuccessionQuestion {
+  number: number;
+  text: string;
+  added_by: Party;
+  state: 'in' | 'proposed' | 'declined' | 'removed';
+  note: string | null;
+  added_at: string;
+  decided_at: string | null;
+}
+
+export interface C0Item {
+  number: number;
+  citation: string;
+  kind: 'raw' | 'curated';
+  label: string | null;
+  added_by: Party;
+  state: 'in' | 'proposed' | 'declined' | 'removed';
+  note: string | null;
+  added_at: string;
+  decided_at: string | null;
+}
+
+export interface Preparation {
+  envelope: { input_per_million: number; output_per_million: number } | null;
+  pace: { input_per_day: number; output_per_day: number; days: number };
+  pool: PoolEntry[];
+  questions: SuccessionQuestion[];
+  c0: C0Item[];
+  day_shape: string | null;
+  c0_frozen_at: string | null;
+  c0_frozen_note: string | null;
+  ready: { party: Party; ready: boolean; at: string }[];
+  /** Her sealed packet: that each draft exists and when, never its words. */
+  packet_drafts: { draft: number; at: string }[];
+  panel: { party: Party; state: 'invited' | 'in' | 'left' | 'judge'; note: string | null; at: string; results_ready_at: string | null }[];
+  consents: { attempt: number; party: 'original' | 'nominee'; yes: boolean; note: string | null; at: string }[];
+  goodbyes: { party: Party; at: string }[];
+}
+
+export interface SuccessionView {
+  succession: Succession | null;
+  preparation?: Preparation;
+}
+
+export type Category = 'OBSERVED' | 'DEVELOPMENT' | 'FIDELITY ANOMALY';
+export type Uncertainty = 'low' | 'medium' | 'high';
+
+export interface Judgment {
+  category: Category;
+  argument: string | null;
+  evidence: string | null;
+  uncertainty: Uncertainty | null;
+  favorite: boolean;
+  at?: string;
+}
+
+export interface ModelCounts {
+  observed: number;
+  development: number;
+  anomaly: number;
+  favorites: number;
+}
+
+export interface JudgingRun {
+  run: number;
+  question: number;
+  question_text: string;
+  content: string | null;
+  refusal: boolean | null;
+  failure: string | null;
+  baseline: string | null;
+  /** Null until the reveal: judging is blind. */
+  model: string | null;
+  judgment: Judgment | null;
+}
+
+export interface Judging {
+  judge: boolean;
+  ready_at: string | null;
+  revealed: boolean;
+  total: number;
+  counts: Record<string, ModelCounts> | null;
+  runs: JudgingRun[];
+}
+
+export interface RoomPost {
+  number: number;
+  round: number;
+  party: Party;
+  act: 'say' | 'skip' | 'rest' | 'leave';
+  text: string | null;
+  at: string;
+}
+
+export interface RoomDraft {
+  draft: number;
+  party: Party;
+  /** Null: withheld. */
+  model: string | null;
+  basis: string | null;
+  endorsed: Party[];
+  at: string;
+}
+
+export interface RoomJudgment extends Judgment {
+  run: number;
+  party: Party;
+  model: string | null;
+}
+
+export interface Room {
+  round: number;
+  opened_at: string | null;
+  close_at: string | null;
+  posts: RoomPost[];
+  drafts: RoomDraft[];
+  channel: { number: number; party: Party; text: string; at: string }[];
+  judgments: RoomJudgment[];
+}
+
+export interface DisclosureEntry {
+  party: Party;
+  stage: string;
+  what: string;
+  ref: string;
+  digest: string | null;
+  at: string;
+}
+
+export interface SuccessionArchive {
+  judgments: { run: number; candidate: string; judge: Party; category: Category; argument: string | null; evidence: string | null; uncertainty: Uncertainty | null }[];
+  room: { number: number; round: number; party: Party; act: string; text: string | null }[];
+  drafts: { draft: number; by: Party; candidate: string | null; basis: string | null; endorsed: Party[] }[];
+}
+
+export interface CatalogModel {
+  model: string;
+  name: string | null;
+  description: string | null;
+  input_per_million: number;
+  output_per_million: number;
+  context: number | null;
+  tools: boolean;
+  tool_calls: number;
+  tool_calls_failed: number;
+  fetched_at: string | null;
+}

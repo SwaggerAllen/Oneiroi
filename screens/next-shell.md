@@ -39,7 +39,10 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
   - A settings page (`#/settings/<section>`, `screens/next-settings.md`) sits
     over the tabs inside the same shell: the header and tab bar stay, the
     tabs stay mounted underneath, and Back, a tab, or the browser's back
-    returns to the tab as it was.
+    returns to the tab as it was. The succession's deliberation
+    (screen:next-succession) puts its own four tabs in the bar's place,
+    the same bar (`BottomTabs`) with Thread, Recommendation, Yours and
+    Panel; leaving the deliberation brings the four back.
 - **Live.**
   - One socket for the signed-in app, above every workspace, so a
     switch never closes it (2026-11-23). It joins `resident:<id>` for the
