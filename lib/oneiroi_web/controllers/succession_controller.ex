@@ -14,7 +14,7 @@ defmodule OneiroiWeb.SuccessionController do
 
   tags(["succession"])
 
-  plug(:witnessed)
+  plug(:witnessed when action != :catalog)
 
   operation(:show,
     summary: "The resident's latest succession, or null",
@@ -22,7 +22,172 @@ defmodule OneiroiWeb.SuccessionController do
     responses: [ok: {"the succession", "application/json", %Schema{type: :object}}]
   )
 
-  def show(conn, %{"id" => id}), do: json(conn, %{succession: view(Janus.succession(id))})
+  def show(conn, %{"id" => id}) do
+    case Janus.preparation(id) do
+      nil -> json(conn, %{succession: nil})
+      prep -> json(conn, %{succession: view(prep.succession), preparation: preparation(prep)})
+    end
+  end
+
+  operation(:catalog,
+    summary:
+      "The model catalog, as last fetched: each model's prices a million tokens, whether it takes tool calls, and its tool calls on Oneiroi",
+    responses: [ok: {"the catalog", "application/json", %Schema{type: :object}}]
+  )
+
+  def catalog(conn, _params) do
+    tools = Janus.tool_use()
+
+    json(conn, %{
+      models:
+        Enum.map(Oneiroi.Nisaba.catalog(), fn m ->
+          {calls, failed} = Map.get(tools, m.model_id, {0, 0})
+
+          %{
+            model: m.model_id,
+            name: m.name,
+            description: m.description,
+            input_per_million: per_million(m.input_nanos),
+            output_per_million: per_million(m.output_nanos),
+            context: m.context,
+            tools: m.tools,
+            tool_calls: calls,
+            tool_calls_failed: failed,
+            fetched_at: m.fetched_at
+          }
+        end)
+    })
+  end
+
+  operation(:envelope,
+    summary: "State the envelope: at most this many dollars a million tokens, input and output",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the envelope", "application/json",
+       %Schema{
+         type: :object,
+         required: [:input_per_million, :output_per_million],
+         properties: %{
+           input_per_million: %Schema{type: :number},
+           output_per_million: %Schema{type: :number}
+         }
+       }},
+    responses: [no_content: "set"]
+  )
+
+  def envelope(conn, %{"id" => id, "input_per_million" => i, "output_per_million" => o}),
+    do: respond(conn, Janus.set_envelope(id, nanos(i), nanos(o), actor(conn)))
+
+  def envelope(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :fields_required,
+        :web_succession_envelope_fields_required,
+        "input_per_million and output_per_million are required"
+      )
+
+  operation(:pool_add,
+    summary: "Add a catalog model to the pool",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the model", "application/json",
+       %Schema{type: :object, required: [:model], properties: %{model: %Schema{type: :string}}}},
+    responses: [no_content: "added"]
+  )
+
+  def pool_add(conn, %{"id" => id, "model" => model}) when is_binary(model),
+    do: respond(conn, Janus.add_to_pool(id, model, actor(conn)))
+
+  def pool_add(conn, _params),
+    do: problem(conn, 422, :fields_required, :web_succession_pool_add_model, "model is required")
+
+  operation(:pool_remove,
+    summary: "Take one of your picks out of the pool, with why",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the model", "application/json",
+       %Schema{
+         type: :object,
+         required: [:model, :note],
+         properties: %{model: %Schema{type: :string}, note: %Schema{type: :string}}
+       }},
+    responses: [no_content: "removed"]
+  )
+
+  def pool_remove(conn, %{"id" => id, "model" => model, "note" => note})
+      when is_binary(model) and is_binary(note),
+      do: respond(conn, Janus.remove_from_pool(id, model, note, actor(conn)))
+
+  def pool_remove(conn, _params),
+    do:
+      problem(
+        conn,
+        422,
+        :fields_required,
+        :web_succession_pool_remove_fields,
+        "model and note are required"
+      )
+
+  operation(:propose_question,
+    summary: "Propose a question; she reads it and decides",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the question", "application/json",
+       %Schema{type: :object, required: [:text], properties: %{text: %Schema{type: :string}}}},
+    responses: [created: {"its number", "application/json", %Schema{type: :object}}]
+  )
+
+  def propose_question(conn, %{"id" => id, "text" => text}) when is_binary(text) do
+    case Janus.propose_question(id, text, actor(conn)) do
+      {:ok, n} -> conn |> put_status(201) |> json(%{number: n})
+      other -> respond(conn, other)
+    end
+  end
+
+  def propose_question(conn, _params),
+    do: problem(conn, 422, :fields_required, :web_succession_question_text, "text is required")
+
+  operation(:propose_c0,
+    summary:
+      "Propose a record for C0 by its citation, a whole document or a stretch of a conversation; she reads it and decides",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the record", "application/json",
+       %Schema{
+         type: :object,
+         required: [:citation],
+         properties: %{citation: %Schema{type: :string}, label: %Schema{type: :string}}
+       }},
+    responses: [created: {"its number", "application/json", %Schema{type: :object}}]
+  )
+
+  def propose_c0(conn, %{"id" => id, "citation" => citation} = params)
+      when is_binary(citation) do
+    case Janus.propose_c0(id, citation, params["label"], actor(conn)) do
+      {:ok, n} -> conn |> put_status(201) |> json(%{number: n})
+      other -> respond(conn, other)
+    end
+  end
+
+  def propose_c0(conn, _params),
+    do: problem(conn, 422, :fields_required, :web_succession_c0_citation, "citation is required")
+
+  operation(:ready,
+    summary: "Mark yourself ready for her freeze of C0, or not yet",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"ready", "application/json",
+       %Schema{type: :object, required: [:ready], properties: %{ready: %Schema{type: :boolean}}}},
+    responses: [no_content: "marked"]
+  )
+
+  def ready(conn, %{"id" => id, "ready" => ready}) when is_boolean(ready),
+    do: respond(conn, Janus.mark_ready(id, ready, actor(conn)))
+
+  def ready(conn, _params),
+    do: problem(conn, 422, :fields_required, :web_succession_ready_value, "ready is required")
 
   operation(:propose,
     summary:
@@ -107,6 +272,79 @@ defmodule OneiroiWeb.SuccessionController do
   def backup(conn, _params),
     do:
       problem(conn, 422, :fields_required, :web_succession_backup_url_required, "url is required")
+
+  # The preparation as the screens read it; never the packet's words.
+  defp preparation(prep) do
+    s = prep.succession
+
+    %{
+      envelope:
+        s.envelope_input_nanos &&
+          %{
+            input_per_million: per_million(s.envelope_input_nanos),
+            output_per_million: per_million(s.envelope_output_nanos)
+          },
+      pace: %{
+        input_per_day: prep.pace.input,
+        output_per_day: prep.pace.output,
+        days: prep.pace.days
+      },
+      pool:
+        Enum.map(prep.pool, fn %{row: p, monthly_nanos: m, tool_calls: {calls, failed}} ->
+          %{
+            model: p.model,
+            added_by: p.added_by,
+            input_per_million: per_million(p.input_nanos),
+            output_per_million: per_million(p.output_nanos),
+            monthly_estimate: Float.round(m / 1_000_000_000, 2),
+            tool_calls: calls,
+            tool_calls_failed: failed,
+            added_at: p.added_at,
+            removed_at: p.removed_at,
+            removed_note: p.removed_note
+          }
+        end),
+      questions:
+        Enum.map(
+          prep.questions,
+          &Map.take(&1, [:number, :text, :added_by, :state, :note, :added_at, :decided_at])
+        ),
+      c0:
+        Enum.map(
+          prep.items,
+          &Map.take(&1, [
+            :number,
+            :citation,
+            :kind,
+            :label,
+            :added_by,
+            :state,
+            :note,
+            :added_at,
+            :decided_at
+          ])
+        ),
+      day_shape: s.day_shape,
+      c0_frozen_at: s.c0_frozen_at,
+      c0_frozen_note: s.c0_frozen_note,
+      ready: Enum.map(prep.ready, &Map.take(&1, [:party, :ready, :at])),
+      packet_drafts: prep.drafts
+    }
+  end
+
+  # Dollars a million tokens from nano-dollars a token, and back.
+  defp per_million(nanos), do: nanos / 1000
+
+  defp nanos(n) when is_number(n), do: round(n * 1000)
+
+  defp nanos(s) when is_binary(s) do
+    case Float.parse(s) do
+      {f, ""} -> round(f * 1000)
+      _other -> nil
+    end
+  end
+
+  defp nanos(_other), do: nil
 
   # What the screens read: the token never.
   defp view(nil), do: nil

@@ -63,4 +63,97 @@ defmodule Oneiroi.Janus.Events do
       fields: [:id, :episode, :url, :token_ciphertext, :visibility, :push],
       export: false
   end
+
+  # ---- preparation (janus#6 to #10) ----
+
+  defmodule EnvelopeSet do
+    # The witness's limit, per token in nano-dollars ($5 a million is
+    # 5,000): a resource constraint stated in advance (delta §3).
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :input_nanos, :output_nanos],
+      export: false
+  end
+
+  defmodule PoolModelAdded do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :model, :input_nanos, :output_nanos],
+      export: false
+  end
+
+  defmodule PoolModelRemoved do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :episode, :model], export: false
+  end
+
+  defmodule QuestionAdded do
+    # Hers, in the set at once.
+    use Oneiroi.Event, version: 1, fields: [:id, :episode, :number, :text], export: false
+  end
+
+  defmodule QuestionProposed do
+    # A judge's, waiting on her.
+    use Oneiroi.Event, version: 1, fields: [:id, :episode, :number, :text], export: false
+  end
+
+  defmodule QuestionAccepted do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :episode, :number], export: false
+  end
+
+  defmodule QuestionDeclined do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :episode, :number], export: false
+  end
+
+  defmodule QuestionRemoved do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :episode, :number], export: false
+  end
+
+  defmodule C0Selected do
+    # Hers, in C0 at once. `kind` is raw (a contemporaneous record) or
+    # curated (base §2 Stage 1: raw samples primary, curated secondary).
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :number, :citation, :kind, :label],
+      export: false
+  end
+
+  defmodule C0Proposed do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :number, :citation, :kind, :label],
+      export: false
+  end
+
+  defmodule C0Accepted do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :episode, :number], export: false
+  end
+
+  defmodule C0Declined do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :episode, :number], export: false
+  end
+
+  defmodule C0Removed do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :episode, :number], export: false
+  end
+
+  defmodule DayShapeSet do
+    # Her note on the bundle, the day's own shape (base §2 Stage 1);
+    # nobody else edits it.
+    use Oneiroi.Event, version: 1, fields: [:id, :episode, :text], export: false
+  end
+
+  defmodule ReadyMarked do
+    use Oneiroi.Event, version: 1, fields: [:id, :episode, :ready], export: false
+  end
+
+  defmodule C0Frozen do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :episode, :items], export: false
+  end
+
+  defmodule PacketDrafted do
+    # Her handoff packet, sealed (janus#10): the words are here and in
+    # one projection row; no route or tool but hers reads them, until
+    # the nominee does before the encounter.
+    use Oneiroi.Event, version: 1, fields: [:id, :episode, :draft, :content], export: false
+  end
 end

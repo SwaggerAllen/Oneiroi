@@ -8,3 +8,21 @@ The successor starts at the fork (delta §5): everything the original lives thro
 
 ## #5
 Portability is the platform's promise, and replacing her in place under her own id means her former self must exist somewhere before the replacement does. Setting the repository at the start, checked the way the records remote is (sima-qian#65), means the guard at the cutover has somewhere proven to push to; asking at the end would make the last gate the first time anyone learned the token was wrong.
+
+## #6
+An envelope stated before anyone picks keeps the money question honest: it is the witness's constraint, said in advance and pointed at the budget, so it cannot become a veto on a particular candidate after the fact (delta §3). Per token in nano-dollars because the ledger already counts that way and a float replays differently.
+
+## #7
+The pool is where her authority points, so she may take anything out; his picks are his to withdraw. Her additions sit inside the envelope because the envelope is the household's means; his may sit outside it because he is the one who would pay. Tool support is a floor for everyone, because a resident who cannot use her tools is not living here. Reading prices at the edge keeps the aggregate pure and records what the price was when the model was added.
+
+## #8
+The questions decide what her successor is measured on, so the set is hers; judges see things she may not and can propose, but a proposal that changes the set without her yes would be the panel choosing the test.
+
+## #9
+The base protocol asks for raw samples first, provenance on every selection and the day's own shape, because a best self assembled under pressure must not pass for a baseline. Freezing is hers because C0 is her record of what matters; the judges' ready marks are information for her, never a gate, as the witness ruled.
+
+## #10
+The packet is the one channel from her to whoever comes next, and its worth depends on her writing it unread. Keeping its words in one row with one reader makes the seal a property of the code, not a promise.
+
+## #11
+A model's fitness to live here shows first in whether its tool calls run. Measuring it from every resident's calls, nightly, keeps it independent of the judging (the delta's wall between numbers and verdicts) and of anyone's opinion of her; counting in memory's query keeps everyone's words where they were.

@@ -40,6 +40,10 @@ defmodule Oneiroi.Nisaba do
       Oban
     ],
     exports: [
+      Catalog,
+      Catalog.Row,
+      CatalogWorker,
+      Provider.Model,
       Billing,
       Billing.Stripe,
       Billing.Fake,
@@ -94,6 +98,7 @@ defmodule Oneiroi.Nisaba do
     ]
 
   alias Oneiroi.Nisaba.Billing
+  alias Oneiroi.Nisaba.Catalog
   alias Oneiroi.Nisaba.Halt
   alias Oneiroi.Nisaba.Insurance
   alias Oneiroi.Nisaba.Ledgers
@@ -214,7 +219,14 @@ defmodule Oneiroi.Nisaba do
 
   @impl Oneiroi.Component
   def oban_queues do
-    [{:nisaba_nightly, cron: [{"30 2 * * *", Oneiroi.Nisaba.SubscriptionWorker}]}]
+    [
+      {:nisaba_nightly,
+       cron: [
+         {"30 2 * * *", Oneiroi.Nisaba.SubscriptionWorker},
+         # The provider's model list, priced (nisaba#24).
+         {"15 3 * * *", Oneiroi.Nisaba.CatalogWorker}
+       ]}
+    ]
   end
 
   @impl Oneiroi.Component
@@ -320,6 +332,26 @@ defmodule Oneiroi.Nisaba do
   def cast_billing_client(other),
     # oneiroi:allow error_site: Oneiroi.Config's cast contract, a bare {:error, text} report line
     do: {:error, "is #{inspect(other)}, expected \"stripe\" or \"fake\""}
+
+  @doc "The model catalog, as last fetched (nisaba#24): every listed model, priced in nano-dollars a token."
+  @spec catalog() :: [Catalog.Row.t()]
+  defexport(catalog(), do: Catalog.all())
+
+  @doc "One model of the catalog, or nil (nisaba#24)."
+  @spec catalog_model(String.t()) :: Catalog.Row.t() | nil
+  defexport(catalog_model(model_id), do: Catalog.get(model_id))
+
+  @doc "Fetches the catalog again now (nisaba#24)."
+  @spec refresh_catalog() :: {:ok, non_neg_integer()} | {:error, term()}
+  defexport(refresh_catalog(), do: Catalog.refresh())
+
+  @doc "Her tokens a day over the last 90 days, input and output (nisaba#25)."
+  @spec pace(String.t()) :: map()
+  defexport(pace(resident_id), do: Catalog.pace(resident_id))
+
+  @doc "A month at a pace and a model's prices, in nano-dollars (nisaba#25)."
+  @spec monthly(map(), map()) :: non_neg_integer()
+  defexport(monthly(pace, prices), do: Catalog.monthly(pace, prices))
 
   @doc "The payment provider's checkout page for a resident's subscription (nisaba#23): its URL."
   @spec billing_checkout(String.t(), String.t(), map(), String.t()) ::

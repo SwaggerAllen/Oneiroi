@@ -14,7 +14,7 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
   @behaviour Oneiroi.Nisaba.Provider
 
   alias Oneiroi.Nisaba.Error
-  alias Oneiroi.Nisaba.Provider.{Embedding, Request, Result, Usage}
+  alias Oneiroi.Nisaba.Provider.{Embedding, Model, Request, Result, Usage}
 
   @key :nisaba_fake_script
   @embed_key :nisaba_fake_embed
@@ -109,6 +109,60 @@ defmodule Oneiroi.Nisaba.Provider.Fake do
     Process.delete(@embed_key)
     if resident_id = Keyword.get(opts, :for), do: :ets.delete(table(), resident_id)
     :ok
+  end
+
+  # The catalog's list (nisaba#24): three models at known prices, one
+  # without tool calls, unless a test lists its own.
+  @models [
+    %Model{
+      id: "fake/model",
+      name: "Fake",
+      description: "The fake's own model.",
+      input_nanos: 1_000,
+      output_nanos: 1_000,
+      context: 128_000,
+      tools?: true
+    },
+    %Model{
+      id: "fake/dear",
+      name: "Fake Dear",
+      description: "A fake that costs more.",
+      input_nanos: 10_000,
+      output_nanos: 40_000,
+      context: 200_000,
+      tools?: true
+    },
+    %Model{
+      id: "fake/mute",
+      name: "Fake Mute",
+      description: "A fake that takes no tools.",
+      input_nanos: 100,
+      output_nanos: 400,
+      context: 32_000,
+      tools?: false
+    }
+  ]
+
+  @doc "Lists `models` as the provider's catalog, for every process, until `clear_models/0`."
+  @spec list_models([Model.t()]) :: :ok
+  def list_models(models) when is_list(models) do
+    :ets.insert(table(), {:models, models})
+    :ok
+  end
+
+  @doc "Back to the fake's own three models."
+  @spec clear_models() :: :ok
+  def clear_models do
+    :ets.delete(table(), :models)
+    :ok
+  end
+
+  @impl Oneiroi.Nisaba.Provider
+  def models do
+    case :ets.lookup(table(), :models) do
+      [{:models, models}] -> {:ok, models}
+      [] -> {:ok, @models}
+    end
   end
 
   @doc "The fake's flat price per token, in nano-dollars."

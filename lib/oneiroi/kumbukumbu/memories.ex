@@ -1103,6 +1103,10 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   @doc "Every house letter, oldest first, each with the conversations that read it."
   def letters(resident_id), do: Scope.resident(resident_id, fn -> Store.house_letters() end)
 
+  @doc "Her tool calls in `[from, to)` counted by model (kumbukumbu#114)."
+  def tool_call_counts(resident_id, from_at, to_at, failures),
+    do: Scope.resident(resident_id, fn -> Store.tool_call_counts(from_at, to_at, failures) end)
+
   @doc "The tool rows in `[from, to)` (kumbukumbu#101)."
   def tool_rows(resident_id, from_at, to_at),
     do: Scope.resident(resident_id, fn -> Store.tool_rows(from_at, to_at) end)

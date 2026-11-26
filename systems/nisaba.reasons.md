@@ -112,3 +112,9 @@ left to the grace the nightly pass already applies, because a card's
 retries are the provider's business and a lapse is ours. The
 resident's id rides the provider's metadata so no webhook needs a
 lookup across tenants to know whom it is about.
+
+## #24
+A price list is a measurement (#13 said this codebase had not taken one); the provider publishes its own, and fetching it is the measurement. Nightly is often enough for prices that change by the week, and a table read beats a call out on every page that shows a price. Replacing the list whole keeps a model the provider dropped from lingering with a stale price. Tool support is listed because a resident lives through her tools: a model without them is not a candidate for anyone.
+
+## #25
+The estimate is there so the envelope's cost is seen coming, not to set it. Her own calls are what a successor would make; the witness's drafting and regression are his choices about her and would make her look dearer than she is. Dividing by the days she has lived in the window, rather than by 90, keeps a young resident's average honest.

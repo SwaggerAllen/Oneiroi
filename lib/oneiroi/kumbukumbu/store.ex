@@ -538,6 +538,31 @@ defmodule Oneiroi.Kumbukumbu.Store do
     )
   end
 
+  @doc """
+  Tool calls in `[from, to)` counted by the model that made them
+  (kumbukumbu#114): a row's words are `name(arguments) -> answer`, and a
+  call failed when its answer begins with one of `failures` (the brain's
+  own replies to a malformed or unknown call). Counted in the database,
+  so no words leave it.
+  """
+  @spec tool_call_counts(DateTime.t(), DateTime.t(), [String.t()]) :: [map()]
+  def tool_call_counts(from_at, to_at, failures) do
+    patterns = Enum.map(failures, &("%) -> " <> &1 <> "%"))
+
+    from(m in Message,
+      where:
+        m.role == "tool" and m.sent_at >= ^from_at and m.sent_at < ^to_at and
+          not is_nil(m.model),
+      group_by: m.model,
+      select: %{
+        model: m.model,
+        calls: count(),
+        failed: fragment("count(*) FILTER (WHERE ? LIKE ANY(?))", m.content, ^patterns)
+      }
+    )
+    |> Repo.all()
+  end
+
   @doc "The tool rows in `[from, to)`, oldest first (kumbukumbu#101): each its session, turn, words and instant."
   def tool_rows(from_at, to_at),
     do:

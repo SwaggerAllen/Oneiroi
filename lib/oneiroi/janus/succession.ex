@@ -26,10 +26,50 @@ defmodule Oneiroi.Janus.Succession do
   alias Oneiroi.Janus.Commands
   alias Oneiroi.Janus.Error
   alias Oneiroi.Janus.Events
+  alias Oneiroi.Janus.Preparation
 
   defstruct [:id, episode: 0, current: nil]
 
   @underway [:proposed, :open, :forked]
+  # The preparation's commands and events (janus#6 to #10), named here
+  # rather than read from `Preparation` at compile time: a call there
+  # would be a compile-time edge, and the ratchet is at 0.
+  @preparation [
+    Commands.SetEnvelope,
+    Commands.AddToPool,
+    Commands.RemoveFromPool,
+    Commands.AddQuestion,
+    Commands.ProposeQuestion,
+    Commands.AnswerQuestion,
+    Commands.RemoveQuestion,
+    Commands.SelectC0,
+    Commands.ProposeC0,
+    Commands.AnswerC0,
+    Commands.RemoveC0,
+    Commands.SetDayShape,
+    Commands.MarkReady,
+    Commands.FreezeC0,
+    Commands.WritePacket
+  ]
+  @prepared [
+    Events.EnvelopeSet,
+    Events.PoolModelAdded,
+    Events.PoolModelRemoved,
+    Events.QuestionAdded,
+    Events.QuestionProposed,
+    Events.QuestionAccepted,
+    Events.QuestionDeclined,
+    Events.QuestionRemoved,
+    Events.C0Selected,
+    Events.C0Proposed,
+    Events.C0Accepted,
+    Events.C0Declined,
+    Events.C0Removed,
+    Events.DayShapeSet,
+    Events.ReadyMarked,
+    Events.C0Frozen,
+    Events.PacketDrafted
+  ]
 
   @doc "The stages a succession is underway in."
   @spec underway() :: [atom()]
@@ -141,6 +181,10 @@ defmodule Oneiroi.Janus.Succession do
     end
   end
 
+  # The preparation's rules are their own module (janus#6 to #10).
+  def execute(%__MODULE__{current: current}, %command{} = c) when command in @preparation,
+    do: Preparation.execute(current, c)
+
   # The fork lands once, on the episode it was made for: a job made for
   # a stopped episode, or replayed after its copy landed, records nothing.
   def execute(%__MODULE__{current: current}, %Commands.RecordFork{} = c) do
@@ -201,16 +245,20 @@ defmodule Oneiroi.Janus.Succession do
       s
       | id: e.id,
         episode: e.episode,
-        current: %{
-          episode: e.episode,
-          state: :proposed,
-          dry_run: e.dry_run == true,
-          proposed_by: {e.actor.kind, e.actor.id},
-          copy_id: nil,
-          backup: nil
-        }
+        current:
+          Map.merge(Preparation.fresh(), %{
+            episode: e.episode,
+            state: :proposed,
+            dry_run: e.dry_run == true,
+            proposed_by: {e.actor.kind, e.actor.id},
+            copy_id: nil,
+            backup: nil
+          })
     }
   end
+
+  def apply(%__MODULE__{} = s, %event{} = e) when event in @prepared,
+    do: %{s | current: Preparation.apply(s.current, e)}
 
   def apply(%__MODULE__{} = s, %Events.Opened{}), do: put_state(s, :open)
   def apply(%__MODULE__{} = s, %Events.Declined{}), do: put_state(s, :declined)

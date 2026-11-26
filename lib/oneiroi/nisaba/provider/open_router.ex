@@ -23,7 +23,7 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
   alias Oneiroi.Nisaba.Error
   alias Oneiroi.Nisaba.Halt
   alias Oneiroi.Nisaba.Money
-  alias Oneiroi.Nisaba.Provider.{Embedding, Request, Result, Usage}
+  alias Oneiroi.Nisaba.Provider.{Embedding, Model, Request, Result, Usage}
 
   require Logger
 
@@ -168,6 +168,69 @@ defmodule Oneiroi.Nisaba.Provider.OpenRouter do
          Error.caught(:nisaba_provider_failed, :nisaba_open_router_embed_transport, reason)}
     end
   end
+
+  # The list is public (no key): OpenRouter's `/models`, every model it
+  # routes with its prices per token as decimal strings (nisaba#24).
+  @impl Oneiroi.Nisaba.Provider
+  def models do
+    case Req.get(Config.fetch!(:nisaba, :openrouter_url) <> "/models", receive_timeout: timeout()) do
+      {:ok, %Req.Response{status: 200, body: body}} ->
+        parse_models(body)
+
+      {:ok, %Req.Response{status: status, body: body}} ->
+        classify(status, body)
+
+      {:error, reason} ->
+        {:error,
+         Error.caught(:nisaba_provider_failed, :nisaba_open_router_models_transport, reason)}
+    end
+  end
+
+  @doc """
+  A `/models` reply into the port's shape; public so the shape is
+  testable without a network. A model whose price is not a plain
+  per-token figure (a router's `-1`, an absent field) is left out: the
+  catalog prices what it lists.
+  """
+  @spec parse_models(term()) :: {:ok, [Model.t()]} | {:error, Error.t()}
+  def parse_models(%{"data" => data}) when is_list(data) do
+    {:ok,
+     for(
+       %{"id" => id, "pricing" => %{"prompt" => p, "completion" => c}} = m <- data,
+       is_binary(id),
+       input = per_token_nanos(p),
+       output = per_token_nanos(c),
+       is_integer(input) and is_integer(output),
+       do: %Model{
+         id: id,
+         name: m["name"],
+         description: m["description"],
+         input_nanos: input,
+         output_nanos: output,
+         context: m["context_length"],
+         tools?: "tools" in List.wrap(m["supported_parameters"])
+       }
+     )}
+  end
+
+  def parse_models(_other),
+    do: {:error, Error.new(:nisaba_provider_failed, :nisaba_open_router_models_shape)}
+
+  # Dollars a token as a decimal string, into whole nano-dollars; a
+  # negative price is a router's "varies" and is no price.
+  defp per_token_nanos(value) when is_binary(value) do
+    case Decimal.parse(value) do
+      {d, ""} ->
+        if Decimal.negative?(d),
+          do: nil,
+          else: d |> Decimal.mult(1_000_000_000) |> Decimal.round(0) |> Decimal.to_integer()
+
+      _other ->
+        nil
+    end
+  end
+
+  defp per_token_nanos(_other), do: nil
 
   @doc "An embeddings reply into the port's shape; public so the shape is testable without a network."
   @spec parse_embedding(term(), String.t()) ::

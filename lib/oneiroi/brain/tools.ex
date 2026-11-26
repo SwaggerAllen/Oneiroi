@@ -90,7 +90,7 @@ defmodule Oneiroi.Brain.Tools do
     research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
     kind_list route_list household_read household_beat wake_log_read letter_rest book_read
-    queue_list queue_task queue_templates domain_review succession_status
+    queue_list queue_task queue_templates domain_review succession_status succession_catalog
   )
 
   @writes ~w(
@@ -113,6 +113,7 @@ defmodule Oneiroi.Brain.Tools do
     household_skip household_opt_out household_opt_in household_promote household_unpromote
     rounds_extend presence_read presence_stage
     succession_propose succession_open succession_decline succession_stop
+    succession_pool succession_question succession_c0 succession_packet
   )
 
   @type turn :: %{
