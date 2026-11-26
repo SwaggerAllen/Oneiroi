@@ -16,7 +16,10 @@ defmodule Oneiroi.Rehearsal.SuccessionTest do
   use Oneiroi.DataCase, async: false
 
   @moduletag :rehearsal
-  @moduletag timeout: 300_000
+  # On OpenRouter every turn is a real call: twenty minutes, and the
+  # sandbox's connection held as long.
+  @moduletag timeout: 1_200_000
+  @moduletag ownership_timeout: 1_200_000
 
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon

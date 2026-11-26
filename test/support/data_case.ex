@@ -24,7 +24,14 @@ defmodule Oneiroi.DataCase do
   end
 
   setup tags do
-    pid = Sandbox.start_owner!(Oneiroi.Repo, shared: not tags[:async])
+    # A test of real model calls (the rehearsal on OpenRouter) holds its
+    # connection past the sandbox's 120 s default; it names its own.
+    pid =
+      Sandbox.start_owner!(Oneiroi.Repo,
+        shared: not tags[:async],
+        ownership_timeout: tags[:ownership_timeout] || 120_000
+      )
+
     on_exit(fn -> Sandbox.stop_owner(pid) end)
     :ok
   end
