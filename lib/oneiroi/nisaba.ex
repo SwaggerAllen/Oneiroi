@@ -223,8 +223,10 @@ defmodule Oneiroi.Nisaba do
       {:nisaba_nightly,
        cron: [
          {"30 2 * * *", Oneiroi.Nisaba.SubscriptionWorker},
-         # The provider's model list, priced (nisaba#24).
-         {"15 3 * * *", Oneiroi.Nisaba.CatalogWorker}
+         # The provider's model list, priced (nisaba#24), nightly and at
+         # every boot: a deploy never waits for the night to have one.
+         {"15 3 * * *", Oneiroi.Nisaba.CatalogWorker},
+         {"@reboot", Oneiroi.Nisaba.CatalogWorker}
        ]}
     ]
   end
