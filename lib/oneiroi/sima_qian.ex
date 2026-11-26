@@ -94,6 +94,18 @@ defmodule Oneiroi.SimaQian do
        default: "/var/lib/oneiroi/sima_qian",
        usage:
          "the directory each resident's working repository lives under, one subdirectory per resident id"},
+      {:transplant_batch, "SIMA_QIAN_TRANSPLANT_BATCH",
+       cast: :integer,
+       default: "250",
+       tag: :bound,
+       usage:
+         "how many of a resident's events a fork or a cutover copies before it pauses (sima-qian#71): every projector folds each copy, and a whole life appended at once starved the event store's pool and took the app down"},
+      {:transplant_pause_ms, "SIMA_QIAN_TRANSPLANT_PAUSE_MS",
+       cast: :integer,
+       default: "1000",
+       tag: :bound,
+       usage:
+         "how long a fork or a cutover waits between batches, in milliseconds (sima-qian#71), so the projectors fold one batch before the next arrives"},
       {:watermark_seconds, "SIMA_QIAN_WATERMARK_SECONDS",
        cast: :integer,
        default: "60",
