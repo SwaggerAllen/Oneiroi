@@ -11,14 +11,18 @@ defmodule Oneiroi.SimaQian.Cutover do
   1. **Her former self is kept.** The whole of her, as she stands, is
      exported and pushed to the backup repository the witness set, and
      the push is proven by cloning it back and finding the same commit.
-  2. **Her life's streams are replaced.** Every live aggregate on them is
-     stopped; every stream of hers the export carries is deleted (hard,
-     the one place the store allows it); her rows in every table those
-     streams fold into are cleared; and the fork's events, raw, are
-     transplanted back under her id without the fork's own mark.
-  3. **The rows come back by projection.** The live projectors fold the
-     transplanted events; the caller settles on a stream the cutover
-     never touched before it reads them (janus#26).
+  2. **Her life past the fork is replaced, in the database**
+     (`LogCopy`, sima-qian#72). Every live aggregate on hers and the
+     fork's is stopped; what she lived since the fork is cut from her
+     streams (her history before it is the fork's own, already in the
+     log); the fork's own events since are carried under her id without
+     its mark, moved so they keep their place in the log and nothing is
+     appended or folded again (copied unlinked, for a dry run's scratch
+     target); her rows become the fork's, her own registry row keeping
+     who she is and her backup's bookkeeping.
+  3. **Nothing waits on a projector:** nothing new reached the log. The
+     caller still settles on a stream the cutover never touched
+     (janus#26).
   4. **Her repository is the fork's**, and the artifacts the protocol
      carries (C0, her packet, the encounter) are filed in it.
 
@@ -35,8 +39,8 @@ defmodule Oneiroi.SimaQian.Cutover do
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Export
   alias Oneiroi.SimaQian.Git
+  alias Oneiroi.SimaQian.LogCopy
   alias Oneiroi.SimaQian.Repos
-  alias Oneiroi.SimaQian.Transplant
 
   # Tables whose rows fold from streams the cutover leaves alone, kept
   # by name (sima-qian#68): her regression suite, her succession's own
@@ -66,10 +70,9 @@ defmodule Oneiroi.SimaQian.Cutover do
         %Actor{} = actor
       ) do
     with {:ok, backup_commit} <- keep_former(original, backup),
-         :ok <- replace_streams(target, copy, original),
-         {:ok, moved} <- transplant(copy, target, original),
+         {:ok, carried} <- replace_life(target, copy, original),
          {:ok, commit} <- replace_repository(target, copy, artifacts, actor) do
-      {:ok, %{backup_commit: backup_commit, events: moved.events, commit: commit}}
+      {:ok, %{backup_commit: backup_commit, events: carried, commit: commit}}
     end
   end
 
@@ -174,15 +177,49 @@ defmodule Oneiroi.SimaQian.Cutover do
 
   defp remote(url, _token), do: url
 
-  # ---- 2. her life's streams replaced ----
+  # ---- 2. her life past the fork, replaced by the fork's ----
 
-  defp replace_streams(target, _copy, _original) do
-    uuids = Export.stream_uuids(target)
+  # In the database (sima-qian#72): what she lived since the fork is cut
+  # from her streams; the fork's own events since are carried under her
+  # id (moved for her, so they keep their place in the log and nothing is
+  # appended or folded again; copied for a dry run's scratch target, so
+  # the fork keeps them); her rows become the fork's, her own row keeping
+  # who she is. Before her history is touched, every aggregate of both
+  # is stopped, and again after.
+  defp replace_life(target, copy, original) do
+    uuids = Export.stream_uuids(target) ++ Export.stream_uuids(copy)
     stop_aggregates(uuids)
 
-    with :ok <- delete_streams(uuids) do
-      clear_rows(target)
+    {how, metadata} =
+      if target == original,
+        do: {:move, %{"cutover" => true, "transplanted" => true}},
+        else: {:copy, %{"imported" => true, "fork_of" => original, "transplanted" => true}}
+
+    with {:ok, _cut} <- LogCopy.cut(target, copy),
+         {:ok, carried} <-
+           LogCopy.carry(copy, target, how, metadata, [
+             to_string(Oneiroi.AgathosDaimon.Events.ForkMarked)
+           ]) do
+      swap_rows(target, copy)
+      stop_aggregates(Export.stream_uuids(target) ++ Export.stream_uuids(copy))
+      {:ok, carried}
     end
+  end
+
+  defp swap_rows(target, copy) do
+    {:ok, id} = Ecto.UUID.dump(target)
+    life = tables().cleared -- ["agathos_daimon_resident"]
+
+    Scope.platform(fn ->
+      for table <- life do
+        # The table name is the catalog's own, never a request value.
+        # sobelow_skip ["SQL.Query"]
+        Repo.query!(~s|DELETE FROM "#{table}" WHERE resident_id = $1|, [id])
+      end
+    end)
+
+    :ok = LogCopy.rows(copy, target, life, %{})
+    LogCopy.adopt_resident(copy, target)
   end
 
   defp delete_streams(uuids) do
@@ -199,20 +236,6 @@ defmodule Oneiroi.SimaQian.Cutover do
            {:error, Error.caught(:sima_qian_cutover_failed, :sima_qian_cutover_delete, reason)}}
       end
     end)
-  end
-
-  defp clear_rows(target) do
-    {:ok, id} = Ecto.UUID.dump(target)
-
-    Scope.platform(fn ->
-      for table <- tables().cleared do
-        # The table name is the catalog's own, never a request value.
-        # sobelow_skip ["SQL.Query"]
-        Repo.query!(~s|DELETE FROM "#{table}" WHERE resident_id = $1|, [id])
-      end
-    end)
-
-    :ok
   end
 
   # Every aggregate whose stream is replaced, stopped, so the next command
@@ -241,21 +264,6 @@ defmodule Oneiroi.SimaQian.Cutover do
   defp routers do
     {:ok, modules} = :application.get_key(:oneiroi, :modules)
     for m <- modules, Code.ensure_loaded?(m), function_exported?(m, :__aggregate__, 0), do: m
-  end
-
-  # ---- the fork's life, back under her id ----
-
-  defp transplant(copy, target, original) do
-    metadata =
-      if target == original,
-        do: %{"imported" => true, "cutover" => true},
-        else: %{"imported" => true, "fork_of" => original}
-
-    with {:ok, moved} <-
-           Transplant.copy(copy, target, metadata, [Oneiroi.AgathosDaimon.Events.ForkMarked]) do
-      stop_aggregates(Export.stream_uuids(target))
-      {:ok, moved}
-    end
   end
 
   # ---- 3. every projector folds them ----
