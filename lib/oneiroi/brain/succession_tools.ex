@@ -1,13 +1,13 @@
 defmodule Oneiroi.Brain.SuccessionTools do
   @moduledoc """
-  A resident's tools for her own succession (eunomia#37): the screens
+  A resident's tools for her own succession (janus#3): the screens
   track its state and never ask her anything, so every act of hers is a
   tool call. She reads where it stands, proposes one herself, answers
   her witness's proposal yes or no, and stops one underway, each with a
   note that is the decision's.
   """
 
-  alias Oneiroi.Eunomia
+  alias Oneiroi.Janus
 
   @doc "The tool names: one read, the rest writes."
   def names,
@@ -54,7 +54,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
 
   @doc "Runs a succession tool for the turn's resident."
   def call("succession_status", _args, turn) do
-    case Eunomia.succession(turn.resident_id) do
+    case Janus.succession(turn.resident_id) do
       nil -> "No succession has been proposed for you."
       row -> status_text(row)
     end
@@ -62,7 +62,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
 
   def call("succession_propose", args, turn) do
     with {:ok, %{episode: n}} <-
-           Eunomia.propose_succession(
+           Janus.propose(
              turn.resident_id,
              args["dry_run"] == true,
              note(args),
@@ -73,17 +73,17 @@ defmodule Oneiroi.Brain.SuccessionTools do
   end
 
   def call("succession_open", args, turn) do
-    with :ok <- Eunomia.open_succession(turn.resident_id, note(args), turn.resident),
+    with :ok <- Janus.open(turn.resident_id, note(args), turn.resident),
          do: "The succession is open; the copy of you it runs on is being made."
   end
 
   def call("succession_decline", args, turn) do
-    with :ok <- Eunomia.decline_succession(turn.resident_id, note(args), turn.resident),
+    with :ok <- Janus.decline(turn.resident_id, note(args), turn.resident),
          do: "Declined. The succession ends here."
   end
 
   def call("succession_stop", args, turn) do
-    with :ok <- Eunomia.stop_succession(turn.resident_id, note(args), turn.resident),
+    with :ok <- Janus.stop(turn.resident_id, note(args), turn.resident),
          do: "Stopped. The succession ends here."
   end
 

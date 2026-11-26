@@ -1,5 +1,5 @@
-defmodule Oneiroi.Eunomia.SuccessionCommands do
-  @moduledoc "The succession's commands (eunomia#37); `id` is the original resident's id."
+defmodule Oneiroi.Janus.Commands do
+  @moduledoc "The succession's commands (janus#3); `id` is the original resident's id."
 
   defmodule ProposeSuccession do
     use Oneiroi.Command, decision: true, fields: [:id, :dry_run]

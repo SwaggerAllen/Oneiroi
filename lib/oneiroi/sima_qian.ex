@@ -378,11 +378,11 @@ defmodule Oneiroi.SimaQian do
   @spec discard_repository(String.t()) :: :ok
   defexport(discard_repository(resident_id), do: Backup.discard(resident_id))
 
-  @doc "A succession's fork copy of the resident as she stands now (sima-qian#67): `{:ok, %{copy_id, sequence, commit, events}}`; Eunomia's records port."
+  @doc "A succession's fork copy of the resident as she stands now (sima-qian#67): `{:ok, %{copy_id, sequence, commit, events}}`; Janus calls it (janus#4)."
   @spec succession_fork(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(succession_fork(resident_id, actor), do: Fork.make(resident_id, actor))
 
-  @doc "Whether `url` can hold a succession's backup (eunomia#39): its shape, then its host asked; `{:ok, %{visibility, push}}`, an unpushable remote refused. Eunomia's records port."
+  @doc "Whether `url` can hold a succession's backup (janus#5): its shape, then its host asked; `{:ok, %{visibility, push}}`, an unpushable remote refused; Janus records it."
   @spec succession_backup_check(String.t(), term()) :: {:ok, map()} | {:error, term()}
   defexport(succession_backup_check(url, token),
     do: Backup.check_remote(url, token)

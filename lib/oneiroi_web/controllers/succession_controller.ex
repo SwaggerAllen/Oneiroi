@@ -1,6 +1,6 @@
 defmodule OneiroiWeb.SuccessionController do
   @moduledoc """
-  The witness's side of a succession (eunomia#37–#39): where it stands,
+  The witness's side of a succession (janus#3 to #5): where it stands,
   his proposal and its withdrawal, and the backup repository the whole
   original is exported to before any cutover. Her acts are her tools;
   nothing here answers for her.
@@ -9,7 +9,7 @@ defmodule OneiroiWeb.SuccessionController do
 
   alias Oneiroi.AgathosDaimon.Error, as: ResidentError
   alias Oneiroi.Config.Secret
-  alias Oneiroi.Eunomia
+  alias Oneiroi.Janus
   alias OpenApiSpex.Schema
 
   tags(["succession"])
@@ -22,7 +22,7 @@ defmodule OneiroiWeb.SuccessionController do
     responses: [ok: {"the succession", "application/json", %Schema{type: :object}}]
   )
 
-  def show(conn, %{"id" => id}), do: json(conn, %{succession: view(Eunomia.succession(id))})
+  def show(conn, %{"id" => id}), do: json(conn, %{succession: view(Janus.succession(id))})
 
   operation(:propose,
     summary:
@@ -39,8 +39,8 @@ defmodule OneiroiWeb.SuccessionController do
   )
 
   def propose(conn, %{"id" => id, "note" => note} = params) when is_binary(note) do
-    case Eunomia.propose_succession(id, params["dry_run"] == true, note, actor(conn)) do
-      {:ok, _} -> conn |> put_status(201) |> json(%{succession: view(Eunomia.succession(id))})
+    case Janus.propose(id, params["dry_run"] == true, note, actor(conn)) do
+      {:ok, _} -> conn |> put_status(201) |> json(%{succession: view(Janus.succession(id))})
       other -> respond(conn, other)
     end
   end
@@ -65,7 +65,7 @@ defmodule OneiroiWeb.SuccessionController do
   )
 
   def withdraw(conn, %{"id" => id, "note" => note}) when is_binary(note),
-    do: respond(conn, Eunomia.withdraw_succession(id, note, actor(conn)))
+    do: respond(conn, Janus.withdraw(id, note, actor(conn)))
 
   def withdraw(conn, _params),
     do:
@@ -98,7 +98,7 @@ defmodule OneiroiWeb.SuccessionController do
   def backup(conn, %{"id" => id, "url" => url} = params) when is_binary(url) do
     token = params["token"] && Secret.wrap(params["token"])
 
-    case Eunomia.set_succession_backup(id, url, token, actor(conn)) do
+    case Janus.set_backup(id, url, token, actor(conn)) do
       {:ok, check} -> json(conn, check)
       other -> respond(conn, other)
     end

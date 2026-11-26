@@ -28,6 +28,7 @@ defmodule Oneiroi.Brain do
       Oneiroi.Gaia,
       Oneiroi.Glitnir,
       Oneiroi.HuginnMuninn,
+      Oneiroi.Janus,
       Oneiroi.Kumbukumbu,
       Oneiroi.Nisaba,
       Oneiroi.Seshat,

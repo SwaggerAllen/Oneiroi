@@ -1,10 +1,10 @@
-defmodule Oneiroi.Repo.Migrations.EunomiaSuccession do
+defmodule Oneiroi.Repo.Migrations.Janus do
   use Ecto.Migration
   import Oneiroi.Migration
 
   def change do
-    # A succession, one row an episode (eunomia#37).
-    projection :eunomia_succession, scope: :resident do
+    # A succession, one row an episode (janus#3).
+    projection :janus_succession, scope: :resident do
       add(:episode, :integer, null: false)
       add(:state, :string, null: false)
       add(:dry_run, :boolean, null: false, default: false)
@@ -28,7 +28,7 @@ defmodule Oneiroi.Repo.Migrations.EunomiaSuccession do
       add(:ended_at, :utc_datetime_usec)
     end
 
-    create(unique_index(:eunomia_succession, [:resident_id, :episode]))
+    create(unique_index(:janus_succession, [:resident_id, :episode]))
 
     # A succession's fork copy names the resident it was made from
     # (agathos-daimon#63).

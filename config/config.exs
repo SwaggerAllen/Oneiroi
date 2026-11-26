@@ -14,6 +14,7 @@ config :oneiroi, :components, [
   Oneiroi.Kumbukumbu,
   Oneiroi.Brain,
   Oneiroi.Eunomia,
+  Oneiroi.Janus,
   Oneiroi.Sunna,
   Oneiroi.Proteus,
   Oneiroi.HuginnMuninn,

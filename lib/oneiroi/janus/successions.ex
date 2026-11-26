@@ -1,14 +1,13 @@
-defmodule Oneiroi.Eunomia.Successions do
+defmodule Oneiroi.Janus.Successions do
   @moduledoc """
-  The succession's command edge and reads (eunomia#37–#39): proposing,
+  The succession's command edge and reads (janus#3 to #5): proposing,
   her yes or no, withdrawing and stopping; the fork copy made once she
   says yes; the backup the whole original is exported to before any
   cutover; and the status the screens and her tool read.
 
-  The records half is Sima Qian's, which depends on this system, so it
-  is reached through the records port (`EUNOMIA_SUCCESSION_RECORDS`),
-  named as an atom as the trial port is (eunomia#10): `succession_fork/2`
-  and `succession_backup_check/2`.
+  The records half is Sima Qian's, called by name: Janus sits above the
+  records, so the fork and the backup check are ordinary calls
+  (`SimaQian.succession_fork/2`, `succession_backup_check/2`).
   """
 
   require Logger
@@ -16,13 +15,13 @@ defmodule Oneiroi.Eunomia.Successions do
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.Vault
-  alias Oneiroi.Config
   alias Oneiroi.Config.Secret
-  alias Oneiroi.Eunomia.Error
-  alias Oneiroi.Eunomia.Store
-  alias Oneiroi.Eunomia.SuccessionCommands, as: Commands
-  alias Oneiroi.Eunomia.SuccessionRouter, as: Router
+  alias Oneiroi.Janus.Commands
+  alias Oneiroi.Janus.Error
+  alias Oneiroi.Janus.Router
+  alias Oneiroi.Janus.Store
   alias Oneiroi.Scope
+  alias Oneiroi.SimaQian
 
   @doc """
   Proposes a succession: the witness's, waiting on her yes; or hers,
@@ -88,7 +87,7 @@ defmodule Oneiroi.Eunomia.Successions do
     do: done(%Commands.StopSuccession{actor: actor, at: Clock.now(), id: resident_id, note: note})
 
   @doc """
-  Makes the fork copy for `episode` and records it (eunomia#38), or
+  Makes the fork copy for `episode` and records it (janus#4), or
   records the failure and returns it; `ForkWorker`'s unit. A fork for an
   episode no longer open is not made: she may have stopped meanwhile.
   """
@@ -96,7 +95,7 @@ defmodule Oneiroi.Eunomia.Successions do
   def fork(resident_id, episode, %Actor{} = actor) do
     case status(resident_id) do
       %{episode: ^episode, state: "open"} ->
-        case records().succession_fork(resident_id, actor) do
+        case SimaQian.succession_fork(resident_id, actor) do
           {:ok, copy} ->
             done(%Commands.RecordFork{
               actor: actor,
@@ -110,7 +109,7 @@ defmodule Oneiroi.Eunomia.Successions do
             })
 
           {:error, error} ->
-            Logger.error("eunomia: a succession's fork failed", Oneiroi.Error.metadata(error))
+            Logger.error("janus: a succession's fork failed", Oneiroi.Error.metadata(error))
 
             _ =
               done(%Commands.FailFork{
@@ -131,15 +130,15 @@ defmodule Oneiroi.Eunomia.Successions do
 
   @doc """
   Sets where the whole original is exported before a cutover replaces
-  her (eunomia#39): its shape and its host asked through the records
-  port, an unpushable remote refused, the token kept Vault-encrypted.
+  her (janus#5): its shape and its host asked through the records
+  an unpushable remote refused, the token kept Vault-encrypted.
   `{:ok, %{visibility, push}}`, a public repository kept and answered
   for the warning, as the records remote is (sima-qian#65).
   """
   @spec set_backup(String.t(), String.t(), term(), Actor.t()) ::
           {:ok, map()} | {:error, term()}
   def set_backup(resident_id, url, token, %Actor{} = actor) do
-    with {:ok, check} <- records().succession_backup_check(url, token),
+    with {:ok, check} <- SimaQian.succession_backup_check(url, token),
          :ok <-
            done(%Commands.SetBackup{
              actor: actor,
@@ -161,8 +160,6 @@ defmodule Oneiroi.Eunomia.Successions do
   @spec history(String.t()) :: [Store.Succession.t()]
   def history(resident_id), do: Scope.resident(resident_id, &Store.successions/0)
 
-  defp records, do: Config.fetch!(:eunomia, :succession_records)
-
   defp done(command), do: with({:ok, _} <- dispatch(command), do: :ok)
 
   defp dispatch(command) do
@@ -174,7 +171,7 @@ defmodule Oneiroi.Eunomia.Successions do
         refused
 
       {:error, reason} ->
-        {:error, Error.caught(:eunomia_dispatch_failed, :eunomia_succession_dispatch, reason)}
+        {:error, Error.caught(:janus_dispatch_failed, :janus_dispatch, reason)}
     end
   end
 end

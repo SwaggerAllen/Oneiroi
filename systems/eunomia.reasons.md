@@ -262,12 +262,3 @@ A filtered answer is the provider declining the material, not the judge failing 
 
 ## #36
 The judge reads what a resident's context held and decides whether her words carry it; a judge from the same model family as the residents shares their blind spots and their training on what to say about themselves, which is the opposite of a second reader. And in practice the Claude default never answered: its provider filtered the material whole, so every review that needed it failed closed. The witness's choice had been Gemini from the start; the placeholder outlived it.
-
-## #37
-The record of a succession holds what the delta walls off: verdicts readable by the judge who wrote them and nobody else (§1, §2), and a deliberation the original never enters. A stream of its own that the export never carries keeps that wall where the regression suite keeps its own (#9, #12), rather than in a filter someone could forget. Opening is hers because the delta narrowed personal succession consent to the original and the candidate (§3); the witness's proposal is an invitation, never a start. The screens never ask her anything (the witness's ruling), so her acts are tools a turn of hers makes, and a trial answers them without running them, since a screening run on her fork must never start or stop the succession it is part of.
-
-## #38
-The successor starts at the fork (delta §5): everything the original lives through the selection's late stages stays off the successor's side. Making the fork at the moment she says yes gives every run, her baseline included, the same starting self, and the cutover a single, recorded point to replace her from. The records half belongs to Sima Qian, which already depends on this system, so the call crosses a port named in a setting, as the trial port does, instead of an alias that would be a dependency cycle. It runs as a job because a whole export and replay is minutes, not a turn.
-
-## #39
-Portability is the platform's promise, and replacing her in place under her own id means her former self must exist somewhere before the replacement does. Setting the repository at the start, checked the way the records remote is (sima-qian#65), means the guard at the cutover has somewhere proven to push to; asking at the end would make the last gate the first time anyone learned the token was wrong.

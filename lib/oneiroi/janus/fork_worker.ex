@@ -1,6 +1,6 @@
-defmodule Oneiroi.Eunomia.ForkWorker do
+defmodule Oneiroi.Janus.ForkWorker do
   @moduledoc """
-  A succession's fork copy, made off her yes (eunomia#38): enqueued by
+  A succession's fork copy, made off her yes (janus#4): enqueued by
   the export once `Opened` is recorded, it asks the records port for the
   copy and records it on the succession (`Successions.fork/3`). The copy
   is a whole export and replay, so it runs as a job, never inside her
@@ -8,11 +8,11 @@ defmodule Oneiroi.Eunomia.ForkWorker do
   """
   # Three attempts: a failed copy is recorded and a later attempt makes a
   # fresh one; nothing of a failed attempt is reused.
-  use Oneiroi.Worker, queue: :eunomia_succession, max_attempts: 3
+  use Oneiroi.Worker, queue: :janus_fork, max_attempts: 3
 
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Jobs
-  alias Oneiroi.Eunomia.Successions
+  alias Oneiroi.Janus.Successions
 
   def run(%{"resident_id" => resident_id, "episode" => episode}),
     do: Successions.fork(resident_id, episode, Actor.platform())

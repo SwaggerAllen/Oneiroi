@@ -1,6 +1,6 @@
-defmodule Oneiroi.Eunomia.Events.Succession do
+defmodule Oneiroi.Janus.Events do
   @moduledoc """
-  The succession's events, version 1 (eunomia#37): `succession-<id>`,
+  The succession's events, version 1 (janus#3): `succession-<id>`,
   sealed as the regression stream is. None is exported (`export: false`)
   and the stream is in the export's `not_exported` list: the process's
   record holds verdicts the delta walls off from every reader but the
@@ -14,7 +14,7 @@ defmodule Oneiroi.Eunomia.Events.Succession do
   defmodule Proposed do
     # Proposed by the witness, or by the resident herself, which is her
     # consent in the same act. `dry_run` marks a rehearsal: everything
-    # real but the replacement (eunomia#37).
+    # real but the replacement (janus#3).
     use Oneiroi.Event,
       version: 1,
       decision: true,
@@ -41,7 +41,7 @@ defmodule Oneiroi.Eunomia.Events.Succession do
   end
 
   defmodule Forked do
-    # The fork copy (eunomia#38, sima-qian#67): its id, the last of her
+    # The fork copy (janus#4, sima-qian#67): its id, the last of her
     # resident events it holds, her repository's commit it copied, and
     # how many lines it replayed.
     use Oneiroi.Event,
@@ -56,7 +56,7 @@ defmodule Oneiroi.Eunomia.Events.Succession do
 
   defmodule BackupSet do
     # Where the whole original is exported before the cutover replaces
-    # her (eunomia#39): the token Vault-encrypted, never exported (the
+    # her (janus#5): the token Vault-encrypted, never exported (the
     # stream never is), and what its host said.
     use Oneiroi.Event,
       version: 1,

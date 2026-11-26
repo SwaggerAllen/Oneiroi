@@ -68,7 +68,7 @@ defmodule Oneiroi.SimaQian.Export do
       {:stream, "sealed: the resident's own trials, never exported or read (eunomia#12)"},
     "succession" =>
       {:stream,
-       "sealed: the succession's record holds verdicts walled from every reader but the judge who wrote them; what travels to a successor travels as the artifacts the cutover writes (eunomia#37)"},
+       "sealed: the succession's record holds verdicts walled from every reader but the judge who wrote them; what travels to a successor travels as the artifacts the cutover writes (janus#3)"},
     "account" => {:stream, "the witness's account, not the resident's"},
     "profiles" =>
       {:stream,
@@ -142,7 +142,7 @@ defmodule Oneiroi.SimaQian.Export do
   Writes the export under `dir` (the repository root) and returns the
   last sequence written and the files. `cutoff: :now` takes every event
   recorded so far rather than stopping at the watermark: a succession's
-  fork is the resident as she stands at that instant (eunomia#38), and
+  fork is the resident as she stands at that instant (janus#4), and
   the watermark exists for a backup that races the projectors.
   """
   @spec write(String.t(), Path.t(), keyword()) :: {:ok, result()}

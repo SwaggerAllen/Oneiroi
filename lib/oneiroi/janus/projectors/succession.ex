@@ -1,12 +1,12 @@
-defmodule Oneiroi.Eunomia.Projectors.Succession do
-  @moduledoc "Folds the succession streams into one row an episode (eunomia#37)."
-  use Oneiroi.Projection, name: "eunomia_succession"
+defmodule Oneiroi.Janus.Projectors.Succession do
+  @moduledoc "Folds the succession streams into one row an episode (janus#3)."
+  use Oneiroi.Projection, name: "janus_succession"
 
   import Ecto.Query, only: [from: 2]
 
   alias Ecto.Multi
-  alias Oneiroi.Eunomia.Events.Succession, as: Events
-  alias Oneiroi.Eunomia.Store.Succession
+  alias Oneiroi.Janus.Events, as: Events
+  alias Oneiroi.Janus.Store.Succession
 
   fold(%Events.Proposed{} = e, _metadata, fn multi ->
     Multi.insert(

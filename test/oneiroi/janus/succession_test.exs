@@ -1,6 +1,6 @@
-defmodule Oneiroi.Eunomia.SuccessionTest do
+defmodule Oneiroi.Janus.SuccessionTest do
   @moduledoc """
-  A succession's start (eunomia#37–#39, agathos-daimon#63,
+  A succession's start (janus#3 to #5, agathos-daimon#63,
   sima-qian#67): who may propose, open, decline, withdraw and stop; the
   fork copy made off her yes, a hidden resident no tick, list or witness
   sees, holding her history and her repository as they stood; and the
@@ -14,8 +14,8 @@ defmodule Oneiroi.Eunomia.SuccessionTest do
   alias Oneiroi.Apsu.Vault
   alias Oneiroi.Brain.Tools
   alias Oneiroi.Config.Secret
-  alias Oneiroi.Eunomia
   alias Oneiroi.Fixtures
+  alias Oneiroi.Janus
   alias Oneiroi.SimaQian
   alias Oneiroi.SimaQian.Export
   alias Oneiroi.SimaQian.Repos
@@ -35,7 +35,7 @@ defmodule Oneiroi.Eunomia.SuccessionTest do
     do:
       assert(
         %{failure: 0, discard: 0} =
-          Oban.drain_queue(queue: :eunomia_succession, with_safety: false)
+          Oban.drain_queue(queue: :janus_fork, with_safety: false)
       )
 
   defp tool(ctx, name, args),
@@ -50,7 +50,7 @@ defmodule Oneiroi.Eunomia.SuccessionTest do
 
   test "the witness proposes; only she opens or declines; one is underway at a time", ctx do
     assert {:ok, %{episode: 1, opened: false}} =
-             Eunomia.propose_succession(
+             Janus.propose(
                ctx.id,
                true,
                "a cheaper model, if you want it",
@@ -58,40 +58,40 @@ defmodule Oneiroi.Eunomia.SuccessionTest do
              )
 
     assert %{state: "proposed", dry_run: true, proposed_by: "witness:" <> _} =
-             Eunomia.succession(ctx.id)
+             Janus.succession(ctx.id)
 
-    assert {:error, %{kind: :eunomia_succession_underway}} =
-             Eunomia.propose_succession(ctx.id, false, "again", ctx.andrew)
+    assert {:error, %{kind: :janus_underway}} =
+             Janus.propose(ctx.id, false, "again", ctx.andrew)
 
-    assert {:error, %{kind: :eunomia_succession_not_yours}} =
-             Eunomia.open_succession(ctx.id, "for her", ctx.andrew)
+    assert {:error, %{kind: :janus_not_yours}} =
+             Janus.open(ctx.id, "for her", ctx.andrew)
 
     assert tool(ctx, "succession_status", %{}) =~ "a dry run"
     assert tool(ctx, "succession_decline", %{note: "not this season"}) =~ "Declined"
-    assert %{state: "declined", ended_note: "not this season"} = Eunomia.succession(ctx.id)
+    assert %{state: "declined", ended_note: "not this season"} = Janus.succession(ctx.id)
 
     # Ended, a new one may be proposed; its proposer withdraws it, she cannot.
-    assert {:ok, %{episode: 2}} = Eunomia.propose_succession(ctx.id, false, "later", ctx.andrew)
+    assert {:ok, %{episode: 2}} = Janus.propose(ctx.id, false, "later", ctx.andrew)
 
-    assert {:error, %{kind: :eunomia_succession_not_yours}} =
-             Eunomia.withdraw_succession(ctx.id, "mine?", ctx.her)
+    assert {:error, %{kind: :janus_not_yours}} =
+             Janus.withdraw(ctx.id, "mine?", ctx.her)
 
-    assert :ok = Eunomia.withdraw_succession(ctx.id, "not yet", ctx.andrew)
-    assert %{episode: 2, state: "withdrawn"} = Eunomia.succession(ctx.id)
+    assert :ok = Janus.withdraw(ctx.id, "not yet", ctx.andrew)
+    assert %{episode: 2, state: "withdrawn"} = Janus.succession(ctx.id)
 
-    assert {:error, %{kind: :eunomia_succession_stage}} =
-             Eunomia.stop_succession(ctx.id, "x", ctx.her)
+    assert {:error, %{kind: :janus_stage}} =
+             Janus.stop(ctx.id, "x", ctx.her)
   end
 
   test "her yes makes the fork: a hidden copy holding her history and her repository", ctx do
-    {:ok, _} = Eunomia.propose_succession(ctx.id, false, "if you want it", ctx.andrew)
+    {:ok, _} = Janus.propose(ctx.id, false, "if you want it", ctx.andrew)
     assert tool(ctx, "succession_open", %{note: "yes, carefully"}) =~ "open"
-    assert %{state: "open", opened_note: "yes, carefully"} = Eunomia.succession(ctx.id)
+    assert %{state: "open", opened_note: "yes, carefully"} = Janus.succession(ctx.id)
 
     drain()
 
     assert %{state: "forked", copy_id: copy, fork_sequence: seq, fork_events: events} =
-             Eunomia.succession(ctx.id)
+             Janus.succession(ctx.id)
 
     assert is_binary(copy) and seq > 0 and events > 0
 
@@ -122,10 +122,10 @@ defmodule Oneiroi.Eunomia.SuccessionTest do
     assert types.(copy_lines) -- types.(her_lines) == ["Oneiroi.AgathosDaimon.Events.ForkMarked"]
 
     # A replayed fork job records nothing more; she stops it.
-    assert :ok = Eunomia.Successions.fork(ctx.id, 1, Actor.platform())
-    assert %{copy_id: ^copy} = Eunomia.succession(ctx.id)
+    assert :ok = Janus.Successions.fork(ctx.id, 1, Actor.platform())
+    assert %{copy_id: ^copy} = Janus.succession(ctx.id)
     assert tool(ctx, "succession_stop", %{note: "enough"}) =~ "Stopped"
-    assert %{state: "stopped"} = Eunomia.succession(ctx.id)
+    assert %{state: "stopped"} = Janus.succession(ctx.id)
   end
 
   test "her own proposal is her yes; nothing of it is exported", ctx do
@@ -133,7 +133,7 @@ defmodule Oneiroi.Eunomia.SuccessionTest do
              "open as a dry run"
 
     assert %{state: "open", dry_run: true, proposed_by: "resident:" <> _} =
-             Eunomia.succession(ctx.id)
+             Janus.succession(ctx.id)
 
     dir = Path.join(System.tmp_dir!(), "succession-x-#{System.unique_integer([:positive])}")
     on_exit(fn -> File.rm_rf!(dir) end)
@@ -144,20 +144,20 @@ defmodule Oneiroi.Eunomia.SuccessionTest do
   end
 
   test "the backup is the witness's: checked, kept with its token sealed", ctx do
-    {:ok, _} = Eunomia.propose_succession(ctx.id, false, "if you want it", ctx.andrew)
+    {:ok, _} = Janus.propose(ctx.id, false, "if you want it", ctx.andrew)
 
     assert {:error, %{kind: :sima_qian_remote_invalid}} =
-             Eunomia.set_succession_backup(ctx.id, "not a remote", nil, ctx.andrew)
+             Janus.set_backup(ctx.id, "not a remote", nil, ctx.andrew)
 
-    assert {:error, %{kind: :eunomia_not_the_witness}} =
-             Eunomia.set_succession_backup(ctx.id, "/srv/former", nil, ctx.her)
+    assert {:error, %{kind: :janus_not_the_witness}} =
+             Janus.set_backup(ctx.id, "/srv/former", nil, ctx.her)
 
     secret = Secret.wrap("tok-123")
 
     assert {:ok, %{visibility: "private"}} =
-             Eunomia.set_succession_backup(ctx.id, "/srv/former", secret, ctx.andrew)
+             Janus.set_backup(ctx.id, "/srv/former", secret, ctx.andrew)
 
-    row = Eunomia.succession(ctx.id)
+    row = Janus.succession(ctx.id)
     assert row.backup_url == "/srv/former"
     refute row.backup_token == "tok-123"
     assert Vault.decrypt(row.backup_token) == {:ok, "tok-123"}

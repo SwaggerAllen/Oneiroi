@@ -1,6 +1,6 @@
 defmodule Oneiroi.SimaQian.Fork do
   @moduledoc """
-  A succession's fork (sima-qian#67, eunomia#38): a hidden copy of the
+  A succession's fork (sima-qian#67, janus#4): a hidden copy of the
   resident as she stands when the succession opens, made by the same
   replay an import is, so every screening run, her baseline and the
   eventual successor run on a resident the original's later life never

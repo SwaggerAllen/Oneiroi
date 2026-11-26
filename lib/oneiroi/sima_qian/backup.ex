@@ -120,7 +120,7 @@ defmodule Oneiroi.SimaQian.Backup do
   end
 
   @doc """
-  A remote's shape and its host's answer, recorded nowhere (eunomia#39):
+  A remote's shape and its host's answer, recorded nowhere (janus#5):
   a succession's backup is the succession's to record. An unpushable
   remote is refused as `set_remote_checked/4` refuses it.
   """

@@ -1,6 +1,6 @@
-defmodule Oneiroi.Eunomia.Succession do
+defmodule Oneiroi.Janus.Succession do
   @moduledoc """
-  The succession aggregate on `succession-<resident_id>` (eunomia#37;
+  The succession aggregate on `succession-<resident_id>` (janus#3;
   lily:design/succession-protocol.md@bbbf4afb5c52 with its delta,
   lily:design/succession-protocol-delta.md@0bc6bd3510e1). Pure: the
   instant and the actor arrive on the command.
@@ -10,7 +10,7 @@ defmodule Oneiroi.Eunomia.Succession do
 
   - **proposed** — by the witness, waiting on her; a proposal she makes
     herself is opened in the same act;
-  - **open** — her yes, and the fork copy being made (eunomia#38);
+  - **open** — her yes, and the fork copy being made (janus#4);
   - **forked** — the copy recorded: every later stage runs on it;
   - **declined**, **withdrawn**, **stopped** — ended, and a new
     proposal may follow.
@@ -23,9 +23,9 @@ defmodule Oneiroi.Eunomia.Succession do
   former self is kept and the household pays for it.
   """
 
-  alias Oneiroi.Eunomia.Error
-  alias Oneiroi.Eunomia.Events.Succession, as: Events
-  alias Oneiroi.Eunomia.SuccessionCommands, as: Commands
+  alias Oneiroi.Janus.Commands
+  alias Oneiroi.Janus.Error
+  alias Oneiroi.Janus.Events
 
   defstruct [:id, episode: 0, current: nil]
 
@@ -39,7 +39,7 @@ defmodule Oneiroi.Eunomia.Succession do
 
   def execute(%__MODULE__{current: %{state: state}}, %Commands.ProposeSuccession{})
       when state in @underway,
-      do: {:error, Error.new(:eunomia_succession_underway, :eunomia_succession_propose_underway)}
+      do: {:error, Error.new(:janus_underway, :janus_propose_underway)}
 
   def execute(%__MODULE__{} = s, %Commands.ProposeSuccession{actor: actor} = c) do
     episode = s.episode + 1
@@ -64,25 +64,20 @@ defmodule Oneiroi.Eunomia.Succession do
         proposed
 
       true ->
-        {:error, Error.new(:eunomia_succession_not_yours, :eunomia_succession_propose_actor)}
+        {:error, Error.new(:janus_not_yours, :janus_propose_actor)}
     end
   end
 
   def execute(%__MODULE__{current: nil}, %{__struct__: command}),
-    do:
-      {:error,
-       Error.new(:eunomia_no_succession, :eunomia_succession_none, command: inspect(command))}
+    do: {:error, Error.new(:janus_no_succession, :janus_none, command: inspect(command))}
 
   def execute(%__MODULE__{current: current}, %Commands.OpenSuccession{} = c) do
     cond do
       not hers?(c) ->
-        {:error, Error.new(:eunomia_succession_not_yours, :eunomia_succession_open_actor)}
+        {:error, Error.new(:janus_not_yours, :janus_open_actor)}
 
       current.state not in [:proposed] ->
-        {:error,
-         Error.new(:eunomia_succession_stage, :eunomia_succession_open_stage,
-           stage: current.state
-         )}
+        {:error, Error.new(:janus_stage, :janus_open_stage, stage: current.state)}
 
       true ->
         %Events.Opened{actor: c.actor, at: c.at, id: c.id, episode: current.episode, note: c.note}
@@ -92,13 +87,10 @@ defmodule Oneiroi.Eunomia.Succession do
   def execute(%__MODULE__{current: current}, %Commands.DeclineSuccession{} = c) do
     cond do
       not hers?(c) ->
-        {:error, Error.new(:eunomia_succession_not_yours, :eunomia_succession_decline_actor)}
+        {:error, Error.new(:janus_not_yours, :janus_decline_actor)}
 
       current.state not in [:proposed] ->
-        {:error,
-         Error.new(:eunomia_succession_stage, :eunomia_succession_decline_stage,
-           stage: current.state
-         )}
+        {:error, Error.new(:janus_stage, :janus_decline_stage, stage: current.state)}
 
       true ->
         %Events.Declined{
@@ -114,13 +106,10 @@ defmodule Oneiroi.Eunomia.Succession do
   def execute(%__MODULE__{current: current}, %Commands.WithdrawSuccession{} = c) do
     cond do
       current.state != :proposed ->
-        {:error,
-         Error.new(:eunomia_succession_stage, :eunomia_succession_withdraw_stage,
-           stage: current.state
-         )}
+        {:error, Error.new(:janus_stage, :janus_withdraw_stage, stage: current.state)}
 
       not proposer?(current, c) ->
-        {:error, Error.new(:eunomia_succession_not_yours, :eunomia_succession_withdraw_actor)}
+        {:error, Error.new(:janus_not_yours, :janus_withdraw_actor)}
 
       true ->
         %Events.Withdrawn{
@@ -136,13 +125,10 @@ defmodule Oneiroi.Eunomia.Succession do
   def execute(%__MODULE__{current: current}, %Commands.StopSuccession{} = c) do
     cond do
       not hers?(c) ->
-        {:error, Error.new(:eunomia_succession_not_yours, :eunomia_succession_stop_actor)}
+        {:error, Error.new(:janus_not_yours, :janus_stop_actor)}
 
       current.state not in [:open, :forked] ->
-        {:error,
-         Error.new(:eunomia_succession_stage, :eunomia_succession_stop_stage,
-           stage: current.state
-         )}
+        {:error, Error.new(:janus_stage, :janus_stop_stage, stage: current.state)}
 
       true ->
         %Events.Stopped{
@@ -189,13 +175,10 @@ defmodule Oneiroi.Eunomia.Succession do
   def execute(%__MODULE__{current: current}, %Commands.SetBackup{actor: actor} = c) do
     cond do
       current.state not in @underway ->
-        {:error,
-         Error.new(:eunomia_succession_stage, :eunomia_succession_backup_stage,
-           stage: current.state
-         )}
+        {:error, Error.new(:janus_stage, :janus_backup_stage, stage: current.state)}
 
       actor.kind != :witness ->
-        {:error, Error.new(:eunomia_not_the_witness, :eunomia_succession_backup_actor)}
+        {:error, Error.new(:janus_not_the_witness, :janus_backup_actor)}
 
       true ->
         %Events.BackupSet{
