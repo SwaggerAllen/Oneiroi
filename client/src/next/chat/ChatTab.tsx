@@ -7,6 +7,7 @@ import * as css from './chatTab.css';
 import { documentPath, type Citation } from './cite';
 import { Peek } from './Peek';
 import { Sessions } from './Sessions';
+import { SuccessionBanner } from '../succession/Touches';
 
 /** The Chat tab (ui-structures.md D): Conversation | Sessions | Mail, and the peek. */
 export function ChatTab({ residentId, residentName, path }: { residentId: string; residentName: string; path: string }) {
@@ -49,6 +50,8 @@ export function ChatTab({ residentId, residentName, path }: { residentId: string
           Mail
         </ToggleButton>
       </ToggleButtonGroup>
+      {/* While a succession is underway: back to it (screen:next-succession). */}
+      <SuccessionBanner />
       <div className={css.body}>
         {/* Both stay mounted: the conversation keeps its place and its draft. */}
         <div className={css.pane} hidden={view !== 'conversation'}>

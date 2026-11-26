@@ -15,7 +15,8 @@ links to.
 
 A section is a full page over the tabs, inside the house shell, at
 `#/settings/<section>`: `ledger`, `kinds`, `connections`,
-`notifications`, `regression`, `work`, `backups`, `presence`, `delete`.
+`notifications`, `regression`, `work`, `backups`, `presence`, `delete`,
+`succession` (her succession's pages, screen:next-succession).
 The house's clock and check-ins, here until 2026-11-16, moved to the
 house's own Time tab (screen:next-house).
 
@@ -127,7 +128,16 @@ clipboard, or "Couldn't copy; select it" when the browser refuses
     not yet) with its date; while unanswered, "No thanks, on every
     device" answers it.
 - **Regression** (spec §6.4, eunomia#30, #31):
-  - Trials | Runs;
+  - Trials | Runs | Catalog (2026-11-25);
+  - the catalog (`GET /v1/catalog`, screen:next-succession): each model as
+    last fetched from OpenRouter, its prices a million tokens, context,
+    the provider's blurb said to be the provider's, and its tool calls on
+    Oneiroi (share well-formed and count, measured nightly); a model that
+    takes no tool calls says it is not supported. While her succession's
+    preparation is open, each entry has **Add to the succession pool**,
+    or says it is in the pool and whose pick it is.
+    `#/settings/regression/catalog` opens on it (the pool page links
+    there);
   - write a trial (what you say, passes if, fails if); edit one;
   - "Suggest some" (agathos-daimon#42): trials drafted from her files,
     with an optional steer; each kept only with "Keep this trial", or
@@ -210,6 +220,8 @@ clipboard, or "Couldn't copy; select it" when the browser refuses
 | (new) | `declinePush` | Notifications |
 | Regression | `regressionTests`, `regressionRuns`, `regressionRun`, `writeTest`, `changeTest`, `startRun`, `grade`, `favourite`, `pinModel`, `socketToken` with the run channel | Regression |
 | (new here) | `suggestTrials` | Regression |
+| (new) | `catalog`, `poolAdd` | Regression's catalog (screen:next-succession) |
+| (new) | the succession's calls (screen:next-succession) | Succession |
 | Work | `work`, `resetWorkRuns` | Work line |
 | (new) | `skipWorkCare` | Work line |
 | (new) | `resident`, `setRemote`, `importChatgpt`, `reports`, `fileReport`, `gitea`, `setGiteaPassword` | Backups, imports and reports |

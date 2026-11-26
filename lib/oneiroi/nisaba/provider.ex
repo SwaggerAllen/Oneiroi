@@ -94,6 +94,26 @@ defmodule Oneiroi.Nisaba.Provider do
     @type t :: %__MODULE__{model: String.t() | nil, vectors: [[float()]], usage: Usage.t()}
   end
 
+  defmodule Model do
+    @moduledoc """
+    One model the provider lists (nisaba#24): its slug, name and the
+    provider's own blurb, its prices in nano-dollars a token (input,
+    output), its context, and whether it takes tool calls.
+    """
+    @derive Jason.Encoder
+    defstruct [:id, :name, :description, :input_nanos, :output_nanos, :context, tools?: false]
+
+    @type t :: %__MODULE__{
+            id: String.t(),
+            name: String.t() | nil,
+            description: String.t() | nil,
+            input_nanos: non_neg_integer(),
+            output_nanos: non_neg_integer(),
+            context: non_neg_integer() | nil,
+            tools?: boolean()
+          }
+  end
+
   @type failure :: Oneiroi.Nisaba.Error.t()
   @type sink :: (String.t() -> any())
 
@@ -107,4 +127,7 @@ defmodule Oneiroi.Nisaba.Provider do
   @doc "Embeds the texts on the witness's key, one vector per text in order (spec §6.5: the library's index)."
   @callback embed(model :: String.t(), [String.t()], key :: String.t()) ::
               {:ok, Embedding.t()} | {:error, failure()}
+
+  @doc "The models the provider lists, priced (nisaba#24); public, so no key."
+  @callback models() :: {:ok, [Model.t()]} | {:error, failure()}
 end

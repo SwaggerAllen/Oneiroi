@@ -71,6 +71,16 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
        Error.new(:sima_qian_repos_absent, :sima_qian_repos_gitea_commit_absent, commit: commit)}
 
   @impl true
+  def delete(repo) do
+    with {:ok, {inst, org, name}} <- Gitea.locate(repo) do
+      case request(inst, :delete, "/repos/#{org}/#{name}", nil, []) do
+        {:ok, status, _} when status in [204, 404] -> :ok
+        other -> failed(other)
+      end
+    end
+  end
+
+  @impl true
   def head(repo) do
     with {:ok, {inst, org, name}} <- Gitea.locate(repo) do
       case get(inst, "/repos/#{org}/#{name}/branches/#{@branch}", []) do

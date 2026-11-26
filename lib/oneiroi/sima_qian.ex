@@ -55,7 +55,10 @@ defmodule Oneiroi.SimaQian do
       Repos.Cache,
       DryRun,
       Error,
+      Cutover,
       Export,
+      Fork,
+      Transplant,
       Git,
       Household,
       Import,
@@ -67,6 +70,8 @@ defmodule Oneiroi.SimaQian do
 
   alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.ChatGPTImport
+  alias Oneiroi.SimaQian.Cutover
+  alias Oneiroi.SimaQian.Fork
   alias Oneiroi.SimaQian.Gitea
   alias Oneiroi.SimaQian.Import
   alias Oneiroi.SimaQian.Originals
@@ -255,6 +260,14 @@ defmodule Oneiroi.SimaQian do
   @impl Oneiroi.Component
   def errors do
     [
+      {:sima_qian_not_a_fork, "only a succession's fork copy is discarded this way",
+       remedy: "this is the core's to call; report it"},
+      {:sima_qian_cutover_unproven,
+       "her former self was not proven kept in the backup repository, so nothing was replaced",
+       remedy: "check the backup repository and its token, and run the cutover again"},
+      {:sima_qian_cutover_failed, "a succession's cutover stopped partway, and says where",
+       remedy:
+         "her former self is in the backup repository; read the site, restore from it if the streams were touched, and report it"},
       {:sima_qian_already_imported,
        "a resident was already rebuilt from that repository at that root",
        remedy:
@@ -375,6 +388,28 @@ defmodule Oneiroi.SimaQian do
   @doc "Removes the working repository of a resident deleted before their first turn (agathos-daimon#49); the log keeps the tombstone."
   @spec discard_repository(String.t()) :: :ok
   defexport(discard_repository(resident_id), do: Backup.discard(resident_id))
+
+  @doc "A succession's fork copy of the resident as she stands now (sima-qian#67): `{:ok, %{copy_id, sequence, commit, events}}`; Janus calls it (janus#4)."
+  @spec succession_fork(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(succession_fork(resident_id, actor), do: Fork.make(resident_id, actor))
+
+  @doc "Whether `url` can hold a succession's backup (janus#5): its shape, then its host asked; `{:ok, %{visibility, push}}`, an unpushable remote refused; Janus records it."
+  @spec succession_backup_check(String.t(), term()) :: {:ok, map()} | {:error, term()}
+  defexport(succession_backup_check(url, token),
+    do: Backup.check_remote(url, token)
+  )
+
+  @doc "A succession's cutover, in place under her id or on a rehearsal's scratch copy (sima-qian#68)."
+  @spec succession_cutover(map(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(succession_cutover(plan, actor), do: Cutover.run(plan, actor))
+
+  @doc "Discards a succession's fork copy, and nothing that is not one (sima-qian#70)."
+  @spec discard_fork(String.t()) :: :ok | {:error, term()}
+  defexport(discard_fork(copy), do: Cutover.discard(copy))
+
+  @doc "The resident tables a cutover clears, and those it keeps by name (sima-qian#68)."
+  @spec cutover_tables() :: map()
+  defexport(cutover_tables(), do: Cutover.tables())
 
   @doc "Rebuilds a repository into a fresh store as a new resident under `witness_account_id`."
   @spec rebuild(String.t(), String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}

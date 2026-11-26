@@ -1502,6 +1502,12 @@ defmodule Oneiroi.Kumbukumbu do
   @spec letters(String.t()) :: [Oneiroi.Kumbukumbu.Store.HouseLetter.t()]
   defexport(letters(resident_id), do: Memories.letters(resident_id))
 
+  @doc "Her tool calls in `[from, to)` counted by model (kumbukumbu#114): `%{model, calls, failed}`, a call failed when its answer begins with one of `failures`; no words leave."
+  @spec tool_call_counts(String.t(), DateTime.t(), DateTime.t(), [String.t()]) :: [map()]
+  defexport(tool_call_counts(resident_id, from_at, to_at, failures),
+    do: Memories.tool_call_counts(resident_id, from_at, to_at, failures)
+  )
+
   @doc "The tool rows in `[from, to)` (kumbukumbu#101): the calls that link a record to the turn that wrote it."
   @spec tool_rows(String.t(), DateTime.t(), DateTime.t()) :: [map()]
   defexport(tool_rows(resident_id, from_at, to_at),

@@ -50,3 +50,19 @@ export const ChevronIcon = () => (
     <path d="M2 4l4 4 4-4" fill="none" stroke="currentColor" strokeWidth={1.6} strokeLinecap="round" />
   </svg>
 );
+// The deliberation's own tabs (screen:next-succession).
+export const StarIcon = () => (
+  <svg {...base}>
+    <path d="M12 3l2.7 5.6 6.1.9-4.4 4.3 1 6.1L12 17l-5.4 2.9 1-6.1L3.2 9.5l6.1-.9z" {...line} />
+  </svg>
+);
+export const PersonIcon = () => (
+  <svg {...base}>
+    <path d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4 21a8 8 0 0 1 16 0" {...line} />
+  </svg>
+);
+export const PanelIcon = () => (
+  <svg {...base}>
+    <path d="M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z" {...line} />
+  </svg>
+);

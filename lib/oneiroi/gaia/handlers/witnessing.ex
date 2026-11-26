@@ -7,7 +7,7 @@ defmodule Oneiroi.Gaia.Handlers.Witnessing do
   second command from the caller, and replay-safe because the account
   aggregate's start and end are idempotent.
   """
-  use Commanded.Event.Handler,
+  use Oneiroi.Handler,
     application: Oneiroi.Commanded,
     name: "gaia_witnessing",
     consistency: :strong

@@ -52,6 +52,13 @@ at `/client/#/records`. Built 2026-11-10.
     unresolved.
   - What cites it: read for both `<kind>/<name>` and `<kind>/<name>.md`.
   - Following a citation pushes onto this tab's stack.
+  - **Propose for C0** (screen:next-succession, 2026-11-25), while her
+    succession's preparation is open and C0 is not frozen: a card under
+    the classification line, showing the record's citation
+    (`<slug>:<path>`). It proposes the whole record by that citation,
+    nothing else: no label, no selected stretch (the witness,
+    2026-11-26). It reaches her with your name and the date; she accepts
+    it or not. A dry run is marked.
 - **Citations** follow the server's grammar (Oneiroi.Seshat.Citations):
   - `<slug>:<kind>/<ref>`, the resident's own slug only;
   - a record kind (bookmark, position, …) names a record;

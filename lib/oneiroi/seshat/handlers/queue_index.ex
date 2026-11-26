@@ -8,7 +8,7 @@ defmodule Oneiroi.Seshat.Handlers.QueueIndex do
   which time the projection has the change; a burst of moves on one task
   is one render.
   """
-  use Commanded.Event.Handler,
+  use Oneiroi.Handler,
     application: Oneiroi.Commanded,
     name: "seshat_queue_index",
     consistency: :eventual

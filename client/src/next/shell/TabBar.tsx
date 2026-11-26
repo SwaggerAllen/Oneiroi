@@ -15,18 +15,20 @@ const ITEMS: { tab: Tab; label: string; icon: ReactNode }[] = [
 const HOUSE_LABELS: Partial<Record<Tab, string>> = { soul: 'Charter' };
 
 export function TabBar({ active, onSelect, house = false }: { active: Tab; onSelect: (tab: Tab) => void; house?: boolean }) {
+  return <BottomTabs label="Sections" items={ITEMS.map(({ tab, label, icon }) => ({ key: tab, label: (house && HOUSE_LABELS[tab]) || label, icon }))} active={active} onSelect={onSelect} />;
+}
+
+/**
+ * The bar itself, for any set of tabs: the shell's four, or a page's own
+ * (the succession's deliberation, screen:next-succession) in their place.
+ */
+export function BottomTabs<K extends string>({ label, items, active, onSelect }: { label: string; items: { key: K; label: string; icon: ReactNode }[]; active: K; onSelect: (key: K) => void }) {
   return (
-    <nav className={css.tabs} aria-label="Sections">
-      {ITEMS.map(({ tab, label, icon }) => (
-        <button
-          key={tab}
-          type="button"
-          className={css.tab}
-          aria-current={active === tab ? 'page' : undefined}
-          onClick={() => onSelect(tab)}
-        >
+    <nav className={css.tabs} aria-label={label}>
+      {items.map(({ key, label: name, icon }) => (
+        <button key={key} type="button" className={css.tab} aria-current={active === key ? 'page' : undefined} onClick={() => onSelect(key)}>
           {icon}
-          {(house && HOUSE_LABELS[tab]) || label}
+          {name}
         </button>
       ))}
     </nav>

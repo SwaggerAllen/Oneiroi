@@ -12,6 +12,7 @@ import { Regression } from './Regression';
 import * as css from './settings.css';
 import { useShell } from '../state/store';
 import { HouseWork } from '../house/Work';
+import { SuccessionPage } from '../succession/Succession';
 
 const TITLES: Record<SettingsSection, string> = {
   ledger: 'Ledger',
@@ -23,6 +24,7 @@ const TITLES: Record<SettingsSection, string> = {
   backups: 'Backups, imports and reports',
   presence: 'Substack presence',
   delete: 'Delete this resident',
+  succession: 'Succession',
 };
 
 /**
@@ -35,7 +37,8 @@ export function SettingsPage({ section, onBack }: { section: SettingsSection; on
   // The house queue draws its own heads (screen:next-house): its list says Work, and each page under it has its own way back.
   const pagePath = useShell((s) => s.pagePath);
   // Work is a subject, left by the subject menu: no Back at its top either.
-  const inQueue = section === 'queue';
+  // Her succession draws its own heads too: each of its pages has a title row and its own way back.
+  const inQueue = section === 'queue' || section === 'succession';
   const lede: Record<SettingsSection, string> = {
     ledger: `What ${name} may spend, by purpose, and what has been spent.`,
     kinds: `The kinds of document ${name}'s records hold, and every way into or out of her house.`,
@@ -46,6 +49,7 @@ export function SettingsPage({ section, onBack }: { section: SettingsSection; on
     backups: `Where ${name}'s records are pushed each night, conversations brought from ChatGPT, and the report ladder.`,
     presence: `${name} reading the community you follow, and what that earned, waiting on your word before it goes out as Allen Strut.`,
     delete: `Only before ${name}'s first conversation with you.`,
+    succession: `${name}'s succession.`,
   };
   return (
     // Each page under the queue opens at its top.
@@ -56,14 +60,15 @@ export function SettingsPage({ section, onBack }: { section: SettingsSection; on
             ‹ Back
           </button>
         )}
-        {section !== 'queue' && <h1 className={css.title}>{TITLES[section]}</h1>}
-        {section !== 'queue' && <p className={css.lede}>{lede[section]}</p>}
+        {!inQueue && <h1 className={css.title}>{TITLES[section]}</h1>}
+        {!inQueue && <p className={css.lede}>{lede[section]}</p>}
         {section === 'ledger' && <Ledger />}
         {section === 'kinds' && <Kinds />}
         {section === 'connections' && <Connections />}
         {section === 'notifications' && <Notifications />}
         {section === 'regression' && <Regression />}
         {section === 'queue' && <HouseWork />}
+        {section === 'succession' && <SuccessionPage onBack={onBack} />}
         {section === 'backups' && <Backups />}
         {section === 'presence' && <Presence />}
         {section === 'delete' && <Discard id={id} name={name} onGone={onBack} />}

@@ -419,7 +419,14 @@ defmodule Oneiroi.Kumbukumbu.Memories do
   @doc "The turn's words embedded once, after refreshing the bookmarks' vectors (kumbukumbu#46)."
   def memory_query(resident_id, text, %Actor{} = actor, opts \\ []) do
     if Keyword.get(opts, :refresh, true), do: _ = Madeleine.refresh(resident_id, actor)
-    Madeleine.query(resident_id, text, actor, Keyword.get(opts, :purpose, :embeddings))
+
+    Madeleine.query(
+      resident_id,
+      text,
+      actor,
+      Keyword.get(opts, :purpose, :embeddings),
+      Keyword.get(opts, :ledger) || resident_id
+    )
   end
 
   @doc "The madeleine for a vector already embedded, within the current domain of `session_key`, past what the index returned."
@@ -1102,6 +1109,10 @@ defmodule Oneiroi.Kumbukumbu.Memories do
 
   @doc "Every house letter, oldest first, each with the conversations that read it."
   def letters(resident_id), do: Scope.resident(resident_id, fn -> Store.house_letters() end)
+
+  @doc "Her tool calls in `[from, to)` counted by model (kumbukumbu#114)."
+  def tool_call_counts(resident_id, from_at, to_at, failures),
+    do: Scope.resident(resident_id, fn -> Store.tool_call_counts(from_at, to_at, failures) end)
 
   @doc "The tool rows in `[from, to)` (kumbukumbu#101)."
   def tool_rows(resident_id, from_at, to_at),

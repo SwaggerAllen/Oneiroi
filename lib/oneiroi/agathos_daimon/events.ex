@@ -97,6 +97,19 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :from_account_id, :to_account_id]
   end
 
+  # A decision (agathos-daimon#63): this resident is a succession's fork
+  # copy of `source`, never ticked, listed or woken.
+  defmodule ForkMarked do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :source, :sequence, :commit]
+  end
+
+  # A decision on her own stream, life-record (janus#26): a succession
+  # rolled forward and she goes on, on `model`. Its process's record is
+  # Janus's, sealed; this says only that it happened.
+  defmodule SuccessionRecorded do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :episode, :model]
+  end
+
   defmodule Imported do
     use Oneiroi.Event, version: 1, fields: [:id, :source, :attestation, :root, :sequence]
   end

@@ -1,0 +1,85 @@
+# The succession rehearsed (janus#27): a whole succession on a fixture
+# resident, the real replacement at its end, on a throwaway Postgres and
+# the fake provider, against whichever ref is chosen. A cadence, never a
+# gate: run it on demand, before a real succession and after a change to
+# the cutover, the fork or the export.
+name: succession rehearsal
+
+on:
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: The ref to rehearse (a branch, a tag or a commit); the one dispatched from when empty
+        type: string
+        required: false
+        default: ""
+      provider:
+        description: fake (no model call), or openrouter (real calls on the fixture run's key)
+        type: choice
+        options: [fake, openrouter]
+        default: fake
+      chat_model:
+        description: On openrouter, her model (the baseline's), an OpenRouter slug
+        type: string
+        default: meta-llama/llama-3.1-8b-instruct
+      models:
+        description: On openrouter, the two candidates, comma separated; each must take tool calls
+        type: string
+        default: mistralai/mistral-small-3.2-24b-instruct,meta-llama/llama-3.3-70b-instruct
+
+permissions:
+  contents: read
+
+jobs:
+  rehearse:
+    runs-on: ubuntu-latest
+    env:
+      MIX_ENV: test
+      PGHOST: localhost
+      PGUSER: oneiroi
+      PGPASSWORD: oneiroi
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: oneiroi
+          POSTGRES_PASSWORD: oneiroi
+          POSTGRES_DB: oneiroi_test
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - uses: erlef/setup-beam@v1
+        with:
+          version-file: .tool-versions
+          version-type: strict
+
+      - uses: actions/cache@v4
+        with:
+          path: |
+            deps
+            _build
+          key: rehearsal-${{ runner.os }}-${{ hashFiles('.tool-versions', 'mix.lock') }}
+
+      - name: deps
+        run: mix deps.get --check-locked
+
+      - name: database
+        run: mix ecto.drop --quiet && mix ecto.create --quiet && mix ecto.migrate --quiet
+
+      # The one OpenRouter key, the fixture run's, by the one name the
+      # rehearsal reads; printed nowhere, and set only for openrouter.
+      - name: rehearse
+        env:
+          REHEARSE_PROVIDER: ${{ inputs.provider }}
+          REHEARSE_CHAT_MODEL: ${{ inputs.provider == 'openrouter' && inputs.chat_model || '' }}
+          REHEARSE_MODELS: ${{ inputs.provider == 'openrouter' && inputs.models || '' }}
+          OPENROUTER_API_KEY: ${{ inputs.provider == 'openrouter' && secrets.OPENROUTER_API_KEY || '' }}
+        run: mix oneiroi.succession.rehearse

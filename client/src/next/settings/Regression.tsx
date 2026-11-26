@@ -4,6 +4,8 @@ import { api } from '../../api/client';
 import type { Grade, RegressionCard, RegressionResult, RegressionRun, RegressionRunDetail, RegressionTest, TestTexts, TraceStep } from '../../api/types';
 import { joinRun } from '../live/socket';
 import { byTrial } from './deck';
+import { Catalog } from './Catalog';
+import { useShell } from '../state/store';
 import { argumentsText, plural, saidOf, settingsKey, trialCount, withCard } from './logic';
 import { useSubject } from '../state/resident';
 import { Card, Said, TextArea } from './common';
@@ -21,7 +23,9 @@ const BLANK: TestTexts = { prompt: '', passes_if: '', fails_if: '' };
  */
 export function Regression() {
   const { id } = useSubject();
-  const [view, setView] = useState<'trials' | 'runs'>('trials');
+  // `#/settings/regression/catalog` opens on the catalog (the succession's pool links here).
+  const opening = useShell((s) => s.pagePath);
+  const [view, setView] = useState<'trials' | 'runs' | 'catalog'>(opening === 'catalog' ? 'catalog' : 'trials');
   const [open, setOpen] = useState<string | null>(null);
   const tests = useQuery({
     queryKey: settingsKey(id, 'regression', 'tests'),
@@ -43,8 +47,17 @@ export function Regression() {
         <button type="button" className={css.secondary} aria-pressed={view === 'runs'} onClick={() => setView('runs')}>
           Runs · {runs.data?.length ?? 0}
         </button>
+        <button type="button" className={css.secondary} aria-pressed={view === 'catalog'} onClick={() => setView('catalog')}>
+          Catalog
+        </button>
       </div>
-      {view === 'trials' ? <Trials tests={trials} pending={tests.isPending} /> : <Runs tests={trials} runs={runs.data ?? []} onOpen={setOpen} onStarted={(ref) => setOpen(ref)} />}
+      {view === 'trials' ? (
+        <Trials tests={trials} pending={tests.isPending} />
+      ) : view === 'runs' ? (
+        <Runs tests={trials} runs={runs.data ?? []} onOpen={setOpen} onStarted={(ref) => setOpen(ref)} />
+      ) : (
+        <Catalog />
+      )}
     </>
   );
 }

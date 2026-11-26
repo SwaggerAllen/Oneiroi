@@ -80,7 +80,10 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     end
   end
 
-  def for_witness(account_id), do: Scope.account(account_id, fn -> Store.all() end)
+  # A succession's fork copy is the platform's, never a resident the
+  # witness keeps (agathos-daimon#63).
+  def for_witness(account_id),
+    do: Scope.account(account_id, fn -> Enum.reject(Store.all(), &(&1.state == "fork")) end)
 
   def fetch(id) do
     case Scope.resident(id, fn -> Store.get(id) end) do
@@ -129,6 +132,20 @@ defmodule Oneiroi.AgathosDaimon.Residents do
       id: id,
       model: model,
       reason: reason
+    }
+
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
+  end
+
+  @doc "Records on her own stream that a succession rolled forward (janus#26)."
+  def record_succession(id, episode, model, note, %Actor{} = actor) do
+    command = %Commands.RecordSuccession{
+      actor: actor,
+      at: Clock.now(),
+      id: id,
+      episode: episode,
+      model: model,
+      note: note
     }
 
     with {:ok, _} <- Router.dispatch_sited(command), do: :ok

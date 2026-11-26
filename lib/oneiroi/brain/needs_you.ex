@@ -43,7 +43,9 @@ defmodule Oneiroi.Brain.NeedsYou do
     Oneiroi.Brain.NeedsYou.Contracts,
     Oneiroi.Brain.NeedsYou.Remote,
     # The house queue's activities waiting on him (sunna#80).
-    Oneiroi.Brain.NeedsYou.Queue
+    Oneiroi.Brain.NeedsYou.Queue,
+    # A succession's parts waiting on him (janus#29), first in the list.
+    Oneiroi.Brain.NeedsYou.Succession
   ]
 
   # Past this an entry is marked as having waited long. A mark only.
@@ -79,6 +81,9 @@ defmodule Oneiroi.Brain.NeedsYou do
     timed
     |> Enum.flat_map(&elem(&1, 2))
     |> Enum.sort_by(& &1.since, DateTime)
+    # A succession's alerts go to the top (the witness, 2026-11-26), in
+    # their own order; the rest stay oldest first.
+    |> Enum.sort_by(&if(String.starts_with?(&1.kind, "succession_"), do: 0, else: 1))
     |> Enum.map(
       &(&1
         |> Map.from_struct()

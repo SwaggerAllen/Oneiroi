@@ -119,6 +119,28 @@ defmodule Oneiroi.SimaQian.Backup do
     end
   end
 
+  @doc """
+  A remote's shape and its host's answer, recorded nowhere (janus#5):
+  a succession's backup is the succession's to record. An unpushable
+  remote is refused as `set_remote_checked/4` refuses it.
+  """
+  def check_remote(url, token) when is_binary(url) do
+    url = String.trim(url)
+
+    with :ok <- Remote.shape(url) do
+      case Remote.check(url, token) do
+        %{push: "no"} ->
+          {:error,
+           Error.new(:sima_qian_remote_unpushable, :sima_qian_succession_remote_unpushable)}
+
+        check ->
+          {:ok, check}
+      end
+    end
+  end
+
+  def check_remote(_url, _token), do: Remote.shape(nil)
+
   @doc "Asks the remote's host again and records what changed (sima-qian#65); never stops a backup."
   def recheck_remote(resident_id, %Actor{} = actor) do
     case Scope.resident(resident_id, fn -> Store.get(resident_id) end) do

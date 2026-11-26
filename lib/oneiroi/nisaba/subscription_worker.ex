@@ -16,7 +16,12 @@ defmodule Oneiroi.Nisaba.SubscriptionWorker do
   @actor Actor.new(:job, "nisaba_subscriptions")
 
   def run(_args) do
-    for row <- AgathosDaimon.residents(), do: Subscriptions.nightly(row.id, @actor)
+    # A succession's fork copy carries her subscription's events and is
+    # no resident to lapse or move (agathos-daimon#63).
+    for row <- AgathosDaimon.residents(),
+        row.state != "fork",
+        do: Subscriptions.nightly(row.id, @actor)
+
     :ok
   end
 end

@@ -18,6 +18,7 @@ defmodule OneiroiWeb do
       Oneiroi.Glitnir,
       Oneiroi.Seshat,
       Oneiroi.HuginnMuninn,
+      Oneiroi.Janus,
       Oneiroi.Sunna,
       Oneiroi.Xenia,
       OpenApiSpex,

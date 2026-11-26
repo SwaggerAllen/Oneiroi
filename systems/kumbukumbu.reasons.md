@@ -851,3 +851,9 @@ Context is not provenance. A row that sat beside a recovery bookmark in the time
 
 ## #113
 Once a turn has read something, nothing proves its words did not draw on it; only a turn that never read it proves that. Redoing the generation without the held pieces turns a judgement call into a construction, and costs one turn. Queued behind the calling turn because a session runs one turn at a time.
+
+## #114
+Counting well-formed tool calls needs every resident's calls, and her solo sessions are private as to their words (the agreement). Counting in the query, with the failure texts passed in, means the words never reach the caller: the platform learns how a model behaves, never what anyone did with it.
+
+## #115
+The encounter is hers and the nominee's; her main chat is shared with her witness, and a thread of its own, private like free time, keeps it between them while it still lands in each one's memory.

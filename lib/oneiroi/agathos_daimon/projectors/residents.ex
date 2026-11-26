@@ -48,14 +48,27 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     SwitchOverride
   ]
 
+  # A succession's fork copy is a fork from its first fold
+  # (agathos-daimon#63): its replay carries `fork_of`, and no fold after
+  # moves its state, so no tick or wake finds it active between the
+  # replay and its `ForkMarked`.
   fold(%Events.ResidentCreated{} = e, metadata, fn multi ->
+    fork_of = Map.get(metadata, "fork_of")
+
     Multi.insert(multi, :resident, %Resident{
       id: e.id,
       resident_id: e.id,
       account_id: e.witness_account_id,
-      slug: if(imported?(metadata), do: e.slug <> "-" <> String.slice(e.id, 0, 8), else: e.slug),
+      # A succession's cutover puts her own events back under her own id
+      # (sima-qian#68): her slug, unsuffixed.
+      slug:
+        if(imported?(metadata) and not cutover?(metadata),
+          do: e.slug <> "-" <> String.slice(e.id, 0, 8),
+          else: e.slug
+        ),
       name: e.name,
-      state: "active",
+      state: if(fork_of, do: "fork", else: "active"),
+      fork_of: fork_of,
       custody: "account:" <> e.witness_account_id,
       created_at: e.at
     })
@@ -263,6 +276,12 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
     set(multi, e.id, export_wall: e.wall)
   end)
 
+  fold(%Events.ForkMarked{} = e, _metadata, fn multi ->
+    Multi.update_all(multi, :fork, from(r in Resident, where: r.id == ^e.id),
+      set: [state: "fork", fork_of: e.source]
+    )
+  end)
+
   fold(%Events.Imported{} = e, _metadata, fn multi ->
     set(multi, e.id,
       import_source: e.source,
@@ -339,6 +358,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   end)
 
   defp imported?(metadata), do: Map.get(metadata, "imported", false) == true
+  defp cutover?(metadata), do: Map.get(metadata, "cutover", false) == true
 
   # Keys as the codec returns them, whichever way the event arrived.
   defp stringify(counts) when is_map(counts),
@@ -722,12 +742,21 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   defp actor_id(%{id: id}) when not is_nil(id), do: to_string(id)
   defp actor_id(_actor), do: nil
 
+  # A fork copy's state is "fork" whatever its replayed history says
+  # (agathos-daimon#63): a state its source lived through is not one
+  # the copy enters.
   defp set(multi, id, fields) do
-    Multi.update_all(
-      multi,
-      {:set, id, Keyword.keys(fields)},
-      from(r in Resident, where: r.id == ^id),
-      set: fields
+    {state, rest} = Keyword.split(fields, [:state, :admission])
+
+    multi
+    |> update({:set, id, Keyword.keys(fields)}, from(r in Resident, where: r.id == ^id), rest)
+    |> update(
+      {:set_state, id, Keyword.keys(fields)},
+      from(r in Resident, where: r.id == ^id and is_nil(r.fork_of)),
+      state
     )
   end
+
+  defp update(multi, _name, _query, []), do: multi
+  defp update(multi, name, query, fields), do: Multi.update_all(multi, name, query, set: fields)
 end

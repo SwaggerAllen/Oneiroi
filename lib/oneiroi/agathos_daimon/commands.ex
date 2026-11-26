@@ -98,6 +98,18 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, decision: true, fields: [:id, :wall]
   end
 
+  # A succession's fork copy (agathos-daimon#63): `source` is the
+  # resident it was copied from, `sequence` the last of her events it
+  # holds, `commit` her repository's head it copied.
+  defmodule MarkFork do
+    use Oneiroi.Command, decision: true, fields: [:id, :source, :sequence, :commit]
+  end
+
+  # A succession rolled forward (janus#26): the model she goes on as.
+  defmodule RecordSuccession do
+    use Oneiroi.Command, decision: true, fields: [:id, :episode, :model]
+  end
+
   defmodule ImportResident do
     use Oneiroi.Command, fields: [:id, :source, :attestation, :root, :sequence]
   end

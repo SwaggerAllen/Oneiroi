@@ -995,3 +995,12 @@ A run that is thinking for twenty minutes and a run whose job died look the same
 
 ## #120
 A model that can only write whole files regenerates the whole file to change a line, which is slow, costs the whole document in one call, and risks dropping what it did not mean to touch. An exact-match edit, refused when ambiguous, changes only what was asked and leaves the rest byte for byte.
+
+## #121
+A screen that asks her something puts the question where she isn't: she lives in turns. Making each act a tool keeps her yes in her own words, in her own turn, with its note as the decision; and answering them unrun in a trial is the same rule every write follows there, which matters more here than anywhere, since the trials that screen her successors run on her fork.
+
+## #122
+The turn is the brain's, and the succession needs turns on a resident who is not the one whose tools are asking; three narrow exports keep Janus from knowing how a turn is made, and the port keeps the dependency one-way.
+
+## #123
+One list is where the witness looks for what waits on him; a succession's parts belong in it, and at its head, because the process waits on them.

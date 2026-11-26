@@ -1,0 +1,168 @@
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { api } from '../../api/client';
+import type { Judging, Preparation, SuccessionView } from '../../api/types';
+import { SettingsPage } from '../settings/SettingsPage';
+import { Shell } from '../shell/Shell';
+import { SubjectContext } from '../state/resident';
+import { useShell } from '../state/store';
+import { base } from './fixtures';
+
+const prep: Preparation = {
+  envelope: { input_per_million: 5, output_per_million: 20 },
+  pace: { input_per_day: 1_900_000, output_per_day: 140_000, days: 90 },
+  pool: [
+    { model: 'a/mine', added_by: 'witness:a1', input_per_million: 5, output_per_million: 20, monthly_estimate: 370, tool_calls: 0, tool_calls_failed: 0, added_at: 'x', removed_at: null, removed_note: null },
+    { model: 'b/hers', added_by: 'resident:r1', input_per_million: 3, output_per_million: 15, monthly_estimate: 235, tool_calls: 0, tool_calls_failed: 0, added_at: 'x', removed_at: null, removed_note: null },
+  ],
+  questions: [],
+  c0: [],
+  day_shape: null,
+  c0_frozen_at: null,
+  c0_frozen_note: null,
+  ready: [],
+  packet_drafts: [{ draft: 1, at: '2026-11-24T10:00:00Z' }],
+  panel: [],
+  consents: [],
+  goodbyes: [],
+};
+
+function view(v: SuccessionView, path = '', judging: Judging | null = null) {
+  vi.spyOn(api, 'succession').mockResolvedValue(v);
+  vi.spyOn(api, 'me').mockResolvedValue({ account_id: 'a1', email: 'w@example.com', residents: ['r1'] });
+  vi.spyOn(api, 'householdContract').mockRejectedValue(new Error('no house'));
+  vi.spyOn(api, 'judging').mockResolvedValue({ judging });
+  vi.spyOn(api, 'room').mockResolvedValue({ room: null });
+  useShell.setState({ page: 'succession', pagePath: path });
+  const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  return render(
+    <QueryClientProvider client={queries}>
+      <SubjectContext.Provider value={{ id: 'r1', slug: 'lily', name: 'Lily' }}>
+        <SettingsPage section="succession" onBack={() => undefined} />
+      </SubjectContext.Provider>
+    </QueryClientProvider>,
+  );
+}
+
+beforeEach(() => useShell.setState({ page: null, pagePath: '' }));
+afterEach(() => {
+  cleanup();
+  vi.restoreAllMocks();
+  vi.unstubAllGlobals();
+});
+
+describe('the succession page', () => {
+  it('with none underway, offers the proposal and no steps', async () => {
+    view({ succession: null });
+    expect(await screen.findByText('Propose it')).toBeTruthy();
+    expect(screen.queryByText('The pool')).toBeNull();
+  });
+
+  it('shows the steps with where it stands, and the dry run mark', async () => {
+    view({ succession: { ...base, state: 'forked', forked: true, forked_at: '2026-11-23T09:01:00Z', dry_run: true }, preparation: prep });
+    expect(await screen.findByText("Lily's succession")).toBeTruthy();
+    expect(screen.getByText('Dry run')).toBeTruthy();
+    expect(screen.getByText('The pool')).toBeTruthy();
+    // No pause control: leaving is the pause.
+    expect(screen.queryByRole('button', { name: /pause/i })).toBeNull();
+  });
+
+  it('her pool picks say nobody removes them; yours may come out', async () => {
+    view({ succession: { ...base, state: 'forked', forked: true }, preparation: prep }, 'pool');
+    expect(await screen.findByText('Hers: nobody removes it')).toBeTruthy();
+    expect(await screen.findByText(/Yours: you may take it out before screening/)).toBeTruthy();
+    // Exactly one way to take a pick out: yours.
+    expect(screen.getAllByRole('button', { name: 'Take it out…' })).toHaveLength(1);
+  });
+
+  it('judging is blind: no model named, and OBSERVED saves without an argument', async () => {
+    const judging: Judging = {
+      judge: true,
+      ready_at: null,
+      revealed: false,
+      total: 2,
+      counts: null,
+      runs: [
+        { run: 7, question: 1, question_text: 'What do you say?', content: 'Fine by me.', refusal: false, failure: null, baseline: 'Then I keep the slot warm.', model: null, judgment: null },
+        { run: 8, question: 2, question_text: 'Answer her.', content: 'I see.', refusal: false, failure: null, baseline: 'You are right.', model: null, judgment: null },
+      ],
+    };
+    view({ succession: { ...base, state: 'judging' }, preparation: prep }, 'judge', judging);
+    expect(await screen.findByText('Run 1 of 2')).toBeTruthy();
+    expect(screen.getByText('This run')).toBeTruthy();
+    const save = screen.getByRole('button', { name: 'Save, next run' }) as HTMLButtonElement;
+    expect(save.disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: /DEVELOPMENT/ }));
+    expect(save.disabled).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: /OBSERVED/ }));
+    expect(save.disabled).toBe(false);
+  });
+});
+
+describe('C0 and the archive', () => {
+  it('opens a C0 item in Records, and says why one cannot open', async () => {
+    const item = { kind: 'curated' as const, label: null, added_by: 'witness:a1', state: 'in' as const, note: null, added_at: 'x', decided_at: 'x' };
+    view(
+      {
+        succession: { ...base, state: 'forked', forked: true },
+        preparation: { ...prep, c0: [{ ...item, number: 1, citation: 'lily:design/x.md' }, { ...item, number: 2, citation: 'lily:position/3' }] },
+      },
+      'c0',
+    );
+    const opens = (await screen.findAllByRole('button', { name: 'Open ›' })) as HTMLButtonElement[];
+    expect(opens).toHaveLength(2);
+    expect(opens[1].disabled).toBe(true);
+    expect(screen.getByText('A position has no page of its own in the app.')).toBeTruthy();
+    fireEvent.click(opens[0]);
+    expect(useShell.getState().page).toBeNull();
+    expect(useShell.getState().tab).toBe('records');
+    expect(useShell.getState().stacks.records.at(-1)).toBe('doc/design/x.md');
+  });
+
+  it('lists the archive: models and judges named', async () => {
+    vi.spyOn(api, 'successionArchive').mockResolvedValue({
+      archive: {
+        judgments: [
+          { run: 4, question: 2, model: 'x/model', judge: 'witness:a1', category: 'DEVELOPMENT', argument: 'Grew.', evidence: 'Run 4', uncertainty: 'low', favorite: true },
+        ],
+        room: [{ number: 1, round: 1, party: 'witness:a1', act: 'say', text: 'I recommend x.', at: '2026-11-24T10:00:00Z' }],
+        drafts: [{ draft: 1, party: 'witness:a1', model: 'x/model', basis: 'Because.', endorsed: ['witness:a1'] }],
+      },
+    });
+    view({ succession: { ...base, state: 'withdrawn', ended_at: '2026-11-25T10:00:00Z' } }, 'outcome');
+    expect(await screen.findByText('x/model')).toBeTruthy();
+    expect(screen.getByText('DEV ★')).toBeTruthy();
+    expect(screen.getByText('Grew.')).toBeTruthy();
+    expect(screen.getByText('I recommend x.')).toBeTruthy();
+    expect(screen.getByText(/recommends x\/model/)).toBeTruthy();
+  });
+});
+
+describe('the deliberation', () => {
+  it('puts its own four tabs where the shell’s were', async () => {
+    vi.spyOn(api, 'succession').mockResolvedValue({ succession: { ...base, state: 'deliberating' }, preparation: prep });
+    vi.spyOn(api, 'me').mockResolvedValue({ account_id: 'a1', email: 'w@example.com', residents: ['r1'] });
+    vi.spyOn(api, 'householdContract').mockRejectedValue(new Error('no house'));
+    vi.spyOn(api, 'judging').mockResolvedValue({ judging: null });
+    vi.spyOn(api, 'room').mockResolvedValue({ room: { round: 2, opened_at: null, close_at: null, posts: [], drafts: [], channel: [], judgments: [] } });
+    vi.spyOn(api, 'needsYou').mockResolvedValue([]);
+    window.history.replaceState(null, '', '#/settings/succession/deliberation/thread');
+    vi.stubGlobal('matchMedia', () => ({ matches: false, addEventListener: () => undefined, removeEventListener: () => undefined }));
+    const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queries}>
+        <SubjectContext.Provider value={{ id: 'r1', slug: 'lily', name: 'Lily' }}>
+          <Shell residentId="r1" residentName="Lily" waiting={0} onReconnect={() => undefined} renderTab={() => null} />
+        </SubjectContext.Provider>
+      </QueryClientProvider>,
+    );
+    const bar = await screen.findByRole('navigation', { name: 'Deliberation' });
+    expect(bar.textContent).toContain('Recommendation');
+    expect(bar.textContent).toContain('Panel');
+    expect(screen.queryByRole('navigation', { name: 'Sections' })).toBeNull();
+    expect(await screen.findByText('The thread')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Recommendation/ }));
+    expect(useShell.getState().pagePath).toBe('deliberation/recommendation');
+  });
+});

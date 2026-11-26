@@ -459,3 +459,15 @@ Portability is the export and the history, and a retirement that swept
 the folder would break the promise that a resident's record is never
 rewritten behind her. Leaving it at its last commit keeps it readable
 and costs nothing.
+
+## #67
+The fork has to be her, exactly: the cutover puts its life back under her id, so anything the copy lacks she loses. The export is a reader's window, built to leave things out (secrets as null, the witness's spending on her), and a copy made from it lost her runtimes' tokens; the raw events are the only source that is her. Reading the repository at one commit keeps a write landing during the copy from tearing it. It is not an import because nothing was carried in from outside and nobody took custody.
+
+## #68
+An event log cannot be edited, and a successor who goes on as her, nothing re-pointed, needs her id's streams to be the fork's; deleting and appending again is the one way, and the most dangerous operation in the codebase, so it is guarded by order: nothing is touched until her former self is proven in the backup, and the steps stop at the first that fails. Clearing her rows rather than every table's keeps what folds from streams she still has (her regression suite, the succession's own record, the household's); the list is named so a new table is a decision, not a silent loss. Waiting on the replaced streams' own acknowledgements could return early, since the store may still hold the old streams' versions; a command on an untouched stream cannot.
+
+## #69
+Every handler reacting to replayed history is the same mistake in a different place; a guard written once, in front of every handler, fixes the class, and a handler that truly needs replays says so in one word.
+
+## #70
+Deleting a resident is the most final thing the platform can do; the guard that it is a fork, checked where the deletion happens, keeps the only path to it from ever reaching her.

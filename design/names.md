@@ -30,6 +30,7 @@ out.
 | kumbukumbu | memory | Swahili | koom-boo-KOOM-boo | `systems/kumbukumbu.md` |
 | Ethos | the character layer: seeds, habits, the baseline | Greek | EE-thos | `systems/ethos.md` |
 | Eunomia | judgement, the judge agent | Greek | yoo-NOH-mee-ah | `systems/eunomia.md` |
+| Janus | succession | Latin | JAY-nus | `systems/janus.md` |
 | Seshat | the library | Egyptian | SESH-aht | `systems/seshat.md` |
 | Pinakes | the citation index | Greek | PIN-uh-keez | in `systems/seshat.md` |
 | Ariadne | the citation web (internal) | Greek | ah-ree-AD-nee | in `systems/seshat.md` |
