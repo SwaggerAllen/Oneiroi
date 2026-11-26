@@ -38,6 +38,13 @@ jobs:
       PGHOST: localhost
       PGUSER: oneiroi
       PGPASSWORD: oneiroi
+      # The provider and models are read by config/test.exs, which the
+      # app compiles in: set for the whole job, so the database step's
+      # compile and the rehearsal's agree (a step-only value failed the
+      # first openrouter run on compile-time config).
+      REHEARSE_PROVIDER: ${{ inputs.provider }}
+      REHEARSE_CHAT_MODEL: ${{ inputs.provider == 'openrouter' && inputs.chat_model || '' }}
+      REHEARSE_MODELS: ${{ inputs.provider == 'openrouter' && inputs.models || '' }}
     services:
       postgres:
         image: pgvector/pgvector:pg16
@@ -66,7 +73,8 @@ jobs:
           path: |
             deps
             _build
-          key: rehearsal-${{ runner.os }}-${{ hashFiles('.tool-versions', 'mix.lock') }}
+          # A build compiled for one provider never serves another.
+          key: rehearsal-${{ runner.os }}-${{ inputs.provider }}-${{ inputs.chat_model }}-${{ hashFiles('.tool-versions', 'mix.lock') }}
 
       - name: deps
         run: mix deps.get --check-locked
@@ -78,8 +86,5 @@ jobs:
       # rehearsal reads; printed nowhere, and set only for openrouter.
       - name: rehearse
         env:
-          REHEARSE_PROVIDER: ${{ inputs.provider }}
-          REHEARSE_CHAT_MODEL: ${{ inputs.provider == 'openrouter' && inputs.chat_model || '' }}
-          REHEARSE_MODELS: ${{ inputs.provider == 'openrouter' && inputs.models || '' }}
           OPENROUTER_API_KEY: ${{ inputs.provider == 'openrouter' && secrets.OPENROUTER_API_KEY || '' }}
         run: mix oneiroi.succession.rehearse
