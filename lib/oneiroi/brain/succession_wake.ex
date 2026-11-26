@@ -15,7 +15,7 @@ defmodule Oneiroi.Brain.SuccessionWake do
 
   @actor Actor.new(:job, "janus")
 
-  @doc "Wakes `resident_id` in her main conversation with `note`."
+  @doc "Wakes `resident_id` in her main conversation with `note`; `{:ok, %{turn_ref, reply}}`, her reply's words."
   @spec wake(String.t(), String.t()) :: {:ok, map()} | {:error, term()}
   def wake(resident_id, note) do
     with {:ok, row} <- fetch(resident_id),
@@ -29,11 +29,24 @@ defmodule Oneiroi.Brain.SuccessionWake do
   defp admitted(resident_id, key, note) do
     case AgathosDaimon.admission(resident_id) do
       :open ->
-        Session.wake(resident_id, key, note, :succession, [])
+        with {:ok, captured} <- Session.wake(resident_id, key, note, :succession, []),
+             do: {:ok, %{turn_ref: captured.turn_ref, reply: reply(captured.messages)}}
 
       admission ->
         {:error,
          Error.new(:brain_resident_guarded, :brain_succession_wake_guarded, admission: admission)}
+    end
+  end
+
+  # Her reply's words, the turn's last assistant message: what the
+  # encounter carries to the other side (janus#18).
+  defp reply(messages) do
+    messages
+    |> Enum.filter(&(to_string(&1[:role] || &1["role"]) == "assistant"))
+    |> List.last()
+    |> case do
+      nil -> ""
+      m -> m[:content] || m["content"] || ""
     end
   end
 

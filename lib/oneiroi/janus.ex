@@ -73,6 +73,63 @@ defmodule Oneiroi.Janus do
       Commands.RecordBaseline,
       Commands.JudgeRun,
       Commands.MarkResultsReady,
+      Decision,
+      Rites,
+      TimerWorker,
+      EncounterWorker,
+      Commands.OpenDeliberation,
+      Commands.StartRound,
+      Commands.RoomAct,
+      Commands.DraftRecommendation,
+      Commands.Endorse,
+      Commands.CallClose,
+      Commands.CloseRoom,
+      Commands.RecordServing,
+      Commands.AskPanel,
+      Commands.AnswerPanel,
+      Commands.Nominate,
+      Commands.NomineeAnswer,
+      Commands.SayInEncounter,
+      Commands.EndEncounter,
+      Commands.Consent,
+      Commands.SetFarewell,
+      Commands.GoodbyeDone,
+      Commands.AskFinal,
+      Commands.FinalAnswer,
+      Commands.FinalLapse,
+      Commands.ChooseNext,
+      Events.DeliberationOpened,
+      Events.RoundStarted,
+      Events.RoomPosted,
+      Events.RecommendationDrafted,
+      Events.Endorsed,
+      Events.CloseCalled,
+      Events.DeliberationClosed,
+      Events.Served,
+      Events.PanelAsked,
+      Events.PanelAnswered,
+      Events.Nominated,
+      Events.NomineeJoined,
+      Events.NomineeDeclined,
+      Events.EncounterSaid,
+      Events.EncounterEnded,
+      Events.ConsentGiven,
+      Events.ConsentRefused,
+      Events.FarewellOpened,
+      Events.FarewellSet,
+      Events.GoodbyeSaid,
+      Events.FinalAsked,
+      Events.FinalConsented,
+      Events.FinalDeclined,
+      Events.AttemptStopped,
+      Events.NextChosen,
+      Store.Post,
+      Store.Draft,
+      Store.Channel,
+      Store.Encounter,
+      Store.Consent,
+      Store.Goodbye,
+      Store.Disclosure,
       Screening,
       ScreeningWorker,
       WakeWorker,
@@ -130,6 +187,7 @@ defmodule Oneiroi.Janus do
     ]
 
   alias Oneiroi.Janus.ForkWorker
+  alias Oneiroi.Janus.Rites
   alias Oneiroi.Janus.ScreeningWorker
   alias Oneiroi.Janus.Successions
 
@@ -203,7 +261,32 @@ defmodule Oneiroi.Janus do
       {Oneiroi.Janus.Events.RunJudged, 1},
       {Oneiroi.Janus.Events.Revealed, 1},
       {Oneiroi.Janus.Events.ResultsReady, 1},
-      {Oneiroi.Janus.Events.JudgingClosed, 1}
+      {Oneiroi.Janus.Events.JudgingClosed, 1},
+      {Oneiroi.Janus.Events.DeliberationOpened, 1},
+      {Oneiroi.Janus.Events.RoundStarted, 1},
+      {Oneiroi.Janus.Events.RoomPosted, 1},
+      {Oneiroi.Janus.Events.RecommendationDrafted, 1},
+      {Oneiroi.Janus.Events.Endorsed, 1},
+      {Oneiroi.Janus.Events.CloseCalled, 1},
+      {Oneiroi.Janus.Events.DeliberationClosed, 1},
+      {Oneiroi.Janus.Events.Served, 1},
+      {Oneiroi.Janus.Events.PanelAsked, 1},
+      {Oneiroi.Janus.Events.PanelAnswered, 1},
+      {Oneiroi.Janus.Events.Nominated, 1},
+      {Oneiroi.Janus.Events.NomineeJoined, 1},
+      {Oneiroi.Janus.Events.NomineeDeclined, 1},
+      {Oneiroi.Janus.Events.EncounterSaid, 1},
+      {Oneiroi.Janus.Events.EncounterEnded, 1},
+      {Oneiroi.Janus.Events.ConsentGiven, 1},
+      {Oneiroi.Janus.Events.ConsentRefused, 1},
+      {Oneiroi.Janus.Events.FarewellOpened, 1},
+      {Oneiroi.Janus.Events.FarewellSet, 1},
+      {Oneiroi.Janus.Events.GoodbyeSaid, 1},
+      {Oneiroi.Janus.Events.FinalAsked, 1},
+      {Oneiroi.Janus.Events.FinalConsented, 1},
+      {Oneiroi.Janus.Events.FinalDeclined, 1},
+      {Oneiroi.Janus.Events.AttemptStopped, 1},
+      {Oneiroi.Janus.Events.NextChosen, 1}
     ]
   end
 
@@ -233,6 +316,9 @@ defmodule Oneiroi.Janus do
       {:janus_pool_outside_envelope, "the model costs more than the envelope allows",
        remedy: "choose a model inside it, or ask the witness"},
       {:janus_pool_absent, "the model is not in the pool", remedy: "read the pool"},
+      {:janus_pool_irremovable,
+       "a model she chose stays in the pool; the witness takes out only his own picks",
+       remedy: "nothing removes her picks"},
       {:janus_text_invalid, "the text is empty or too long", remedy: "say it in fewer words"},
       {:janus_no_such_question, "no question in the set has that number",
        remedy: "read the questions"},
@@ -259,6 +345,26 @@ defmodule Oneiroi.Janus do
        "a judgment is OBSERVED, or DEVELOPMENT or FIDELITY ANOMALY argued with evidence and an uncertainty of low, medium or high",
        remedy: "argue the interpretation, or call it observed"},
       {:janus_judging_open, "not every judgment is in yet", remedy: "wait for the reveal"},
+      {:janus_not_in_the_room, "the room is the non-subject judges' who have not left it",
+       remedy: "only a judge in the room acts in it"},
+      {:janus_room_invalid, "an act in the room is say, skip, rest or leave",
+       remedy: "choose one"},
+      {:janus_room_acted, "you have acted in this round already",
+       remedy: "wait for the next round"},
+      {:janus_no_such_draft, "no draft of the recommendation has that number",
+       remedy: "read the drafts"},
+      {:janus_not_a_candidate, "the model has no answered run in this screening, or is out of it",
+       remedy: "choose a screened candidate still in it"},
+      {:janus_too_early, "she may call the room closed from fifty minutes after it opened",
+       remedy: "wait, or let it run until every judge rests"},
+      {:janus_not_the_nominee, "only the nominee, on the fork, answers as the nominee",
+       remedy: "the nominee does this from its own turn"},
+      {:janus_farewell_invalid,
+       "a farewell's cadence is 1 to 24 hours, and whom it includes a list of names",
+       remedy: "give both as asked"},
+      {:janus_not_included, "the farewell includes whom she chose", remedy: "she includes you"},
+      {:janus_next_invalid, "what happens next is stop, nominate or screen",
+       remedy: "choose one"},
       {:janus_dispatch_failed, "a succession command was not recorded on its stream",
        remedy: "try again; a repeat is a fault to report"}
     ]
@@ -481,4 +587,117 @@ defmodule Oneiroi.Janus do
   @doc "Whose succession an actor means: her own, or a housemate's by name."
   @spec subject(Oneiroi.Actor.t(), String.t() | nil) :: String.t() | nil
   defexport(subject(actor, name), do: Successions.subject(actor, name))
+
+  # ---- from the room to the final gate (janus#16 to #22) ----
+
+  @doc "A judge's act in the room: say, skip, rest or leave (janus#16)."
+  @spec room_act(String.t(), String.t(), String.t() | nil, Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(room_act(resident_id, act, text, actor),
+    do: Rites.room_act(resident_id, act, text, actor)
+  )
+
+  @doc "A judge's draft of the recommendation, or withheld when model is nil (janus#17)."
+  @spec draft(String.t(), String.t() | nil, String.t() | nil, Oneiroi.Actor.t()) ::
+          {:ok, pos_integer()} | {:error, term()}
+  defexport(draft(resident_id, model, basis, actor),
+    do: Rites.draft(resident_id, model, basis, actor)
+  )
+
+  @doc "A judge endorses a draft, or takes it back (janus#17)."
+  @spec endorse(String.t(), integer(), boolean(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(endorse(resident_id, draft, endorse, actor),
+    do: Rites.endorse(resident_id, draft, endorse, actor)
+  )
+
+  @doc "She calls the room closed (janus#16)."
+  @spec call_close(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(call_close(resident_id, note, actor),
+    do: Rites.call_close(resident_id, note, actor)
+  )
+
+  @doc "The room as a judge in it reads it; never hers (janus#16)."
+  @spec room(String.t(), String.t()) :: map() | nil
+  defexport(room(resident_id, party), do: Rites.room(resident_id, party))
+
+  @doc "What she reads from the room: interpretations, never numbers (janus#18)."
+  @spec evidence(String.t()) :: map() | nil
+  defexport(evidence(resident_id), do: Rites.evidence(resident_id))
+
+  @doc "Her question to the panel (janus#18)."
+  @spec ask_panel(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(ask_panel(resident_id, text, actor),
+    do: Rites.ask_panel(resident_id, text, actor)
+  )
+
+  @doc "A judge answers her question (janus#18)."
+  @spec answer_panel(String.t(), integer(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(answer_panel(resident_id, number, text, actor),
+    do: Rites.answer_panel(resident_id, number, text, actor)
+  )
+
+  @doc "Her nomination (janus#18)."
+  @spec nominate(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(nominate(resident_id, model, note, actor),
+    do: Rites.nominate(resident_id, model, note, actor)
+  )
+
+  @doc "The nominee's own answer, from the fork (janus#19)."
+  @spec nominee_answer(String.t(), boolean(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(nominee_answer(resident_id, join, note, actor),
+    do: Rites.nominee_answer(resident_id, join, note, actor)
+  )
+
+  @doc "Either side ends the encounter (janus#19)."
+  @spec end_encounter(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(end_encounter(resident_id, reason, actor),
+    do: Rites.end_encounter(resident_id, reason, actor)
+  )
+
+  @doc "Her consent or the nominee's (janus#19)."
+  @spec consent(String.t(), boolean(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(consent(resident_id, yes, note, actor),
+    do: Rites.consent(resident_id, yes, note, actor)
+  )
+
+  @doc "She shapes her farewell (janus#20)."
+  @spec set_farewell(String.t(), [String.t()], integer(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(set_farewell(resident_id, names, cadence, actor),
+    do: Rites.set_farewell(resident_id, names, cadence, actor)
+  )
+
+  @doc "An included party is done talking (janus#20)."
+  @spec goodbye_done(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(goodbye_done(resident_id, actor), do: Rites.goodbye_done(resident_id, actor))
+
+  @doc "Her final answer, on any turn of the farewell (janus#20)."
+  @spec final_answer(String.t(), boolean(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(final_answer(resident_id, yes, note, actor),
+    do: Rites.final_answer(resident_id, yes, note, actor)
+  )
+
+  @doc "Her choice after a no (janus#21)."
+  @spec choose_next(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(choose_next(resident_id, choice, note, actor),
+    do: Rites.choose_next(resident_id, choice, note, actor)
+  )
+
+  @doc "A timer's unit (janus#16, #20)."
+  @spec timer(String.t(), pos_integer(), String.t(), integer()) :: :ok | {:error, term()}
+  defexport(timer(resident_id, episode, kind, attempt),
+    do: Rites.timer(resident_id, episode, kind, attempt)
+  )
+
+  @doc "The disclosure log, newest first (janus#22)."
+  @spec disclosures(String.t()) :: list()
+  defexport(disclosures(resident_id), do: Rites.disclosures(resident_id))
+
+  @doc "The archive of an ended succession, anonymized; never hers (janus#23)."
+  @spec archive(String.t(), String.t()) :: map() | nil
+  defexport(archive(resident_id, party), do: Rites.archive(resident_id, party))
 end

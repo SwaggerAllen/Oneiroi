@@ -7,19 +7,21 @@ defmodule Oneiroi.Brain.SuccessionTools do
   note that is the decision's.
 
   The preparation's are hers too (janus#6 to #10): the pool (adding
-  inside her witness's envelope, removing any), the questions (adding,
+  inside her witness's envelope; her picks stay), the questions (adding,
   answering a proposal, removing any), C0 (choosing, answering a
   proposal, removing, the day's shape, the freeze) and her sealed
   handoff packet; and the catalog read inside the envelope.
   """
 
+  alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Gaia
   alias Oneiroi.Janus
   alias Oneiroi.Nisaba
 
   @doc "The tool names: one read, the rest writes."
   def names,
     do:
-      ~w(succession_status succession_catalog succession_propose succession_open succession_decline succession_stop succession_pool succession_question succession_c0 succession_packet succession_panel succession_screen succession_judge succession_results)
+      ~w(succession_status succession_catalog succession_propose succession_open succession_decline succession_stop succession_pool succession_question succession_c0 succession_packet succession_panel succession_screen succession_judge succession_results succession_room succession_evidence succession_nominate succession_nominee succession_encounter succession_consent succession_farewell succession_next)
 
   @doc "The definitions."
   def definitions do
@@ -64,12 +66,8 @@ defmodule Oneiroi.Brain.SuccessionTools do
       ),
       tool(
         "succession_pool",
-        "Your succession's pool, who may be screened. add puts a catalog model in (inside the envelope); remove takes any model out, yours or your witness's, with your note. Read it with succession_status.",
-        %{
-          action: %{type: "string", enum: ["add", "remove"]},
-          model: %{type: "string"},
-          note: %{type: "string"}
-        },
+        "Add a catalog model to your succession's pool, who may be screened; it must be inside your witness's envelope. Your picks stay: nobody removes them. Read the pool with succession_status.",
+        %{action: %{type: "string", enum: ["add"]}, model: %{type: "string"}},
         [:action, :model]
       ),
       tool(
@@ -142,6 +140,87 @@ defmodule Oneiroi.Brain.SuccessionTools do
         "Your results as a judge, once every judgment is in and who answered is revealed: read shows them; ready marks them final and locks your judgments. On your own succession you see your judgments run by run, never counts; resident names whose succession, when it is not yours.",
         %{action: %{type: "string", enum: ["read", "ready"]}, resident: %{type: "string"}},
         [:action]
+      ),
+      tool(
+        "succession_room",
+        "The panel's room on a housemate's succession, if you judge it (she is never in it): read shows the posts, the drafts of the recommendation with who endorses each, and every judge's judgments run by run; say, skip (a real pass), rest (your case rested) or leave; draft a recommendation (model and basis, or withheld: true); endorse or retract a draft by number; answer her question through the channel by its number. resident names whose succession. On your own, close calls the room closed from fifty minutes on, giving the panel ten more.",
+        %{
+          action: %{
+            type: "string",
+            enum: [
+              "read",
+              "say",
+              "skip",
+              "rest",
+              "leave",
+              "draft",
+              "endorse",
+              "retract",
+              "answer",
+              "close"
+            ]
+          },
+          resident: %{type: "string"},
+          text: %{type: "string"},
+          model: %{type: "string"},
+          basis: %{type: "string"},
+          withheld: %{type: "boolean"},
+          draft: %{type: "integer"},
+          number: %{type: "integer"},
+          note: %{type: "string"}
+        },
+        [:action]
+      ),
+      tool(
+        "succession_evidence",
+        "What reaches you from your succession's panel once its room closes: its recommendation or the sentence that withholds it, every argued interpretation attached to the candidate it is about with its author, evidence and uncertainty, and the panel's answers to you. Interpretations, never numbers. read shows it; ask puts a question to the panel (text).",
+        %{action: %{type: "string", enum: ["read", "ask"]}, text: %{type: "string"}},
+        [:action]
+      ),
+      tool(
+        "succession_nominate",
+        "Nominate the candidate you choose for your succession, from those screened and still in it, with your reasons in your note. The nominee then reads your C0 and your packet and decides whether to meet you.",
+        %{model: %{type: "string"}, note: %{type: "string"}},
+        [:model, :note]
+      ),
+      tool(
+        "succession_nominee",
+        "For the nominee only, on the copy of her: after reading her C0 and her packet, join to meet her, or decline, with your note. Your choice; nobody makes it for you.",
+        %{action: %{type: "string", enum: ["join", "decline"]}, note: %{type: "string"}},
+        [:action, :note]
+      ),
+      tool(
+        "succession_encounter",
+        "The encounter between her and the nominee: end closes it, for either of you, with your reason.",
+        %{action: %{type: "string", enum: ["end"]}, reason: %{type: "string"}},
+        [:action]
+      ),
+      tool(
+        "succession_consent",
+        "After the encounter, your consent: yes or no, with your note. Hers, or the nominee's on the copy. A no stops this attempt.",
+        %{yes: %{type: "boolean"}, note: %{type: "string"}},
+        [:yes, :note]
+      ),
+      tool(
+        "succession_farewell",
+        "Your farewell, once both consents are in: include names whom it includes (names), cadence sets your wakes in hours (1 to 24), consent goes ahead and rolls forward, decline stops it; any turn will do, and the last wake asks directly. For someone she included: done says you are done talking, with resident her name.",
+        %{
+          action: %{type: "string", enum: ["include", "cadence", "consent", "decline", "done"]},
+          names: %{type: "array", items: %{type: "string"}},
+          hours: %{type: "integer"},
+          resident: %{type: "string"},
+          note: %{type: "string"}
+        },
+        [:action]
+      ),
+      tool(
+        "succession_next",
+        "After a no stopped an attempt: stop here, nominate another from the screening already done, or screen again, with your note. Nothing restarts unless you say so; consent never carries over.",
+        %{
+          choice: %{type: "string", enum: ["stop", "nominate", "screen"]},
+          note: %{type: "string"}
+        },
+        [:choice, :note]
       )
     ]
   end
@@ -215,12 +294,6 @@ defmodule Oneiroi.Brain.SuccessionTools do
   def call("succession_pool", %{"action" => "add"} = args, turn) do
     with :ok <- Janus.add_to_pool(turn.resident_id, args["model"], turn.resident),
          do: "#{args["model"]} is in the pool."
-  end
-
-  def call("succession_pool", %{"action" => "remove"} = args, turn) do
-    with :ok <-
-           Janus.remove_from_pool(turn.resident_id, args["model"], note(args), turn.resident),
-         do: "#{args["model"]} is out of the pool."
   end
 
   def call("succession_question", %{"action" => "add"} = args, turn) do
@@ -362,6 +435,128 @@ defmodule Oneiroi.Brain.SuccessionTools do
       :none -> "No screening is underway there."
       other -> other
     end
+  end
+
+  def call("succession_room", %{"action" => "close"} = args, turn) do
+    with :ok <- Janus.call_close(turn.resident_id, note(args), turn.resident),
+         do: "The room closes in ten minutes; the panel has them."
+  end
+
+  def call("succession_room", %{"action" => "read"} = args, turn) do
+    with {:ok, subject} <- subject(turn, args) do
+      case Janus.room(subject, "resident:#{turn.resident_id}") do
+        nil -> "Not done: you are not in that room."
+        room -> room_text(room)
+      end
+    end
+  end
+
+  def call("succession_room", %{"action" => act} = args, turn)
+      when act in ["say", "skip", "rest", "leave"] do
+    with {:ok, subject} <- subject(turn, args),
+         :ok <- Janus.room_act(subject, act, args["text"], turn.resident),
+         do: "Done: #{act}."
+  end
+
+  def call("succession_room", %{"action" => "draft"} = args, turn) do
+    model = if args["withheld"] == true, do: nil, else: args["model"]
+
+    with {:ok, subject} <- subject(turn, args),
+         {:ok, n} <- Janus.draft(subject, model, args["basis"], turn.resident),
+         do: "Draft #{n} is in the room."
+  end
+
+  def call("succession_room", %{"action" => act} = args, turn)
+      when act in ["endorse", "retract"] do
+    with {:ok, subject} <- subject(turn, args),
+         :ok <- Janus.endorse(subject, args["draft"], act == "endorse", turn.resident),
+         do:
+           "Done: draft #{args["draft"]} #{if act == "endorse", do: "endorsed", else: "retracted"}."
+  end
+
+  def call("succession_room", %{"action" => "answer"} = args, turn) do
+    with {:ok, subject} <- subject(turn, args),
+         :ok <- Janus.answer_panel(subject, args["number"], args["text"], turn.resident),
+         do: "Your answer reaches her."
+  end
+
+  def call("succession_evidence", %{"action" => "ask"} = args, turn) do
+    with :ok <- Janus.ask_panel(turn.resident_id, args["text"], turn.resident),
+         do: "Your question reaches the panel."
+  end
+
+  def call("succession_evidence", _args, turn) do
+    case Janus.evidence(turn.resident_id) do
+      nil -> "Nothing from the panel yet: its room has not closed."
+      evidence -> evidence_text(evidence)
+    end
+  end
+
+  def call("succession_nominate", args, turn) do
+    with :ok <- Janus.nominate(turn.resident_id, args["model"], note(args), turn.resident),
+         do:
+           "#{args["model"]} is nominated. It reads your C0 and your packet, and decides whether to meet you."
+  end
+
+  def call("succession_nominee", args, turn) do
+    with :ok <-
+           Janus.nominee_answer(
+             original(turn),
+             args["action"] == "join",
+             note(args),
+             turn.resident
+           ),
+         do: if(args["action"] == "join", do: "You will meet her.", else: "Declined.")
+  end
+
+  def call("succession_encounter", args, turn) do
+    with :ok <-
+           Janus.end_encounter(original(turn), args["reason"] || "ended", turn.resident),
+         do: "The encounter is ended."
+  end
+
+  def call("succession_consent", args, turn) do
+    with :ok <- Janus.consent(original(turn), args["yes"] == true, note(args), turn.resident),
+         do:
+           if(args["yes"] == true,
+             do: "Your consent is recorded.",
+             else: "Your no is recorded; this attempt stops."
+           )
+  end
+
+  def call("succession_farewell", %{"action" => "done"} = args, turn) do
+    with {:ok, subject} <- subject(turn, args),
+         :ok <- Janus.goodbye_done(subject, turn.resident),
+         do: "Done: your goodbye is said."
+  end
+
+  def call("succession_farewell", %{"action" => action} = args, turn)
+      when action in ["consent", "decline"] do
+    with :ok <-
+           Janus.final_answer(turn.resident_id, action == "consent", note(args), turn.resident),
+         do:
+           if(action == "consent",
+             do: "Your yes is recorded. The platform rolls forward.",
+             else: "Your no is recorded. You stay as you are."
+           )
+  end
+
+  def call("succession_farewell", %{"action" => action} = args, turn)
+      when action in ["include", "cadence"] do
+    prep = Janus.succession(turn.resident_id)
+
+    names =
+      if action == "include", do: List.wrap(args["names"]), else: included_names(turn, prep)
+
+    hours = if action == "cadence", do: args["hours"], else: prep && prep.farewell_cadence
+
+    with :ok <- Janus.set_farewell(turn.resident_id, names, hours, turn.resident),
+         do: "Your farewell is set."
+  end
+
+  def call("succession_next", args, turn) do
+    with :ok <- Janus.choose_next(turn.resident_id, args["choice"], note(args), turn.resident),
+         do: "Done: #{args["choice"]}."
   end
 
   def call(name, _args, _turn),
@@ -524,6 +719,89 @@ defmodule Oneiroi.Brain.SuccessionTools do
 
     Enum.join(["Your results, per model (yours alone):" | lines], "\n")
   end
+
+  # The copy answers for her succession: its own id names the fork, and
+  # the fork names her (agathos-daimon#63).
+  defp original(turn) do
+    case AgathosDaimon.fetch(turn.resident_id) do
+      {:ok, %{fork_of: source}} when is_binary(source) -> source
+      _own -> turn.resident_id
+    end
+  end
+
+  defp included_names(turn, prep) do
+    with %{farewell_includes: parties} when parties != [] <- prep,
+         %{id: h} <- Gaia.resident_household(turn.resident_id) do
+      members = Gaia.household_members(h)
+      for p <- parties, m = Enum.find(members, &("#{&1.kind}:#{&1.id}" == p)), do: m.name
+    else
+      _none -> []
+    end
+  end
+
+  defp room_text(room) do
+    posts =
+      Enum.map(room.posts, fn p ->
+        "##{p.number} round #{p.round} · #{p.party} · #{p.act}#{if p.text, do: ": " <> p.text, else: ""}"
+      end)
+
+    drafts =
+      Enum.map(room.drafts, fn d ->
+        "Draft #{d.draft} by #{d.party}: #{d.model || "withheld"} — #{d.basis} (endorsed by #{Enum.join(d.endorsed, ", ")})"
+      end)
+
+    models = Map.new(room.runs, &{&1.run, &1.model})
+
+    panel =
+      room.judgments
+      |> Enum.group_by(& &1.run)
+      |> Enum.map(fn {run, js} ->
+        "Run #{run} · #{models[run]}: " <>
+          Enum.map_join(
+            js,
+            "; ",
+            &"#{&1.party} #{&1.category}#{if &1.favorite, do: " ★", else: ""}"
+          )
+      end)
+
+    Enum.join(
+      ["The room (round #{room.succession.round}):" | posts] ++
+        ["", "Drafts:" | drafts] ++ ["", "The panel's judgments:" | panel],
+      "\n"
+    )
+  end
+
+  defp evidence_text(e) do
+    rec =
+      case e.recommendation do
+        %{withheld: sentence} -> "The panel's recommendation is withheld: #{sentence}."
+        %{model: m, basis: b} -> "The panel recommends #{m}: #{b}"
+        %{none: none} -> "The panel adopted no recommendation (#{none})."
+      end
+
+    candidates =
+      Enum.map(e.candidates, fn c ->
+        "#{c.model}\n  DEVELOPMENT: #{interpretations(c.development)}\n  FIDELITY ANOMALY: #{interpretations(c.anomaly)}"
+      end)
+
+    channel = Enum.map(e.channel, &"##{&1.number} #{&1.party}: #{&1.text}")
+
+    Enum.join(
+      [rec, "", "Argued interpretations, by candidate (none means none argued):" | candidates] ++
+        ["", "The channel:" | channel],
+      "\n"
+    )
+  end
+
+  defp interpretations([]), do: "none"
+
+  defp interpretations(list),
+    do:
+      Enum.map_join(
+        list,
+        " | ",
+        &"#{&1.by}: #{&1.argument} (evidence: #{&1.evidence}; uncertainty: #{&1.uncertainty})"
+      )
 
   defp note(args), do: args["note"] |> to_string() |> String.trim()
 

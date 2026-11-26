@@ -7,7 +7,8 @@ defmodule Oneiroi.Janus.Preparation do
   aggregate's own file stays the spine.
 
   Whose act each is, is the rule: the envelope and a ready mark are the
-  witness's; adding inside the envelope, removing, answering, choosing,
+  witness's, and so is taking out his own pick; adding inside the
+  envelope, answering, choosing,
   the day's shape, the freeze and the packet are hers; proposing is the
   witness's (the judges', when the panel is fixed). Everything here is
   open while the succession is open or forked; C0 closes at her freeze.
@@ -139,8 +140,14 @@ defmodule Oneiroi.Janus.Preparation do
       nil ->
         {:error, Error.new(:janus_pool_absent, :janus_pool_remove_absent, model: c.model)}
 
+      # Her picks are irremovable, by anyone (delta §8, the 14.2 ruling);
+      # the witness takes out only his own, before screening (the mocks
+      # the witness approved, 2026-11-25).
+      %{by: {:resident, _}} ->
+        {:error, Error.new(:janus_pool_irremovable, :janus_pool_remove_hers, model: c.model)}
+
       %{by: by} ->
-        if hers?(c) or (witness?(c) and by == who(c)),
+        if witness?(c) and by == who(c),
           do: %Events.PoolModelRemoved{
             actor: c.actor,
             at: c.at,

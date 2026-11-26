@@ -186,7 +186,8 @@ defmodule Oneiroi.Janus.ScreeningTest do
     assert tool(ctx.scarlett, "succession_results", %{action: "ready", resident: "Lily"}) =~
              "locked"
 
-    assert %{state: "judged", judging_closed_at: %DateTime{}} = Janus.succession(id)
+    # Judging closed, the room opens at once (janus#16).
+    assert %{state: "deliberating", judging_closed_at: %DateTime{}} = Janus.succession(id)
   end
 
   test "the witness declines by leaving; then he judges nothing", ctx do

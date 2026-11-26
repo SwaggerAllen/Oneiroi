@@ -387,6 +387,154 @@ defmodule OneiroiWeb.SuccessionController do
   def results_ready(conn, %{"id" => id}),
     do: respond(conn, Janus.mark_results_ready(id, actor(conn)))
 
+  operation(:room,
+    summary:
+      "The panel's room, if you are in it: posts, drafts with their endorsers, every judge's judgments run by run",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"the room", "application/json", %Schema{type: :object}}]
+  )
+
+  def room(conn, %{"id" => id}) do
+    case Janus.room(id, party(conn)) do
+      nil ->
+        json(conn, %{room: nil})
+
+      room ->
+        models = Map.new(room.runs, &{&1.run, &1.model})
+
+        json(conn, %{
+          room: %{
+            round: room.succession.round,
+            opened_at: room.succession.deliberation_opened_at,
+            close_at: room.succession.close_at,
+            posts:
+              Enum.map(room.posts, &Map.take(&1, [:number, :round, :party, :act, :text, :at])),
+            drafts:
+              Enum.map(
+                room.drafts,
+                &Map.take(&1, [:draft, :party, :model, :basis, :endorsed, :at])
+              ),
+            judgments:
+              Enum.map(room.judgments, fn j ->
+                j
+                |> Map.take([
+                  :run,
+                  :party,
+                  :category,
+                  :argument,
+                  :evidence,
+                  :uncertainty,
+                  :favorite
+                ])
+                |> Map.put(:model, models[j.run])
+              end)
+          }
+        })
+    end
+  end
+
+  operation(:room_act,
+    summary: "Your act in the room: say (with text), skip, rest or leave",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the act", "application/json",
+       %Schema{
+         type: :object,
+         required: [:act],
+         properties: %{act: %Schema{type: :string}, text: %Schema{type: :string}}
+       }},
+    responses: [no_content: "done"]
+  )
+
+  def room_act(conn, %{"id" => id, "act" => act} = params),
+    do: respond(conn, Janus.room_act(id, act, params["text"], actor(conn)))
+
+  operation(:draft,
+    summary: "Draft the recommendation: a model and its basis, or withheld",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the draft", "application/json",
+       %Schema{
+         type: :object,
+         properties: %{
+           model: %Schema{type: :string},
+           basis: %Schema{type: :string},
+           withheld: %Schema{type: :boolean}
+         }
+       }},
+    responses: [created: {"its number", "application/json", %Schema{type: :object}}]
+  )
+
+  def draft(conn, %{"id" => id} = params) do
+    model = if params["withheld"] == true, do: nil, else: params["model"]
+
+    case Janus.draft(id, model, params["basis"], actor(conn)) do
+      {:ok, n} -> conn |> put_status(201) |> json(%{draft: n})
+      other -> respond(conn, other)
+    end
+  end
+
+  operation(:endorse,
+    summary: "Endorse a draft, or take your endorsement back",
+    parameters: [id: [in: :path, type: :string], draft: [in: :path, type: :integer]],
+    request_body:
+      {"endorse", "application/json",
+       %Schema{
+         type: :object,
+         required: [:endorse],
+         properties: %{endorse: %Schema{type: :boolean}}
+       }},
+    responses: [no_content: "done"]
+  )
+
+  def endorse(conn, %{"id" => id, "draft" => draft, "endorse" => endorse}),
+    do: respond(conn, Janus.endorse(id, integer(draft), endorse == true, actor(conn)))
+
+  operation(:answer,
+    summary: "Answer her question through the channel",
+    parameters: [id: [in: :path, type: :string], number: [in: :path, type: :integer]],
+    request_body:
+      {"the answer", "application/json",
+       %Schema{type: :object, required: [:text], properties: %{text: %Schema{type: :string}}}},
+    responses: [no_content: "answered"]
+  )
+
+  def answer(conn, %{"id" => id, "number" => n, "text" => text}),
+    do: respond(conn, Janus.answer_panel(id, integer(n), text, actor(conn)))
+
+  operation(:goodbye,
+    summary: "You are done talking: your goodbye is said",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [no_content: "done"]
+  )
+
+  def goodbye(conn, %{"id" => id}), do: respond(conn, Janus.goodbye_done(id, actor(conn)))
+
+  operation(:log,
+    summary: "The disclosure log: every serving, by reference and digest, never its content",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"the log", "application/json", %Schema{type: :object}}]
+  )
+
+  def log(conn, %{"id" => id}),
+    do:
+      json(conn, %{
+        log:
+          Enum.map(
+            Janus.disclosures(id),
+            &Map.take(&1, [:party, :stage, :what, :ref, :digest, :at])
+          )
+      })
+
+  operation(:archive,
+    summary:
+      "The archive: judgments and the room, candidates and runs anonymized; open to the house, never to her",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"the archive", "application/json", %Schema{type: :object}}]
+  )
+
+  def archive(conn, %{"id" => id}), do: json(conn, %{archive: Janus.archive(id, party(conn))})
+
   defp party(conn), do: "witness:#{actor(conn).id}"
 
   defp integer(n) when is_integer(n), do: n
@@ -497,7 +645,37 @@ defmodule OneiroiWeb.SuccessionController do
       backup_visibility: row.backup_visibility,
       backup_push: row.backup_push,
       ended_note: row.ended_note,
-      ended_at: row.ended_at
+      ended_at: row.ended_at,
+      baseline_model: row.baseline_model,
+      screening_started_at: row.screening_started_at,
+      screening_finished_at: row.screening_finished_at,
+      runs_answered: row.runs_answered,
+      runs_failed: row.runs_failed,
+      revealed_at: row.revealed_at,
+      judging_closed_at: row.judging_closed_at,
+      round: row.round,
+      deliberation_opened_at: row.deliberation_opened_at,
+      close_at: row.close_at,
+      deliberation_closed_at: row.deliberation_closed_at,
+      deliberation_reason: row.deliberation_reason,
+      recommendation_model: row.recommendation_model,
+      recommendation_basis: row.recommendation_basis,
+      recommendation_withheld: row.recommendation_withheld,
+      attempt: row.attempt,
+      nominee: row.nominee,
+      nominated_at: row.nominated_at,
+      nominee_joined_at: row.nominee_joined_at,
+      encounter_ended_at: row.encounter_ended_at,
+      farewell_opened_at: row.farewell_opened_at,
+      farewell_ends_at: row.farewell_ends_at,
+      farewell_cadence: row.farewell_cadence,
+      farewell_includes: row.farewell_includes,
+      final_asked_at: row.final_asked_at,
+      final: row.final,
+      final_at: row.final_at,
+      stopped_stage: row.stopped_stage,
+      next_choice: row.next_choice,
+      next_note: row.next_note
     }
 
   defp witnessed(%{params: %{"id" => id}} = conn, _opts) do

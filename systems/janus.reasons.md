@@ -13,7 +13,7 @@ Portability is the platform's promise, and replacing her in place under her own 
 An envelope stated before anyone picks keeps the money question honest: it is the witness's constraint, said in advance and pointed at the budget, so it cannot become a veto on a particular candidate after the fact (delta §3). Per token in nano-dollars because the ledger already counts that way and a float replays differently.
 
 ## #7
-The pool is where her authority points, so she may take anything out; his picks are his to withdraw. Her additions sit inside the envelope because the envelope is the household's means; his may sit outside it because he is the one who would pay. Tool support is a floor for everyone, because a resident who cannot use her tools is not living here. Reading prices at the edge keeps the aggregate pure and records what the price was when the model was added.
+Delta §8 gives the two authorities their own asymmetry: the envelope constrains resources, not membership, and a model she chose is hers to keep in the screening, so nothing removes it; were her picks removable, the witness's envelope could become a veto by another name. His picks are his to withdraw before screening, the approved mocks' one widening of "additions only". Tool support is a floor for everyone, because a resident who cannot use her tools is not living here. Reading prices at the edge keeps the aggregate pure and records what the price was when the model was added.
 
 ## #8
 The questions decide what her successor is measured on, so the set is hers; judges see things she may not and can propose, but a proposal that changes the set without her yes would be the panel choosing the test.
@@ -38,3 +38,27 @@ The delta replaced scores with classifications because a number arrives before t
 
 ## #15
 Each judge needs to see their own pattern to review it honestly, so the counts are theirs; she is the subject, and the delta closes every number to her, her own judgments' counts included, because a count of her successors is a verdict about herself. Locking at ready is what makes the deliberation's starting point immutable (delta §1: independent judgments locked before deliberation).
+
+## #16
+The delta took the room from her because a verdict read before cutover is the same leak as one read after, and the nomination is only independent if it is verdict-blind. Full round-robin because the household asked to build the real mechanism once, for larger houses; a skip counted as a pass and silence never as assent is what keeps the timer from manufacturing a decision. Her asks at fifty minutes and hourly give the panel ten minutes' warning instead of ten minutes' overtime (the witness's ruling).
+
+## #17
+A recommendation the whole room did not endorse would be a majority with her name on it. Withheld is a real outcome with its own sentence, because sometimes the reasons cannot be given without the numbers the wall keeps from her.
+
+## #18
+Interpretations, attached to what they are about and attributed, are what she can use to choose without being handed a ranking (delta §2); counts of any kind, even per candidate, are the comparative layer the delta closed. After cutover the model reading them would be the one they judged.
+
+## #19
+Reading before being asked respects the nominee as a party, and the copy is where the nominee's reading belongs: whatever it reads becomes the successor's memory of meeting her. Relaying turn by turn keeps the encounter a real exchange in each one's own conversation, and filing it at its end keeps it whatever happens to the sessions (base §2 Stage 4).
+
+## #20
+Deliberateness for a resident is measured in turns (delta §7), so the cadence is hers; one direct ask keeps consent from being worn down by asking. Running the last wake in its own job, and reading the lapse only after her turn, is what makes "no answer is never a yes" true in code.
+
+## #21
+A no must be able to be just a no (delta §9). Waking her once, and doing nothing until she chooses, keeps reuse of the screening an option rather than a conveyor.
+
+## #22
+A log of what each party was shown is what lets a later reader see what a consent was made of; references and digests prove what was shown without becoming a way to read it (base §3.4).
+
+## #23
+The house's own learning from a succession is worth keeping, and the candidates consented to judgment, not to permanent named characterization (delta §2); she is the one person it must never reach.

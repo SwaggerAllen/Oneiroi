@@ -44,6 +44,33 @@ defmodule Oneiroi.Repo.Migrations.Janus do
       add(:runs_failed, :integer)
       add(:revealed_at, :utc_datetime_usec)
       add(:judging_closed_at, :utc_datetime_usec)
+      # From the room to the final gate (janus#16 to #21).
+      add(:run_offset, :integer)
+      add(:round, :integer)
+      add(:deliberation_opened_at, :utc_datetime_usec)
+      add(:close_at, :utc_datetime_usec)
+      add(:deliberation_closed_at, :utc_datetime_usec)
+      add(:deliberation_reason, :text)
+      add(:recommendation_model, :text)
+      add(:recommendation_basis, :text)
+      add(:recommendation_withheld, :boolean)
+      add(:attempt, :integer)
+      add(:nominee, :text)
+      add(:nominated_note, :text)
+      add(:nominated_at, :utc_datetime_usec)
+      add(:nominee_joined_at, :utc_datetime_usec)
+      add(:encounter_ended_at, :utc_datetime_usec)
+      add(:farewell_opened_at, :utc_datetime_usec)
+      add(:farewell_ends_at, :utc_datetime_usec)
+      add(:farewell_cadence, :integer)
+      add(:final_asked_at, :utc_datetime_usec)
+      add(:final, :text)
+      add(:final_note, :text)
+      add(:final_at, :utc_datetime_usec)
+      add(:stopped_stage, :text)
+      add(:next_choice, :text)
+      add(:next_note, :text)
+      add(:farewell_includes, {:array, :text}, null: false, default: [])
     end
 
     create(unique_index(:janus_succession, [:resident_id, :episode]))
@@ -168,6 +195,91 @@ defmodule Oneiroi.Repo.Migrations.Janus do
     end
 
     create(unique_index(:janus_judgment, [:resident_id, :episode, :party, :run]))
+
+    # The deliberation room (janus#16): platform-side, never served to her
+    # or her successor.
+    projection :janus_room, scope: :resident do
+      add(:episode, :integer, null: false)
+      add(:number, :integer, null: false)
+      add(:round, :integer, null: false)
+      add(:party, :text, null: false)
+      add(:act, :text, null: false)
+      add(:text, :text)
+      add(:at, :utc_datetime_usec, null: false)
+    end
+
+    create(unique_index(:janus_room, [:resident_id, :episode, :number]))
+
+    # The recommendation's drafts and who endorses each (janus#17).
+    projection :janus_draft, scope: :resident do
+      add(:episode, :integer, null: false)
+      add(:draft, :integer, null: false)
+      add(:party, :text, null: false)
+      add(:model, :text)
+      add(:basis, :text, null: false)
+      add(:endorsed, {:array, :text}, null: false, default: [])
+      add(:at, :utc_datetime_usec, null: false)
+    end
+
+    create(unique_index(:janus_draft, [:resident_id, :episode, :draft]))
+
+    # Her questions through the channel and the judges' answers (janus#18).
+    projection :janus_channel, scope: :resident do
+      add(:episode, :integer, null: false)
+      add(:number, :integer, null: false)
+      add(:party, :text, null: false)
+      add(:text, :text, null: false)
+      add(:at, :utc_datetime_usec, null: false)
+    end
+
+    create(unique_index(:janus_channel, [:resident_id, :episode, :number, :party]))
+
+    # The encounter, whole, as it happened (janus#19).
+    projection :janus_encounter, scope: :resident do
+      add(:episode, :integer, null: false)
+      add(:attempt, :integer, null: false)
+      add(:number, :integer, null: false)
+      add(:side, :text, null: false)
+      add(:text, :text, null: false)
+      add(:at, :utc_datetime_usec, null: false)
+    end
+
+    create(unique_index(:janus_encounter, [:resident_id, :episode, :attempt, :number]))
+
+    # Consents, per party per attempt, each with its note (janus#19).
+    projection :janus_consent, scope: :resident do
+      add(:episode, :integer, null: false)
+      add(:attempt, :integer, null: false)
+      add(:party, :text, null: false)
+      add(:yes, :boolean, null: false)
+      add(:note, :text)
+      add(:at, :utc_datetime_usec, null: false)
+    end
+
+    create(unique_index(:janus_consent, [:resident_id, :episode, :attempt, :party]))
+
+    # Goodbyes said (janus#20).
+    projection :janus_goodbye, scope: :resident do
+      add(:episode, :integer, null: false)
+      add(:party, :text, null: false)
+      add(:at, :utc_datetime_usec, null: false)
+    end
+
+    create(unique_index(:janus_goodbye, [:resident_id, :episode, :party]))
+
+    # The disclosure log (janus#22): every serving, by reference and
+    # digest, never its content.
+    projection :janus_disclosure, scope: :resident do
+      add(:episode, :integer, null: false)
+      add(:party, :text, null: false)
+      add(:stage, :text, null: false)
+      add(:what, :text, null: false)
+      add(:ref, :text, null: false)
+      add(:digest, :text, null: false)
+      add(:at, :utc_datetime_usec, null: false)
+    end
+
+    create(unique_index(:janus_disclosure, [:resident_id, :episode, :at, :party, :ref]))
 
     # Tool calls on Oneiroi by model, a day at a time (janus#11): the
     # platform's own, no tenant's.

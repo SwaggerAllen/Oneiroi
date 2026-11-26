@@ -136,4 +136,90 @@ defmodule Oneiroi.Janus.Commands do
   defmodule MarkResultsReady do
     use Oneiroi.Command, fields: [:id]
   end
+
+  # ---- deliberation, evidence, nomination, encounter, consents, farewell (janus#16 to #23) ----
+
+  defmodule OpenDeliberation do
+    use Oneiroi.Command, fields: [:id]
+  end
+
+  defmodule StartRound do
+    use Oneiroi.Command, fields: [:id, :reason]
+  end
+
+  defmodule RoomAct do
+    use Oneiroi.Command, fields: [:id, :act, :text]
+  end
+
+  defmodule DraftRecommendation do
+    use Oneiroi.Command, fields: [:id, :model, :basis]
+  end
+
+  defmodule Endorse do
+    use Oneiroi.Command, fields: [:id, :draft, :endorse]
+  end
+
+  defmodule CallClose do
+    use Oneiroi.Command, decision: true, fields: [:id]
+  end
+
+  defmodule CloseRoom do
+    use Oneiroi.Command, fields: [:id]
+  end
+
+  defmodule RecordServing do
+    use Oneiroi.Command, fields: [:id, :party, :stage, :what, :ref, :digest]
+  end
+
+  defmodule AskPanel do
+    use Oneiroi.Command, fields: [:id, :text]
+  end
+
+  defmodule AnswerPanel do
+    use Oneiroi.Command, fields: [:id, :number, :text]
+  end
+
+  defmodule Nominate do
+    use Oneiroi.Command, decision: true, fields: [:id, :model]
+  end
+
+  defmodule NomineeAnswer do
+    use Oneiroi.Command, decision: true, fields: [:id, :join]
+  end
+
+  defmodule SayInEncounter do
+    use Oneiroi.Command, fields: [:id, :side, :text]
+  end
+
+  defmodule EndEncounter do
+    use Oneiroi.Command, fields: [:id, :reason]
+  end
+
+  defmodule Consent do
+    use Oneiroi.Command, decision: true, fields: [:id, :yes]
+  end
+
+  defmodule SetFarewell do
+    use Oneiroi.Command, fields: [:id, :includes, :cadence_hours]
+  end
+
+  defmodule GoodbyeDone do
+    use Oneiroi.Command, fields: [:id]
+  end
+
+  defmodule AskFinal do
+    use Oneiroi.Command, fields: [:id]
+  end
+
+  defmodule FinalAnswer do
+    use Oneiroi.Command, decision: true, fields: [:id, :yes]
+  end
+
+  defmodule FinalLapse do
+    use Oneiroi.Command, fields: [:id, :asked]
+  end
+
+  defmodule ChooseNext do
+    use Oneiroi.Command, decision: true, fields: [:id, :choice]
+  end
 end

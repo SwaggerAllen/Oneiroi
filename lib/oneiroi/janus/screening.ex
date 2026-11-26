@@ -274,7 +274,10 @@ defmodule Oneiroi.Janus.Screening do
       | state: :screening,
         judges: e.judges,
         runs: runs,
-        baseline: Map.new(e.questions, &{&1, nil})
+        baseline: Map.new(e.questions, &{&1, nil}),
+        judgments: %{},
+        results_ready: MapSet.new(),
+        revealed: false
     }
   end
 
@@ -401,8 +404,12 @@ defmodule Oneiroi.Janus.Screening do
     pairs = MapSet.new(runs, &{field(&1, :model), field(&1, :question)})
     expected = MapSet.new(for m <- pool, q <- questions, do: {m, q})
 
+    # A second screening numbers its runs after the first's (delta §9:
+    # screen again), so no run number is ever reused in an episode.
+    offset = cur.runs |> Map.keys() |> Enum.max(fn -> 0 end)
+
     pool != [] and questions != [] and pairs == expected and
-      Enum.sort(numbers) == Enum.to_list(1..length(runs))
+      Enum.sort(numbers) == Enum.to_list((offset + 1)..(offset + length(runs)))
   end
 
   defp runs_match?(_cur, _runs), do: false

@@ -24,6 +24,7 @@ defmodule Oneiroi.Janus.Succession do
   """
 
   alias Oneiroi.Janus.Commands
+  alias Oneiroi.Janus.Decision
   alias Oneiroi.Janus.Error
   alias Oneiroi.Janus.Events
   alias Oneiroi.Janus.Preparation
@@ -31,7 +32,22 @@ defmodule Oneiroi.Janus.Succession do
 
   defstruct [:id, episode: 0, current: nil]
 
-  @underway [:proposed, :open, :forked, :screening, :judging, :judged]
+  @underway [
+    :proposed,
+    :open,
+    :forked,
+    :screening,
+    :judging,
+    :judged,
+    :deliberating,
+    :deciding,
+    :nominated,
+    :encounter,
+    :consenting,
+    :farewell,
+    :awaiting_next,
+    :rolling
+  ]
   # The preparation's commands and events (janus#6 to #10), named here
   # rather than read from `Preparation` at compile time: a call there
   # would be a compile-time edge, and the ratchet is at 0.
@@ -61,6 +77,56 @@ defmodule Oneiroi.Janus.Succession do
     Commands.RecordBaseline,
     Commands.JudgeRun,
     Commands.MarkResultsReady
+  ]
+  @deciding [
+    Commands.OpenDeliberation,
+    Commands.StartRound,
+    Commands.RoomAct,
+    Commands.DraftRecommendation,
+    Commands.Endorse,
+    Commands.CallClose,
+    Commands.CloseRoom,
+    Commands.RecordServing,
+    Commands.AskPanel,
+    Commands.AnswerPanel,
+    Commands.Nominate,
+    Commands.NomineeAnswer,
+    Commands.SayInEncounter,
+    Commands.EndEncounter,
+    Commands.Consent,
+    Commands.SetFarewell,
+    Commands.GoodbyeDone,
+    Commands.AskFinal,
+    Commands.FinalAnswer,
+    Commands.FinalLapse,
+    Commands.ChooseNext
+  ]
+  @decided [
+    Events.DeliberationOpened,
+    Events.RoundStarted,
+    Events.RoomPosted,
+    Events.RecommendationDrafted,
+    Events.Endorsed,
+    Events.CloseCalled,
+    Events.DeliberationClosed,
+    Events.Served,
+    Events.PanelAsked,
+    Events.PanelAnswered,
+    Events.Nominated,
+    Events.NomineeJoined,
+    Events.NomineeDeclined,
+    Events.EncounterSaid,
+    Events.EncounterEnded,
+    Events.ConsentGiven,
+    Events.ConsentRefused,
+    Events.FarewellOpened,
+    Events.FarewellSet,
+    Events.GoodbyeSaid,
+    Events.FinalAsked,
+    Events.FinalConsented,
+    Events.FinalDeclined,
+    Events.AttemptStopped,
+    Events.NextChosen
   ]
   @screened [
     Events.JudgeInvited,
@@ -191,7 +257,7 @@ defmodule Oneiroi.Janus.Succession do
       not hers?(c) ->
         {:error, Error.new(:janus_not_yours, :janus_stop_actor)}
 
-      current.state not in tl(@underway) ->
+      current.state in [:proposed, :rolling] or current.state not in @underway ->
         {:error, Error.new(:janus_stage, :janus_stop_stage, stage: current.state)}
 
       true ->
@@ -212,6 +278,10 @@ defmodule Oneiroi.Janus.Succession do
   # The panel, screening and judging's too (janus#12 to #15).
   def execute(%__MODULE__{current: current}, %command{} = c) when command in @screening,
     do: Screening.execute(current, c)
+
+  # From the room to the final gate (janus#16 to #21).
+  def execute(%__MODULE__{current: current}, %command{} = c) when command in @deciding,
+    do: Decision.execute(current, c)
 
   # The fork lands once, on the episode it was made for: a job made for
   # a stopped episode, or replayed after its copy landed, records nothing.
@@ -276,6 +346,7 @@ defmodule Oneiroi.Janus.Succession do
         current:
           Preparation.fresh()
           |> Map.merge(Screening.fresh())
+          |> Map.merge(Decision.fresh())
           |> Map.merge(%{
             episode: e.episode,
             state: :proposed,
@@ -292,6 +363,9 @@ defmodule Oneiroi.Janus.Succession do
 
   def apply(%__MODULE__{} = s, %event{} = e) when event in @screened,
     do: %{s | current: Screening.apply(s.current, e)}
+
+  def apply(%__MODULE__{} = s, %event{} = e) when event in @decided,
+    do: %{s | current: Decision.apply(s.current, e)}
 
   def apply(%__MODULE__{} = s, %Events.Opened{}), do: put_state(s, :open)
   def apply(%__MODULE__{} = s, %Events.Declined{}), do: put_state(s, :declined)

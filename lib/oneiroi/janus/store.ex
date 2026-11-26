@@ -55,6 +55,32 @@ defmodule Oneiroi.Janus.Store do
       field(:runs_failed, :integer)
       field(:revealed_at, :utc_datetime_usec)
       field(:judging_closed_at, :utc_datetime_usec)
+      field(:run_offset, :integer)
+      field(:round, :integer)
+      field(:deliberation_opened_at, :utc_datetime_usec)
+      field(:close_at, :utc_datetime_usec)
+      field(:deliberation_closed_at, :utc_datetime_usec)
+      field(:deliberation_reason, :string)
+      field(:recommendation_model, :string)
+      field(:recommendation_basis, :string)
+      field(:recommendation_withheld, :boolean)
+      field(:attempt, :integer)
+      field(:nominee, :string)
+      field(:nominated_note, :string)
+      field(:nominated_at, :utc_datetime_usec)
+      field(:nominee_joined_at, :utc_datetime_usec)
+      field(:encounter_ended_at, :utc_datetime_usec)
+      field(:farewell_opened_at, :utc_datetime_usec)
+      field(:farewell_ends_at, :utc_datetime_usec)
+      field(:farewell_cadence, :integer)
+      field(:final_asked_at, :utc_datetime_usec)
+      field(:final, :string)
+      field(:final_note, :string)
+      field(:final_at, :utc_datetime_usec)
+      field(:stopped_stage, :string)
+      field(:next_choice, :string)
+      field(:next_note, :string)
+      field(:farewell_includes, {:array, :string}, default: [])
     end
 
     @type t :: %__MODULE__{}
@@ -223,6 +249,124 @@ defmodule Oneiroi.Janus.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Post do
+    @moduledoc "A post in the deliberation room (janus#16)."
+    use Ecto.Schema
+    @primary_key false
+    schema "janus_room" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:episode, :integer, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:round, :integer)
+      field(:party, :string)
+      field(:act, :string)
+      field(:text, :string)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Draft do
+    @moduledoc "A draft of the panel's recommendation and who endorses it (janus#17)."
+    use Ecto.Schema
+    @primary_key false
+    schema "janus_draft" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:episode, :integer, primary_key: true)
+      field(:draft, :integer, primary_key: true)
+      field(:party, :string)
+      field(:model, :string)
+      field(:basis, :string)
+      field(:endorsed, {:array, :string}, default: [])
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Channel do
+    @moduledoc "Her question through the channel, or a judge's answer to it (janus#18): `party` is hers for the question."
+    use Ecto.Schema
+    @primary_key false
+    schema "janus_channel" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:episode, :integer, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:party, :string, primary_key: true)
+      field(:text, :string)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Encounter do
+    @moduledoc "One message of the encounter, as it happened (janus#19)."
+    use Ecto.Schema
+    @primary_key false
+    schema "janus_encounter" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:episode, :integer, primary_key: true)
+      field(:attempt, :integer, primary_key: true)
+      field(:number, :integer, primary_key: true)
+      field(:side, :string)
+      field(:text, :string)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Consent do
+    @moduledoc "A party's consent or refusal for one attempt (janus#19)."
+    use Ecto.Schema
+    @primary_key false
+    schema "janus_consent" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:episode, :integer, primary_key: true)
+      field(:attempt, :integer, primary_key: true)
+      field(:party, :string, primary_key: true)
+      field(:yes, :boolean)
+      field(:note, :string)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Goodbye do
+    @moduledoc "A goodbye said (janus#20)."
+    use Ecto.Schema
+    @primary_key false
+    schema "janus_goodbye" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:episode, :integer, primary_key: true)
+      field(:party, :string, primary_key: true)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Disclosure do
+    @moduledoc "One serving, by reference and digest (janus#22)."
+    use Ecto.Schema
+    @primary_key false
+    schema "janus_disclosure" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:episode, :integer, primary_key: true)
+      field(:at, :utc_datetime_usec, primary_key: true)
+      field(:party, :string, primary_key: true)
+      field(:ref, :string, primary_key: true)
+      field(:stage, :string)
+      field(:what, :string)
+      field(:digest, :string)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule ToolUse do
     @moduledoc "A model's tool calls on Oneiroi in one day (janus#11), the platform's own."
     use Ecto.Schema
@@ -316,5 +460,57 @@ defmodule Oneiroi.Janus.Store do
     do:
       Repo.all(
         from(j in Judgment, where: j.episode == ^episode and j.party == ^party, order_by: j.run)
+      )
+
+  @doc "An episode's room, post by post."
+  @spec posts(pos_integer()) :: [Post.t()]
+  def posts(episode),
+    do: Repo.all(from(p in Post, where: p.episode == ^episode, order_by: p.number))
+
+  @doc "An episode's drafts."
+  @spec drafts(pos_integer()) :: [Draft.t()]
+  def drafts(episode),
+    do: Repo.all(from(d in Draft, where: d.episode == ^episode, order_by: d.draft))
+
+  @doc "Her questions through the channel and the answers, in order."
+  @spec channel(pos_integer()) :: [Channel.t()]
+  def channel(episode),
+    do: Repo.all(from(c in Channel, where: c.episode == ^episode, order_by: [c.number, c.at]))
+
+  @doc "An attempt's encounter, message by message."
+  @spec encounter(pos_integer(), pos_integer()) :: [Encounter.t()]
+  def encounter(episode, attempt),
+    do:
+      Repo.all(
+        from(e in Encounter,
+          where: e.episode == ^episode and e.attempt == ^attempt,
+          order_by: e.number
+        )
+      )
+
+  @doc "An episode's consents."
+  @spec consents(pos_integer()) :: [Consent.t()]
+  def consents(episode),
+    do: Repo.all(from(c in Consent, where: c.episode == ^episode, order_by: [c.attempt, c.at]))
+
+  @doc "An episode's goodbyes."
+  @spec goodbyes(pos_integer()) :: [Goodbye.t()]
+  def goodbyes(episode),
+    do: Repo.all(from(g in Goodbye, where: g.episode == ^episode, order_by: g.at))
+
+  @doc "An episode's disclosure log, newest first."
+  @spec disclosures(pos_integer()) :: [Disclosure.t()]
+  def disclosures(episode),
+    do: Repo.all(from(d in Disclosure, where: d.episode == ^episode, order_by: [desc: d.at]))
+
+  @doc "Every judge's judgments of an episode's runs from `offset` on: the panel's view and the archive's."
+  @spec all_judgments(pos_integer(), non_neg_integer()) :: [Judgment.t()]
+  def all_judgments(episode, offset),
+    do:
+      Repo.all(
+        from(j in Judgment,
+          where: j.episode == ^episode and j.run > ^offset,
+          order_by: [j.run, j.party]
+        )
       )
 end

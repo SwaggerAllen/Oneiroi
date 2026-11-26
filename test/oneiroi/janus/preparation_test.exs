@@ -40,7 +40,7 @@ defmodule Oneiroi.Janus.PreparationTest do
         resident: ctx.her
       })
 
-  test "the pool: his envelope first, her picks inside it, his anywhere, never without tools",
+  test "the pool: his envelope first, her picks inside it and irremovable, his anywhere, never without tools",
        ctx do
     assert {:error, %{kind: :janus_no_envelope}} =
              Janus.add_to_pool(ctx.id, "fake/model", ctx.her)
@@ -71,12 +71,17 @@ defmodule Oneiroi.Janus.PreparationTest do
     assert {:error, %{kind: :janus_pool_unknown_model}} =
              Janus.add_to_pool(ctx.id, "nobody/none", ctx.andrew)
 
-    # He removes only his own; she removes any.
-    assert {:error, %{kind: :janus_not_yours}} =
+    # Her picks stay, whoever asks; he takes out only his own.
+    assert {:error, %{kind: :janus_pool_irremovable}} =
              Janus.remove_from_pool(ctx.id, "fake/model", "mine?", ctx.andrew)
 
-    assert tool(ctx, "succession_pool", %{action: "remove", model: "fake/dear", note: "too dear"}) =~
-             "out of the pool"
+    assert {:error, %{kind: :janus_pool_irremovable}} =
+             Janus.remove_from_pool(ctx.id, "fake/model", "changed my mind", ctx.her)
+
+    assert {:error, %{kind: :janus_not_yours}} =
+             Janus.remove_from_pool(ctx.id, "fake/dear", "his, not mine", ctx.her)
+
+    assert :ok = Janus.remove_from_pool(ctx.id, "fake/dear", "too dear", ctx.andrew)
 
     prep = Janus.preparation(ctx.id)
 

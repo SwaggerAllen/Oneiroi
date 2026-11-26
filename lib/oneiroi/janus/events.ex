@@ -234,4 +234,208 @@ defmodule Oneiroi.Janus.Events do
     # open (delta §6).
     use Oneiroi.Event, version: 1, fields: [:id, :episode], export: false
   end
+
+  # ---- deliberation, evidence, nomination, encounter, consents, farewell (janus#16 to #23) ----
+
+  defmodule DeliberationOpened do
+    # The room opens on the non-subject judges (delta §1); she is never in it.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :judges],
+      export: false
+  end
+
+  defmodule RoundStarted do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :round, :reason],
+      export: false
+  end
+
+  defmodule RoomPosted do
+    # say, skip (a real pass), rest (resting the case) or leave (delta §6).
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :number, :round, :party, :act, :text],
+      export: false
+  end
+
+  defmodule RecommendationDrafted do
+    # A draft of the panel's output: a model with its basis, or withheld (model nil).
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :draft, :party, :model, :basis],
+      export: false
+  end
+
+  defmodule Endorsed do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :draft, :party, :endorse],
+      export: false
+  end
+
+  defmodule CloseCalled do
+    # Hers, after fifty minutes: the panel has ten more (the witness, 2026-11-25).
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :episode, :closes_at],
+      export: false,
+      instants: [:closes_at]
+  end
+
+  defmodule DeliberationClosed do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :reason, :draft, :model, :basis, :withheld],
+      export: false
+  end
+
+  defmodule Served do
+    # A disclosure-log entry (base §3.4, §5): what was served to whom, by reference and digest, never its content.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :party, :stage, :what, :ref, :digest],
+      export: false
+  end
+
+  defmodule PanelAsked do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :number, :text],
+      export: false
+  end
+
+  defmodule PanelAnswered do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :number, :party, :text],
+      export: false
+  end
+
+  defmodule Nominated do
+    # Hers (base §2 Stage 3), from her non-verdict basis.
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :episode, :attempt, :model],
+      export: false
+  end
+
+  defmodule NomineeJoined do
+    # The nominee's own act, after reading C0 and her packet.
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :episode, :attempt, :model],
+      export: false
+  end
+
+  defmodule NomineeDeclined do
+    # The nominee is out of this episode (delta §9).
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :episode, :attempt, :model],
+      export: false
+  end
+
+  defmodule EncounterSaid do
+    # Life-record on both sides (base §2 Stage 4): kept whole as it happened.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :attempt, :number, :side, :text],
+      export: false
+  end
+
+  defmodule EncounterEnded do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :attempt, :reason],
+      export: false
+  end
+
+  defmodule ConsentGiven do
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :episode, :attempt, :party],
+      export: false
+  end
+
+  defmodule ConsentRefused do
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :episode, :attempt, :party],
+      export: false
+  end
+
+  defmodule FarewellOpened do
+    # Hers (delta §7): whom it includes, its cadence, when it ends.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :attempt, :ends_at, :cadence_hours],
+      export: false,
+      instants: [:ends_at]
+  end
+
+  defmodule FarewellSet do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :includes, :cadence_hours],
+      export: false
+  end
+
+  defmodule GoodbyeSaid do
+    # An opportunity, not a vote (delta §7).
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :party],
+      export: false
+  end
+
+  defmodule FinalAsked do
+    # The one direct ask (delta §7).
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :attempt],
+      export: false
+  end
+
+  defmodule FinalConsented do
+    # The terminal consent (base §3.6): the pointer may move.
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :episode, :attempt, :model],
+      export: false
+  end
+
+  defmodule FinalDeclined do
+    # No, or no answer: no cutover; she stays active (delta §7).
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :episode, :attempt, :lapsed],
+      export: false
+  end
+
+  defmodule AttemptStopped do
+    # This attempt ends; she is asked once what happens next (delta §9).
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :attempt, :stage],
+      export: false
+  end
+
+  defmodule NextChosen do
+    # stop, nominate another from the screening done, or screen again (delta §9).
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :episode, :choice],
+      export: false
+  end
 end

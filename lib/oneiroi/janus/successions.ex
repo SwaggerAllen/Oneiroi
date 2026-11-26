@@ -22,6 +22,7 @@ defmodule Oneiroi.Janus.Successions do
   alias Oneiroi.Janus.Commands
   alias Oneiroi.Janus.Error
   alias Oneiroi.Janus.Events
+  alias Oneiroi.Janus.Rites
   alias Oneiroi.Janus.Router
   alias Oneiroi.Janus.Store
   alias Oneiroi.Janus.ToolUse
@@ -442,8 +443,11 @@ defmodule Oneiroi.Janus.Successions do
   end
 
   defp shuffled_runs(resident_id, episode) do
-    {pool, questions} =
-      Scope.resident(resident_id, fn -> {Store.pool(episode), Store.questions(episode)} end)
+    {pool, questions, offset} =
+      Scope.resident(resident_id, fn ->
+        {Store.pool(episode), Store.questions(episode),
+         Store.runs(episode) |> Enum.map(& &1.run) |> Enum.max(fn -> 0 end)}
+      end)
 
     for(
       p <- pool,
@@ -453,7 +457,8 @@ defmodule Oneiroi.Janus.Successions do
       do: {p.model, q.number}
     )
     |> Enum.shuffle()
-    |> Enum.with_index(1)
+    # After any earlier screening's runs (delta §9: screen again).
+    |> Enum.with_index(offset + 1)
     |> Enum.map(fn {{m, q}, n} -> %{"run" => n, "model" => m, "question" => q} end)
   end
 
@@ -519,8 +524,14 @@ defmodule Oneiroi.Janus.Successions do
 
   @doc "A judge marks their results ready (janus#15): their judgments lock."
   @spec mark_results_ready(String.t(), Actor.t()) :: :ok | {:error, term()}
-  def mark_results_ready(resident_id, actor),
-    do: done(%Commands.MarkResultsReady{actor: actor, at: Clock.now(), id: resident_id})
+  def mark_results_ready(resident_id, actor) do
+    with {:ok, events} <-
+           dispatch(%Commands.MarkResultsReady{actor: actor, at: Clock.now(), id: resident_id}) do
+      if Enum.any?(events, &match?(%Events.JudgingClosed{}, &1)),
+        do: Rites.open_room(resident_id),
+        else: :ok
+    end
+  end
 
   @doc """
   What one judge sees (janus#14, #15): every answered run with its
@@ -546,7 +557,7 @@ defmodule Oneiroi.Janus.Successions do
     mine = Map.new(Store.judgments(row.episode, party), &{&1.run, &1})
     panel = Store.panel(row.episode)
     revealed = not is_nil(row.revealed_at)
-    all = Store.runs(row.episode)
+    all = Store.runs(row.episode) |> Enum.filter(&(&1.run > (row.run_offset || 0)))
 
     runs =
       for r <- all, r.answered_at do

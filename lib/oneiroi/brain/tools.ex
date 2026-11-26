@@ -114,7 +114,8 @@ defmodule Oneiroi.Brain.Tools do
     rounds_extend presence_read presence_stage
     succession_propose succession_open succession_decline succession_stop
     succession_pool succession_question succession_c0 succession_packet succession_panel succession_screen
-    succession_judge succession_results
+    succession_judge succession_results succession_room succession_evidence succession_nominate
+    succession_nominee succession_encounter succession_consent succession_farewell succession_next
   )
 
   @type turn :: %{

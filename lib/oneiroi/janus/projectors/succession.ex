@@ -9,11 +9,18 @@ defmodule Oneiroi.Janus.Projectors.Succession do
 
   alias Oneiroi.Janus.Store.{
     Baseline,
+    Channel,
+    Consent,
+    Disclosure,
+    Draft,
+    Encounter,
+    Goodbye,
     Item,
     Judgment,
     Packet,
     Panel,
     Pool,
+    Post,
     Question,
     Ready,
     Run,
@@ -213,12 +220,19 @@ defmodule Oneiroi.Janus.Projectors.Succession do
 
     judges
     |> Multi.insert_all(:runs, Run, runs, on_conflict: :nothing)
-    |> Multi.insert_all(:baseline, Baseline, baseline, on_conflict: :nothing)
+    |> Multi.insert_all(:baseline, Baseline, baseline,
+      on_conflict: {:replace, [:model, :content, :refusal, :failure, :answered_at]},
+      conflict_target: [:resident_id, :episode, :question]
+    )
     |> set(e,
       state: "screening",
       baseline_model: e.baseline_model,
       screening_note: e.note,
-      screening_started_at: e.at
+      screening_started_at: e.at,
+      run_offset: (runs |> Enum.map(& &1.run) |> Enum.min(fn -> 1 end)) - 1,
+      screening_finished_at: nil,
+      revealed_at: nil,
+      judging_closed_at: nil
     )
   end)
 
@@ -305,8 +319,257 @@ defmodule Oneiroi.Janus.Projectors.Succession do
           note: note,
           at: e.at
         },
-        on_conflict: [set: [state: state, note: note, at: e.at]],
+        on_conflict: [set: [state: state, note: note, at: e.at, results_ready_at: nil]],
         conflict_target: [:resident_id, :episode, :party]
+      )
+
+  # ---- from the room to the final gate (janus#16 to #22) ----
+
+  fold(%Events.DeliberationOpened{} = e, _metadata, fn multi ->
+    set(multi, e, state: "deliberating", deliberation_opened_at: e.at, round: 0)
+  end)
+
+  fold(%Events.RoundStarted{} = e, _metadata, fn multi -> set(multi, e, round: e.round) end)
+
+  fold(%Events.RoomPosted{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :post,
+      %Post{
+        resident_id: e.id,
+        episode: e.episode,
+        number: e.number,
+        round: e.round,
+        party: e.party,
+        act: e.act,
+        text: e.text,
+        at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :episode, :number]
+    )
+  end)
+
+  fold(%Events.RecommendationDrafted{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :draft,
+      %Draft{
+        resident_id: e.id,
+        episode: e.episode,
+        draft: e.draft,
+        party: e.party,
+        model: e.model,
+        basis: e.basis,
+        endorsed: [],
+        at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :episode, :draft]
+    )
+  end)
+
+  fold(%Events.Endorsed{} = e, _metadata, fn multi ->
+    query =
+      if e.endorse,
+        do:
+          from(d in Draft,
+            where: d.resident_id == ^e.id and d.episode == ^e.episode and d.draft == ^e.draft,
+            update: [
+              set: [
+                endorsed:
+                  fragment("array_append(array_remove(?, ?), ?)", d.endorsed, ^e.party, ^e.party)
+              ]
+            ]
+          ),
+        else:
+          from(d in Draft,
+            where: d.resident_id == ^e.id and d.episode == ^e.episode and d.draft == ^e.draft,
+            update: [set: [endorsed: fragment("array_remove(?, ?)", d.endorsed, ^e.party)]]
+          )
+
+    Multi.update_all(multi, :endorsed, query, [])
+  end)
+
+  fold(%Events.CloseCalled{} = e, _metadata, fn multi -> set(multi, e, close_at: e.closes_at) end)
+
+  fold(%Events.DeliberationClosed{} = e, _metadata, fn multi ->
+    set(multi, e,
+      state: "deciding",
+      deliberation_closed_at: e.at,
+      deliberation_reason: e.reason,
+      recommendation_model: e.model,
+      recommendation_basis: e.basis,
+      recommendation_withheld: e.withheld == true
+    )
+  end)
+
+  fold(%Events.Served{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :served,
+      %Disclosure{
+        resident_id: e.id,
+        episode: e.episode,
+        party: e.party,
+        stage: e.stage,
+        what: e.what,
+        ref: e.ref,
+        digest: e.digest,
+        at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :episode, :at, :party, :ref]
+    )
+  end)
+
+  fold(%Events.PanelAsked{} = e, _metadata, fn multi ->
+    channel(multi, e, "resident:" <> e.id, e.text)
+  end)
+
+  fold(%Events.PanelAnswered{} = e, _metadata, fn multi -> channel(multi, e, e.party, e.text) end)
+
+  fold(%Events.Nominated{} = e, _metadata, fn multi ->
+    set(multi, e,
+      state: "nominated",
+      attempt: e.attempt,
+      nominee: e.model,
+      nominated_note: e.note,
+      nominated_at: e.at,
+      nominee_joined_at: nil,
+      encounter_ended_at: nil,
+      farewell_opened_at: nil,
+      farewell_ends_at: nil,
+      farewell_includes: [],
+      final_asked_at: nil,
+      final: nil,
+      final_note: nil,
+      final_at: nil,
+      stopped_stage: nil,
+      next_choice: nil,
+      next_note: nil
+    )
+  end)
+
+  fold(%Events.NomineeJoined{} = e, _metadata, fn multi ->
+    set(multi, e, state: "encounter", nominee_joined_at: e.at)
+  end)
+
+  fold(%Events.NomineeDeclined{} = e, _metadata, fn multi ->
+    consent(multi, e, "nominee", false)
+  end)
+
+  fold(%Events.EncounterSaid{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :said,
+      %Encounter{
+        resident_id: e.id,
+        episode: e.episode,
+        attempt: e.attempt,
+        number: e.number,
+        side: e.side,
+        text: e.text,
+        at: e.at
+      },
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :episode, :attempt, :number]
+    )
+  end)
+
+  fold(%Events.EncounterEnded{} = e, _metadata, fn multi ->
+    set(multi, e, state: "consenting", encounter_ended_at: e.at)
+  end)
+
+  fold(%Events.ConsentGiven{} = e, _metadata, fn multi -> consent(multi, e, e.party, true) end)
+  fold(%Events.ConsentRefused{} = e, _metadata, fn multi -> consent(multi, e, e.party, false) end)
+
+  fold(%Events.FarewellOpened{} = e, _metadata, fn multi ->
+    set(multi, e,
+      state: "farewell",
+      farewell_opened_at: e.at,
+      farewell_ends_at: e.ends_at,
+      farewell_cadence: e.cadence_hours
+    )
+  end)
+
+  fold(%Events.FarewellSet{} = e, _metadata, fn multi ->
+    set(multi, e, farewell_includes: e.includes, farewell_cadence: e.cadence_hours)
+  end)
+
+  fold(%Events.GoodbyeSaid{} = e, _metadata, fn multi ->
+    Multi.insert(
+      multi,
+      :goodbye,
+      %Goodbye{resident_id: e.id, episode: e.episode, party: e.party, at: e.at},
+      on_conflict: :nothing,
+      conflict_target: [:resident_id, :episode, :party]
+    )
+  end)
+
+  fold(%Events.FinalAsked{} = e, _metadata, fn multi -> set(multi, e, final_asked_at: e.at) end)
+
+  fold(%Events.FinalConsented{} = e, _metadata, fn multi ->
+    set(multi, e, state: "rolling", final: "consented", final_note: e.note, final_at: e.at)
+  end)
+
+  fold(%Events.FinalDeclined{} = e, _metadata, fn multi ->
+    set(multi, e,
+      final: if(e.lapsed, do: "lapsed", else: "declined"),
+      final_note: e.note,
+      final_at: e.at
+    )
+  end)
+
+  fold(%Events.AttemptStopped{} = e, _metadata, fn multi ->
+    set(multi, e, state: "awaiting_next", stopped_stage: e.stage)
+  end)
+
+  fold(%Events.NextChosen{} = e, _metadata, fn multi ->
+    state =
+      case e.choice do
+        "stop" -> "stopped"
+        "nominate" -> "deciding"
+        "screen" -> "forked"
+      end
+
+    ended = if e.choice == "stop", do: [ended_note: e.note, ended_at: e.at], else: []
+    set(multi, e, [state: state, next_choice: e.choice, next_note: e.note] ++ ended)
+  end)
+
+  defp channel(multi, e, party, text),
+    do:
+      Multi.insert(
+        multi,
+        :channel,
+        %Channel{
+          resident_id: e.id,
+          episode: e.episode,
+          number: e.number,
+          party: party,
+          text: text,
+          at: e.at
+        },
+        on_conflict: :nothing,
+        conflict_target: [:resident_id, :episode, :number, :party]
+      )
+
+  defp consent(multi, e, party, yes),
+    do:
+      Multi.insert(
+        multi,
+        :consent,
+        %Consent{
+          resident_id: e.id,
+          episode: e.episode,
+          attempt: e.attempt,
+          party: party,
+          yes: yes,
+          note: e.note,
+          at: e.at
+        },
+        on_conflict: :nothing,
+        conflict_target: [:resident_id, :episode, :attempt, :party]
       )
 
   defp question(multi, e, state),
