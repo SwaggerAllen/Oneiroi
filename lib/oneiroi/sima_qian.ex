@@ -37,6 +37,9 @@ defmodule Oneiroi.SimaQian do
       Ecto.Query,
       EventStore,
       Jason,
+      # The fork's and the cutover's copy in the database (sima-qian#72).
+      Postgrex,
+      DBConnection,
       Oban,
       # Gitea's API (sima-qian#55).
       Req,
