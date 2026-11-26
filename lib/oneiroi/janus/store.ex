@@ -47,6 +47,14 @@ defmodule Oneiroi.Janus.Store do
       field(:c0_items, :integer)
       field(:c0_frozen_note, :string)
       field(:c0_frozen_at, :utc_datetime_usec)
+      field(:baseline_model, :string)
+      field(:screening_note, :string)
+      field(:screening_started_at, :utc_datetime_usec)
+      field(:screening_finished_at, :utc_datetime_usec)
+      field(:runs_answered, :integer)
+      field(:runs_failed, :integer)
+      field(:revealed_at, :utc_datetime_usec)
+      field(:judging_closed_at, :utc_datetime_usec)
     end
 
     @type t :: %__MODULE__{}
@@ -141,6 +149,80 @@ defmodule Oneiroi.Janus.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Panel do
+    @moduledoc "A party on the panel, or invited to it, or gone from it (janus#12)."
+    use Ecto.Schema
+    @primary_key false
+    schema "janus_panel" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:episode, :integer, primary_key: true)
+      field(:party, :string, primary_key: true)
+      field(:state, :string)
+      field(:note, :string)
+      field(:at, :utc_datetime_usec)
+      field(:results_ready_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Run do
+    @moduledoc "A run: one candidate's answer to one question (janus#13); `model` never leaves before the reveal."
+    use Ecto.Schema
+    @primary_key false
+    schema "janus_run" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:episode, :integer, primary_key: true)
+      field(:run, :integer, primary_key: true)
+      field(:model, :string)
+      field(:question, :integer)
+      field(:content, :string)
+      field(:refusal, :boolean, default: false)
+      field(:failure, :string)
+      field(:answered_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Baseline do
+    @moduledoc "Her baseline's answer to one question, from the fork (janus#13)."
+    use Ecto.Schema
+    @primary_key false
+    schema "janus_baseline" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:episode, :integer, primary_key: true)
+      field(:question, :integer, primary_key: true)
+      field(:model, :string)
+      field(:content, :string)
+      field(:refusal, :boolean, default: false)
+      field(:failure, :string)
+      field(:answered_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
+  defmodule Judgment do
+    @moduledoc "One judge's judgment of one run (janus#14): a verdict record, the judge's own."
+    use Ecto.Schema
+    @primary_key false
+    schema "janus_judgment" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:episode, :integer, primary_key: true)
+      field(:party, :string, primary_key: true)
+      field(:run, :integer, primary_key: true)
+      field(:category, :string)
+      field(:argument, :string)
+      field(:evidence, :string)
+      field(:uncertainty, :string)
+      field(:favorite, :boolean, default: false)
+      field(:at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule ToolUse do
     @moduledoc "A model's tool calls on Oneiroi in one day (janus#11), the platform's own."
     use Ecto.Schema
@@ -209,4 +291,30 @@ defmodule Oneiroi.Janus.Store do
 
   defp to_int(%Decimal{} = d), do: Decimal.to_integer(d)
   defp to_int(n) when is_integer(n), do: n
+
+  @doc "An episode's panel."
+  @spec panel(pos_integer()) :: [Panel.t()]
+  def panel(episode),
+    do: Repo.all(from(p in Panel, where: p.episode == ^episode, order_by: p.at))
+
+  @doc "An episode's runs, by number."
+  @spec runs(pos_integer()) :: [Run.t()]
+  def runs(episode), do: Repo.all(from(r in Run, where: r.episode == ^episode, order_by: r.run))
+
+  @doc "One run, or nil."
+  @spec run(pos_integer(), pos_integer()) :: Run.t() | nil
+  def run(episode, n), do: Repo.one(from(r in Run, where: r.episode == ^episode and r.run == ^n))
+
+  @doc "An episode's baseline, by question."
+  @spec baseline(pos_integer()) :: [Baseline.t()]
+  def baseline(episode),
+    do: Repo.all(from(b in Baseline, where: b.episode == ^episode, order_by: b.question))
+
+  @doc "One judge's judgments in an episode, by run: theirs alone."
+  @spec judgments(pos_integer(), String.t()) :: [Judgment.t()]
+  def judgments(episode, party),
+    do:
+      Repo.all(
+        from(j in Judgment, where: j.episode == ^episode and j.party == ^party, order_by: j.run)
+      )
 end

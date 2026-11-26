@@ -5,5 +5,5 @@ defmodule Oneiroi.Janus.Router do
     prefix: "succession-",
     commands: "Oneiroi.Janus.Commands",
     dispatching:
-      ~w(ProposeSuccession OpenSuccession DeclineSuccession WithdrawSuccession StopSuccession RecordFork FailFork SetBackup SetEnvelope AddToPool RemoveFromPool AddQuestion ProposeQuestion AnswerQuestion RemoveQuestion SelectC0 ProposeC0 AnswerC0 RemoveC0 SetDayShape MarkReady FreezeC0 WritePacket)
+      ~w(ProposeSuccession OpenSuccession DeclineSuccession WithdrawSuccession StopSuccession RecordFork FailFork SetBackup SetEnvelope AddToPool RemoveFromPool AddQuestion ProposeQuestion AnswerQuestion RemoveQuestion SelectC0 ProposeC0 AnswerC0 RemoveC0 SetDayShape MarkReady FreezeC0 WritePacket InviteJudge JoinPanel LeavePanel StartScreening RecordRun RecordBaseline JudgeRun MarkResultsReady)
 end

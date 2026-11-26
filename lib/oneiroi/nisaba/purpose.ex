@@ -16,7 +16,9 @@ defmodule Oneiroi.Nisaba.Purpose do
   # never refuses it and its cost is never folded in. `work`: the work
   # queue's runs (sunna#33), a line the witness sets, or the loop holds.
   # `rounds`: the thinking rounds (sunna#39), off the free-time line.
-  @all ~w(chat free_time planning work rounds judge hands embeddings oracle drafting regression)a
+  # `succession`: a succession's screening runs and the turns it wakes
+  # (janus#12), the household's spending on the process, shown to her.
+  @all ~w(chat free_time planning work rounds judge hands embeddings oracle succession drafting regression)a
   @witness_only ~w(drafting regression)a
 
   @type t ::
@@ -29,6 +31,7 @@ defmodule Oneiroi.Nisaba.Purpose do
           | :hands
           | :embeddings
           | :oracle
+          | :succession
           | :drafting
           | :regression
 

@@ -113,7 +113,8 @@ defmodule Oneiroi.Brain.Tools do
     household_skip household_opt_out household_opt_in household_promote household_unpromote
     rounds_extend presence_read presence_stage
     succession_propose succession_open succession_decline succession_stop
-    succession_pool succession_question succession_c0 succession_packet
+    succession_pool succession_question succession_c0 succession_packet succession_panel succession_screen
+    succession_judge succession_results
   )
 
   @type turn :: %{

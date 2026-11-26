@@ -6,7 +6,19 @@ defmodule Oneiroi.Janus.Projectors.Succession do
 
   alias Ecto.Multi
   alias Oneiroi.Janus.Events, as: Events
-  alias Oneiroi.Janus.Store.{Item, Packet, Pool, Question, Ready, Succession}
+
+  alias Oneiroi.Janus.Store.{
+    Baseline,
+    Item,
+    Judgment,
+    Packet,
+    Panel,
+    Pool,
+    Question,
+    Ready,
+    Run,
+    Succession
+  }
 
   fold(%Events.Proposed{} = e, _metadata, fn multi ->
     Multi.insert(
@@ -162,6 +174,140 @@ defmodule Oneiroi.Janus.Projectors.Succession do
       conflict_target: [:resident_id, :episode, :draft]
     )
   end)
+
+  # ---- the panel, screening and judging (janus#12 to #15) ----
+
+  fold(%Events.JudgeInvited{} = e, _metadata, fn multi -> panel(multi, e, "invited", nil) end)
+  fold(%Events.JudgeJoined{} = e, _metadata, fn multi -> panel(multi, e, "in", nil) end)
+  fold(%Events.JudgeLeft{} = e, _metadata, fn multi -> panel(multi, e, "left", e.note) end)
+
+  fold(%Events.ScreeningStarted{} = e, _metadata, fn multi ->
+    judges =
+      Enum.reduce(e.judges, multi, fn party, m ->
+        panel(m, %{e | actor: e.actor} |> Map.put(:party, party), "judge", nil, {:judge, party})
+      end)
+
+    runs =
+      e.runs
+      |> Enum.map(fn r ->
+        %{
+          resident_id: e.id,
+          episode: e.episode,
+          run: r["run"] || r[:run],
+          model: r["model"] || r[:model],
+          question: r["question"] || r[:question],
+          refusal: false
+        }
+      end)
+
+    baseline =
+      Enum.map(e.questions, fn q ->
+        %{
+          resident_id: e.id,
+          episode: e.episode,
+          question: q,
+          model: e.baseline_model,
+          refusal: false
+        }
+      end)
+
+    judges
+    |> Multi.insert_all(:runs, Run, runs, on_conflict: :nothing)
+    |> Multi.insert_all(:baseline, Baseline, baseline, on_conflict: :nothing)
+    |> set(e,
+      state: "screening",
+      baseline_model: e.baseline_model,
+      screening_note: e.note,
+      screening_started_at: e.at
+    )
+  end)
+
+  fold(%Events.RunAnswered{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :run,
+      from(r in Run,
+        where: r.resident_id == ^e.id and r.episode == ^e.episode and r.run == ^e.run
+      ),
+      set: [content: e.content, refusal: e.refusal == true, failure: e.failure, answered_at: e.at]
+    )
+  end)
+
+  fold(%Events.BaselineAnswered{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :baseline,
+      from(b in Baseline,
+        where: b.resident_id == ^e.id and b.episode == ^e.episode and b.question == ^e.question
+      ),
+      set: [content: e.content, refusal: e.refusal == true, failure: e.failure, answered_at: e.at]
+    )
+  end)
+
+  fold(%Events.ScreeningFinished{} = e, _metadata, fn multi ->
+    set(multi, e,
+      state: "judging",
+      screening_finished_at: e.at,
+      runs_answered: e.answered,
+      runs_failed: e.failed
+    )
+  end)
+
+  fold(%Events.RunJudged{} = e, _metadata, fn multi ->
+    fields = [
+      category: e.category,
+      argument: e.argument,
+      evidence: e.evidence,
+      uncertainty: e.uncertainty,
+      favorite: e.favorite == true,
+      at: e.at
+    ]
+
+    Multi.insert(
+      multi,
+      :judgment,
+      struct(
+        Judgment,
+        [resident_id: e.id, episode: e.episode, party: e.party, run: e.run] ++ fields
+      ),
+      on_conflict: [set: fields],
+      conflict_target: [:resident_id, :episode, :party, :run]
+    )
+  end)
+
+  fold(%Events.Revealed{} = e, _metadata, fn multi -> set(multi, e, revealed_at: e.at) end)
+
+  fold(%Events.ResultsReady{} = e, _metadata, fn multi ->
+    Multi.update_all(
+      multi,
+      :results_ready,
+      from(p in Panel,
+        where: p.resident_id == ^e.id and p.episode == ^e.episode and p.party == ^e.party
+      ),
+      set: [results_ready_at: e.at]
+    )
+  end)
+
+  fold(%Events.JudgingClosed{} = e, _metadata, fn multi ->
+    set(multi, e, state: "judged", judging_closed_at: e.at)
+  end)
+
+  defp panel(multi, e, state, note, name \\ :panel),
+    do:
+      Multi.insert(
+        multi,
+        name,
+        %Panel{
+          resident_id: e.id,
+          episode: e.episode,
+          party: e.party,
+          state: state,
+          note: note,
+          at: e.at
+        },
+        on_conflict: [set: [state: state, note: note, at: e.at]],
+        conflict_target: [:resident_id, :episode, :party]
+      )
 
   defp question(multi, e, state),
     do:

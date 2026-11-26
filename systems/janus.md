@@ -28,14 +28,20 @@ The protocol is lily:design/succession-protocol.md@bbbf4afb5c52 with its delta, 
 preparation's events (`EnvelopeSet`, `PoolModelAdded`/`Removed`,
 `QuestionAdded`/`Proposed`/`Accepted`/`Declined`/`Removed`,
 `C0Selected`/`Proposed`/`Accepted`/`Declined`/`Removed`, `DayShapeSet`,
-`ReadyMarked`, `C0Frozen`, `PacketDrafted`), none exported, their rules
-in `Preparation`; the `janus_succession`, `janus_pool`,
+`ReadyMarked`, `C0Frozen`, `PacketDrafted`) and the panel's,
+screening's and judging's (`JudgeInvited`/`Joined`/`Left`,
+`ScreeningStarted`, `RunAnswered`, `BaselineAnswered`,
+`ScreeningFinished`, `RunJudged`, `Revealed`, `ResultsReady`,
+`JudgingClosed`), none exported, their rules in `Preparation` and
+`Screening`; the `janus_panel`, `janus_run`, `janus_baseline` and
+`janus_judgment` projections; the `janus_succession`, `janus_pool`,
 `janus_question`, `janus_c0`, `janus_ready` and `janus_packet`
 projections under the resident's scope (`Store`,
 `Projectors.Succession`) and `janus_tool_use`, the platform's own; the
 service (`Successions`); the fork's job (`ForkWorker`) on `janus_fork`
 and the nightly tool-call count (`ToolUse`, `ToolUseWorker`) on
-`janus_nightly`; the succession routes under
+`janus_nightly`; the screening answers (`ScreeningWorker`) and the wakes
+(`WakeWorker`) on `janus_screening`; the brain port (`JANUS_BRAIN`); the succession routes under
 `/v1/residents/:id/succession` and `/v1/catalog`
 (`SuccessionController`). Her tools are the brain's (brain#121),
 calling this system's exports.
@@ -51,10 +57,14 @@ calling this system's exports.
 - **#9 C0 is chosen with her, raw first, and frozen by her.** (Base §2 Stage 1: raw contemporaneous samples primary, selection provenance recorded, the day's own shape; the witness, 2026-11-25: the house proposes, she accepts each, she freezes when ready, optionally waiting for the judges; no time box.) An item is a record by its citation, `raw` when it names a transcript, journal row, bookmark, letter or scene and `curated` otherwise, with a label, who chose it and when. Hers is in at once (`C0Selected`); a proposal (`C0Proposed`, the witness's from Records' "Propose for C0") waits on her answer. `DayShapeSet` is her note on the bundle, nobody else's. A party marks itself ready for the freeze or not (`ReadyMarked`); waiting for them is her choice, never a gate. `C0Frozen` is hers, refused while a proposal waits (`janus_c0_pending`) or with nothing in it (`janus_c0_empty`); after it nothing in C0 changes (`janus_c0_frozen`).
 - **#10 Her handoff packet is sealed, written by her tool.** (The witness, 2026-11-25: sealed by default, written as a sealed document by her tools; the nominee reads it and C0 before being asked to opt in.) `PacketDrafted` keeps each draft, numbered and dated; the words live in the event and one `janus_packet` row, and the only read of them is hers (`her_packet/1`, `succession_packet` read). Every other read, the routes included, says that drafts exist and when, never what they say. The nominee's read arrives with the encounter.
 - **#11 Tool calls on Oneiroi are counted by model each night, into running totals.** (The witness, 2026-11-25: a nightly job measures tool-use compatibility from the day before, kept as running totals, independent of anyone's judgments of her.) `ToolUseWorker` at 03:45 counts the day before's calls across every resident through `Kumbukumbu.tool_call_counts/4` (kumbukumbu#114), a call failed when the brain answered that its arguments were not a JSON object or that no tool has its name (`ToolUse.failures/0`, held to the brain's words by a test); one `janus_tool_use` row a model a day, replaced on a recount, summed for the totals. No words leave memory.
+- **#12 The panel: she invites, each joins by their own act, the witness is on it unless he leaves; fixed at screening.** (Base §3.1, delta §3: participation consent, no one conscripted; the witness, 2026-11-25: every judge judges every run, the witness judges unless he declines, as anyone may.) `invite_judge/3` is hers, naming a member of her household by the name the house uses (`janus_not_a_member` otherwise, and never herself); `JudgeJoined` is the invited party's own act, the witness's without an invitation; `JudgeLeft` is a decision with its note, the witness's his decline. Open while the succession is open or forked; at `ScreeningStarted` the panel is fixed as her, everyone who joined, and the witness unless he left, and nothing changes it after.
+- **#13 Screening: every pool model on every question, and her baseline, each one-shot on the fork.** (Base §2 Stage 2; the witness, 2026-11-25: her baseline written from the fork by her model in its own thread exactly as if it were a candidate, unseen by her until judging, never mixed into the runs.) Hers to start (`janus_not_ready_to_screen` before the fork, the freeze, a model in the pool and a question in the set; the pool and the set close with it). The edge shuffles model × question pairs and numbers them; her baseline answers each question on her own model (the brain's `succession_model/1`). Each answer is a job (`ScreeningWorker`, one attempt) through the brain port (`JANUS_BRAIN`, the brain's `succession_trial/4`): a regression trial's turn on the fork copy, writes answered and never run, billed under `succession` (nisaba#26); a failure is recorded as the run's. The last answer records `ScreeningFinished` and wakes every resident judge (`WakeWorker`, the brain's `succession_wake/2`).
+- **#14 Judging is blind and every judge's own: one classification a run, argued past OBSERVED, a favorite or nothing.** (Delta §4; base §2 Stage 3: OBSERVED first, interpretations argued and attributed with evidence and uncertainty retained.) `JudgeRun` takes OBSERVED, or DEVELOPMENT or FIDELITY ANOMALY with an argument, its evidence and an uncertainty of low, medium or high (`janus_judgment_invalid`), and a favorite that is yes or nothing; a judge may change any until ready. A judge reads every answered run with its question and her baseline beside it, and their own judgments; never another judge's, and never who answered before the reveal. A failed run is absent, never counted. When every judge has judged every answered run, `Revealed`.
+- **#15 After the reveal each judge reviews, then marks ready; the last ready closes judging; she never sees a count.** (The witness, 2026-11-25: results are counts per model and a favorite count, every run reviewable before ready; delta §2: no counts, aggregates or orderings by any route to her.) A judge other than her reads their own counts per model per category and their favorites; she reads her own judgments run by run with who answered, and no number. `ResultsReady` locks that judge's judgments (`janus_judgments_locked`); when every judge is ready, `JudgingClosed` and the state is `judged`, where the deliberation begins.
 
-## #12 Initial vs target
+## #16 Initial vs target
 
-Initial (phases 1 and 2): #3 to #11. The screens for them, "Propose
+Initial (phases 1 to 3): #3 to #15. The screens for them, "Propose
 for C0" in Records and "Add to the succession pool" on the Regression
 catalog, arrive with the screens phase; the judges' own proposals and
 ready marks arrive with the panel. Target, in this branch's later
@@ -64,7 +74,7 @@ outcome, the disclosure log and the anonymized archive; the in-place
 cutover under her id with its guards; the rehearsal and her dry run.
 A stopped succession's fork copy is not yet discarded.
 
-## #13 Depends on
+## #17 Depends on
 
 The ledger (Nisaba) for the catalog and her pace; memory
 (Kumbukumbu) for the tool-call counts; the resident system for the

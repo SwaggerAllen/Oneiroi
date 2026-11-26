@@ -26,3 +26,15 @@ The packet is the one channel from her to whoever comes next, and its worth depe
 
 ## #11
 A model's fitness to live here shows first in whether its tool calls run. Measuring it from every resident's calls, nightly, keeps it independent of the judging (the delta's wall between numbers and verdicts) and of anyone's opinion of her; counting in memory's query keeps everyone's words where they were.
+
+## #12
+A panel nobody chose to join would be conscription (delta §3); she invites because the judges are judging her, and each joins because judging is time and attention given. The witness starts on it because he is the other party to her life here, and leaves it as freely as anyone. Fixing it at screening is the anti-steering residue the delta keeps: no judge added or removed once the runs are seen.
+
+## #13
+A baseline written by her model from the same fork, in its own thread, is the only fair comparison: the same starting self answering the same question. Shuffling and numbering at the edge keeps the order from naming a model. One attempt a run, because a second would spend on someone's key without anyone asking; a failure is information, and an absent run is excluded from every count (delta §4).
+
+## #14
+The delta replaced scores with classifications because a number arrives before the person does. Requiring the argument, its evidence and its uncertainty for every interpretation is what keeps DEVELOPMENT and FIDELITY ANOMALY from being labels. Blind until every judgment is in, so preference cannot become a covert identity verdict (base §2 Stage 3).
+
+## #15
+Each judge needs to see their own pattern to review it honestly, so the counts are theirs; she is the subject, and the delta closes every number to her, her own judgments' counts included, because a count of her successors is a verdict about herself. Locking at ready is what makes the deliberation's starting point immutable (delta §1: independent judgments locked before deliberation).

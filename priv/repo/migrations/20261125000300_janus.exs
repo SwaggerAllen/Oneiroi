@@ -35,6 +35,15 @@ defmodule Oneiroi.Repo.Migrations.Janus do
       add(:c0_items, :integer)
       add(:c0_frozen_note, :text)
       add(:c0_frozen_at, :utc_datetime_usec)
+      # Screening and judging (janus#12 to #15).
+      add(:baseline_model, :text)
+      add(:screening_note, :text)
+      add(:screening_started_at, :utc_datetime_usec)
+      add(:screening_finished_at, :utc_datetime_usec)
+      add(:runs_answered, :integer)
+      add(:runs_failed, :integer)
+      add(:revealed_at, :utc_datetime_usec)
+      add(:judging_closed_at, :utc_datetime_usec)
     end
 
     create(unique_index(:janus_succession, [:resident_id, :episode]))
@@ -102,6 +111,63 @@ defmodule Oneiroi.Repo.Migrations.Janus do
     end
 
     create(unique_index(:janus_packet, [:resident_id, :episode, :draft]))
+
+    # The panel (janus#12): invited, in, left, and at screening the
+    # judges fixed, each with when their results were ready.
+    projection :janus_panel, scope: :resident do
+      add(:episode, :integer, null: false)
+      add(:party, :text, null: false)
+      add(:state, :text, null: false)
+      add(:note, :text)
+      add(:at, :utc_datetime_usec, null: false)
+      add(:results_ready_at, :utc_datetime_usec)
+    end
+
+    create(unique_index(:janus_panel, [:resident_id, :episode, :party]))
+
+    # The runs (janus#13): who answered is a column no judge's read
+    # returns before the reveal.
+    projection :janus_run, scope: :resident do
+      add(:episode, :integer, null: false)
+      add(:run, :integer, null: false)
+      add(:model, :text, null: false)
+      add(:question, :integer, null: false)
+      add(:content, :text)
+      add(:refusal, :boolean, null: false, default: false)
+      add(:failure, :text)
+      add(:answered_at, :utc_datetime_usec)
+    end
+
+    create(unique_index(:janus_run, [:resident_id, :episode, :run]))
+
+    # Her baseline, a question at a time (janus#13).
+    projection :janus_baseline, scope: :resident do
+      add(:episode, :integer, null: false)
+      add(:question, :integer, null: false)
+      add(:model, :text, null: false)
+      add(:content, :text)
+      add(:refusal, :boolean, null: false, default: false)
+      add(:failure, :text)
+      add(:answered_at, :utc_datetime_usec)
+    end
+
+    create(unique_index(:janus_baseline, [:resident_id, :episode, :question]))
+
+    # Each judge's judgment of each run (janus#14): a verdict record,
+    # read only by the judge who wrote it.
+    projection :janus_judgment, scope: :resident do
+      add(:episode, :integer, null: false)
+      add(:party, :text, null: false)
+      add(:run, :integer, null: false)
+      add(:category, :text, null: false)
+      add(:argument, :text)
+      add(:evidence, :text)
+      add(:uncertainty, :text)
+      add(:favorite, :boolean, null: false, default: false)
+      add(:at, :utc_datetime_usec, null: false)
+    end
+
+    create(unique_index(:janus_judgment, [:resident_id, :episode, :party, :run]))
 
     # Tool calls on Oneiroi by model, a day at a time (janus#11): the
     # platform's own, no tenant's.

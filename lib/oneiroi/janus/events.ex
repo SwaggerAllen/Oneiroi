@@ -156,4 +156,82 @@ defmodule Oneiroi.Janus.Events do
     # the nominee does before the encounter.
     use Oneiroi.Event, version: 1, fields: [:id, :episode, :draft, :content], export: false
   end
+
+  # ---- the panel, screening and judging (janus#12 to #15) ----
+
+  defmodule JudgeInvited do
+    use Oneiroi.Event, version: 1, fields: [:id, :episode, :party], export: false
+  end
+
+  defmodule JudgeJoined do
+    use Oneiroi.Event, version: 1, fields: [:id, :episode, :party], export: false
+  end
+
+  defmodule JudgeLeft do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :episode, :party], export: false
+  end
+
+  defmodule ScreeningStarted do
+    # The panel fixed (`judges`), the runs in their shuffled order, the
+    # questions her baseline answers and the model it answers on.
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :episode, :runs, :questions, :baseline_model, :judges],
+      export: false
+  end
+
+  defmodule RunAnswered do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :run, :content, :refusal, :failure],
+      export: false
+  end
+
+  defmodule BaselineAnswered do
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :question, :content, :refusal, :failure],
+      export: false
+  end
+
+  defmodule ScreeningFinished do
+    use Oneiroi.Event, version: 1, fields: [:id, :episode, :answered, :failed], export: false
+  end
+
+  defmodule RunJudged do
+    # One judge's classification of one run (delta §4): OBSERVED, or an
+    # argued DEVELOPMENT or FIDELITY ANOMALY with its evidence and
+    # uncertainty, and a favorite or nothing. A verdict record, walled.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [
+        :id,
+        :episode,
+        :party,
+        :run,
+        :category,
+        :argument,
+        :evidence,
+        :uncertainty,
+        :favorite
+      ],
+      export: false
+  end
+
+  defmodule Revealed do
+    # Every judgment of every answered run is in: who answered each run
+    # is shown to each judge for the runs they judged.
+    use Oneiroi.Event, version: 1, fields: [:id, :episode], export: false
+  end
+
+  defmodule ResultsReady do
+    use Oneiroi.Event, version: 1, fields: [:id, :episode, :party], export: false
+  end
+
+  defmodule JudgingClosed do
+    # Every judge is ready: their judgments are locked and the room may
+    # open (delta §6).
+    use Oneiroi.Event, version: 1, fields: [:id, :episode], export: false
+  end
 end

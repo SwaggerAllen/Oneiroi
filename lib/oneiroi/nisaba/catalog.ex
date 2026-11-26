@@ -68,7 +68,7 @@ defmodule Oneiroi.Nisaba.Catalog do
   Her tokens a day, input and output, averaged over the last 90 days
   or over the days since her first call when she is younger than that,
   never fewer than one; the witness's own spending on her (drafting,
-  regression) is not hers and is left out.
+  regression) and a succession's runs are not hers and are left out.
   """
   @spec pace(String.t()) :: %{
           input: non_neg_integer(),
@@ -78,7 +78,8 @@ defmodule Oneiroi.Nisaba.Catalog do
   def pace(resident_id) do
     now = Clock.now()
     since = DateTime.add(now, -@window_days * 86_400, :second)
-    hers = Enum.map(Purpose.all() -- Purpose.witness_only(), &to_string/1)
+    # A succession's runs are the process's, not her pace (janus#12).
+    hers = Enum.map(Purpose.all() -- [:succession | Purpose.witness_only()], &to_string/1)
 
     {input, output, first} =
       Scope.resident(resident_id, fn ->

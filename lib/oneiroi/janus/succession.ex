@@ -27,10 +27,11 @@ defmodule Oneiroi.Janus.Succession do
   alias Oneiroi.Janus.Error
   alias Oneiroi.Janus.Events
   alias Oneiroi.Janus.Preparation
+  alias Oneiroi.Janus.Screening
 
   defstruct [:id, episode: 0, current: nil]
 
-  @underway [:proposed, :open, :forked]
+  @underway [:proposed, :open, :forked, :screening, :judging, :judged]
   # The preparation's commands and events (janus#6 to #10), named here
   # rather than read from `Preparation` at compile time: a call there
   # would be a compile-time edge, and the ratchet is at 0.
@@ -50,6 +51,29 @@ defmodule Oneiroi.Janus.Succession do
     Commands.MarkReady,
     Commands.FreezeC0,
     Commands.WritePacket
+  ]
+  @screening [
+    Commands.InviteJudge,
+    Commands.JoinPanel,
+    Commands.LeavePanel,
+    Commands.StartScreening,
+    Commands.RecordRun,
+    Commands.RecordBaseline,
+    Commands.JudgeRun,
+    Commands.MarkResultsReady
+  ]
+  @screened [
+    Events.JudgeInvited,
+    Events.JudgeJoined,
+    Events.JudgeLeft,
+    Events.ScreeningStarted,
+    Events.RunAnswered,
+    Events.BaselineAnswered,
+    Events.ScreeningFinished,
+    Events.RunJudged,
+    Events.Revealed,
+    Events.ResultsReady,
+    Events.JudgingClosed
   ]
   @prepared [
     Events.EnvelopeSet,
@@ -167,7 +191,7 @@ defmodule Oneiroi.Janus.Succession do
       not hers?(c) ->
         {:error, Error.new(:janus_not_yours, :janus_stop_actor)}
 
-      current.state not in [:open, :forked] ->
+      current.state not in tl(@underway) ->
         {:error, Error.new(:janus_stage, :janus_stop_stage, stage: current.state)}
 
       true ->
@@ -184,6 +208,10 @@ defmodule Oneiroi.Janus.Succession do
   # The preparation's rules are their own module (janus#6 to #10).
   def execute(%__MODULE__{current: current}, %command{} = c) when command in @preparation,
     do: Preparation.execute(current, c)
+
+  # The panel, screening and judging's too (janus#12 to #15).
+  def execute(%__MODULE__{current: current}, %command{} = c) when command in @screening,
+    do: Screening.execute(current, c)
 
   # The fork lands once, on the episode it was made for: a job made for
   # a stopped episode, or replayed after its copy landed, records nothing.
@@ -246,7 +274,9 @@ defmodule Oneiroi.Janus.Succession do
       | id: e.id,
         episode: e.episode,
         current:
-          Map.merge(Preparation.fresh(), %{
+          Preparation.fresh()
+          |> Map.merge(Screening.fresh())
+          |> Map.merge(%{
             episode: e.episode,
             state: :proposed,
             dry_run: e.dry_run == true,
@@ -259,6 +289,9 @@ defmodule Oneiroi.Janus.Succession do
 
   def apply(%__MODULE__{} = s, %event{} = e) when event in @prepared,
     do: %{s | current: Preparation.apply(s.current, e)}
+
+  def apply(%__MODULE__{} = s, %event{} = e) when event in @screened,
+    do: %{s | current: Screening.apply(s.current, e)}
 
   def apply(%__MODULE__{} = s, %Events.Opened{}), do: put_state(s, :open)
   def apply(%__MODULE__{} = s, %Events.Declined{}), do: put_state(s, :declined)

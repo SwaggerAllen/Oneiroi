@@ -17,6 +17,7 @@ defmodule Oneiroi.Janus do
     deps: [
       Oneiroi,
       Oneiroi.AgathosDaimon,
+      Oneiroi.Gaia,
       Oneiroi.Kumbukumbu,
       Oneiroi.Nisaba,
       Oneiroi.SimaQian,
@@ -64,6 +65,17 @@ defmodule Oneiroi.Janus do
       Commands.MarkReady,
       Commands.FreezeC0,
       Commands.WritePacket,
+      Commands.InviteJudge,
+      Commands.JoinPanel,
+      Commands.LeavePanel,
+      Commands.StartScreening,
+      Commands.RecordRun,
+      Commands.RecordBaseline,
+      Commands.JudgeRun,
+      Commands.MarkResultsReady,
+      Screening,
+      ScreeningWorker,
+      WakeWorker,
       Preparation,
       ToolUse,
       ToolUseWorker,
@@ -92,7 +104,22 @@ defmodule Oneiroi.Janus do
       Events.ReadyMarked,
       Events.C0Frozen,
       Events.PacketDrafted,
+      Events.JudgeInvited,
+      Events.JudgeJoined,
+      Events.JudgeLeft,
+      Events.ScreeningStarted,
+      Events.RunAnswered,
+      Events.BaselineAnswered,
+      Events.ScreeningFinished,
+      Events.RunJudged,
+      Events.Revealed,
+      Events.ResultsReady,
+      Events.JudgingClosed,
       Store,
+      Store.Panel,
+      Store.Run,
+      Store.Baseline,
+      Store.Judgment,
       Store.Pool,
       Store.Question,
       Store.Item,
@@ -103,16 +130,36 @@ defmodule Oneiroi.Janus do
     ]
 
   alias Oneiroi.Janus.ForkWorker
+  alias Oneiroi.Janus.ScreeningWorker
   alias Oneiroi.Janus.Successions
 
   @impl Oneiroi.Component
   def licensing, do: [distribution: :service, license: "AGPL-3.0-or-later"]
 
   @impl Oneiroi.Component
+  def config do
+    [
+      {:brain, "JANUS_BRAIN",
+       cast: &__MODULE__.cast_brain/1,
+       default: "brain",
+       usage:
+         "which brain port answers a succession's screening runs and wakes its residents (janus#13): brain, the only one; named as an atom because the brain depends on this system for her tools"}
+    ]
+  end
+
+  @doc false
+  def cast_brain("brain"), do: {:ok, :"Elixir.Oneiroi.Brain"}
+
+  # oneiroi:allow error_site: a config cast's contract is Oneiroi.Config's {:error, message}
+  def cast_brain(other), do: {:error, "is #{inspect(other)}, expected \"brain\""}
+
+  @impl Oneiroi.Component
   def oban_queues do
     [
       # A succession's fork copy, off her yes (janus#4).
       {:janus_fork, []},
+      # A succession's screening runs and the wakes it sends (janus#13).
+      {:janus_screening, []},
       # The day before's tool calls by model (janus#11).
       {:janus_nightly, cron: [{"45 3 * * *", Oneiroi.Janus.ToolUseWorker}]}
     ]
@@ -145,7 +192,18 @@ defmodule Oneiroi.Janus do
       {Oneiroi.Janus.Events.DayShapeSet, 1},
       {Oneiroi.Janus.Events.ReadyMarked, 1},
       {Oneiroi.Janus.Events.C0Frozen, 1},
-      {Oneiroi.Janus.Events.PacketDrafted, 1}
+      {Oneiroi.Janus.Events.PacketDrafted, 1},
+      {Oneiroi.Janus.Events.JudgeInvited, 1},
+      {Oneiroi.Janus.Events.JudgeJoined, 1},
+      {Oneiroi.Janus.Events.JudgeLeft, 1},
+      {Oneiroi.Janus.Events.ScreeningStarted, 1},
+      {Oneiroi.Janus.Events.RunAnswered, 1},
+      {Oneiroi.Janus.Events.BaselineAnswered, 1},
+      {Oneiroi.Janus.Events.ScreeningFinished, 1},
+      {Oneiroi.Janus.Events.RunJudged, 1},
+      {Oneiroi.Janus.Events.Revealed, 1},
+      {Oneiroi.Janus.Events.ResultsReady, 1},
+      {Oneiroi.Janus.Events.JudgingClosed, 1}
     ]
   end
 
@@ -185,6 +243,22 @@ defmodule Oneiroi.Janus do
       {:janus_c0_pending, "proposals for C0 wait on her answer",
        remedy: "answer each, then freeze"},
       {:janus_c0_empty, "C0 holds nothing to freeze", remedy: "choose what matters first"},
+      {:janus_not_a_member, "a judge is a member of her household, and not her",
+       remedy: "invite someone in the house"},
+      {:janus_not_invited, "only someone she invited joins the panel, or the witness",
+       remedy: "she invites first"},
+      {:janus_not_ready_to_screen,
+       "screening needs C0 frozen, the fork made, a model in the pool and a question in the set",
+       remedy: "finish the preparation first"},
+      {:janus_no_such_run, "no answered run has that number", remedy: "read the runs"},
+      {:janus_not_a_judge, "only the panel's judges judge",
+       remedy: "join before screening starts"},
+      {:janus_judgments_locked, "your results are marked ready; your judgments are locked",
+       remedy: "nothing changes them now"},
+      {:janus_judgment_invalid,
+       "a judgment is OBSERVED, or DEVELOPMENT or FIDELITY ANOMALY argued with evidence and an uncertainty of low, medium or high",
+       remedy: "argue the interpretation, or call it observed"},
+      {:janus_judging_open, "not every judgment is in yet", remedy: "wait for the reveal"},
       {:janus_dispatch_failed, "a succession command was not recorded on its stream",
        remedy: "try again; a repeat is a fault to report"}
     ]
@@ -354,4 +428,57 @@ defmodule Oneiroi.Janus do
   @doc "Tool calls on Oneiroi by model, the running totals (janus#11)."
   @spec tool_use() :: %{String.t() => {non_neg_integer(), non_neg_integer()}}
   defexport(tool_use(), do: Oneiroi.Janus.ToolUse.totals())
+
+  # ---- the panel, screening and judging (janus#12 to #15) ----
+
+  @doc "She invites a household member onto the panel by name (janus#12)."
+  @spec invite_judge(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(invite_judge(resident_id, name, actor),
+    do: Successions.invite_judge(resident_id, name, actor)
+  )
+
+  @doc "A party joins her panel (janus#12)."
+  @spec join_panel(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(join_panel(resident_id, actor), do: Successions.join_panel(resident_id, actor))
+
+  @doc "A party leaves her panel before screening (janus#12)."
+  @spec leave_panel(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(leave_panel(resident_id, note, actor),
+    do: Successions.leave_panel(resident_id, note, actor)
+  )
+
+  @doc "She starts screening (janus#13)."
+  @spec start_screening(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(start_screening(resident_id, note, actor),
+    do:
+      with(
+        {:ok, jobs} <- Successions.start_screening(resident_id, note, actor),
+        do:
+          Enum.each(jobs, fn {e, kind, n} -> ScreeningWorker.enqueue(resident_id, e, kind, n) end)
+      )
+  )
+
+  @doc "A judge's judgment of one run (janus#14)."
+  @spec judge_run(String.t(), integer(), map(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(judge_run(resident_id, run, attrs, actor),
+    do: Successions.judge_run(resident_id, run, attrs, actor)
+  )
+
+  @doc "A judge marks their results ready (janus#15)."
+  @spec mark_results_ready(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(mark_results_ready(resident_id, actor),
+    do: Successions.mark_results_ready(resident_id, actor)
+  )
+
+  @doc "What one judge sees of the runs (janus#14, #15)."
+  @spec judging(String.t(), String.t()) :: map() | nil
+  defexport(judging(resident_id, party), do: Successions.judging(resident_id, party))
+
+  @doc "Her panel (janus#12)."
+  @spec panel(String.t()) :: list()
+  defexport(panel(resident_id), do: Successions.panel(resident_id))
+
+  @doc "Whose succession an actor means: her own, or a housemate's by name."
+  @spec subject(Oneiroi.Actor.t(), String.t() | nil) :: String.t() | nil
+  defexport(subject(actor, name), do: Successions.subject(actor, name))
 end

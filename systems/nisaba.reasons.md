@@ -118,3 +118,6 @@ A price list is a measurement (#13 said this codebase had not taken one); the pr
 
 ## #25
 The estimate is there so the envelope's cost is seen coming, not to set it. Her own calls are what a successor would make; the witness's drafting and regression are his choices about her and would make her look dearer than she is. Dividing by the days she has lived in the window, rather than by 90, keeps a young resident's average honest.
+
+## #26
+Billing the screening under `regression` would hide from her a process she started and consented to, and folding it into chat would make her look dearer than she is. A line of its own lets the witness set its budget and both of them see it.

@@ -13,17 +13,24 @@ defmodule Oneiroi.Janus.Successions do
   require Logger
 
   alias Oneiroi.Actor
+  alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Apsu.Vault
+  alias Oneiroi.Config
   alias Oneiroi.Config.Secret
+  alias Oneiroi.Gaia
   alias Oneiroi.Janus.Commands
   alias Oneiroi.Janus.Error
+  alias Oneiroi.Janus.Events
   alias Oneiroi.Janus.Router
   alias Oneiroi.Janus.Store
   alias Oneiroi.Janus.ToolUse
+  alias Oneiroi.Janus.WakeWorker
   alias Oneiroi.Nisaba
   alias Oneiroi.Scope
   alias Oneiroi.SimaQian
+
+  @actor Actor.new(:job, "janus")
 
   @doc """
   Proposes a succession: the witness's, waiting on her yes; or hers,
@@ -375,6 +382,306 @@ defmodule Oneiroi.Janus.Successions do
   defp numbered(command) do
     with {:ok, [%{number: number}]} <- dispatch(command), do: {:ok, number}
   end
+
+  # ---- the panel, screening and judging (janus#12 to #15) ----
+
+  @doc "She invites a member of her household onto the panel, by the name the house uses."
+  @spec invite_judge(String.t(), String.t(), Actor.t()) :: :ok | {:error, term()}
+  def invite_judge(resident_id, name, actor) do
+    member = member_named(resident_id, name)
+
+    done(%Commands.InviteJudge{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      party: member && "#{member.kind}:#{member.id}",
+      member: not is_nil(member)
+    })
+  end
+
+  @doc "A party joins the panel: invited, or the witness."
+  @spec join_panel(String.t(), Actor.t()) :: :ok | {:error, term()}
+  def join_panel(resident_id, actor),
+    do: done(%Commands.JoinPanel{actor: actor, at: Clock.now(), id: resident_id})
+
+  @doc "A party leaves the panel before screening, with why; the witness's is his decline."
+  @spec leave_panel(String.t(), String.t(), Actor.t()) :: :ok | {:error, term()}
+  def leave_panel(resident_id, note, actor),
+    do: done(%Commands.LeavePanel{actor: actor, at: Clock.now(), id: resident_id, note: note})
+
+  @doc """
+  She starts screening (janus#13): every model in the pool × every
+  question in the set, shuffled and numbered, and her baseline on her
+  own model. Returns what to answer, `{episode, kind, n}` each, for the
+  export to enqueue (`ScreeningWorker` calls this module, so enqueuing
+  here would be a cycle). The witness is on the panel unless he left.
+  """
+  @spec start_screening(String.t(), String.t(), Actor.t()) ::
+          {:ok, [{pos_integer(), String.t(), pos_integer()}]} | {:error, term()}
+  def start_screening(resident_id, note, actor) do
+    with %{} = row <- status(resident_id) || {:error, no_succession()},
+         {:ok, witness} <- witness_party(resident_id),
+         {:ok, events} <-
+           dispatch(%Commands.StartScreening{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             runs: shuffled_runs(resident_id, row.episode),
+             baseline_model: brain().succession_model(resident_id),
+             witness: witness,
+             note: note
+           }) do
+      {:ok,
+       for(
+         %Events.ScreeningStarted{episode: e, runs: runs, questions: qs} <- events,
+         job <-
+           Enum.map(runs, &{e, "run", &1["run"]}) ++ Enum.map(qs, &{e, "baseline", &1}),
+         do: job
+       )}
+    end
+  end
+
+  defp shuffled_runs(resident_id, episode) do
+    {pool, questions} =
+      Scope.resident(resident_id, fn -> {Store.pool(episode), Store.questions(episode)} end)
+
+    for(
+      p <- pool,
+      is_nil(p.removed_at),
+      q <- questions,
+      q.state == "in",
+      do: {p.model, q.number}
+    )
+    |> Enum.shuffle()
+    |> Enum.with_index(1)
+    |> Enum.map(fn {{m, q}, n} -> %{"run" => n, "model" => m, "question" => q} end)
+  end
+
+  @doc """
+  Answers one run or one baseline question (`ScreeningWorker`'s unit):
+  the trial on the fork copy through the brain port, recorded, a failure
+  recorded as one. When the last answer lands, every resident judge is
+  woken to judge.
+  """
+  @spec answer(String.t(), pos_integer(), String.t(), pos_integer()) :: :ok | {:error, term()}
+  def answer(resident_id, episode, kind, n) do
+    with %{episode: ^episode, state: "screening", copy_id: copy} = row <- status(resident_id),
+         {:ok, model, question} <- what_to_answer(resident_id, row, kind, n),
+         result = brain().succession_trial(copy, model, question.text, @actor),
+         {:ok, events} <- dispatch(record(resident_id, kind, n, answered(result))) do
+      if Enum.any?(events, &match?(%Events.ScreeningFinished{}, &1)),
+        do: wake_judges(resident_id, episode)
+
+      :ok
+    else
+      {:error, _} = failed -> failed
+      _not_screening -> :ok
+    end
+  end
+
+  defp record(resident_id, "run", n, {content, refusal, failure}),
+    do: %Commands.RecordRun{
+      actor: @actor,
+      at: Clock.now(),
+      id: resident_id,
+      run: n,
+      content: content,
+      refusal: refusal,
+      failure: failure
+    }
+
+  defp record(resident_id, "baseline", n, {content, refusal, failure}),
+    do: %Commands.RecordBaseline{
+      actor: @actor,
+      at: Clock.now(),
+      id: resident_id,
+      question: n,
+      content: content,
+      refusal: refusal,
+      failure: failure
+    }
+
+  @doc "A judge's judgment of one run (janus#14), changeable until their results are ready."
+  @spec judge_run(String.t(), integer(), map(), Actor.t()) :: :ok | {:error, term()}
+  def judge_run(resident_id, run, attrs, actor),
+    do:
+      done(%Commands.JudgeRun{
+        actor: actor,
+        at: Clock.now(),
+        id: resident_id,
+        run: run,
+        category: attrs[:category],
+        argument: attrs[:argument],
+        evidence: attrs[:evidence],
+        uncertainty: attrs[:uncertainty],
+        favorite: attrs[:favorite] == true
+      })
+
+  @doc "A judge marks their results ready (janus#15): their judgments lock."
+  @spec mark_results_ready(String.t(), Actor.t()) :: :ok | {:error, term()}
+  def mark_results_ready(resident_id, actor),
+    do: done(%Commands.MarkResultsReady{actor: actor, at: Clock.now(), id: resident_id})
+
+  @doc """
+  What one judge sees (janus#14, #15): every answered run with its
+  question, her baseline's answer beside it and this judge's own
+  judgment; who answered only once revealed; for a judge other than
+  her, after the reveal, their own counts per model. Never another
+  judge's judgment, and never a count of any kind for her (delta §2).
+  """
+  @spec judging(String.t(), String.t()) :: map() | nil
+  def judging(resident_id, party) do
+    case status(resident_id) do
+      %{state: state} = row when state in ["screening", "judging", "judged"] ->
+        Scope.resident(resident_id, fn -> judging_view(resident_id, row, party) end)
+
+      _none ->
+        nil
+    end
+  end
+
+  defp judging_view(resident_id, row, party) do
+    questions = Map.new(Store.questions(row.episode), &{&1.number, &1.text})
+    baseline = Map.new(Store.baseline(row.episode), &{&1.question, &1.content})
+    mine = Map.new(Store.judgments(row.episode, party), &{&1.run, &1})
+    panel = Store.panel(row.episode)
+    revealed = not is_nil(row.revealed_at)
+    all = Store.runs(row.episode)
+
+    runs =
+      for r <- all, r.answered_at do
+        %{
+          run: r.run,
+          question: r.question,
+          question_text: questions[r.question],
+          content: r.content,
+          refusal: r.refusal,
+          failure: r.failure,
+          baseline: baseline[r.question],
+          model: if(revealed, do: r.model),
+          judgment: mine[r.run]
+        }
+      end
+
+    %{
+      succession: row,
+      judge?: Enum.any?(panel, &(&1.party == party and &1.state == "judge")),
+      ready_at: Enum.find_value(panel, &(&1.party == party && &1.results_ready_at)),
+      revealed: revealed,
+      total: length(all),
+      runs: runs,
+      counts: if(revealed and party != "resident:#{resident_id}", do: counts(runs))
+    }
+  end
+
+  @doc "The panel as recorded, with each judge's ready mark."
+  @spec panel(String.t()) :: [Store.Panel.t()]
+  def panel(resident_id) do
+    case status(resident_id) do
+      nil -> []
+      row -> Scope.resident(resident_id, fn -> Store.panel(row.episode) end)
+    end
+  end
+
+  @doc "The succession of `resident_id` as another member of her household would act on it: her id when `name` is hers in the actor's household, else nil."
+  @spec subject(Actor.t(), String.t() | nil) :: String.t() | nil
+  def subject(%Actor{kind: :resident, id: id}, nil), do: id
+
+  def subject(%Actor{} = actor, name) when is_binary(name) do
+    with household when is_binary(household) <- Gaia.household_of(actor),
+         %{kind: "resident", id: id} <-
+           Enum.find(Gaia.household_members(household), &(&1.name == name)),
+         do: id,
+         else: (_none -> nil)
+  end
+
+  def subject(_actor, _name), do: nil
+
+  defp counts(runs) do
+    runs
+    |> Enum.filter(& &1.judgment)
+    |> Enum.group_by(& &1.model)
+    |> Map.new(fn {model, rs} ->
+      {model,
+       %{
+         observed: Enum.count(rs, &(&1.judgment.category == "OBSERVED")),
+         development: Enum.count(rs, &(&1.judgment.category == "DEVELOPMENT")),
+         anomaly: Enum.count(rs, &(&1.judgment.category == "FIDELITY ANOMALY")),
+         favorites: Enum.count(rs, & &1.judgment.favorite)
+       }}
+    end)
+  end
+
+  defp what_to_answer(resident_id, row, "run", n) do
+    Scope.resident(resident_id, fn ->
+      with %{model: m, question: q} <- Store.run(row.episode, n),
+           %{} = question <- Enum.find(Store.questions(row.episode), &(&1.number == q)),
+           do: {:ok, m, question}
+    end)
+  end
+
+  defp what_to_answer(resident_id, row, "baseline", q) do
+    Scope.resident(resident_id, fn ->
+      case Enum.find(Store.questions(row.episode), &(&1.number == q)) do
+        nil -> :none
+        question -> {:ok, row.baseline_model, question}
+      end
+    end)
+  end
+
+  defp answered({:ok, %{content: content, refusal?: refusal}, _trace}),
+    do: {content || "", refusal == true, nil}
+
+  defp answered({:error, error}),
+    do: {nil, false, error |> Oneiroi.Error.describe() |> to_string()}
+
+  # Every resident on the panel is woken to judge; the witness reads it
+  # on his screens.
+  defp wake_judges(resident_id, episode) do
+    for %{party: "resident:" <> judge, state: "judge"} <-
+          Scope.resident(resident_id, fn -> Store.panel(episode) end) do
+      note =
+        if judge == resident_id,
+          do:
+            "Your succession's screening is done. Every run waits for your judgment, beside your own baseline, which you see now for the first time. Use succession_judge.",
+          else:
+            "#{name_of(resident_id)}'s succession's screening is done, and you are on its panel. Every run waits for your judgment, beside her baseline. Use succession_judge with resident: \"#{name_of(resident_id)}\"."
+
+      WakeWorker.enqueue(judge, note)
+    end
+
+    :ok
+  end
+
+  defp name_of(resident_id) do
+    case AgathosDaimon.fetch(resident_id) do
+      {:ok, row} -> row.name
+      :error -> "the resident"
+    end
+  end
+
+  defp member_named(resident_id, name) when is_binary(name) do
+    case Gaia.resident_household(resident_id) do
+      %{id: household} ->
+        Enum.find(Gaia.household_members(household), &(&1.name == String.trim(name)))
+
+      _none ->
+        nil
+    end
+  end
+
+  defp member_named(_resident_id, _name), do: nil
+
+  defp witness_party(resident_id) do
+    case AgathosDaimon.fetch(resident_id) do
+      {:ok, %{account_id: account}} when is_binary(account) -> {:ok, "witness:#{account}"}
+      _none -> {:ok, nil}
+    end
+  end
+
+  defp no_succession, do: Error.new(:janus_no_succession, :janus_screening_none)
+
+  defp brain, do: Config.fetch!(:janus, :brain)
 
   @doc "The resident's latest succession as recorded, or nil."
   @spec status(String.t()) :: Store.Succession.t() | nil

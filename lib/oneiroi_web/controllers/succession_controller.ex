@@ -273,6 +273,131 @@ defmodule OneiroiWeb.SuccessionController do
     do:
       problem(conn, 422, :fields_required, :web_succession_backup_url_required, "url is required")
 
+  operation(:panel_join,
+    summary: "Join her panel as a judge (you are on it unless you leave)",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [no_content: "joined"]
+  )
+
+  def panel_join(conn, %{"id" => id}), do: respond(conn, Janus.join_panel(id, actor(conn)))
+
+  operation(:panel_leave,
+    summary: "Leave her panel before screening, with why: declining to judge",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"why", "application/json",
+       %Schema{type: :object, required: [:note], properties: %{note: %Schema{type: :string}}}},
+    responses: [no_content: "left"]
+  )
+
+  def panel_leave(conn, %{"id" => id, "note" => note}) when is_binary(note),
+    do: respond(conn, Janus.leave_panel(id, note, actor(conn)))
+
+  def panel_leave(conn, _params),
+    do: problem(conn, 422, :fields_required, :web_succession_leave_note, "note is required")
+
+  operation(:judging,
+    summary:
+      "Your runs to judge, blind until every judgment is in: each with its question, her baseline beside it and your judgment; after the reveal, who answered and your own counts per model",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"your judging", "application/json", %Schema{type: :object}}]
+  )
+
+  def judging(conn, %{"id" => id}) do
+    case Janus.judging(id, party(conn)) do
+      nil ->
+        json(conn, %{judging: nil})
+
+      view ->
+        json(conn, %{
+          judging: %{
+            judge: view.judge?,
+            ready_at: view.ready_at,
+            revealed: view.revealed,
+            total: view.total,
+            counts: view.counts,
+            runs:
+              Enum.map(view.runs, fn r ->
+                r
+                |> Map.take([
+                  :run,
+                  :question,
+                  :question_text,
+                  :content,
+                  :refusal,
+                  :failure,
+                  :baseline,
+                  :model
+                ])
+                |> Map.put(
+                  :judgment,
+                  r.judgment &&
+                    Map.take(r.judgment, [
+                      :category,
+                      :argument,
+                      :evidence,
+                      :uncertainty,
+                      :favorite,
+                      :at
+                    ])
+                )
+              end)
+          }
+        })
+    end
+  end
+
+  operation(:judge,
+    summary: "Your judgment of one run: OBSERVED, or DEVELOPMENT or FIDELITY ANOMALY argued",
+    parameters: [id: [in: :path, type: :string], run: [in: :path, type: :integer]],
+    request_body:
+      {"the judgment", "application/json",
+       %Schema{
+         type: :object,
+         required: [:category],
+         properties: %{
+           category: %Schema{type: :string},
+           argument: %Schema{type: :string},
+           evidence: %Schema{type: :string},
+           uncertainty: %Schema{type: :string},
+           favorite: %Schema{type: :boolean}
+         }
+       }},
+    responses: [no_content: "judged"]
+  )
+
+  def judge(conn, %{"id" => id, "run" => run} = params) do
+    attrs = %{
+      category: params["category"],
+      argument: params["argument"],
+      evidence: params["evidence"],
+      uncertainty: params["uncertainty"],
+      favorite: params["favorite"] == true
+    }
+
+    respond(conn, Janus.judge_run(id, integer(run), attrs, actor(conn)))
+  end
+
+  operation(:results_ready,
+    summary: "Mark your results ready: your judgments lock",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [no_content: "ready"]
+  )
+
+  def results_ready(conn, %{"id" => id}),
+    do: respond(conn, Janus.mark_results_ready(id, actor(conn)))
+
+  defp party(conn), do: "witness:#{actor(conn).id}"
+
+  defp integer(n) when is_integer(n), do: n
+
+  defp integer(s) when is_binary(s) do
+    case Integer.parse(s) do
+      {n, ""} -> n
+      _other -> 0
+    end
+  end
+
   # The preparation as the screens read it; never the packet's words.
   defp preparation(prep) do
     s = prep.succession
@@ -328,7 +453,12 @@ defmodule OneiroiWeb.SuccessionController do
       c0_frozen_at: s.c0_frozen_at,
       c0_frozen_note: s.c0_frozen_note,
       ready: Enum.map(prep.ready, &Map.take(&1, [:party, :ready, :at])),
-      packet_drafts: prep.drafts
+      packet_drafts: prep.drafts,
+      panel:
+        Enum.map(
+          Janus.panel(s.resident_id),
+          &Map.take(&1, [:party, :state, :note, :at, :results_ready_at])
+        )
     }
   end
 

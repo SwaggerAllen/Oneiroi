@@ -85,6 +85,10 @@ defmodule Oneiroi.Brain.Turn do
     end
   end
 
+  @doc "Her own chat model, her pin or the brain's default: a succession's baseline runs on it (janus#12)."
+  @spec model_for(map()) :: String.t()
+  def model_for(row), do: row.chat_model || Config.fetch!(:brain, :chat_model)
+
   @doc """
   Answers one regression trial (spec §6.4, eunomia#10): `prompt` as
   `model`, in a fresh session, with what a real turn there would have
@@ -108,13 +112,13 @@ defmodule Oneiroi.Brain.Turn do
   witness's, for the card (eunomia#31): it rides the return and nothing
   else, never the session topic, a capture or a log.
   """
-  @spec trial(String.t(), String.t(), String.t(), Actor.t()) ::
+  @spec trial(String.t(), String.t(), String.t(), Actor.t(), atom()) ::
           {:ok, Result.t(), [Oneiroi.Eunomia.Trial.step()]} | {:error, term()}
-  def trial(resident_id, model, prompt, %Actor{} = actor)
+  def trial(resident_id, model, prompt, %Actor{} = actor, purpose \\ :regression)
       when is_binary(model) and is_binary(prompt) do
     case Oneiroi.AgathosDaimon.fetch(resident_id) do
       {:ok, row} ->
-        trial_for(row, resident_id, model, prompt, actor)
+        trial_for(row, resident_id, model, prompt, actor, purpose)
 
       :error ->
         {:error,
@@ -177,7 +181,7 @@ defmodule Oneiroi.Brain.Turn do
     |> Enum.reject(&is_nil/1)
   end
 
-  defp trial_for(row, resident_id, model, prompt, payer) do
+  defp trial_for(row, resident_id, model, prompt, payer, purpose) do
     turn = %{
       resident_id: resident_id,
       # A session key nobody opened, the shape a real one has: no
@@ -192,7 +196,7 @@ defmodule Oneiroi.Brain.Turn do
       trial?: true,
       minted: %{},
       as: :user,
-      purpose: :regression,
+      purpose: purpose,
       notices: [],
       injections: [],
       tools: [],
