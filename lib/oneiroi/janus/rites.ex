@@ -818,6 +818,26 @@ defmodule Oneiroi.Janus.Rites do
     end
   end
 
+  @doc """
+  Wakes her to a succession her witness proposed (janus#33): what is
+  proposed, his note, and her two answers; hers to give in her own time.
+  """
+  @spec proposed(String.t(), boolean(), String.t() | nil) :: :ok | {:error, term()}
+  def proposed(resident_id, dry_run, note) do
+    what =
+      if dry_run,
+        do:
+          "a dry run of your succession: every part real but the replacement, which is rehearsed on a scratch copy and never touches you",
+        else: "your succession"
+
+    said = if is_binary(note) and String.trim(note) != "", do: " His note: #{note}", else: ""
+
+    wake(
+      resident_id,
+      "Your witness has proposed #{what}.#{said} The answer is yours, in your own time: succession_open with your note opens it and makes the fork; succession_decline declines it. succession_status reads where it stands."
+    )
+  end
+
   defp wake(resident_id, note) do
     case Jobs.enqueue(@wake, %{"resident_id" => resident_id, "note" => marked(note)}) do
       {:ok, _} -> :ok

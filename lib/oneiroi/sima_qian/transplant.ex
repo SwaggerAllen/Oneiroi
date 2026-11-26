@@ -13,38 +13,82 @@ defmodule Oneiroi.SimaQian.Transplant do
   her streams are replaced (`Oneiroi.SimaQian.Cutover`).
   """
 
+  alias Oneiroi.Config
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Export
   alias Oneiroi.SimaQian.Rebuild
 
-  @chunk 500
+  @read 500
 
   @doc """
   Copies `from`'s events to `to`; `metadata` joins each line's own.
   `drop` leaves out events of the named types (the fork's own mark, at a
   cutover). Returns how many were copied and the last of `from`'s
   resident-stream versions it held.
+
+  Streamed and throttled (sima-qian#71; 2026-11-26, a fork of her whole
+  life read every event into memory and appended them back to back, and
+  the projectors folding them starved the event store's pool and took
+  the app down): her events are read off the log in the order they were
+  appended, a page at a time up to where the log stood when the copy
+  began, and appended `SIMA_QIAN_TRANSPLANT_BATCH` at a time with
+  `SIMA_QIAN_TRANSPLANT_PAUSE_MS` between batches.
   """
   @spec copy(String.t(), String.t(), map(), [module()]) ::
           {:ok, %{events: non_neg_integer(), sequence: non_neg_integer()}} | {:error, term()}
   def copy(from, to, metadata, drop \\ []) do
-    events = from |> Export.events() |> Enum.reject(&(event_module(&1) in drop))
+    wanted = MapSet.new(Export.stream_uuids(from))
+    batch = Config.fetch!(:sima_qian, :transplant_batch)
+    pause = Config.fetch!(:sima_qian, :transplant_pause_ms)
 
-    with :ok <- append(events, from, to, metadata) do
-      sequence =
-        events
-        |> Enum.filter(&(&1.stream_uuid == "resident-" <> from))
-        |> List.last()
-        |> then(&if(&1, do: &1.stream_version, else: 0))
+    head()
+    |> then(
+      &(Oneiroi.EventStore.stream_all_forward(0, read_batch_size: @read)
+        |> Stream.take_while(fn e -> e.event_number <= &1 end))
+    )
+    |> Stream.filter(&(MapSet.member?(wanted, &1.stream_uuid) and event_module(&1) not in drop))
+    |> Stream.chunk_every(batch)
+    |> Enum.reduce_while(
+      {:ok, %{events: 0, sequence: 0}},
+      &batch(&1, &2, {from, to, metadata}, pause)
+    )
+  end
 
-      {:ok, %{events: length(events), sequence: sequence}}
+  defp batch(events, {:ok, acc}, {from, to, metadata}, pause) do
+    case append(events, from, to, metadata) do
+      :ok ->
+        if pause > 0, do: Process.sleep(pause)
+        {:cont, {:ok, tally(acc, events, from)}}
+
+      failed ->
+        {:halt, failed}
     end
+  end
+
+  # Where the log stood when the copy began: the copy's own appends, past
+  # it, are never read back.
+  defp head do
+    case Oneiroi.EventStore.read_all_streams_backward(-1, 1) do
+      {:ok, [last]} -> last.event_number
+      _empty -> 0
+    end
+  end
+
+  defp tally(acc, events, from) do
+    last =
+      events
+      |> Enum.filter(&(&1.stream_uuid == "resident-" <> from))
+      |> List.last()
+
+    %{
+      events: acc.events + length(events),
+      sequence: if(last, do: last.stream_version, else: acc.sequence)
+    }
   end
 
   defp append(events, from, to, metadata) do
     events
     |> Enum.chunk_by(& &1.stream_uuid)
-    |> Enum.flat_map(&Enum.chunk_every(&1, @chunk))
     |> Enum.reduce_while(:ok, fn run, :ok ->
       case append_run(run, from, to, metadata) do
         :ok ->

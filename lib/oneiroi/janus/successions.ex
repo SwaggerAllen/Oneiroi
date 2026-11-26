@@ -53,7 +53,11 @@ defmodule Oneiroi.Janus.Successions do
 
     with {:ok, events} <- dispatch(command) do
       %{episode: episode} = hd(events)
-      {:ok, %{episode: episode, opened: length(events) > 1}}
+      opened = length(events) > 1
+      # The witness's proposal waits on her answer (janus#33): she is woken
+      # to it, as every other part of hers is; her own is already open.
+      _ = if not opened, do: Rites.proposed(resident_id, dry_run == true, note)
+      {:ok, %{episode: episode, opened: opened}}
     end
   end
 

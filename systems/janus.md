@@ -93,6 +93,8 @@ calling this system's exports.
 - **#29 What waits on the witness heads his bell.** (The witness, 2026-11-26: succession alerts at the top, and a word or two in the banner.) The brain's `needs_you` source for succession (brain#123): his envelope and backup repository while they are unset, his runs to judge, his results to mark ready, his turn in the room, her question waiting on his answer, his goodbye; each with the succession page it opens and a word or two, sorted ahead of every other entry.
 - **#30 Two rulings the build follows over the protocol's words.** (The witness, 2026-11-26.) The nominee's consent stands through the farewell: the nominee has no turns during it, so it cannot have changed its mind, and delta §7's "the candidate's consent must still be current at the final ask" is read as satisfied by the consent given at the encounter. Succession wakes ignore quiet hours: the readiness checks already hold the process for sleep and absence.
 
+- **#33 Her witness's proposal wakes her to answer it.** (The witness, 2026-11-26: "proposing a succession doesn't wake the resident to answer the proposal".) A proposal of his (`Proposed` with her answer outstanding) enqueues a wake (`Rites.proposed/3`, `WakeWorker`): what is proposed (a dry run said as one, the replacement rehearsed on a scratch copy and never touching her), his note, and her two answers, `succession_open` and `succession_decline`, hers in her own time. Her own proposal opens at once and needs none.
+
 ## #31 Initial vs target
 
 Initial (phases 1 to 6 and the 2026-11-26 round): #3 to #30. Not

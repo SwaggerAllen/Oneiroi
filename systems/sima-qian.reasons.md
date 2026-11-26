@@ -471,3 +471,6 @@ Every handler reacting to replayed history is the same mistake in a different pl
 
 ## #70
 Deleting a resident is the most final thing the platform can do; the guard that it is a fork, checked where the deletion happens, keeps the only path to it from ever reaching her.
+
+## #71
+A copy of a life is the largest write the platform makes, and every projector reads every line of it; it has to arrive at a pace the readers keep, and never all held in memory at once.
