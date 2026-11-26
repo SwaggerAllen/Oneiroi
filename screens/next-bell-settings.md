@@ -27,6 +27,10 @@ header's bell and gear. Built 2026-11-10.
     is the entry's few words ("4 to judge", "Your turn", "She asked");
     each opens its succession page (`#/settings/succession/<page>`, the
     entry's `about.page`).
+  - **Her work line resting after a stop** (sunna#109, brain#124):
+    "Work · her line rests after a stop", who stopped it, a link to the
+    task and activity the stop failed, and **Resume her work line**,
+    the only thing that takes it up again.
   - Asks, reply drafts, replies to send and pieces are answered in
     place (`screens/next-mail.md`); the rest open where they are decided,
     all in this client: an agreement entry Soul's agreement, a plugin

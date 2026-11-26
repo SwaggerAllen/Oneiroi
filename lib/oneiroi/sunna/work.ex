@@ -49,7 +49,8 @@ defmodule Oneiroi.Sunna.Work do
         act: act,
         stopped: c.stopped == true,
         cut: c.cut == true,
-        moved: c.moved == true
+        moved: c.moved == true,
+        stopped_by: if(c.stopped == true, do: c.stopped_by && to_string(c.stopped_by))
       }
 
   def execute(%__MODULE__{}, %Commands.EndActivityRun{}), do: []
@@ -75,6 +76,18 @@ defmodule Oneiroi.Sunna.Work do
 
   def execute(%__MODULE__{}, %Commands.SkipCareWait{}),
     do: {:error, Error.new(:sunna_work_not_a_party, :sunna_work_skip_care_witness_only)}
+
+  # A stopped line taken up again (sunna#109): either party's, with a
+  # note, and only while a stop rests it.
+  def execute(%__MODULE__{rested: rested}, %Commands.ResumeWork{actor: %{kind: kind}} = c)
+      when kind in [:witness, :resident] do
+    if rested == stopped_rest(),
+      do: %Events.WorkResumed{actor: c.actor, at: c.at, id: c.id, note: c.note},
+      else: []
+  end
+
+  def execute(%__MODULE__{}, %Commands.ResumeWork{}),
+    do: {:error, Error.new(:sunna_work_not_a_party, :sunna_work_resume_not_a_party)}
 
   def execute(%__MODULE__{running: nil, rested: rested}, %Commands.RestWork{} = c) do
     if c.reason == rested or not words?(c.reason, 300),
@@ -139,10 +152,11 @@ defmodule Oneiroi.Sunna.Work do
   def apply(%__MODULE__{} = s, %Events.WorkRunsReset{}), do: s
   def apply(%__MODULE__{} = s, %Events.ActivityRunsReset{}), do: s
   def apply(%__MODULE__{} = s, %Events.WorkCareSkipped{}), do: %{s | rested: nil}
+  def apply(%__MODULE__{} = s, %Events.WorkResumed{}), do: %{s | rested: nil}
 
-  @doc "The rest a stopped run leaves the loop in, until either party touches the queue."
+  @doc "The rest a stopped run leaves the loop in, until either party resumes it (sunna#109)."
   def stopped_rest,
-    do: "stopped: the last run was stopped; the loop waits for the queue to be touched"
+    do: "stopped: the last run was stopped; the line waits to be resumed"
 
   defp item(status, blocked_on), do: %{status: status, blocked_on: blocked_on}
 

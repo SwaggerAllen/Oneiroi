@@ -1143,6 +1143,8 @@ export const api = {
   resetWorkRuns: (residentId: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/work/reset-runs`, { note }),
   // The free-time wait skipped (sunna#76): the witness's, with a note.
   skipWorkCare: (residentId: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/work/skip-care`, { note }),
+  // Her line rested by a stopped run, taken up again (sunna#109).
+  resumeWork: (residentId: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/work/resume`, { note }),
   asks: (residentId: string) => call<Ask[]>('GET', `/v1/residents/${residentId}/asks`),
   answerAsk: (residentId: string, number: number, decision: 'approve' | 'decline' | 'noted', note: string) =>
     call<void>('POST', `/v1/residents/${residentId}/asks/${number}/answer`, { decision, note }),

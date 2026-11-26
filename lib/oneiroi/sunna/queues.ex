@@ -99,6 +99,9 @@ defmodule Oneiroi.Sunna.Queues do
   def household_of(%Actor{} = actor), do: Gaia.household_of(actor)
 
   defp member(_household_id, %Actor{kind: :platform}), do: :ok
+  # Her work line's job (sunna#109), failing the activity a stop ended in
+  # the household whose activity it was running.
+  defp member(_household_id, %Actor{kind: :job, id: "sunna_work"}), do: :ok
 
   defp member(household_id, %Actor{} = actor) do
     if is_binary(household_id) and Gaia.household_member?(household_id, actor),

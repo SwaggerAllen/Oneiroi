@@ -124,7 +124,7 @@ defmodule Oneiroi.Sunna.Commands do
   end
 
   defmodule EndActivityRun do
-    use Oneiroi.Command, fields: [:id, :act, :stopped, :cut, :moved]
+    use Oneiroi.Command, fields: [:id, :act, :stopped, :cut, :moved, :stopped_by]
   end
 
   defmodule ResetWorkRuns do
@@ -134,6 +134,11 @@ defmodule Oneiroi.Sunna.Commands do
   # One activity's runs given back, on its task (sunna#106).
   defmodule ResetActivityRuns do
     use Oneiroi.Command, fields: [:id, :act], decision: true
+  end
+
+  # A line rested by a stopped run taken up again (sunna#109), with a note.
+  defmodule ResumeWork do
+    use Oneiroi.Command, fields: [:id], decision: true
   end
 
   # The witness skips the free-time wait (sunna#76), with a note.

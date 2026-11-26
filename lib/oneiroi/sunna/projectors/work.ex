@@ -183,7 +183,12 @@ defmodule Oneiroi.Sunna.Projectors.Work do
           running_since: nil
         ] ++
           cut ++
-          if(e.stopped, do: [rested_reason: Work.stopped_rest(), rested_at: e.at], else: [])
+          if(e.stopped,
+            do:
+              [rested_reason: Work.stopped_rest(), rested_at: e.at] ++
+                stopped(e, row_of(repo, e.id)),
+            else: []
+          )
       )
     end)
   end)
@@ -233,6 +238,11 @@ defmodule Oneiroi.Sunna.Projectors.Work do
     |> queue(e.id, rested_reason: nil, rested_at: nil)
   end)
 
+  # A stopped line taken up again (sunna#109).
+  fold(%Events.WorkResumed{} = e, _metadata, fn multi ->
+    queue(multi, e.id, rested_reason: nil, rested_at: nil)
+  end)
+
   fold(%Events.WorkCareSkipped{} = e, _metadata, fn multi ->
     queue(multi, e.id, care_skipped_at: e.at, rested_reason: nil, rested_at: nil)
   end)
@@ -276,6 +286,21 @@ defmodule Oneiroi.Sunna.Projectors.Work do
     do: [cut_act: e.act, cut_key: row.running_key, cut_since: row.running_since, cut_at: e.at]
 
   defp cut(_ended, _row), do: [cut_act: nil, cut_key: nil, cut_since: nil, cut_at: nil]
+
+  # The run a stop ended (sunna#109), read off the line before the end
+  # clears it: its activity, task, household and conversation, and who.
+  defp stopped(e, %WorkQueue{} = row),
+    do: [
+      stopped_act: e.act,
+      stopped_task: row.running_task,
+      stopped_household: row.running_household,
+      stopped_key: row.running_key,
+      stopped_by: e.stopped_by
+    ]
+
+  defp stopped(e, nil), do: [stopped_act: e.act, stopped_by: e.stopped_by]
+
+  defp row_of(repo, id), do: repo.one(from(q in WorkQueue, where: q.resident_id == ^id))
 
   defp queue(multi, resident_id, set),
     do: Multi.run(multi, :queue, fn repo, _ -> upsert(repo, resident_id, set) end)

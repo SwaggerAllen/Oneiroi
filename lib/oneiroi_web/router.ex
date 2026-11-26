@@ -457,6 +457,7 @@ defmodule OneiroiWeb.Router do
       delete("/residents/:id/backfill", BackfillController, :stop)
       post("/residents/:id/work/reset-runs", WorkController, :reset_runs)
       post("/residents/:id/work/skip-care", WorkController, :skip_care)
+      post("/residents/:id/work/resume", WorkController, :resume)
       get("/residents/:id/agreement", AgreementController, :show)
       post("/residents/:id/agreement/proposals", AgreementController, :propose)
       post("/residents/:id/agreement/proposals/:version/decision", AgreementController, :decide)

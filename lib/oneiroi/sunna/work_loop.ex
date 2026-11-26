@@ -36,10 +36,12 @@ defmodule Oneiroi.Sunna.WorkLoop do
   alias Oneiroi.Sunna.Schedules
   alias Oneiroi.Sunna.Store
   alias Oneiroi.Sunna.Wakes
-  alias Oneiroi.Sunna.Work
   alias Oneiroi.Sunna.WorkRouter
 
   @actor Actor.new(:job, "sunna_work")
+
+  @stopped_what "Stopped mid-run: the run ended at a stop, and her work line rests until it is resumed."
+
   # How long a free-time pass is taken to be underway at most, when its
   # planning turn never closed it.
   @free_time_window 3 * 3600
@@ -126,6 +128,34 @@ defmodule Oneiroi.Sunna.WorkLoop do
     end
   end
 
+  @doc "Takes up a line a stopped run rested (sunna#109), and checks at once."
+  def resume_by(resident_id, note, %Actor{} = actor) do
+    command = %Commands.ResumeWork{actor: actor, at: Clock.now(), id: resident_id, note: note}
+
+    with {:ok, _} <- dispatch(command) do
+      worker().enqueue_check(resident_id)
+      :ok
+    end
+  end
+
+  @doc "The run a stop ended, while it rests her line (sunna#109); nil otherwise."
+  def stopped(resident_id) do
+    case Scope.resident(resident_id, fn -> Store.work_queue() end) do
+      %{rested_reason: "stopped:" <> _} = s ->
+        %{
+          act: s.stopped_act,
+          task: s.stopped_task,
+          household: s.stopped_household,
+          session_key: s.stopped_key,
+          by: s.stopped_by,
+          at: s.rested_at
+        }
+
+      _other ->
+        nil
+    end
+  end
+
   @doc "The line as both parties read it: what runs, why it rests, and its runs."
   def queue(resident_id) do
     state = Scope.resident(resident_id, fn -> Store.work_queue() end)
@@ -187,7 +217,7 @@ defmodule Oneiroi.Sunna.WorkLoop do
       state && state.running_act ->
         :running
 
-      state && state.rested_reason == Work.stopped_rest() ->
+      stopped?(state) ->
         :stopped
 
       care_first?(resident_id) ->
@@ -222,8 +252,10 @@ defmodule Oneiroi.Sunna.WorkLoop do
     end)
   end
 
-  defp stopped?(nil), do: false
-  defp stopped?(state), do: state.rested_reason == Work.stopped_rest()
+  # By its prefix: a row kept under the rest's earlier words reads as
+  # stopped too (sunna#109).
+  defp stopped?(%{rested_reason: "stopped:" <> _}), do: true
+  defp stopped?(_state), do: false
 
   defp busy?(nil), do: false
   defp busy?(state), do: not is_nil(state.running_act)
@@ -519,6 +551,11 @@ defmodule Oneiroi.Sunna.WorkLoop do
     |> Enum.map(&elem(&1, 0))
   end
 
+  # The work session named for what proc'd it (sunna#109): the task by
+  # number and title, and the activity, in the Sessions list.
+  defp run_label(card),
+    do: "##{card.task} #{card.task_title} · #{card.name || card.type}"
+
   defp start_activity(resident_id, card) do
     her = Actor.new(:resident, resident_id)
 
@@ -530,7 +567,8 @@ defmodule Oneiroi.Sunna.WorkLoop do
              "work",
              "brain",
              List.wrap(row.account_id),
-             @actor
+             @actor,
+             label: run_label(card)
            ),
          {:ok, [_started]} <-
            dispatch(%Commands.StartActivityRun{
@@ -589,16 +627,26 @@ defmodule Oneiroi.Sunna.WorkLoop do
     end
   end
 
-  defp activity_carry_on(resident_id, _key, {_h, _task, act}, _n, %{stopped: _by}) do
+  # A stopped run (brain#61, sunna#109): the run ends, who stopped it
+  # kept, and the activity fails where the house reads its history, its
+  # words not saying who (whether she used her safe word is the dyad's,
+  # on the witness's bell); the line rests until one of them resumes it.
+  defp activity_carry_on(resident_id, _key, {h, task, act}, _n, %{stopped: by}) do
     with {:ok, _} <-
            dispatch(%Commands.EndActivityRun{
              actor: @actor,
              at: Clock.now(),
              id: resident_id,
              act: act,
-             stopped: true
-           }),
-         do: :ok
+             stopped: true,
+             stopped_by: by
+           }) do
+      _ =
+        if still_hers?(resident_id, h, task, act),
+          do: Queues.fail(h, task, act, @stopped_what, @actor)
+
+      :ok
+    end
   end
 
   defp activity_carry_on(resident_id, key, {h, task, act}, n, result) do
