@@ -80,3 +80,6 @@ The protocol's words are the household's; where the witness reads one as mistake
 
 ## #33
 Every other part of hers wakes her; a proposal that waits on her answer and never reaches her waits forever, and the first in-app dry run found it so.
+
+## #34
+A fork that takes the platform down for every resident is worse than no fork; holding it is reversible, and the switch says why it is off.

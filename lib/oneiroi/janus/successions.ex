@@ -118,7 +118,7 @@ defmodule Oneiroi.Janus.Successions do
   def fork(resident_id, episode, %Actor{} = actor) do
     case status(resident_id) do
       %{episode: ^episode, state: "open"} ->
-        case SimaQian.succession_fork(resident_id, actor) do
+        case fork_copy(resident_id, actor) do
           {:ok, copy} ->
             done(%Commands.RecordFork{
               actor: actor,
@@ -149,6 +149,14 @@ defmodule Oneiroi.Janus.Successions do
       _other ->
         :ok
     end
+  end
+
+  # Held while `JANUS_FORKS` is off (janus#34): the copy is never made,
+  # and the fork is recorded failed, saying why.
+  defp fork_copy(resident_id, actor) do
+    if Config.fetch!(:janus, :forks),
+      do: SimaQian.succession_fork(resident_id, actor),
+      else: {:error, Error.new(:janus_forks_held, :janus_fork_held)}
   end
 
   @doc """
