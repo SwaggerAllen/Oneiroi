@@ -13,6 +13,7 @@ defmodule Mix.Tasks.Oneiroi.Succession.Rehearse do
   on demand, against any branch.
   """
   use Mix.Task
+  use Boundary, classify_to: Oneiroi.Application
 
   @impl Mix.Task
   def run(args) do
