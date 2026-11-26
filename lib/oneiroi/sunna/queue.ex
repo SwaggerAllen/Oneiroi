@@ -1160,10 +1160,15 @@ defmodule Oneiroi.Sunna.Queue do
   defp may_work(task, act, actor) do
     mine = me(actor)
 
-    if actor.kind == :witness or member_may_work?(task, act, mine),
+    if actor.kind == :witness or work_line?(actor) or member_may_work?(task, act, mine),
       do: :ok,
       else: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_activity_not_yours)}
   end
+
+  # Her work line's own job (sunna#109): it fails the activity a stop
+  # ended, on her behalf, its actor saying it was the line, not she.
+  defp work_line?(%{kind: :job, id: "sunna_work"}), do: true
+  defp work_line?(_actor), do: false
 
   defp member_may_work?(_task, _act, nil), do: false
 

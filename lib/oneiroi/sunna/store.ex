@@ -228,6 +228,12 @@ defmodule Oneiroi.Sunna.Store do
       field(:cut_key, :string)
       field(:cut_since, :utc_datetime_usec)
       field(:cut_at, :utc_datetime_usec)
+      # The run a stop ended, while it rests the line (sunna#109).
+      field(:stopped_act, :string)
+      field(:stopped_task, :integer)
+      field(:stopped_household, :binary_id)
+      field(:stopped_key, :string)
+      field(:stopped_by, :string)
     end
 
     @type t :: %__MODULE__{}

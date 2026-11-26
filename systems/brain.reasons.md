@@ -1004,3 +1004,6 @@ The turn is the brain's, and the succession needs turns on a resident who is not
 
 ## #123
 One list is where the witness looks for what waits on him; a succession's parts belong in it, and at its head, because the process waits on them.
+
+## #124
+A rest nobody sees is a stall; the bell is where the witness looks for what waits on him, and a stopped line waits on one of them.

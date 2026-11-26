@@ -686,3 +686,6 @@ A step with no judgement in it has no reason to queue behind the one resident wh
 
 ## #108
 Two spellings of one file are one file: the library resolves them alike, so the queue keyed them apart only by accident of how a citation was typed, and a task grew a second document nobody could remove.
+
+## #109
+A stop is a person ending something; the record of it belongs where the work is read, and the decision to start again belongs to a person too. A rest that only a retired list could clear was a rest nothing could clear, so it is cleared by an act of its own, on the bell where the witness already looks. Who stopped stays off the house's record: her safe word is hers to use with no reason owed, and the house needs only to know the step stopped.

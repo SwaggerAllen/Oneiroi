@@ -48,8 +48,21 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
          Error.new(:kumbukumbu_domain_per_message, :kumbukumbu_conversations_open_domain_refused)}
 
       true ->
+        # A label names what the session is for (sunna#109: a work run's
+        # task and activity), shown beside its title.
+        label = opts |> Keyword.get(:label) |> session_label()
+
         with :ok <-
-               dispatch_open(resident_id, key, kind, adapter, participants, private?, nil, actor),
+               dispatch_open(
+                 resident_id,
+                 key,
+                 kind,
+                 adapter,
+                 participants,
+                 private?,
+                 label,
+                 actor
+               ),
              do: {:ok, key}
     end
   end
@@ -811,7 +824,16 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
   @spec stream(String.t(), String.t()) :: String.t()
   def stream(resident_id, key), do: resident_id <> "-" <> key
 
-  defp dispatch_open(resident_id, key, kind, adapter, participants, private?, domain, actor) do
+  defp session_label(label) when is_binary(label) do
+    case label |> String.trim() |> String.slice(0, @label_chars) do
+      "" -> nil
+      cut -> cut
+    end
+  end
+
+  defp session_label(_none), do: nil
+
+  defp dispatch_open(resident_id, key, kind, adapter, participants, private?, label, actor) do
     command = %Commands.OpenSession{
       actor: actor,
       at: Clock.now(),
@@ -822,7 +844,8 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
       adapter: adapter,
       participants: participants,
       private: private?,
-      domain: domain
+      domain: nil,
+      label: label
     }
 
     with {:ok, _} <- dispatch(command), do: :ok

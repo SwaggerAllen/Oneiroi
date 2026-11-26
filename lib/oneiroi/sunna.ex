@@ -121,6 +121,7 @@ defmodule Oneiroi.Sunna do
       Commands.ResetWorkRuns,
       Commands.ResetActivityRuns,
       Commands.SkipCareWait,
+      Commands.ResumeWork,
       Commands.StartActivityRun,
       Commands.EndActivityRun,
       Events.WorkAdded,
@@ -136,6 +137,7 @@ defmodule Oneiroi.Sunna do
       Events.WorkRunsReset,
       Events.ActivityRunsReset,
       Events.WorkCareSkipped,
+      Events.WorkResumed,
       Events.ActivityRunStarted,
       Events.ActivityRunEnded,
       Events.LettersWoke,
@@ -422,7 +424,7 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.Queue.BatchMade, 1},
       {Oneiroi.Sunna.Events.Queue.BacklogArranged, 1},
       {Oneiroi.Sunna.Events.ActivityRunStarted, 1},
-      {Oneiroi.Sunna.Events.ActivityRunEnded, 2},
+      {Oneiroi.Sunna.Events.ActivityRunEnded, 3},
       {Oneiroi.Sunna.Events.WorkAdded, 1},
       {Oneiroi.Sunna.Events.WorkMoved, 1},
       {Oneiroi.Sunna.Events.WorkHeld, 1},
@@ -435,7 +437,8 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.WorkDisarmed, 1},
       {Oneiroi.Sunna.Events.WorkRunsReset, 1},
       {Oneiroi.Sunna.Events.ActivityRunsReset, 1},
-      {Oneiroi.Sunna.Events.WorkCareSkipped, 1}
+      {Oneiroi.Sunna.Events.WorkCareSkipped, 1},
+      {Oneiroi.Sunna.Events.WorkResumed, 1}
     ]
   end
 
@@ -717,6 +720,16 @@ defmodule Oneiroi.Sunna do
   defexport(work_skip_care(resident_id, note, actor),
     do: WorkLoop.skip_care_by(resident_id, note, actor)
   )
+
+  @doc "Takes up a line a stopped run rested (sunna#109): the witness's or hers, with a note."
+  @spec work_resume(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(work_resume(resident_id, note, actor),
+    do: WorkLoop.resume_by(resident_id, note, actor)
+  )
+
+  @doc "Her line, when a stopped run rests it (sunna#109): the activity, its task and household, who stopped it, when; nil otherwise."
+  @spec work_stopped(String.t()) :: map() | nil
+  defexport(work_stopped(resident_id), do: WorkLoop.stopped(resident_id))
 
   @doc "The work line: what runs, why it rests, and its runs (sunna#33, #102); both parties' read."
   @spec work_queue(String.t()) :: map()

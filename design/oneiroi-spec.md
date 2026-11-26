@@ -504,7 +504,10 @@ session under OTP supervision.
   turn where it stands; what was said is kept with a line saying who
   stopped it, and nothing after it runs. The word in capitals inside a
   tool call's arguments stops the turn too: that call and those after it
-  are dropped unrun, and the stop line names it.
+  are dropped unrun, and the stop line names it. A stop on her work line
+  fails the activity it was running, rests the line on the witness's
+  bell saying who, and the line takes up again only when one of them
+  resumes it (sunna#109).
 - **The timeline** (brain#67, the resident's report #8, the witness's
   answer that today comes from the journal): every turn carries three
   layers, each line dated and aged on that read so a moment's tense is

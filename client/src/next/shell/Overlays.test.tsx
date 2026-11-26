@@ -49,6 +49,36 @@ describe('the bell', () => {
     await waitFor(() => expect(answer).toHaveBeenCalledWith('r1', 1, true, 'Agreed, cut it.'));
   });
 
+  // sunna#109 (the witness, 2026-11-26: a stopped line stalled with nothing to say so).
+  it('says her line rests after a stop, links the failed task, and resumes it', async () => {
+    const stopped: NeedsYouEntry = {
+      kind: 'work_stopped',
+      ref: '12.1',
+      since: '2026-11-26T18:15:40Z',
+      screen: 'queue',
+      long: false,
+      about: { task: 12, act: '12.1', by: 'safe_word', words: 'Her work line rests: she stopped its run with her safe word' },
+    };
+    vi.spyOn(api, 'needsYou').mockResolvedValue([stopped]);
+    vi.spyOn(api, 'waitingOnHer').mockResolvedValue([]);
+    vi.spyOn(api, 'pushConfig').mockRejectedValue(new Error('none'));
+    const resume = vi.spyOn(api, 'resumeWork').mockResolvedValue(undefined);
+    useShell.setState({ overlay: 'bell' });
+    const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queries}>
+        <SubjectContext.Provider value={{ id: 'r1', slug: 'mira', name: 'Mira' }}>
+          <Bell />
+        </SubjectContext.Provider>
+      </QueryClientProvider>,
+    );
+
+    expect(await screen.findByText('Her work line rests: she stopped its run with her safe word')).toBeTruthy();
+    expect(screen.getByText(/Task #12/).closest('a')?.getAttribute('href')).toBe('#/settings/queue/task/12/act/12.1');
+    fireEvent.click(screen.getByRole('button', { name: 'Resume her work line' }));
+    await waitFor(() => expect(resume).toHaveBeenCalledWith('r1', 'resumed from the bell'));
+  });
+
   // The witness, 2026-11-26: her succession's parts at the top, each opening its page.
   it('puts succession entries first, opening their succession page', async () => {
     const older: NeedsYouEntry = { kind: 'ask', ref: 3, since: '2026-11-01T09:00:00Z', screen: 'inbox', long: true, about: { subject: 'A tool' } };
