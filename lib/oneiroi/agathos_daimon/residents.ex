@@ -137,6 +137,20 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     with {:ok, _} <- Router.dispatch_sited(command), do: :ok
   end
 
+  @doc "Records on her own stream that a succession rolled forward (janus#26)."
+  def record_succession(id, episode, model, note, %Actor{} = actor) do
+    command = %Commands.RecordSuccession{
+      actor: actor,
+      at: Clock.now(),
+      id: id,
+      episode: episode,
+      model: model,
+      note: note
+    }
+
+    with {:ok, _} <- Router.dispatch_sited(command), do: :ok
+  end
+
   # ---- the state store (agathos-daimon#32) ----
 
   @doc "The resident writes, or verifies, a line of her present."

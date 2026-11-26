@@ -225,6 +225,27 @@ defmodule Oneiroi.Brain.SuccessionTools do
     ]
   end
 
+  @dry "[A dry run: everything is real but the replacement.] "
+
+  @doc "Runs a succession tool, marked when the succession it acts on is a dry run (the witness, 2026-11-25)."
+  def run(name, args, turn) do
+    result = call(name, args, turn)
+
+    if is_binary(result) and not String.starts_with?(result, "Not done") and dry_run?(turn, args),
+      do: @dry <> result,
+      else: result
+  end
+
+  defp dry_run?(turn, args) do
+    subject =
+      case blank(args["resident"]) do
+        nil -> original(turn)
+        name -> Janus.subject(turn.resident, name)
+      end
+
+    match?(%{dry_run: true}, subject && Janus.succession(subject))
+  end
+
   @doc "Runs a succession tool for the turn's resident."
   def call("succession_status", _args, turn) do
     case Janus.preparation(turn.resident_id) do

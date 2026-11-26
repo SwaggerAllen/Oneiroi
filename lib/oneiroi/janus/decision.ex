@@ -509,6 +509,39 @@ defmodule Oneiroi.Janus.Decision do
       else: []
   end
 
+  # The cutover's record (janus#26): once, from the final consent.
+  def execute(%{state: :rolling} = cur, %Commands.RecordCutover{} = c) do
+    base = [
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      episode: cur.episode,
+      attempt: cur.attempt,
+      model: cur.nominee,
+      backup_commit: c.backup_commit,
+      commit: c.commit,
+      events: c.events
+    ]
+
+    if c.rehearsal == true,
+      do: struct(Events.Rehearsed, [target: c.target] ++ base),
+      else: struct(Events.RolledForward, base)
+  end
+
+  def execute(_cur, %Commands.RecordCutover{}), do: []
+
+  def execute(%{state: :rolling} = cur, %Commands.FailCutover{} = c),
+    do: %Events.CutoverFailed{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      episode: cur.episode,
+      attempt: cur.attempt,
+      reason: c.reason
+    }
+
+  def execute(_cur, %Commands.FailCutover{}), do: []
+
   def execute(cur, %Commands.ChooseNext{} = c) do
     cond do
       not hers?(c) ->
@@ -683,6 +716,9 @@ defmodule Oneiroi.Janus.Decision do
     %{cur | state: :awaiting_next, out: out}
   end
 
+  def apply(cur, %Events.RolledForward{}), do: %{cur | state: :rolled_forward}
+  def apply(cur, %Events.Rehearsed{}), do: %{cur | state: :rehearsed}
+  def apply(cur, %Events.CutoverFailed{}), do: cur
   def apply(cur, %Events.NextChosen{choice: "stop"}), do: %{cur | state: :stopped}
   def apply(cur, %Events.NextChosen{choice: "nominate"}), do: %{cur | state: :deciding}
 

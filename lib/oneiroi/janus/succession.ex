@@ -99,7 +99,9 @@ defmodule Oneiroi.Janus.Succession do
     Commands.AskFinal,
     Commands.FinalAnswer,
     Commands.FinalLapse,
-    Commands.ChooseNext
+    Commands.ChooseNext,
+    Commands.RecordCutover,
+    Commands.FailCutover
   ]
   @decided [
     Events.DeliberationOpened,
@@ -126,7 +128,10 @@ defmodule Oneiroi.Janus.Succession do
     Events.FinalConsented,
     Events.FinalDeclined,
     Events.AttemptStopped,
-    Events.NextChosen
+    Events.NextChosen,
+    Events.RolledForward,
+    Events.Rehearsed,
+    Events.CutoverFailed
   ]
   @screened [
     Events.JudgeInvited,

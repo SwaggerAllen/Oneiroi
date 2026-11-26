@@ -106,7 +106,7 @@ defmodule Oneiroi.Janus.SuccessionTest do
     assert Enum.any?(AgathosDaimon.for_witness(ctx.witness.id), &(&1.id == ctx.id))
 
     # Her repository as it stood, byte for byte.
-    assert Repos.text({:resident, copy}, "SOUL.md") == Repos.text({:resident, ctx.id}, "SOUL.md")
+    assert Repos.tree({:resident, copy}) == Repos.tree({:resident, ctx.id})
 
     # Her history replayed under the copy: its export is hers, re-keyed.
     {:ok, dir} = SimaQian.repository_dir(copy)

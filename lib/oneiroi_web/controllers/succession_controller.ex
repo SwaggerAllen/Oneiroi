@@ -414,6 +414,7 @@ defmodule OneiroiWeb.SuccessionController do
                 room.drafts,
                 &Map.take(&1, [:draft, :party, :model, :basis, :endorsed, :at])
               ),
+            channel: Enum.map(room.channel, &Map.take(&1, [:number, :party, :text, :at])),
             judgments:
               Enum.map(room.judgments, fn j ->
                 j
@@ -602,6 +603,8 @@ defmodule OneiroiWeb.SuccessionController do
       c0_frozen_note: s.c0_frozen_note,
       ready: Enum.map(prep.ready, &Map.take(&1, [:party, :ready, :at])),
       packet_drafts: prep.drafts,
+      consents: Enum.map(prep.consents, &Map.take(&1, [:attempt, :party, :yes, :note, :at])),
+      goodbyes: Enum.map(prep.goodbyes, &Map.take(&1, [:party, :at])),
       panel:
         Enum.map(
           Janus.panel(s.resident_id),

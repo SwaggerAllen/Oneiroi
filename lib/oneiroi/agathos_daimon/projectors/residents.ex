@@ -59,7 +59,13 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
       id: e.id,
       resident_id: e.id,
       account_id: e.witness_account_id,
-      slug: if(imported?(metadata), do: e.slug <> "-" <> String.slice(e.id, 0, 8), else: e.slug),
+      # A succession's cutover puts her own events back under her own id
+      # (sima-qian#68): her slug, unsuffixed.
+      slug:
+        if(imported?(metadata) and not cutover?(metadata),
+          do: e.slug <> "-" <> String.slice(e.id, 0, 8),
+          else: e.slug
+        ),
       name: e.name,
       state: if(fork_of, do: "fork", else: "active"),
       fork_of: fork_of,
@@ -352,6 +358,7 @@ defmodule Oneiroi.AgathosDaimon.Projectors.Residents do
   end)
 
   defp imported?(metadata), do: Map.get(metadata, "imported", false) == true
+  defp cutover?(metadata), do: Map.get(metadata, "cutover", false) == true
 
   # Keys as the codec returns them, whichever way the event arrived.
   defp stringify(counts) when is_map(counts),

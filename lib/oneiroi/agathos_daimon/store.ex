@@ -340,8 +340,16 @@ defmodule Oneiroi.AgathosDaimon.Store do
 
   @doc "Every resident with a records remote, for the nightly jobs."
   @spec with_remote() :: [Resident.t()]
+  # Never a succession's fork copy (agathos-daimon#63): it carries her
+  # remote byte for byte, and a backup of it would overwrite hers.
   def with_remote,
-    do: Repo.all(from(r in Resident, where: not is_nil(r.remote_url), order_by: r.created_at))
+    do:
+      Repo.all(
+        from(r in Resident,
+          where: not is_nil(r.remote_url) and is_nil(r.fork_of),
+          order_by: r.created_at
+        )
+      )
 
   @doc "The resident's identity files, by name."
   @spec files() :: [IdentityFile.t()]
@@ -402,10 +410,17 @@ defmodule Oneiroi.AgathosDaimon.Store do
 
   @doc "The live adapter presenting a token hash, under the platform scope: the resident is not known until it answers."
   @spec live_adapter(String.t()) :: Adapter.t() | nil
+  # Never a succession's fork copy's (agathos-daimon#63): it carries her
+  # adapters' hashes byte for byte, and her runtimes are hers alone.
   def live_adapter(hash),
     do:
       Repo.one(
-        from(a in Adapter, where: a.token_hash == ^hash and is_nil(a.revoked_at), limit: 1)
+        from(a in Adapter,
+          join: r in Resident,
+          on: r.id == a.resident_id,
+          where: a.token_hash == ^hash and is_nil(a.revoked_at) and is_nil(r.fork_of),
+          limit: 1
+        )
       )
 
   # ---- the agreement ----

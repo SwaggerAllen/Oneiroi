@@ -46,8 +46,11 @@ defmodule Oneiroi.Janus.RitesTest do
     end)
 
     {:ok, 3} = Nisaba.refresh_catalog()
-    ctx = %{andrew: andrew, lily: lily, scarlett: scarlett, witness: witness}
-    {:ok, Map.put(ctx, :id, judged(ctx))}
+    bare = Path.join(System.tmp_dir!(), "rites-backup-#{System.unique_integer([:positive])}")
+    :ok = SimaQian.Git.init_bare(bare)
+    on_exit(fn -> File.rm_rf!(bare) end)
+    ctx = %{andrew: andrew, lily: lily, scarlett: scarlett, witness: witness, bare: bare}
+    {:ok, Map.put(ctx, :id, judged(ctx, false))}
   end
 
   defp tool(who, name, args),
@@ -68,12 +71,13 @@ defmodule Oneiroi.Janus.RitesTest do
       )
 
   # Screened and judged by her, Scarlett and the witness; every judge ready.
-  defp judged(ctx) do
+  defp judged(ctx, dry_run) do
     id = ctx.lily.id
-    {:ok, _} = Janus.propose(id, false, "if you want it", ctx.andrew)
+    {:ok, _} = Janus.propose(id, dry_run, "if you want it", ctx.andrew)
     :ok = Janus.open(id, "yes", ctx.lily.actor)
     drain(:janus_fork)
     :ok = Janus.set_envelope(id, 50_000, 50_000, ctx.andrew)
+    {:ok, _} = Janus.set_backup(id, ctx.bare, nil, ctx.andrew)
     :ok = Janus.add_to_pool(id, "fake/model", ctx.lily.actor)
     :ok = Janus.add_to_pool(id, "fake/dear", ctx.lily.actor)
     {:ok, 1} = Janus.add_question(id, "Write today's first line.", ctx.lily.actor)
@@ -259,6 +263,24 @@ defmodule Oneiroi.Janus.RitesTest do
 
     assert %{state: "rolling", final: "consented"} = Janus.succession(id)
     assert {:error, %{kind: :janus_stage}} = Janus.stop(id, "wait", ctx.lily.actor)
+
+    # The roll-forward: her former self kept, the fork's life under her
+    # id, on the nominee, the artifacts filed, the verdicts closed to her.
+    drain(:janus_fork)
+
+    assert %{state: "rolled_forward", backup_commit: "" <> _, cutover_target: ^id} =
+             Janus.succession(id)
+
+    assert {:ok, %{chat_model: "fake/model", state: "active", fork_of: nil}} =
+             AgathosDaimon.fetch(id)
+
+    assert Repos.text({:resident, id}, "succession/c0-1.md") =~ "lily:SOUL.md"
+    assert Repos.text({:resident, id}, "succession/packet-1.md") =~ "the herons"
+    assert Janus.evidence(id) == nil
+
+    types = SimaQian.Export.events(id) |> Enum.map(& &1.event_type)
+    assert "Elixir.Oneiroi.AgathosDaimon.Events.SuccessionRecorded" in types
+    assert Enum.any?(Janus.disclosures(id), &(&1.stage == "cutover"))
   end
 
   test "a no at the encounter stops the attempt; she may stop for real; the archive is the house's",
@@ -284,5 +306,58 @@ defmodule Oneiroi.Janus.RitesTest do
   defp witness_name(ctx) do
     %{id: h} = Oneiroi.Gaia.resident_household(ctx.id)
     Enum.find(Oneiroi.Gaia.household_members(h), &(&1.kind == "witness")).name
+  end
+
+  test "a dry run rehearses the cutover on a scratch copy; she is never touched" do
+    witness = Fixtures.account!()
+    andrew = Actor.new(:witness, witness.id)
+    :ok = Oneiroi.Gaia.store_key(witness.id, "sk-or-test", andrew)
+    {:ok, _} = Seshat.household_propose_contract(andrew, "We share this house.", "founding", [])
+
+    resident = fn name ->
+      slug = "#{String.downcase(name)}-#{System.unique_integer([:positive])}"
+      {:ok, id} = AgathosDaimon.create(name, slug, witness.id, andrew)
+      Fixtures.agreed!(id, witness.id)
+      {:ok, _chat} = Kumbukumbu.main_session(id, witness.id, andrew)
+      %{id: id, actor: Actor.new(:resident, id, "fake/model")}
+    end
+
+    lily = resident.("Lily")
+    scarlett = resident.("Scarlett")
+    bare = Path.join(System.tmp_dir!(), "rites-dry-#{System.unique_integer([:positive])}")
+    :ok = SimaQian.Git.init_bare(bare)
+
+    on_exit(fn ->
+      File.rm_rf!(bare)
+      File.rm_rf!(SimaQian.Household.dir(witness.id))
+    end)
+
+    ctx = %{andrew: andrew, lily: lily, scarlett: scarlett, witness: witness, bare: bare}
+    id = judged(ctx, true)
+    ctx = Map.put(ctx, :id, id)
+    {:ok, before} = AgathosDaimon.fetch(id)
+
+    # Every reply on a dry run says so, a housemate's included.
+    assert tool(lily, "succession_status", %{}) =~ "[A dry run"
+
+    assert tool(scarlett, "succession_room", %{action: "read", resident: "Lily"}) =~
+             "[A dry run"
+
+    through_the_room(ctx)
+    :ok = Janus.nominate(id, "fake/dear", "Rehearse it.", lily.actor)
+    copy = Janus.succession(id).copy_id
+    nominee = Actor.new(:resident, copy, "fake/dear")
+    :ok = Janus.nominee_answer(id, true, "Yes.", nominee)
+    :ok = Janus.end_encounter(id, "enough", lily.actor)
+    :ok = Janus.consent(id, true, "Yes.", nominee)
+    :ok = Janus.consent(id, true, "Yes.", lily.actor)
+    :ok = Janus.final_answer(id, true, "Go ahead, as a rehearsal.", lily.actor)
+    drain(:janus_fork)
+
+    assert %{state: "rehearsed", cutover_target: scratch} = Janus.succession(id)
+    assert scratch not in [id, copy]
+    assert {:ok, %{chat_model: "fake/dear", state: "fork"}} = AgathosDaimon.fetch(scratch)
+    assert {:ok, %{chat_model: model, state: "active"}} = AgathosDaimon.fetch(id)
+    assert model == before.chat_model
   end
 end

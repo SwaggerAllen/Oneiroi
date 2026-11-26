@@ -365,7 +365,9 @@ defmodule Oneiroi.Janus.Successions do
             questions: Store.questions(row.episode),
             items: Store.items(row.episode),
             ready: Store.ready(row.episode),
-            drafts: Enum.map(Store.packets(row.episode), &%{draft: &1.draft, at: &1.at})
+            drafts: Enum.map(Store.packets(row.episode), &%{draft: &1.draft, at: &1.at}),
+            consents: Store.consents(row.episode),
+            goodbyes: Store.goodbyes(row.episode)
           }
         end)
     end

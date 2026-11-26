@@ -157,6 +157,16 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     }
   end
 
+  def execute(%__MODULE__{state: s}, %Commands.RecordSuccession{} = c) when s != :absent,
+    do: %Events.SuccessionRecorded{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      episode: c.episode,
+      model: c.model,
+      note: c.note
+    }
+
   # Deleted before a first turn (agathos-daimon#49): nothing reaches them.
   def execute(%__MODULE__{state: :discarded}, %command{}),
     do:
@@ -1253,6 +1263,7 @@ defmodule Oneiroi.AgathosDaimon.Resident do
   def apply(%__MODULE__{} = r, %Events.EarlierSessionsRevealed{}), do: r
 
   def apply(%__MODULE__{} = r, %Events.ForkMarked{}), do: %{r | state: :fork}
+  def apply(%__MODULE__{} = r, %Events.SuccessionRecorded{}), do: r
 
   def apply(%__MODULE__{} = r, %Events.Imported{} = e),
     do: %{r | import: %{source: e.source, attestation: e.attestation, root: e.root, told: true}}

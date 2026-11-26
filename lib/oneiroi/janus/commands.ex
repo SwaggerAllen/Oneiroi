@@ -222,4 +222,14 @@ defmodule Oneiroi.Janus.Commands do
   defmodule ChooseNext do
     use Oneiroi.Command, decision: true, fields: [:id, :choice]
   end
+
+  # ---- the cutover (janus#26) ----
+
+  defmodule RecordCutover do
+    use Oneiroi.Command, fields: [:id, :target, :rehearsal, :backup_commit, :commit, :events]
+  end
+
+  defmodule FailCutover do
+    use Oneiroi.Command, fields: [:id, :reason]
+  end
 end

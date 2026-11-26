@@ -55,6 +55,11 @@ defmodule Oneiroi.Router do
       # system's stream cannot be left out of a backup without a word.
       @doc false
       def __stream_prefix__, do: unquote(prefix)
+
+      # Read by a succession's cutover (sima-qian#68): the aggregate a
+      # replaced stream's process holds, stopped so it reloads.
+      @doc false
+      def __aggregate__, do: unquote(aggregate)
     end
   end
 end

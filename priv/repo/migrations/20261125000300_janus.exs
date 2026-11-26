@@ -71,6 +71,13 @@ defmodule Oneiroi.Repo.Migrations.Janus do
       add(:next_choice, :text)
       add(:next_note, :text)
       add(:farewell_includes, {:array, :text}, null: false, default: [])
+      # The cutover (janus#26).
+      add(:cutover_at, :utc_datetime_usec)
+      add(:cutover_target, :binary_id)
+      add(:backup_commit, :text)
+      add(:cutover_commit, :text)
+      add(:cutover_events, :integer)
+      add(:cutover_failure, :text)
     end
 
     create(unique_index(:janus_succession, [:resident_id, :episode]))

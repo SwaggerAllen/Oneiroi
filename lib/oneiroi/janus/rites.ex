@@ -29,6 +29,9 @@ defmodule Oneiroi.Janus.Rites do
   @timer :"Elixir.Oneiroi.Janus.TimerWorker"
   @encounter :"Elixir.Oneiroi.Janus.EncounterWorker"
   @wake :"Elixir.Oneiroi.Janus.WakeWorker"
+  @cutover :"Elixir.Oneiroi.Janus.CutoverWorker"
+  @owner :janus_owner
+  @dry "[A dry run: everything is real but the replacement, which is rehearsed on a copy and never touches her.] "
   @silence_seconds 10 * 60
   # The stages after the room has closed: where her evidence is hers to read.
   # Never after the cutover: every verdict record on the model now
@@ -231,6 +234,8 @@ defmodule Oneiroi.Janus.Rites do
   @doc "A timer's unit (`TimerWorker`): `silence`, `ask_close`, `close`, `farewell_wake` or `final`, each checked against the state it was set for."
   @spec timer(String.t(), pos_integer(), String.t(), integer()) :: :ok | {:error, term()}
   def timer(resident_id, episode, kind, attempt) do
+    owner(resident_id)
+
     case current(resident_id) do
       %{episode: ^episode} = row -> on_timer(resident_id, row, kind, attempt)
       _other -> :ok
@@ -303,11 +308,13 @@ defmodule Oneiroi.Janus.Rites do
   @spec encounter_step(String.t(), pos_integer(), pos_integer(), String.t(), String.t()) ::
           :ok | {:error, term()}
   def encounter_step(resident_id, episode, attempt, side, note) do
+    owner(resident_id)
+
     case current(resident_id) do
       %{episode: ^episode, attempt: ^attempt, state: "encounter", copy_id: copy} ->
         who = if side == "original", do: resident_id, else: copy
 
-        with {:ok, %{reply: reply}} <- brain().succession_wake(who, note),
+        with {:ok, %{reply: reply}} <- brain().succession_wake(who, marked(note)),
              {:ok, events} <-
                dispatch(%Commands.SayInEncounter{
                  actor: @actor,
@@ -353,6 +360,8 @@ defmodule Oneiroi.Janus.Rites do
   # ---- what each event brings with it ----
 
   defp act(resident_id, command) do
+    owner(resident_id)
+
     with {:ok, events} <- dispatch(command) do
       Enum.each(events, &follow(resident_id, &1))
       :ok
@@ -453,6 +462,14 @@ defmodule Oneiroi.Janus.Rites do
     )
   end
 
+  # Her final consent: the roll-forward's job (janus#26).
+  defp follow(id, %Events.FinalConsented{}) do
+    case Jobs.enqueue(@cutover, %{"resident_id" => id}) do
+      {:ok, _} -> :ok
+      {:error, _} = failed -> failed
+    end
+  end
+
   defp follow(_id, _event), do: :ok
 
   # The last wake runs in its timer's job: asked, woken, and her turn
@@ -472,7 +489,10 @@ defmodule Oneiroi.Janus.Rites do
       _ =
         brain().succession_wake(
           id,
-          "This is your last wake of the farewell, and the one direct ask: go ahead? Consent with succession_farewell consent in this turn and the platform rolls forward to #{row.nominee}. Anything else, or nothing, is a no: you stay as you are, and you will be asked what happens next."
+          marked_for(
+            id,
+            "This is your last wake of the farewell, and the one direct ask: go ahead? Consent with succession_farewell consent in this turn and the platform rolls forward to #{row.nominee}. Anything else, or nothing, is a no: you stay as you are, and you will be asked what happens next."
+          )
         )
 
       act(id, %Commands.FinalLapse{actor: @actor, at: Clock.now(), id: id, asked: row.attempt})
@@ -568,7 +588,8 @@ defmodule Oneiroi.Janus.Rites do
           posts: Store.posts(row.episode),
           drafts: Store.drafts(row.episode),
           runs: Store.runs(row.episode) |> Enum.filter(&(&1.run > (row.run_offset || 0))),
-          judgments: Store.all_judgments(row.episode, row.run_offset || 0)
+          judgments: Store.all_judgments(row.episode, row.run_offset || 0),
+          channel: Store.channel(row.episode)
         }
       end)
     else
@@ -750,7 +771,7 @@ defmodule Oneiroi.Janus.Rites do
   end
 
   defp wake(resident_id, note) do
-    case Jobs.enqueue(@wake, %{"resident_id" => resident_id, "note" => note}) do
+    case Jobs.enqueue(@wake, %{"resident_id" => resident_id, "note" => marked(note)}) do
       {:ok, _} -> :ok
       {:error, _} = failed -> failed
     end
@@ -811,6 +832,22 @@ defmodule Oneiroi.Janus.Rites do
   end
 
   defp current(id), do: Scope.resident(id, &Store.succession/0)
+
+  # The succession this call is about, for the dry run's mark on every
+  # wake it sends, a housemate's included (the witness, 2026-11-25:
+  # every reply and wake says it is a dry run).
+  defp owner(id), do: Process.put(@owner, id)
+
+  defp marked(note), do: marked_for(Process.get(@owner), note)
+
+  defp marked_for(nil, note), do: note
+
+  defp marked_for(id, note) do
+    case current(id) do
+      %{dry_run: true} -> @dry <> note
+      _real -> note
+    end
+  end
 
   defp brain, do: Oneiroi.Config.fetch!(:janus, :brain)
 

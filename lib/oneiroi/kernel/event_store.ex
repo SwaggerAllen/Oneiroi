@@ -24,6 +24,10 @@ defmodule Oneiroi.EventStore do
      |> Keyword.put(:schema, "eventstore")
      |> Keyword.put(:column_data_type, "jsonb")
      |> Keyword.put(:pool_size, Config.fetch!(:apsu, :event_store_pool_size))
-     |> Keyword.put(:serializer, Commanded.Serialization.JsonSerializer)}
+     |> Keyword.put(:serializer, Commanded.Serialization.JsonSerializer)
+     # A succession's cutover replaces her life's streams in place
+     # (sima-qian#68), the one caller of a hard delete; nothing else
+     # deletes a stream.
+     |> Keyword.put(:enable_hard_deletes, true)}
   end
 end

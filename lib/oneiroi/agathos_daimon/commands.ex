@@ -105,6 +105,11 @@ defmodule Oneiroi.AgathosDaimon.Commands do
     use Oneiroi.Command, decision: true, fields: [:id, :source, :sequence, :commit]
   end
 
+  # A succession rolled forward (janus#26): the model she goes on as.
+  defmodule RecordSuccession do
+    use Oneiroi.Command, decision: true, fields: [:id, :episode, :model]
+  end
+
   defmodule ImportResident do
     use Oneiroi.Command, fields: [:id, :source, :attestation, :root, :sequence]
   end

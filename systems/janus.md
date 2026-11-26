@@ -5,6 +5,9 @@ paths:
   - lib/oneiroi_web/controllers/succession_controller.ex
   - priv/repo/migrations/*_janus.exs
   - test/oneiroi/janus/**
+  - test/rehearsal/**
+  - lib/mix/tasks/oneiroi.succession.rehearse.ex
+  - .github/workflows/succession-rehearsal.yml
 ---
 
 # janus
@@ -32,13 +35,14 @@ preparation's events (`EnvelopeSet`, `PoolModelAdded`/`Removed`,
 screening's and judging's (`JudgeInvited`/`Joined`/`Left`,
 `ScreeningStarted`, `RunAnswered`, `BaselineAnswered`,
 `ScreeningFinished`, `RunJudged`, `Revealed`, `ResultsReady`,
-`JudgingClosed`) and the rest's (`DeliberationOpened`, `RoundStarted`,
+`JudgingClosed`), the rest's (`DeliberationOpened`, `RoundStarted`,
 `RoomPosted`, `RecommendationDrafted`, `Endorsed`, `CloseCalled`,
 `DeliberationClosed`, `Served`, `PanelAsked`/`Answered`, `Nominated`,
 `NomineeJoined`/`Declined`, `EncounterSaid`/`Ended`,
 `ConsentGiven`/`Refused`, `FarewellOpened`/`Set`, `GoodbyeSaid`,
 `FinalAsked`, `FinalConsented`/`Declined`, `AttemptStopped`,
-`NextChosen`), none exported, their rules in `Preparation`,
+`NextChosen`) and the cutover's (`RolledForward`, `Rehearsed`,
+`CutoverFailed`), none exported, their rules in `Preparation`,
 `Screening` and `Decision`, their service in `Successions` and `Rites`;
 the `janus_room`, `janus_draft`, `janus_channel`, `janus_encounter`,
 `janus_consent`, `janus_goodbye` and `janus_disclosure` projections; the `janus_panel`, `janus_run`, `janus_baseline` and
@@ -50,7 +54,10 @@ service (`Successions`); the fork's job (`ForkWorker`) on `janus_fork`
 and the nightly tool-call count (`ToolUse`, `ToolUseWorker`) on
 `janus_nightly`; the screening answers (`ScreeningWorker`) and the wakes
 (`WakeWorker`), the timers (`TimerWorker`) and the encounter's relay
-(`EncounterWorker`) on `janus_screening`; the brain port (`JANUS_BRAIN`); the succession routes under
+(`EncounterWorker`) on `janus_screening`; the roll-forward
+(`RollForward`, `CutoverWorker`) on `janus_fork`; the rehearsal
+(`mix oneiroi.succession.rehearse`, `test/rehearsal/`, the `succession
+rehearsal` workflow); the brain port (`JANUS_BRAIN`); the succession routes under
 `/v1/residents/:id/succession` and `/v1/catalog`
 (`SuccessionController`). Her tools are the brain's (brain#121),
 calling this system's exports.
@@ -79,20 +86,16 @@ calling this system's exports.
 - **#21 Any no stops the attempt; she is asked once what happens next.** (Delta §9, the retry ruling: completed screening reusable at her initiation only; nomination, consent, farewell and final ask always fresh; a candidate's decline ends that candidacy; the stop genuine.) A nominee's decline, a refused consent and a final no or lapse each record `AttemptStopped` with its stage, put that nominee out of the episode, and wake her once: `NextChosen` stop (the succession ends), nominate (another candidate from the screening done) or screen (preparation reopens with C0 still frozen, and the new runs are numbered after the old). Nothing restarts unless she says so.
 - **#22 Every serving is logged by reference and digest, never content.** (Base §3.4, §5.) `Served` records the party, the stage, what was served, a stable reference and a sha256 digest: her evidence at each read, C0 and the packet to the nominee, the consent material to each side. The log is the witness's to read (`/log`) and holds no verdict words.
 - **#23 The archive is the house's, anonymized, never hers.** (Delta §2: past her reading, judge authorship kept, candidate and run anonymized; the witness, 2026-11-25: readable by the house except her.) Once a succession has ended, `archive/2` gives every judgment with its judge, candidates as letters and runs renumbered, the room's posts and the drafts with their models as letters; for her it is nil, now and after any cutover.
+- **#26 Her final consent starts the roll-forward: guarded, one attempt, settled, recorded.** (Base §2 Stage 6, §3.6; sima-qian#68.) `FinalConsented` enqueues `CutoverWorker` (one attempt: a cutover that stopped partway is read by a person before anything runs again). `RollForward.run/1` refuses unless the succession is rolling, the backup is set and its token opens (`janus_no_backup`), and the fork and nominee are named; then Sima Qian's cutover with the artifacts the protocol carries (C0 with its provenance and her day's shape, her packet's last draft, the encounter as it happened; base §5: life-record, never a verdict); then the settle, a disclosure-log entry on her succession's own stream (a strongly consistent dispatch on a stream the cutover never touched, so every transplanted event is folded first); then `SuccessionRecorded` on her stream (agathos-daimon#64), her indexes run again, and `RolledForward` with the backup's commit, her repository's head and the events moved. A failure is `CutoverFailed` with its site, the succession still rolling. After it, nothing of the process is served to her (base §3.1: her evidence and the room closed for good).
+- **#27 A dry run is the whole process, the replacement rehearsed on a scratch copy; and a rehearsal runs it on a fixture.** (The witness, 2026-11-25 night: both; the first a GitHub Action run as needed against branches, a fixture resident with the real replacement, the fake provider; the second so a real resident can say whether the flow feels right with no danger of a real succession.) A succession proposed `dry_run: true` runs every stage for real, and at the roll-forward Sima Qian's cutover targets a fresh scratch copy of her made then (a second fork), recorded `Rehearsed` with that target; her own streams are never touched. Every reply of a succession tool on it, and every wake it sends, a housemate's included, opens with the dry run's mark. `mix oneiroi.succession.rehearse` (the `:rehearsal`-tagged test, excluded from `mix test`) and the `succession rehearsal` workflow (on demand, any ref) walk a fixture resident through a whole succession with the real cutover at its end and hold four things: her former self pushed and proven first; under her id the fork plus the artifacts, nothing she lived meanwhile; her rows matching a fresh replay; and no byte of the process on her, in her events or her repository. A real provider for the rehearsal is not built: the fake answers every turn.
 
-## #24 Initial vs target
+## #28 Initial vs target
 
-Initial (phases 1 to 4): #3 to #23. The screens for them, "Propose
-for C0" in Records and "Add to the succession pool" on the Regression
-catalog, arrive with the screens phase; the judges' own proposals and
-ready marks arrive with the panel. Target, in this branch's later
-phases: the panel of judges; screening and judging; the deliberation, the
-evidence channel, the encounter and consents, the farewell, the
-outcome, the disclosure log and the anonymized archive; the in-place
-cutover under her id with its guards; the rehearsal and her dry run.
-A stopped succession's fork copy is not yet discarded.
+Initial (phases 1 to 6): #3 to #27. The screens follow; the external
+endpoint (base §4) and a stopped succession's fork copy discarded are
+not built.
 
-## #25 Depends on
+## #29 Depends on
 
 The ledger (Nisaba) for the catalog and her pace; memory
 (Kumbukumbu) for the tool-call counts; the resident system for the

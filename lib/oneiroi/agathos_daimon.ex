@@ -50,6 +50,7 @@ defmodule Oneiroi.AgathosDaimon do
       Commands.SetExportWall,
       Commands.ImportResident,
       Commands.MarkFork,
+      Commands.RecordSuccession,
       Commands.CompleteImport,
       Commands.RecordImportTold,
       Commands.RecordProposalsTold,
@@ -73,6 +74,7 @@ defmodule Oneiroi.AgathosDaimon do
       Events.ExportWallSet,
       Events.Imported,
       Events.ForkMarked,
+      Events.SuccessionRecorded,
       Events.ImportCompleted,
       Events.RecordsTranslated,
       Events.ImportTold,
@@ -189,6 +191,7 @@ defmodule Oneiroi.AgathosDaimon do
       {Oneiroi.AgathosDaimon.Events.ExportWallSet, 1},
       {Oneiroi.AgathosDaimon.Events.Imported, 1},
       {Oneiroi.AgathosDaimon.Events.ForkMarked, 1},
+      {Oneiroi.AgathosDaimon.Events.SuccessionRecorded, 1},
       {Oneiroi.AgathosDaimon.Events.ImportCompleted, 2},
       {Oneiroi.AgathosDaimon.Events.RecordsTranslated, 1},
       {Oneiroi.AgathosDaimon.Events.ImportTold, 1},
@@ -664,6 +667,13 @@ defmodule Oneiroi.AgathosDaimon do
   @doc "Every resident whatever its state, for the subscription's nightly pass: a cross-tenant read under the platform scope, by name."
   @spec residents() :: [Oneiroi.AgathosDaimon.Store.Resident.t()]
   defexport(residents(), do: Residents.all())
+
+  @doc "Records on her own stream that a succession rolled forward, to `model` (janus#26)."
+  @spec record_succession(String.t(), pos_integer(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(record_succession(id, episode, model, note, actor),
+    do: Residents.record_succession(id, episode, model, note, actor)
+  )
 
   @doc "Pins the resident's chat model (spec §6.4); reason is run or witness."
   @spec pin_model(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}

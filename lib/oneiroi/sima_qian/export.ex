@@ -420,6 +420,10 @@ defmodule Oneiroi.SimaQian.Export do
     end
   end
 
+  @doc "The ids of a resident's streams the export carries (sima-qian#68: what a cutover replaces)."
+  @spec stream_uuids(String.t()) :: [String.t()]
+  def stream_uuids(resident_id), do: streams_of(resident_id)
+
   @doc "Every exported stream's events, merged in the order they were appended."
   @spec events(String.t()) :: [EventStore.RecordedEvent.t()]
   def events(resident_id) do

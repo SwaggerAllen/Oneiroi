@@ -438,4 +438,29 @@ defmodule Oneiroi.Janus.Events do
       fields: [:id, :episode, :choice],
       export: false
   end
+
+  # ---- the cutover (janus#26) ----
+
+  defmodule RolledForward do
+    # The platform's roll-forward act (base §2 Stage 6, §3.6): her
+    # former self kept at `backup_commit`, her streams replaced by the
+    # fork's, her repository at `commit`.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :attempt, :model, :backup_commit, :commit, :events],
+      export: false
+  end
+
+  defmodule Rehearsed do
+    # A dry run's end: the same steps on `target`, a scratch copy; her
+    # own streams untouched.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :attempt, :model, :target, :backup_commit, :commit, :events],
+      export: false
+  end
+
+  defmodule CutoverFailed do
+    use Oneiroi.Event, version: 1, fields: [:id, :episode, :attempt, :reason], export: false
+  end
 end

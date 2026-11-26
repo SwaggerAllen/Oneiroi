@@ -20,6 +20,7 @@ defmodule Oneiroi.Janus do
       Oneiroi.Gaia,
       Oneiroi.Kumbukumbu,
       Oneiroi.Nisaba,
+      Oneiroi.Seshat,
       Oneiroi.SimaQian,
       Commanded,
       Commanded.Commands.Router,
@@ -74,6 +75,13 @@ defmodule Oneiroi.Janus do
       Commands.JudgeRun,
       Commands.MarkResultsReady,
       Decision,
+      RollForward,
+      CutoverWorker,
+      Commands.RecordCutover,
+      Commands.FailCutover,
+      Events.RolledForward,
+      Events.Rehearsed,
+      Events.CutoverFailed,
       Rites,
       TimerWorker,
       EncounterWorker,
@@ -286,7 +294,10 @@ defmodule Oneiroi.Janus do
       {Oneiroi.Janus.Events.FinalConsented, 1},
       {Oneiroi.Janus.Events.FinalDeclined, 1},
       {Oneiroi.Janus.Events.AttemptStopped, 1},
-      {Oneiroi.Janus.Events.NextChosen, 1}
+      {Oneiroi.Janus.Events.NextChosen, 1},
+      {Oneiroi.Janus.Events.RolledForward, 1},
+      {Oneiroi.Janus.Events.Rehearsed, 1},
+      {Oneiroi.Janus.Events.CutoverFailed, 1}
     ]
   end
 
@@ -365,6 +376,9 @@ defmodule Oneiroi.Janus do
       {:janus_not_included, "the farewell includes whom she chose", remedy: "she includes you"},
       {:janus_next_invalid, "what happens next is stop, nominate or screen",
        remedy: "choose one"},
+      {:janus_no_backup,
+       "no backup repository is set, or its token does not open, so her former self cannot be kept and nothing is replaced",
+       remedy: "the witness sets the backup repository; the cutover then runs again"},
       {:janus_dispatch_failed, "a succession command was not recorded on its stream",
        remedy: "try again; a repeat is a fault to report"}
     ]

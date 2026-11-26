@@ -537,6 +537,36 @@ defmodule Oneiroi.Janus.Projectors.Succession do
     set(multi, e, [state: state, next_choice: e.choice, next_note: e.note] ++ ended)
   end)
 
+  fold(%Events.RolledForward{} = e, _metadata, fn multi ->
+    set(multi, e,
+      state: "rolled_forward",
+      cutover_at: e.at,
+      cutover_target: e.id,
+      backup_commit: e.backup_commit,
+      cutover_commit: e.commit,
+      cutover_events: e.events,
+      cutover_failure: nil,
+      ended_at: e.at
+    )
+  end)
+
+  fold(%Events.Rehearsed{} = e, _metadata, fn multi ->
+    set(multi, e,
+      state: "rehearsed",
+      cutover_at: e.at,
+      cutover_target: e.target,
+      backup_commit: e.backup_commit,
+      cutover_commit: e.commit,
+      cutover_events: e.events,
+      cutover_failure: nil,
+      ended_at: e.at
+    )
+  end)
+
+  fold(%Events.CutoverFailed{} = e, _metadata, fn multi ->
+    set(multi, e, cutover_failure: e.reason)
+  end)
+
   defp channel(multi, e, party, text),
     do:
       Multi.insert(

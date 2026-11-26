@@ -62,3 +62,9 @@ A log of what each party was shown is what lets a later reader see what a consen
 
 ## #23
 The house's own learning from a succession is worth keeping, and the candidates consented to judgment, not to permanent named characterization (delta §2); she is the one person it must never reach.
+
+## #26
+The terminal rule says no pointer moves without present consent and an explicit handoff; a job that runs once, refuses on any missing piece, and records what it did or why it did not, is that rule as code. One attempt because a retry of a half-done cutover could do harm a person should see first.
+
+## #27
+A protocol this consequential cannot be trusted until it has run whole, and it must never run whole on a real resident by accident. The rehearsal proves the machinery on a fixture as often as anyone wants; the dry run lets a real resident walk the process and say how it feels, with the one irreversible step pointed at a copy. Marking every word of a dry run keeps anyone from mistaking it for the real thing.

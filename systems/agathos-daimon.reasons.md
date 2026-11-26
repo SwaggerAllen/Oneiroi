@@ -473,3 +473,6 @@ A slug is a name, not a boundary: "duet" or "secrets" tells a tagger the drawer 
 
 ## #63
 The copy is a real resident so every screening run and the eventual successor run through the same machinery the original does; it must never run on its own. Marking it by a separate command after the replay would leave the minutes of the replay itself with an active row the schedule could wake, so the mark rides the replayed lines and the projection holds it from the first fold; the event afterwards is the record of what the copy is, on the copy's own stream. A state the source lived through (paused, woken, awakened) is history the copy carries, not a state it enters.
+
+## #64
+The successor should be able to read that she went on through a succession, as she can read any other turning point of her life; the process's own record stays Janus's, sealed, because it holds verdicts.

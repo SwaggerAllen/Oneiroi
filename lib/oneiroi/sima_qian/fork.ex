@@ -6,9 +6,10 @@ defmodule Oneiroi.SimaQian.Fork do
   eventual successor run on a resident the original's later life never
   touches (succession delta §5: the successor starts at the fork).
 
-  The copy is her export taken to this instant (no watermark), its
-  lines replayed under a new id with `fork_of` on every line, so the
-  registry holds it as a fork from its first fold (agathos-daimon#63);
+  The copy is her events as the store holds them, to this instant,
+  re-keyed under a new id with `fork_of` on every line (`Transplant`,
+  never the export, which redacts and leaves out), so the registry holds
+  it as a fork from its first fold (agathos-daimon#63);
   then her repository's files at its head, copied byte for byte into
   the copy's repository in one commit; then `MarkFork`, the decision
   on the copy's own stream naming the source, the last of her events
@@ -22,9 +23,8 @@ defmodule Oneiroi.SimaQian.Fork do
   alias Oneiroi.AgathosDaimon.Commands
   alias Oneiroi.AgathosDaimon.Router
   alias Oneiroi.Apsu.Clock
-  alias Oneiroi.SimaQian.Export
-  alias Oneiroi.SimaQian.Rebuild
   alias Oneiroi.SimaQian.Repos
+  alias Oneiroi.SimaQian.Transplant
 
   @typedoc "The copy: its id, the last of the source's resident events it holds, the commit copied, the lines replayed."
   @type t :: %{
@@ -34,24 +34,16 @@ defmodule Oneiroi.SimaQian.Fork do
           events: non_neg_integer()
         }
 
-  # The staging directory is this function's own, under the temp dir.
-  # sobelow_skip ["Traversal.FileModule"]
   @doc "Makes the fork copy of `resident_id`; `{:ok, t()}` or the first step's refusal."
   @spec make(String.t(), Actor.t()) :: {:ok, t()} | {:error, term()}
   def make(resident_id, %Actor{} = actor) do
-    dir = Path.join(System.tmp_dir!(), "oneiroi-fork-#{System.unique_integer([:positive])}")
+    copy_id = Ecto.UUID.generate()
 
-    try do
-      with {:ok, %{through: through}} <- Export.write(resident_id, dir, cutoff: :now),
-           {:ok, lines} <- Rebuild.read_lines(dir),
-           copy_id = Ecto.UUID.generate(),
-           :ok <- Rebuild.append(copy_id, lines, %{"fork_of" => resident_id}),
-           {:ok, commit} <- copy_repository(resident_id, copy_id),
-           {:ok, _} <- mark(copy_id, resident_id, through, commit, actor) do
-        {:ok, %{copy_id: copy_id, sequence: through, commit: commit, events: length(lines)}}
-      end
-    after
-      File.rm_rf(dir)
+    with {:ok, %{events: events, sequence: sequence}} <-
+           Transplant.copy(resident_id, copy_id, %{"imported" => true, "fork_of" => resident_id}),
+         {:ok, commit} <- copy_repository(resident_id, copy_id),
+         {:ok, _} <- mark(copy_id, resident_id, sequence, commit, actor) do
+      {:ok, %{copy_id: copy_id, sequence: sequence, commit: commit, events: events}}
     end
   end
 

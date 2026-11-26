@@ -4624,7 +4624,7 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("queue_" <> _ = name, args, turn), do: QueueTools.call(name, args, turn)
-  defp call("succession_" <> _ = name, args, turn), do: SuccessionTools.call(name, args, turn)
+  defp call("succession_" <> _ = name, args, turn), do: SuccessionTools.run(name, args, turn)
 
   defp call(name, _args, _turn), do: @not_done <> "there is no tool named #{name}."
 

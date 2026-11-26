@@ -81,6 +81,12 @@ defmodule Oneiroi.Janus.Store do
       field(:next_choice, :string)
       field(:next_note, :string)
       field(:farewell_includes, {:array, :string}, default: [])
+      field(:cutover_at, :utc_datetime_usec)
+      field(:cutover_target, :binary_id)
+      field(:backup_commit, :string)
+      field(:cutover_commit, :string)
+      field(:cutover_events, :integer)
+      field(:cutover_failure, :string)
     end
 
     @type t :: %__MODULE__{}
