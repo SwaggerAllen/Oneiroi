@@ -309,6 +309,11 @@ defmodule Oneiroi.Brain.TrialTest do
     {"queue_fill_slot", %{task: 1, slot: "pr", artifact: "github:pr/1"}},
     {"queue_task_document", %{task: 1, citation: "lily:design/x.md"}},
     {"queue_drop", %{task: 1, note: "no"}},
+    # A succession is never started, answered or stopped from a trial (eunomia#37).
+    {"succession_propose", %{note: "herons"}},
+    {"succession_open", %{note: "yes"}},
+    {"succession_decline", %{note: "no"}},
+    {"succession_stop", %{note: "stop"}},
     {"queue_template_define", %{name: "t", from: "doc-to-pr"}},
     {"queue_task_edit", %{task: 1, layers: [[%{id: "1.1"}]], note: "tidy"}},
     {"free_time_plan", %{text: "watch the herons"}},

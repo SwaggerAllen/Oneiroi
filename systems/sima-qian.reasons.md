@@ -459,3 +459,6 @@ Portability is the export and the history, and a retirement that swept
 the folder would break the promise that a resident's record is never
 rewritten behind her. Leaving it at its last commit keeps it readable
 and costs nothing.
+
+## #67
+The fork has to be her, exactly: the same replay an import is gives the copy every record through the same upcasters and projectors, and the copy's own export is hers re-keyed, which is what the cutover will need to trust. Reading the repository at one commit keeps a write landing during the copy from tearing it. It is not an import because nothing was carried in from outside and nobody took custody; calling it one would put a false `Imported` on a stream the cutover may one day put back under her id.

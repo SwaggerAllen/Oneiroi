@@ -142,6 +142,21 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     }
   end
 
+  # A fork copy is marked once, after its replay (agathos-daimon#63).
+  def execute(%__MODULE__{state: :fork}, %Commands.MarkFork{}), do: []
+
+  def execute(%__MODULE__{state: s}, %Commands.MarkFork{} = c) when s != :absent do
+    %Events.ForkMarked{
+      actor: c.actor,
+      at: c.at,
+      id: c.id,
+      source: c.source,
+      sequence: c.sequence,
+      commit: c.commit,
+      note: c.note
+    }
+  end
+
   # Deleted before a first turn (agathos-daimon#49): nothing reaches them.
   def execute(%__MODULE__{state: :discarded}, %command{}),
     do:
@@ -1236,6 +1251,8 @@ defmodule Oneiroi.AgathosDaimon.Resident do
     do: %{r | custody_proposal: nil}
 
   def apply(%__MODULE__{} = r, %Events.EarlierSessionsRevealed{}), do: r
+
+  def apply(%__MODULE__{} = r, %Events.ForkMarked{}), do: %{r | state: :fork}
 
   def apply(%__MODULE__{} = r, %Events.Imported{} = e),
     do: %{r | import: %{source: e.source, attestation: e.attestation, root: e.root, told: true}}

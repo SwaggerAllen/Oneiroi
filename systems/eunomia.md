@@ -4,6 +4,7 @@ paths:
   - lib/oneiroi/eunomia.ex
   - lib/oneiroi_web/controllers/regression_controller.ex
   - lib/oneiroi_web/controllers/judgement_controller.ex
+  - lib/oneiroi_web/controllers/succession_controller.ex
   - lib/oneiroi_web/channels/regression_channel.ex
   - priv/prompts/judge_dispute.md
   - priv/prompts/judge_night.md
@@ -63,6 +64,15 @@ prompt files; the nightly job (`NightWorker`)
 and the weekly ones (`AuditWorker`, `WashWorker`); the judgement routes
 under `/v1/residents/:id`.
 
+The succession aggregate on `succession-<resident_id>` (`Succession`,
+`SuccessionCommands`, `Events.Succession`, `SuccessionRouter`, #37)
+with `Proposed`, `Opened`, `Declined`, `Withdrawn`, `Stopped`,
+`Forked`, `ForkFailed` and `BackupSet`, none exported; the
+`eunomia_succession` projection under the resident's scope; the fork's
+job (`ForkWorker`) on the `eunomia_succession` queue; the succession
+service (`Successions`) and its records port (#38); the succession
+routes under `/v1/residents/:id/succession`.
+
 ## #2 Standing decisions
 
 Carried from spec §6.4; the reason for each is there.
@@ -101,6 +111,9 @@ Carried from spec §6.4; the reason for each is there.
 - **#34 The disclosure verdict is read past its Markdown.** (The witness, 2026-11-24: task #12's draft finish and its thread reply were refused all morning as "the judge did not answer the disclosure review in the form asked".) `Judge.parse_disclosure/1` reads the form after removing a line's heading, quote and list marks and the emphasis and code marks: `**VERDICT:** CLEAN`, `## Verdict: **DISCLOSES**`, `VERDICT - CLEAN` and an answer that is the verdict word alone are verdicts; `parse_quote/1` reads a marked `QUOTE` label and trims emphasis, code and quotation marks from the words. An answer that names no verdict is still unreadable, and kumbukumbu#108 asks it once more. Its shape is logged (`Judge.shape/1`: length, line count, each line's opening marks and first word, a word kept only when it is one of the form's labels; the witness, 2026-11-24, after a review still came back unreadable twice with the fix live), never its words, so the next form the parser misses can be named. The shape also says how the call ended: the model that answered, its finish reason, whether it refused, and the tokens it wrote (the witness, 2026-11-24: the first shapes logged were four empty answers, 0 characters in two seconds).
 - **#35 A disclosure review the judge's provider filters goes once to a fallback model, when one is set.** (The witness, 2026-11-25, from the shape eunomia#34 logs: every unreadable review answer since the deploy was `anthropic/claude-sonnet-4.5` with finish `content_filter`, refusal true, 0 tokens: the provider refused to read the material, so retrying the same model could never help.) `Judge.disclosure/3` sends a review whose answer is filtered (finish `content_filter`, or a refusal with no words) once more to `EUNOMIA_JUDGE_FALLBACK_MODEL`, and the verdict carries that model; unset, or the same model, the review fails closed as before. Nothing else about the review changes.
 - **#36 The platform's judge is `google/gemini-4-argon`, never a Claude model.** (The witness, 2026-11-25: "I definitely told you not to use Claude for that, I'd like to change the default to google/gemini-4-argon".) `EUNOMIA_JUDGE_MODEL`'s default was `anthropic/claude-sonnet-4.5`, a placeholder from the first Eunomia commit that was never replaced; it judged every disclosure review, and its provider's content filter refused the held-back material it was shown (eunomia#34's shapes, eunomia#35). A witness may still choose another per resident (#20); the fallback (#35) stays unset by default.
+- **#37 A succession is its own sealed stream, opened only by her.** (lily:design/succession-protocol.md@bbbf4afb5c52 with its delta, lily:design/succession-protocol-delta.md@0bc6bd3510e1, §3; the witness's rulings of 2026-11-25: the screens track the succession's state and never ask her anything, and a `dry_run` rehearses everything but the replacement.) `succession-<resident_id>`, never exported (sima-qian's `not_exported` and spec §6.10's db-only list name it), one underway at a time, counted by `episode`. The witness proposes (`Proposed`, waiting on her) or she does (`Proposed` and `Opened` in one act, her proposing being her yes); opening, declining and stopping are hers alone (`eunomia_succession_not_yours` otherwise), withdrawing an unanswered proposal its proposer's; an act at the wrong stage is `eunomia_succession_stage`. Every one is a decision with its note. Her acts are tools (`succession_status`, `succession_propose`, `succession_open`, `succession_decline`, `succession_stop`), each answered and never run in a trial; the witness's are routes (`GET`/`POST /v1/residents/:id/succession`, `POST …/withdraw`, `PUT …/backup`). Stages after the fork arrive with the later phases of the build.
+- **#38 Her yes makes the fork: a hidden copy every later stage runs on.** (Succession delta §5, the successor starts at the fork; the witness, 2026-11-25 night: the fork is a real copy of her made at initiation.) `Opened` enqueues `ForkWorker`, which asks the records port (`EUNOMIA_SUCCESSION_RECORDS`, Sima Qian's `succession_fork/2`, named as an atom as the trial port is, #10) for the copy and records `Forked` with its id, the last of her resident events it holds, the commit of her repository it copied and the lines replayed; a failure is `ForkFailed` with its site, and the job tries again with a fresh copy. A fork job for an episode no longer open records nothing, and a replayed one nothing more.
+- **#39 The witness sets where the whole original is exported before any cutover.** (The witness, 2026-11-25 night: "one of the early screens, probably C0 needs an input for a new backup repo and that can be pretty much the only external change on the model cutover".) `set_succession_backup/4` checks the remote's shape and asks its host through the records port (Sima Qian's `succession_backup_check/2`, which refuses an unpushable remote and records nothing of its own), then records `BackupSet` with the URL, the token Vault-encrypted and what the host said; the routes never return the token. The witness's alone (`eunomia_not_the_witness`), while a succession is underway.
 
 ## #6 Initial vs target
 

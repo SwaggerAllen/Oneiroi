@@ -80,7 +80,10 @@ defmodule Oneiroi.AgathosDaimon.Residents do
     end
   end
 
-  def for_witness(account_id), do: Scope.account(account_id, fn -> Store.all() end)
+  # A succession's fork copy is the platform's, never a resident the
+  # witness keeps (agathos-daimon#63).
+  def for_witness(account_id),
+    do: Scope.account(account_id, fn -> Enum.reject(Store.all(), &(&1.state == "fork")) end)
 
   def fetch(id) do
     case Scope.resident(id, fn -> Store.get(id) end) do

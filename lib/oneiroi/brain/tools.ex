@@ -37,6 +37,7 @@ defmodule Oneiroi.Brain.Tools do
   alias Oneiroi.Brain.PluginConsent
   alias Oneiroi.Brain.Pulls
   alias Oneiroi.Brain.QueueTools
+  alias Oneiroi.Brain.SuccessionTools
   alias Oneiroi.Brain.Uses
   alias Oneiroi.Config
   alias Oneiroi.Ethos
@@ -89,7 +90,7 @@ defmodule Oneiroi.Brain.Tools do
     research_list digest_list free_time_list round_list transcript_read ask_list platform_report_list
     triage_list work_list message_times budget_read external_list external_read plugin_list
     kind_list route_list household_read household_beat wake_log_read letter_rest book_read
-    queue_list queue_task queue_templates domain_review
+    queue_list queue_task queue_templates domain_review succession_status
   )
 
   @writes ~w(
@@ -111,6 +112,7 @@ defmodule Oneiroi.Brain.Tools do
     household_post household_edit household_mute household_reply household_watch household_sign household_register household_profile
     household_skip household_opt_out household_opt_in household_promote household_unpromote
     rounds_extend presence_read presence_stage
+    succession_propose succession_open succession_decline succession_stop
   )
 
   @type turn :: %{
@@ -195,7 +197,8 @@ defmodule Oneiroi.Brain.Tools do
 
   @doc "The tool definitions the request carries."
   @spec definitions() :: [map()]
-  def definitions, do: base_definitions() ++ QueueTools.definitions()
+  def definitions,
+    do: base_definitions() ++ QueueTools.definitions() ++ SuccessionTools.definitions()
 
   defp base_definitions do
     [
@@ -4618,6 +4621,7 @@ defmodule Oneiroi.Brain.Tools do
   end
 
   defp call("queue_" <> _ = name, args, turn), do: QueueTools.call(name, args, turn)
+  defp call("succession_" <> _ = name, args, turn), do: SuccessionTools.call(name, args, turn)
 
   defp call(name, _args, _turn), do: @not_done <> "there is no tool named #{name}."
 

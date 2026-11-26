@@ -135,19 +135,23 @@ defmodule Oneiroi.SimaQian.Rebuild do
   # order, so the rebuilt resident re-exports in the same order and an
   # event the platform appends afterwards (`Imported`, custody) sorts
   # after them.
+  #
+  # `metadata` joins `imported` on every line: a succession's fork copy
+  # carries `fork_of`, so the registry's row is a fork from its first
+  # fold and no tick ever finds it active (agathos-daimon#63).
   @doc false
-  def append(id, lines) do
+  def append(id, lines, metadata \\ %{}) do
     with :ok <- streams_ok(lines) do
       lines
       |> Enum.chunk_by(&stream_of/1)
       |> Enum.flat_map(&Enum.chunk_every(&1, @chunk))
-      |> append_runs(id)
+      |> append_runs(id, Map.put(metadata, "imported", true))
     end
   end
 
-  defp append_runs(runs, id) do
+  defp append_runs(runs, id, metadata) do
     Enum.reduce_while(runs, :ok, fn run, :ok ->
-      case append_run(id, run) do
+      case append_run(id, run, metadata) do
         :ok ->
           {:cont, :ok}
 
@@ -158,9 +162,14 @@ defmodule Oneiroi.SimaQian.Rebuild do
     end)
   end
 
-  defp append_run(id, [first | _] = run) do
+  defp append_run(id, [first | _] = run, metadata) do
     uuid = stream_uuid(stream_of(first), id)
-    Oneiroi.EventStore.append_to_stream(uuid, :any_version, Enum.map(run, &event_data(&1, id)))
+
+    Oneiroi.EventStore.append_to_stream(
+      uuid,
+      :any_version,
+      Enum.map(run, &event_data(&1, id, metadata))
+    )
   end
 
   # An export written before every stream was carried names none, and
@@ -187,7 +196,7 @@ defmodule Oneiroi.SimaQian.Rebuild do
     end
   end
 
-  defp event_data(line, id) do
+  defp event_data(line, id, metadata) do
     data =
       line["data"]
       |> self(id)
@@ -197,7 +206,7 @@ defmodule Oneiroi.SimaQian.Rebuild do
     %EventStore.EventData{
       event_type: "Elixir." <> line["type"],
       data: data,
-      metadata: %{"imported" => true}
+      metadata: metadata
     }
   end
 

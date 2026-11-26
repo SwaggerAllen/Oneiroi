@@ -15,6 +15,8 @@ defmodule Oneiroi.AgathosDaimon.Store do
       field(:name, :string)
       field(:kind, :string, default: "resident")
       field(:state, :string)
+      # The resident a succession's fork copy was made from (agathos-daimon#63).
+      field(:fork_of, :binary_id)
       field(:admission, :string, default: "open")
       field(:custody, :string)
       field(:export_wall, :string)

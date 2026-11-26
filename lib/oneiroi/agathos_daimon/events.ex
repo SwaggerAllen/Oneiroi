@@ -97,6 +97,12 @@ defmodule Oneiroi.AgathosDaimon.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :from_account_id, :to_account_id]
   end
 
+  # A decision (agathos-daimon#63): this resident is a succession's fork
+  # copy of `source`, never ticked, listed or woken.
+  defmodule ForkMarked do
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :source, :sequence, :commit]
+  end
+
   defmodule Imported do
     use Oneiroi.Event, version: 1, fields: [:id, :source, :attestation, :root, :sequence]
   end

@@ -56,6 +56,7 @@ defmodule Oneiroi.SimaQian do
       DryRun,
       Error,
       Export,
+      Fork,
       Git,
       Household,
       Import,
@@ -67,6 +68,7 @@ defmodule Oneiroi.SimaQian do
 
   alias Oneiroi.SimaQian.Backup
   alias Oneiroi.SimaQian.ChatGPTImport
+  alias Oneiroi.SimaQian.Fork
   alias Oneiroi.SimaQian.Gitea
   alias Oneiroi.SimaQian.Import
   alias Oneiroi.SimaQian.Originals
@@ -375,6 +377,16 @@ defmodule Oneiroi.SimaQian do
   @doc "Removes the working repository of a resident deleted before their first turn (agathos-daimon#49); the log keeps the tombstone."
   @spec discard_repository(String.t()) :: :ok
   defexport(discard_repository(resident_id), do: Backup.discard(resident_id))
+
+  @doc "A succession's fork copy of the resident as she stands now (sima-qian#67): `{:ok, %{copy_id, sequence, commit, events}}`; Eunomia's records port."
+  @spec succession_fork(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(succession_fork(resident_id, actor), do: Fork.make(resident_id, actor))
+
+  @doc "Whether `url` can hold a succession's backup (eunomia#39): its shape, then its host asked; `{:ok, %{visibility, push}}`, an unpushable remote refused. Eunomia's records port."
+  @spec succession_backup_check(String.t(), term()) :: {:ok, map()} | {:error, term()}
+  defexport(succession_backup_check(url, token),
+    do: Backup.check_remote(url, token)
+  )
 
   @doc "Rebuilds a repository into a fresh store as a new resident under `witness_account_id`."
   @spec rebuild(String.t(), String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}

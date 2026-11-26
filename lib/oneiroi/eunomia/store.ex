@@ -140,6 +140,42 @@ defmodule Oneiroi.Eunomia.Store do
     @type t :: %__MODULE__{}
   end
 
+  defmodule Succession do
+    @moduledoc """
+    One succession of the resident's (eunomia#37), by episode: its stage,
+    whether it is a rehearsal, its fork copy and its backup. Read by the
+    succession screens and her status tool, never by the export.
+    """
+    use Ecto.Schema
+    @primary_key false
+    schema "eunomia_succession" do
+      field(:resident_id, :binary_id, primary_key: true)
+      field(:episode, :integer, primary_key: true)
+      field(:state, :string)
+      field(:dry_run, :boolean, default: false)
+      field(:proposed_by, :string)
+      field(:proposed_note, :string)
+      field(:proposed_at, :utc_datetime_usec)
+      field(:opened_note, :string)
+      field(:opened_at, :utc_datetime_usec)
+      field(:copy_id, :binary_id)
+      field(:fork_sequence, :integer)
+      field(:fork_commit, :string)
+      field(:fork_events, :integer)
+      field(:forked_at, :utc_datetime_usec)
+      field(:fork_failure, :string)
+      field(:backup_url, :string)
+      field(:backup_token, :binary)
+      field(:backup_visibility, :string)
+      field(:backup_push, :string)
+      field(:backup_set_at, :utc_datetime_usec)
+      field(:ended_note, :string)
+      field(:ended_at, :utc_datetime_usec)
+    end
+
+    @type t :: %__MODULE__{}
+  end
+
   defmodule Night do
     @moduledoc "One nightly pass: judged or failed, how much was read, what was found."
     use Ecto.Schema
@@ -283,6 +319,16 @@ defmodule Oneiroi.Eunomia.Store do
 
   @spec predictions() :: [Prediction.t()]
   def predictions, do: Repo.all(from(p in Prediction, order_by: [asc: p.due, asc: p.number]))
+
+  @doc "The resident's successions, newest first (eunomia#37)."
+  @spec successions() :: [Succession.t()]
+  def successions,
+    do: Repo.all(from(x in Succession, order_by: [desc: x.episode]))
+
+  @doc "The resident's latest succession, or nil."
+  @spec succession() :: Succession.t() | nil
+  def succession,
+    do: Repo.one(from(x in Succession, order_by: [desc: x.episode], limit: 1))
 
   @spec nights() :: [Night.t()]
   def nights, do: Repo.all(from(n in Night, order_by: [desc: n.day, desc: n.at]))

@@ -66,6 +66,9 @@ defmodule Oneiroi.SimaQian.Export do
   @not_exported %{
     "regression" =>
       {:stream, "sealed: the resident's own trials, never exported or read (eunomia#12)"},
+    "succession" =>
+      {:stream,
+       "sealed: the succession's record holds verdicts walled from every reader but the judge who wrote them; what travels to a successor travels as the artifacts the cutover writes (eunomia#37)"},
     "account" => {:stream, "the witness's account, not the resident's"},
     "profiles" =>
       {:stream,
@@ -135,15 +138,22 @@ defmodule Oneiroi.SimaQian.Export do
           private: MapSet.t(String.t())
         }
 
-  @doc "Writes the export under `dir` (the repository root) and returns the last sequence written and the files."
-  @spec write(String.t(), Path.t()) :: {:ok, result()}
+  @doc """
+  Writes the export under `dir` (the repository root) and returns the
+  last sequence written and the files. `cutoff: :now` takes every event
+  recorded so far rather than stopping at the watermark: a succession's
+  fork is the resident as she stands at that instant (eunomia#38), and
+  the watermark exists for a backup that races the projectors.
+  """
+  @spec write(String.t(), Path.t(), keyword()) :: {:ok, result()}
   # Sobelow reads a `File` call on a built path as a traversal; every path
   # here is the records root (a setting) under a resident id the platform
   # minted, or a clone this code made under the temp dir. No request
   # value reaches a path in this system.
   # sobelow_skip ["Traversal.FileModule"]
-  def write(resident_id, dir) do
-    index = index(resident_id, cutoff())
+  def write(resident_id, dir, opts \\ []) do
+    cut = if opts[:cutoff] == :now, do: Clock.now(), else: cutoff()
+    index = index(resident_id, cut)
     exported = index |> Enum.filter(& &1.exported?) |> Enum.with_index(1)
 
     root = Path.join(dir, "records")

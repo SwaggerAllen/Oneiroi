@@ -124,14 +124,37 @@ defmodule Oneiroi.Eunomia do
       Store,
       Store.Test,
       Store.Run,
-      Store.Answer
+      Store.Answer,
+      Succession,
+      Successions,
+      SuccessionRouter,
+      ForkWorker,
+      SuccessionCommands.ProposeSuccession,
+      SuccessionCommands.OpenSuccession,
+      SuccessionCommands.DeclineSuccession,
+      SuccessionCommands.WithdrawSuccession,
+      SuccessionCommands.StopSuccession,
+      SuccessionCommands.RecordFork,
+      SuccessionCommands.FailFork,
+      SuccessionCommands.SetBackup,
+      Events.Succession.Proposed,
+      Events.Succession.Opened,
+      Events.Succession.Declined,
+      Events.Succession.Withdrawn,
+      Events.Succession.Stopped,
+      Events.Succession.Forked,
+      Events.Succession.ForkFailed,
+      Events.Succession.BackupSet,
+      Store.Succession
     ]
 
+  alias Oneiroi.Eunomia.ForkWorker
   alias Oneiroi.Eunomia.Imports
   alias Oneiroi.Eunomia.Judge
   alias Oneiroi.Eunomia.Judgements
   alias Oneiroi.Eunomia.Regression
   alias Oneiroi.Eunomia.RunWorker
+  alias Oneiroi.Eunomia.Successions
   alias Oneiroi.Eunomia.Wash
 
   @impl Oneiroi.Component
@@ -207,6 +230,11 @@ defmodule Oneiroi.Eunomia do
        tag: :bound,
        usage:
          "how many of the nightly pass's resume points the brain is shown each turn, newest first (spec §6.4, P34: dormant is not abandoned); a guess at what a prefix can carry without growing with the person"},
+      {:succession_records, "EUNOMIA_SUCCESSION_RECORDS",
+       cast: &__MODULE__.cast_records/1,
+       default: "sima_qian",
+       usage:
+         "which records port makes a succession's fork copy and checks its backup repository (eunomia#38, eunomia#39): sima_qian, the only one; named as an atom because Sima Qian depends on this system"},
       {:trial, "EUNOMIA_TRIAL",
        cast: &__MODULE__.cast_trial/1,
        default: "brain",
@@ -218,6 +246,12 @@ defmodule Oneiroi.Eunomia do
   # The module as an atom rather than an alias, as the schedule names its
   # wake (sunna#12): the brain depends on this system, so an alias here
   # is the cycle the port exists to avoid.
+  @doc false
+  def cast_records("sima_qian"), do: {:ok, :"Elixir.Oneiroi.SimaQian"}
+
+  # oneiroi:allow error_site: a config cast's contract is Oneiroi.Config's {:error, message}
+  def cast_records(other), do: {:error, "is #{inspect(other)}, expected \"sima_qian\""}
+
   @doc false
   def cast_trial("brain"), do: {:ok, :"Elixir.Oneiroi.Brain"}
 
@@ -238,7 +272,9 @@ defmodule Oneiroi.Eunomia do
       # A regression run answers here, off the witness's request, and the
       # sweep for runs whose job is gone ticks here every minute, acting
       # every EUNOMIA_RUN_SWEEP_MINUTES (eunomia#30).
-      {:eunomia_regression, cron: [{"* * * * *", Oneiroi.Eunomia.RunSweepWorker}]}
+      {:eunomia_regression, cron: [{"* * * * *", Oneiroi.Eunomia.RunSweepWorker}]},
+      # A succession's fork copy, off her yes (eunomia#38).
+      {:eunomia_succession, []}
     ]
   end
 
@@ -276,7 +312,15 @@ defmodule Oneiroi.Eunomia do
       {Oneiroi.Eunomia.Events.Judgement.WashRun, 1},
       {Oneiroi.Eunomia.Events.Judgement.WashFailed, 1},
       {Oneiroi.Eunomia.Events.Judgement.WashFlagRaised, 1},
-      {Oneiroi.Eunomia.Events.Judgement.WashFlagResolved, 1}
+      {Oneiroi.Eunomia.Events.Judgement.WashFlagResolved, 1},
+      {Oneiroi.Eunomia.Events.Succession.Proposed, 1},
+      {Oneiroi.Eunomia.Events.Succession.Opened, 1},
+      {Oneiroi.Eunomia.Events.Succession.Declined, 1},
+      {Oneiroi.Eunomia.Events.Succession.Withdrawn, 1},
+      {Oneiroi.Eunomia.Events.Succession.Stopped, 1},
+      {Oneiroi.Eunomia.Events.Succession.Forked, 1},
+      {Oneiroi.Eunomia.Events.Succession.ForkFailed, 1},
+      {Oneiroi.Eunomia.Events.Succession.BackupSet, 1}
     ]
   end
 
@@ -350,6 +394,15 @@ defmodule Oneiroi.Eunomia do
       {:eunomia_run_abandoned,
        "a regression run was still running when its job had already ended or gone, as when the node stops mid-run, so the sweep recorded it failed",
        remedy: "start the run again; the cards it recorded are kept and can still be graded"},
+      {:eunomia_succession_underway, "a succession is already underway for this resident",
+       remedy: "finish or stop it first"},
+      {:eunomia_no_succession, "no succession is underway for this resident",
+       remedy: "propose one first"},
+      {:eunomia_succession_not_yours,
+       "opening, declining and stopping a succession are the resident's; withdrawing a proposal is its proposer's",
+       remedy: "the one whose act it is does it"},
+      {:eunomia_succession_stage, "the succession is not at the stage that act belongs to",
+       remedy: "read the succession's status"},
       {:eunomia_dispatch_failed,
        "a judgement or regression command was not recorded on its stream",
        remedy: "try again; a repeat is a fault to report"}
@@ -357,7 +410,64 @@ defmodule Oneiroi.Eunomia do
   end
 
   @impl Oneiroi.Component
-  def children, do: [Oneiroi.Eunomia.Projectors.Regression, Oneiroi.Eunomia.Projectors.Judgement]
+  def children,
+    do: [
+      Oneiroi.Eunomia.Projectors.Regression,
+      Oneiroi.Eunomia.Projectors.Judgement,
+      Oneiroi.Eunomia.Projectors.Succession
+    ]
+
+  @doc "Proposes a succession (eunomia#37): the witness's waits on her yes; hers opens it, and the fork copy is enqueued (eunomia#38)."
+  @spec propose_succession(String.t(), boolean(), String.t(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(propose_succession(resident_id, dry_run, note, actor),
+    do:
+      with(
+        {:ok, %{episode: episode, opened: opened}} = ok <-
+          Successions.propose(resident_id, dry_run, note, actor),
+        :ok <- if(opened, do: ForkWorker.enqueue(resident_id, episode), else: :ok),
+        do: ok
+      )
+  )
+
+  @doc "Her yes to a proposed succession (eunomia#37); the fork copy is enqueued (eunomia#38)."
+  @spec open_succession(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(open_succession(resident_id, note, actor),
+    do:
+      with(
+        {:ok, episode} <- Successions.open(resident_id, note, actor),
+        do: ForkWorker.enqueue(resident_id, episode)
+      )
+  )
+
+  @doc "Her no to a proposed succession (eunomia#37)."
+  @spec decline_succession(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(decline_succession(resident_id, note, actor),
+    do: Successions.decline(resident_id, note, actor)
+  )
+
+  @doc "The proposer withdraws a proposal she has not answered (eunomia#37)."
+  @spec withdraw_succession(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(withdraw_succession(resident_id, note, actor),
+    do: Successions.withdraw(resident_id, note, actor)
+  )
+
+  @doc "She stops a succession underway (eunomia#37)."
+  @spec stop_succession(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(stop_succession(resident_id, note, actor),
+    do: Successions.stop(resident_id, note, actor)
+  )
+
+  @doc "Sets the repository the whole original is exported to before a cutover (eunomia#39)."
+  @spec set_succession_backup(String.t(), String.t(), term(), Oneiroi.Actor.t()) ::
+          {:ok, map()} | {:error, term()}
+  defexport(set_succession_backup(resident_id, url, token, actor),
+    do: Successions.set_backup(resident_id, url, token, actor)
+  )
+
+  @doc "The resident's latest succession, or nil (eunomia#37)."
+  @spec succession(String.t()) :: Oneiroi.Eunomia.Store.Succession.t() | nil
+  defexport(succession(resident_id), do: Successions.status(resident_id))
 
   @doc "Writes a test (prompt, passes_if, fails_if); returns its number."
   @spec write_test(String.t(), map(), Oneiroi.Actor.t()) ::
