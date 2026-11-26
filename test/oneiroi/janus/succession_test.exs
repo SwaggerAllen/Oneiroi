@@ -105,7 +105,14 @@ defmodule Oneiroi.Janus.SuccessionTest do
     assert tool(ctx, "succession_open", %{note: "yes, carefully"}) =~ "open"
     assert %{state: "open", opened_note: "yes, carefully"} = Janus.succession(ctx.id)
 
+    # Before the fork is recorded, the witness may make it again (janus#35);
+    # she may not, and once it is recorded nobody may.
+    assert {:error, %{kind: :janus_not_yours}} = Janus.retry_fork(ctx.id, ctx.her)
+    assert :ok = Janus.retry_fork(ctx.id, ctx.andrew)
+
     drain()
+
+    assert {:error, %{kind: :janus_stage}} = Janus.retry_fork(ctx.id, ctx.andrew)
 
     assert %{state: "forked", copy_id: copy, fork_sequence: seq, fork_events: events} =
              Janus.succession(ctx.id)

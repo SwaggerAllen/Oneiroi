@@ -157,7 +157,27 @@ defmodule Oneiroi.Janus.Successions do
     if Config.fetch!(:janus, :forks),
       do: SimaQian.succession_fork(resident_id, actor),
       else: {:error, Error.new(:janus_forks_held, :janus_fork_held)}
+  rescue
+    # A copy that raises is recorded as failed like one that refuses
+    # (janus#35): a crash once left the page saying "being made" for good.
+    exception -> {:error, Error.caught(:janus_dispatch_failed, :janus_fork_raised, exception)}
   end
+
+  @doc """
+  Makes the fork again (janus#35): the witness's, for an open succession
+  with no fork recorded, after a failure or a job that never finished.
+  """
+  @spec retry_fork(String.t(), Actor.t()) :: {:ok, pos_integer()} | {:error, term()}
+  def retry_fork(resident_id, %Actor{kind: :witness}) do
+    case status(resident_id) do
+      %{state: "open", copy_id: nil, episode: episode} -> {:ok, episode}
+      %{} -> {:error, Error.new(:janus_stage, :janus_fork_retry_stage)}
+      nil -> {:error, no_succession()}
+    end
+  end
+
+  def retry_fork(_resident_id, _actor),
+    do: {:error, Error.new(:janus_not_yours, :janus_fork_retry_witness_only)}
 
   @doc """
   Sets where the whole original is exported before a cutover replaces

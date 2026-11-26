@@ -63,6 +63,7 @@ export function Steps({ s, p, back }: { s: Succession | null; p: Preparation | u
         ))}
       {s && <Backup s={s} />}
       {s?.state === 'proposed' && s.proposed_by && isMine(s.proposed_by, who.me) && <Withdraw />}
+      {s?.state === 'open' && !s.forked_at && <RetryFork failure={s.fork_failure ?? null} />}
       {(!s || !underway(s)) && <Propose again={!!s} />}
       {s && (
         <section className={settingsCss.card} aria-label="More">
@@ -161,6 +162,30 @@ function Backup({ s }: { s: Succession }) {
           }
         >
           {s.backup_url ? 'Change' : 'Set'}
+        </button>
+      </div>
+      <Said said={act.said} />
+    </Card>
+  );
+}
+
+/**
+ * The fork made again (janus#35): an open succession with no fork, after
+ * a failure or a job that never finished. The witness's.
+ */
+function RetryFork({ failure }: { failure: string | null }) {
+  const { id } = useSubject();
+  const act = useAct();
+  return (
+    <Card title="The fork" witness>
+      <p className={settingsCss.note}>
+        {failure
+          ? `The fork failed: ${failure}. You may make it again.`
+          : 'If the fork has been "being made" for more than a few minutes, its job may have stopped without saying so. You may make it again; a fork already made is never made twice.'}
+      </p>
+      <div className={settingsCss.row}>
+        <button type="button" className={settingsCss.secondary} disabled={act.busy} onClick={() => void act.run(() => api.retryFork(id).then(() => 'Queued: the fork is being made again.'), successionKey(id))}>
+          Make the fork again
         </button>
       </div>
       <Said said={act.said} />

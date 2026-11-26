@@ -19,7 +19,16 @@ defmodule OneiroiWeb.SuccessionController do
   # (the panel, judging, the room, proposals and ready marks) are open to
   # any human in her household, so a second witness in the house judges
   # as he does once invited (the witness, 2026-11-26).
-  @witness_only [:propose, :withdraw, :backup, :envelope, :pool_add, :pool_remove, :log]
+  @witness_only [
+    :propose,
+    :withdraw,
+    :backup,
+    :envelope,
+    :pool_add,
+    :pool_remove,
+    :log,
+    :retry_fork
+  ]
   plug(:witnessed when action in @witness_only)
   plug(:member when action not in @witness_only and action != :catalog)
 
@@ -248,6 +257,15 @@ defmodule OneiroiWeb.SuccessionController do
         :web_succession_withdraw_note_required,
         "note is required"
       )
+
+  operation(:retry_fork,
+    summary:
+      "Make the fork again for an open succession that has none (janus#35): after a failure, or a job that never finished",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [no_content: "queued"]
+  )
+
+  def retry_fork(conn, %{"id" => id}), do: respond(conn, Janus.retry_fork(id, actor(conn)))
 
   operation(:backup,
     summary:

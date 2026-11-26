@@ -50,7 +50,10 @@ The witness's rulings the screens hold to:
 
 ## The pages
 
-- **Steps** (`''`). The title "<Name>'s succession" and how it opened;
+- **Steps** (`''`). While a succession is open with no fork, a card
+  "The fork" says why (its failure, or that a job may have stopped) and
+  offers **Make the fork again** (janus#35), the witness's.
+  The title "<Name>'s succession" and how it opened;
   "Now" with the state in words; the rule, said once (to pause, walk
   away); thirteen steps, 0 to 12, each done, now, waits, or (once it has
   ended) not reached, with a line from the state (pool size, questions

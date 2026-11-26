@@ -192,6 +192,7 @@ defmodule OneiroiWeb.Router do
       get("/residents/:id/succession", SuccessionController, :show)
       post("/residents/:id/succession", SuccessionController, :propose)
       post("/residents/:id/succession/withdraw", SuccessionController, :withdraw)
+      post("/residents/:id/succession/fork", SuccessionController, :retry_fork)
       put("/residents/:id/succession/backup", SuccessionController, :backup)
       put("/residents/:id/succession/envelope", SuccessionController, :envelope)
       post("/residents/:id/succession/pool", SuccessionController, :pool_add)
