@@ -122,7 +122,7 @@ The witness's rulings the screens hold to:
   her words, hers alone; when she said her choices were made (woken then
   to write the day's shape), and after the freeze that it woke her to
   write her packet in a sealed thread (janus#44). The judges ready for the freeze, every one listed whether they have said or not (janus#47), and your own
-  ready, given or taken back while C0 is open; once it is frozen, "not ready at the freeze" and a line that the marks closed with it. Her handoff packet: that it exists, its
+  ready, given or taken back while C0 is open; once it is frozen, "not ready at the freeze" and a line that the marks closed with it; once the succession has ended, its marks as it left them and a line that nothing there is open. Her handoff packet: that it exists, its
   dated drafts, sealed: never its words.
 - **The judges** (`judges`). Each on the panel, her as the original (she
   judges and never deliberates), invited, in, or left with why. **Join

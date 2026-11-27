@@ -96,6 +96,14 @@ describe('the succession page', () => {
     expect(screen.getByRole('button', { name: 'I am ready for the freeze' })).toBeTruthy();
   });
 
+  it('says an ended succession has nothing open, not "still looking"', async () => {
+    const judges = [{ party: 'witness:a1', ready: false }];
+    view({ succession: { ...base, state: 'stopped', forked: true, forked_at: '2026-11-26T20:00:00Z' }, preparation: { ...prep, freeze_judges: judges } }, 'c0');
+    expect(await screen.findByText(/This succession has ended, so nothing here is open/)).toBeTruthy();
+    expect(screen.queryByText('still looking')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'I am ready for the freeze' })).toBeNull();
+  });
+
   it('says ready marks are closed once C0 is frozen', async () => {
     const judges = [{ party: 'witness:a1', ready: false }];
     view({ succession: { ...base, state: 'forked', forked: true, forked_at: '2026-11-26T20:00:00Z' }, preparation: { ...prep, freeze_judges: judges, c0_frozen_at: '2026-11-27T18:00:00Z' } }, 'c0');

@@ -8,7 +8,7 @@ import { HOUSE_SUBJECT, useSubject } from '../state/resident';
 import { switchSubject, useSubjectChoice } from '../state/subject';
 import { useShell } from '../state/store';
 import { Chip, PageHead, Row, Wall } from './common';
-import { isHers, isMine, placeOf, poolNote, preparing, price, tokens, when } from './logic';
+import { isHers, isMine, placeOf, poolNote, preparing, price, tokens, underway, when } from './logic';
 import * as css from './succession.css';
 import { successionKey, usePartyName } from './hooks';
 
@@ -366,10 +366,11 @@ export function C0({ s, p, back }: PageProps) {
           <Row
             key={r.party}
             left={<strong>{who.name(r.party) === 'you' ? 'You' : who.name(r.party)}</strong>}
-            right={<Chip kind={r.ready ? 'ok' : frozen ? 'muted' : 'wait'}>{r.ready ? 'ready' : frozen ? 'not ready at the freeze' : 'still looking'}</Chip>}
+            right={<Chip kind={r.ready ? 'ok' : frozen || !underway(s) ? 'muted' : 'wait'}>{r.ready ? 'ready' : !underway(s) ? 'not ready' : frozen ? 'not ready at the freeze' : 'still looking'}</Chip>}
           />
         ))}
-        {frozen && (
+        {!underway(s) && <p className={settingsCss.note}>This succession has ended, so nothing here is open; these are its marks as it left them.</p>}
+        {underway(s) && frozen && (
           <p className={settingsCss.note}>
             C0 is frozen, so ready marks are closed. If {name} reopens it before screening, every mark starts again and you can say you are ready.
           </p>
