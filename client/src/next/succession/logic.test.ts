@@ -240,6 +240,9 @@ describe('Back is the previous step (the witness, 2026-11-27)', () => {
     expect(backOf('ready', judging)).toBe('results');
     expect(backOf('log', forked)).toBe('');
     expect(backOf('', forked)).toBeNull();
+  });
+});
+
 describe('a shared memory in C0 (janus#43)', () => {
   it("opens a house record in the house's records (every judge is a member)", () => {
     expect(placeOf('house/rook:thread/abc@1234567890ab', 'lily')).toEqual({ to: { tab: 'records', path: 'doc/threads/abc' }, house: true });
