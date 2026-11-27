@@ -1148,6 +1148,9 @@ export interface Preparation {
   c0_done_at: string | null;
   c0_frozen_at: string | null;
   c0_frozen_note: string | null;
+  /** When she last reopened C0 before screening, and why (janus#46). */
+  c0_unfrozen_at: string | null;
+  c0_unfrozen_note: string | null;
   ready: { party: Party; ready: boolean; at: string }[];
   /** Her sealed packet: that each draft exists and when, never its words. */
   packet_drafts: { draft: number; at: string }[];

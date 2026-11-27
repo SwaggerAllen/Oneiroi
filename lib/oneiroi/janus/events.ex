@@ -169,6 +169,12 @@ defmodule Oneiroi.Janus.Events do
       export: false
   end
 
+  defmodule C0Unfrozen do
+    # Her C0 reopened before any screening ran on it (janus#46): the
+    # bundle and the judges' ready marks go; the items stay.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :episode], export: false
+  end
+
   defmodule StepFinished do
     # Her word that a part of her preparation is done for now (janus#42):
     # "pool" wakes her to the questions, "questions" to C0. Once a step

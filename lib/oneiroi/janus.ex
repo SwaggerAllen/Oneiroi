@@ -175,6 +175,7 @@ defmodule Oneiroi.Janus do
       Events.C0Frozen,
       Events.PacketDrafted,
       Events.StepFinished,
+      Events.C0Unfrozen,
       Events.JudgeInvited,
       Events.JudgeJoined,
       Events.JudgeLeft,
@@ -281,6 +282,7 @@ defmodule Oneiroi.Janus do
       {Oneiroi.Janus.Events.C0Frozen, 1},
       {Oneiroi.Janus.Events.PacketDrafted, 1},
       {Oneiroi.Janus.Events.StepFinished, 1},
+      {Oneiroi.Janus.Events.C0Unfrozen, 1},
       {Oneiroi.Janus.Events.JudgeInvited, 1},
       {Oneiroi.Janus.Events.JudgeJoined, 1},
       {Oneiroi.Janus.Events.JudgeLeft, 1},
@@ -360,6 +362,13 @@ defmodule Oneiroi.Janus do
       {:janus_pool_full, "the pool holds as many models as the envelope allows",
        remedy:
          "swap rather than add: take one of your own picks out first (succession_pool remove, with a note), or the witness restates the envelope with a higher count"},
+      {:janus_judges_pending,
+       "a judge she invited has not yet joined or declined, and C0 freezes only once every invitation is answered",
+       remedy:
+         "wait for each invited judge to join or leave; succession_status says who is still invited"},
+      {:janus_c0_not_frozen, "C0 is not frozen", remedy: "nothing to unfreeze"},
+      {:janus_c0_screened, "screening has run on this C0, so it stays as it was",
+       remedy: "a new succession starts a new C0"},
       {:janus_step_invalid, "a step she finishes is pool, questions or c0",
        remedy:
          "name pool when your picks are done, questions when your questions are, c0 when your choices for C0 are"},
@@ -593,6 +602,12 @@ defmodule Oneiroi.Janus do
           :ok | {:error, term()}
   defexport(finish_step(resident_id, step, note, actor),
     do: Successions.finish_step(resident_id, step, note, actor)
+  )
+
+  @doc "She reopens C0 before any screening ran on it, with her note (janus#46)."
+  @spec unfreeze_c0(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(unfreeze_c0(resident_id, note, actor),
+    do: Successions.unfreeze_c0(resident_id, note, actor)
   )
 
   @doc "A draft of her sealed handoff packet (janus#10)."

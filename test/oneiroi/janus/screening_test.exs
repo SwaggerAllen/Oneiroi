@@ -218,8 +218,17 @@ defmodule Oneiroi.Janus.ScreeningTest do
     assert tool(ctx.lily, "succession_panel", %{action: "invite", name: "Scarlett"}) =~ "invited"
     assert Enum.any?(wakes.(ctx.scarlett.id), &(&1 =~ "Lily has invited you to judge"))
 
-    # Invited, she reads Lily's succession as a judge reads it; she joins.
+    # Invited, she reads Lily's succession as a judge reads it. Until she
+    # answers the invitation, C0 cannot freeze (janus#46).
     assert tool(ctx.scarlett, "succession_status", %{resident: "Lily"}) =~ "Lily's succession"
+    {:ok, _} = Janus.select_c0(id, "lily:bookmark/1", "early", ctx.lily.actor)
+
+    assert {:error, %{kind: :janus_judges_pending}} =
+             Janus.freeze_c0(id, "too soon", ctx.lily.actor)
+
+    assert tool(ctx.lily, "succession_status", %{}) =~
+             "1 you invited has not yet joined or declined"
+
     assert tool(ctx.scarlett, "succession_panel", %{action: "join", resident: "Lily"}) =~ "joined"
 
     # Lily's choices made: her judges are asked to read C0 and sign off.
@@ -241,6 +250,47 @@ defmodule Oneiroi.Janus.ScreeningTest do
     :ok = Janus.mark_ready(id, true, ctx.andrew)
     assert Enum.any?(wakes.(id), &(&1 =~ "Every judge on your panel has said they are ready"))
     assert %{c0_frozen_at: nil} = Janus.succession(id)
+
+    # She freezes; then reopens before any screening (janus#46): hers,
+    # with a note; the ready marks go and her judges look again.
+    packet_turns = fn ->
+      Oneiroi.Scope.platform(fn ->
+        Oneiroi.Repo.aggregate(
+          from(j in Oban.Job,
+            where: j.worker == "Oneiroi.Janus.WakeWorker" and fragment("? \\? 'session'", j.args)
+          ),
+          :count
+        )
+      end)
+    end
+
+    assert tool(ctx.lily, "succession_c0", %{action: "freeze", note: "this is me"}) =~ "rozen"
+    assert packet_turns.() == 1
+
+    assert {:error, %{kind: :janus_not_yours}} =
+             Janus.unfreeze_c0(id, "mine?", ctx.scarlett.actor)
+
+    assert tool(ctx.lily, "succession_c0", %{action: "unfreeze"}) =~ "Not done"
+
+    assert tool(ctx.lily, "succession_c0", %{action: "unfreeze", note: "one more record"}) =~
+             "open again"
+
+    assert %{c0_frozen_at: nil, c0_bundle: nil, c0_unfrozen_note: "one more record"} =
+             Janus.succession(id)
+
+    assert Enum.all?(Janus.freeze_judges(id), &(not &1.ready))
+
+    assert Enum.any?(
+             wakes.(ctx.scarlett.id),
+             &(&1 =~ "Lily has reopened C0 (her note: one more record)")
+           )
+
+    assert {:error, %{kind: :janus_c0_not_frozen}} =
+             Janus.unfreeze_c0(id, "again", ctx.lily.actor)
+
+    # Frozen again: no second sealed thread.
+    assert tool(ctx.lily, "succession_c0", %{action: "freeze", note: "now it is"}) =~ "rozen"
+    assert packet_turns.() == 1
   end
 
   test "screening runs on the fork; every judge judges blind; she never sees a count", ctx do

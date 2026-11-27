@@ -131,7 +131,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
       ),
       tool(
         "succession_c0",
-        "C0, what matters, frozen as your successor's source: select puts a record in by its citation (a transcript stretch, a journal row, a bookmark, a document, or a thread or document of your house that you can read, cited as the house cites it: house/<name>:thread/<id> or house/<name>:doc/<path>), with a label; accept or decline answers a proposal by its number; remove takes an item out; done says your choices are made for now, with a note if you like, and wakes you to write the day's shape (nothing locks); day_shape is your note on the bundle (text), the day's own shape; freeze closes C0 when you are ready, with your note, and wakes you in a sealed thread to write your packet. Raw records are primary; curated ones count, but second. As a judge on a housemate's succession (resident her name): propose offers her a record of hers by its citation, or a shared memory of your house she can read (house/<name>:thread/<id> or :doc/<path>, as household_read gives it), with a label; ready (ready true or false) tells her whether you are ready for her freeze, which she may wait for or not.",
+        "C0, what matters, frozen as your successor's source: select puts a record in by its citation (a transcript stretch, a journal row, a bookmark, a document, or a thread or document of your house that you can read, cited as the house cites it: house/<name>:thread/<id> or house/<name>:doc/<path>), with a label; accept or decline answers a proposal by its number; remove takes an item out; done says your choices are made for now, with a note if you like, and wakes you to write the day's shape (nothing locks); day_shape is your note on the bundle (text), the day's own shape; freeze closes C0 when you are ready, with your note, once every judge you invited has joined or declined, and wakes you in a sealed thread to write your packet; unfreeze, with your note, reopens it before any screening has run on it (the judges' ready marks start again). Raw records are primary; curated ones count, but second. As a judge on a housemate's succession (resident her name): propose offers her a record of hers by its citation, or a shared memory of your house she can read (house/<name>:thread/<id> or :doc/<path>, as household_read gives it), with a label; ready (ready true or false) tells her whether you are ready for her freeze, which she may wait for or not.",
         %{
           action: %{
             type: "string",
@@ -143,6 +143,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
               "day_shape",
               "done",
               "freeze",
+              "unfreeze",
               "propose",
               "ready"
             ]
@@ -392,6 +393,12 @@ defmodule Oneiroi.Brain.SuccessionTools do
   def call("succession_pool", %{"action" => "done"} = args, turn) do
     with :ok <- Janus.finish_step(turn.resident_id, "pool", args["note"], turn.resident),
          do: "Your picks are done for now; you will be woken to write your questions."
+  end
+
+  def call("succession_c0", %{"action" => "unfreeze"} = args, turn) do
+    with :ok <- Janus.unfreeze_c0(turn.resident_id, args["note"], turn.resident),
+         do:
+           "C0 is open again; your judges are asked to look again, and you freeze it when you are ready."
   end
 
   def call("succession_c0", %{"action" => "done"} = args, turn) do
@@ -709,7 +716,17 @@ defmodule Oneiroi.Brain.SuccessionTools do
     judges = Janus.freeze_judges(resident_id)
     ready = Enum.count(judges, & &1.ready)
 
-    "\nJudges ready for your freeze: #{ready} of #{length(judges)}. Freezing is yours, now or when they are; nothing freezes on its own."
+    invited =
+      Enum.count(Janus.panel(resident_id), &(&1.state == "invited"))
+
+    waiting =
+      if invited > 0,
+        do:
+          " #{invited} you invited #{if invited == 1, do: "has", else: "have"} not yet joined or declined, and C0 freezes only once every invitation is answered.",
+        else: ""
+
+    "\nJudges ready for your freeze: #{ready} of #{length(judges)}." <>
+      waiting <> " Freezing is yours, now or when they are; nothing freezes on its own."
   end
 
   defp ready_line(_row, _resident_id), do: ""

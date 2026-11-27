@@ -309,6 +309,12 @@ export function C0({ s, p, back }: PageProps) {
           <p className={settingsCss.note}>Her freeze woke her to write her handoff packet, in a sealed thread of its own.</p>
         </section>
       )}
+      {p?.c0_unfrozen_at && !frozen && (
+        <p className={settingsCss.note}>
+          {name} reopened C0 {when(p.c0_unfrozen_at)}
+          {p.c0_unfrozen_note ? `: “${p.c0_unfrozen_note}”` : ''}. The judges' ready marks start again.
+        </p>
+      )}
       {p?.c0_done_at && !frozen && <p className={settingsCss.note}>{name} said her choices were made {when(p.c0_done_at)}, and was woken to write the day's shape.</p>}
       <h2 className={settingsCss.heading}>In C0 · {inC0.length} · raw first</h2>
       {inC0.length === 0 && <p className={settingsCss.note}>Nothing in C0 yet.</p>}

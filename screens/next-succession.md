@@ -105,7 +105,7 @@ The witness's rulings the screens hold to:
   proposal while preparation is open.
 - **C0** (`c0`). What is in, raw first, each with who proposed or
   selected it and when she accepted; what waits on her; declined or
-  removed with her note; the freeze when she has frozen it. Each item
+  removed with her note; the freeze when she has frozen it, and when she reopened it with her note (janus#46). Each item
   has **Open ›**, which leaves the succession for the cited record where
   the app already opens a citation (2026-11-26): a document
   (`lily:design/x.md`, a root file as `lily:SOUL.md`) in Records'

@@ -98,6 +98,11 @@ defmodule Oneiroi.Janus.Commands do
     use Oneiroi.Command, decision: true, fields: [:id, :bundle, :digest]
   end
 
+  # Hers, before any screening, with her note (janus#46).
+  defmodule UnfreezeC0 do
+    use Oneiroi.Command, fields: [:id, :note]
+  end
+
   defmodule WritePacket do
     use Oneiroi.Command, fields: [:id, :content]
   end
