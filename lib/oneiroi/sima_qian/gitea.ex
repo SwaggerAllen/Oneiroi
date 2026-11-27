@@ -107,6 +107,11 @@ defmodule Oneiroi.SimaQian.Gitea do
     end
   end
 
+  @doc "A repository's git remote on Gitea, its token held in a secret (sima-qian#74)."
+  def remote(repo) do
+    with {:ok, {inst, org, name}} <- locate(repo), do: client().remote(inst, org, name)
+  end
+
   @doc "Makes a repository on Gitea if it is missing: its organization, the repository, its readers."
   def ensure({:household, household_id}) do
     {inst, org} = {instance(household_id), org(household_id)}

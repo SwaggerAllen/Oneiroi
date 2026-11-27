@@ -143,6 +143,8 @@ the `mix oneiroi.sima_qian.rebuild` task. Each household's repository (`Oneiroi.
 
 - **#73 A fork's repository is the platform's, never a household's.** (2026-11-26: the first production fork failed `sima_qian_gitea_unlocated`; a resident's repository is located under her household's organization, and a fork joins no household.) On Gitea a fork (registry state `fork`) is located on the primary instance in the platform's `forks` organization under its own suffixed slug, made and protected there and granted to nobody, so a hidden copy of her is never in the household's organization where its members read; discarding it deletes it there.
 
+- **#74 A fork's repository and a cutover's are moved by git on disk, never through the contents API.** (The witness, 2026-11-26: "Oneiroi-git exceeded its memory limit"; the fork sent her every file to Gitea as one JSON body. Supersedes the repository halves of sima-qian#67 and #68.) `Repos.copy/2` copies her repository's history whole into the fork's (`Git.mirror/2`: a bare clone on disk, then a push; on the local records a clone), so the fork's head is her head; `Repos.graft/4` puts the fork's tree on her `main` as one commit on her history (`Git.graft/4`: a bare clone, the fork's main fetched, `commit-tree`, a fast-forward push, so the branch's protection holds; locally `read-tree` and a commit), a fork with no repository yet being the empty tree. Git streams both ways, so neither side holds a repository in memory. The cutover's artifacts, small, still go through the API.
+
 ## #11 Initial vs target
 ## #11 Initial vs target
 

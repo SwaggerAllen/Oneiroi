@@ -162,6 +162,125 @@ defmodule Oneiroi.SimaQian.Git do
   end
 
   @doc """
+  Copies `from`'s `main`, its history whole, into `to`, through a bare
+  clone on disk (sima-qian#74): git streams both ways, so no side holds
+  the repository in memory. A fork's repository was once sent to Gitea
+  as one JSON body of every file and took its server down (2026-11-26).
+  `{:ok, head}`, or `{:ok, nil}` when `from` has no `main` yet.
+  """
+  @spec mirror(String.t() | Secret.t(), String.t() | Secret.t()) ::
+          {:ok, String.t() | nil} | {:error, Error.t()}
+  # sobelow_skip ["Traversal.FileModule"]
+  def mirror(from, to), do: within_tmp(&mirror_into(&1, from, to))
+
+  defp mirror_into(tmp, from, to) do
+    case bare_clone(from, tmp) do
+      {:ok, nil} -> {:ok, nil}
+      {:ok, head} -> with :ok <- push_ref(tmp, to, head), do: {:ok, head}
+      failed -> failed
+    end
+  end
+
+  @doc """
+  Puts `source`'s tree on `target`'s `main` as one new commit on top of
+  its history (sima-qian#74): a fast-forward, so the branch's protection
+  holds, made in a bare clone on disk and pushed. A succession's cutover
+  makes her repository the fork's this way. `{:ok, commit}`, or the head
+  unchanged when the trees are already the same.
+  """
+  @spec graft(String.t() | Secret.t(), String.t() | Secret.t(), String.t(), map()) ::
+          {:ok, String.t() | nil} | {:error, Error.t()}
+  def graft(target, source, message, author),
+    do: within_tmp(&graft_in(&1, target, source, message, author))
+
+  defp graft_in(tmp, target, source, message, author) do
+    with {:ok, head} when is_binary(head) <- bare_clone(target, tmp),
+         {:ok, tree} <- source_tree(tmp, source),
+         {:ok, mine} <- rev(tmp, head <> "^{tree}") do
+      if tree == mine, do: {:ok, head}, else: commit_on(tmp, target, tree, head, message, author)
+    end
+  end
+
+  defp commit_on(tmp, target, tree, head, message, %{name: name, email: email}) do
+    identity = ["-c", "user.name=" <> name, "-c", "user.email=" <> email]
+
+    with {:ok, out} <- git(tmp, identity ++ ["commit-tree", tree, "-p", head, "-m", message]),
+         commit = String.trim(out),
+         :ok <- push_ref(tmp, target, commit),
+         do: {:ok, commit}
+  end
+
+  # The source's main's tree, fetched into `dir`; a source with no main
+  # yet is the empty tree (the fork held no files).
+  @empty_tree "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+  defp source_tree(dir, source),
+    do: credentialed(source, &fetch_tree(dir, &1, &2))
+
+  defp fetch_tree(dir, url, config) do
+    case main?(dir, url, config) do
+      {:ok, false} ->
+        {:ok, @empty_tree}
+
+      {:ok, true} ->
+        with {:ok, _} <- git(dir, config ++ ["fetch", "-q", "--no-tags", url, "main"]),
+             do: rev(dir, "FETCH_HEAD^{tree}")
+
+      failed ->
+        failed
+    end
+  end
+
+  # A bare clone of `remote`'s main at `tmp`: its head, or nil when it
+  # has no main.
+  defp bare_clone(remote, tmp), do: credentialed(remote, &clone_main(tmp, &1, &2))
+
+  defp clone_main(tmp, url, config) do
+    parent = Path.dirname(tmp)
+
+    case main?(parent, url, config) do
+      {:ok, false} ->
+        {:ok, nil}
+
+      {:ok, true} ->
+        with {:ok, _} <-
+               git(parent, config ++ ["clone", "-q", "--bare", "--branch", "main", url, tmp]),
+             do: rev(tmp, "refs/heads/main")
+
+      failed ->
+        failed
+    end
+  end
+
+  defp main?(dir, url, config) do
+    with {:ok, refs} <- git(dir, config ++ ["ls-remote", url, "refs/heads/main"]),
+         do: {:ok, String.trim(refs) != ""}
+  end
+
+  defp push_ref(dir, remote, commit) do
+    credentialed(remote, fn url, config ->
+      with {:ok, _} <- git(dir, config ++ ["push", "-q", url, commit <> ":refs/heads/main"]),
+           do: :ok
+    end)
+  end
+
+  defp rev(dir, ref) do
+    with {:ok, out} <- git(dir, ["rev-parse", "--verify", "-q", ref]), do: {:ok, String.trim(out)}
+  end
+
+  # A directory of this call's own under the temp dir, removed after.
+  # sobelow_skip ["Traversal.FileModule"]
+  defp within_tmp(fun) do
+    base = Path.join(System.tmp_dir!(), "oneiroi-repo-#{System.unique_integer([:positive])}")
+    File.mkdir_p!(base)
+
+    try do
+      fun.(Path.join(base, "repo.git"))
+    after
+      File.rm_rf(base)
+    end
+  end
+
+  @doc """
   Fetches exactly `commit` of `remote` into a bare repository made at
   `dir`, one commit deep, and checks the commit is there under its full
   name: the originals import's source, read at the commit the witness

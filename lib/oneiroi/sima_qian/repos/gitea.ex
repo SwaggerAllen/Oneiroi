@@ -15,6 +15,7 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
   @behaviour Oneiroi.SimaQian.Repos.Adapter
 
   alias Oneiroi.SimaQian.Error
+  alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.Gitea
   alias Oneiroi.SimaQian.GiteaQueue
 
@@ -132,6 +133,27 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
     body["truncated"] == true and
       not (is_integer(body["total_count"]) and seen >= body["total_count"])
   end
+
+  @impl true
+  # On disk, never through the contents API (sima-qian#74): the fork's
+  # repository made in its place, then her history pushed into it.
+  def copy(from, to) do
+    with :ok <- moved(),
+         :ok <- Gitea.ensure(to),
+         {:ok, source} <- remote(from),
+         {:ok, target} <- remote(to),
+         do: Git.mirror(source, target)
+  end
+
+  @impl true
+  def graft(target, source, message, author) do
+    with :ok <- moved(),
+         {:ok, into} <- remote(target),
+         {:ok, from} <- remote(source),
+         do: Git.graft(into, from, message, author)
+  end
+
+  defp remote(repo), do: Gitea.remote(repo)
 
   @impl true
   def write(repo, changes, message, author) do

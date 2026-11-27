@@ -129,6 +129,53 @@ defmodule Oneiroi.SimaQian.Repos.Local do
     :ok
   end
 
+  @impl true
+  # A clone of her working repository, its origin forgotten.
+  # sobelow_skip ["Traversal.FileModule"]
+  def copy(from, to) do
+    # Absolute: git runs in the target's parent, and the root may be
+    # relative to the working directory.
+    source = Path.expand(dir(from))
+
+    if made?(source) and Git.head?(source) do
+      target = Path.expand(dir(to))
+      File.mkdir_p!(Path.dirname(target))
+
+      with :ok <- Git.clone(source, target),
+           {:ok, _} <- Git.run(Git.binary(), target, ["remote", "remove", "origin"]),
+           do: {:ok, Git.head(target)}
+    else
+      {:ok, nil}
+    end
+  end
+
+  @impl true
+  # The source's tree read into the target's working tree and index, and
+  # committed under the author: one commit on her history.
+  def graft(target, source, message, author) do
+    dir = dir(target)
+    from = Path.expand(dir(source))
+
+    :global.trans({{__MODULE__, dir}, self()}, fn ->
+      with {:ok, _} <- read_in(dir, from),
+           {:ok, _} <- Git.commit_as(dir, ["."], message, author) do
+        {:ok, Git.head(dir)}
+      end
+    end)
+  end
+
+  # The source's tree into the working tree and index; a source with no
+  # history yet is the empty tree, so the target's files go (as the fork
+  # holds none).
+  defp read_in(dir, from) do
+    if made?(from) and Git.head?(from) do
+      with {:ok, _} <- Git.run(Git.binary(), dir, ["fetch", "-q", "--no-tags", from, "main"]),
+           do: Git.run(Git.binary(), dir, ["read-tree", "--reset", "-u", "FETCH_HEAD"])
+    else
+      Git.run(Git.binary(), dir, ["rm", "-rq", "--ignore-unmatch", "."])
+    end
+  end
+
   def dir({:resident, id}), do: Path.join(root(), id)
   def dir({:household, id}), do: Path.join([root(), "households", id])
 
