@@ -127,6 +127,23 @@ defmodule Oneiroi.Janus.SuccessionTest do
     assert :ok = Janus.retry_fork(ctx.id, ctx.andrew)
     assert %{fork_failure: nil, state: "open"} = Janus.succession(ctx.id)
 
+    # A second press while the first waits is the same job (2026-11-26:
+    # two presses ran two sweeps that blocked each other).
+    assert :ok = Janus.retry_fork(ctx.id, ctx.andrew)
+
+    sweeps =
+      Oneiroi.Scope.platform(fn ->
+        Oneiroi.Repo.all(
+          from(j in Oban.Job,
+            where:
+              j.worker == "Oneiroi.Janus.ForkWorker" and
+                fragment("?->>'sweep' = 'true'", j.args) and j.state == "available"
+          )
+        )
+      end)
+
+    assert length(sweeps) == 1
+
     drain()
 
     assert {:error, %{kind: :janus_stage}} = Janus.retry_fork(ctx.id, ctx.andrew)

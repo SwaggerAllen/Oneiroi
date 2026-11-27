@@ -164,6 +164,25 @@ defmodule Oneiroi.Janus.Successions do
   end
 
   @doc """
+  The fork made again (janus#35), in its job: what a crashed fork left
+  behind is swept away first (sima-qian#72), every copy a succession of
+  hers recorded kept, then the fork is made. Never in the witness's
+  request: a sweep of several copies outlasts it.
+  """
+  @spec sweep_and_fork(String.t(), pos_integer(), Actor.t()) :: :ok | {:error, term()}
+  def sweep_and_fork(resident_id, episode, %Actor{} = actor) do
+    case status(resident_id) do
+      %{episode: ^episode, state: "open", copy_id: nil} ->
+        keep = for s <- history(resident_id), is_binary(s.copy_id), do: s.copy_id
+        {:ok, _swept} = SimaQian.succession_sweep(resident_id, keep)
+        fork(resident_id, episode, actor)
+
+      _other ->
+        :ok
+    end
+  end
+
+  @doc """
   Makes the fork again (janus#35): the witness's, for an open succession
   with no fork recorded, after a failure or a job that never finished.
   """
@@ -171,11 +190,6 @@ defmodule Oneiroi.Janus.Successions do
   def retry_fork(resident_id, %Actor{kind: :witness} = actor) do
     case status(resident_id) do
       %{state: "open", copy_id: nil, episode: episode} ->
-        # What a crashed fork left behind goes first (sima-qian#72); every
-        # copy a succession of hers recorded is kept.
-        keep = for s <- history(resident_id), is_binary(s.copy_id), do: s.copy_id
-        {:ok, _swept} = SimaQian.succession_sweep(resident_id, keep)
-
         with :ok <-
                done(%Commands.RetryFork{
                  actor: actor,
