@@ -912,9 +912,15 @@ defmodule Oneiroi.Sunna do
   @spec queue_pause(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(queue_pause(household_id, note, actor), do: Queues.pause(household_id, note, actor))
 
-  @doc "Lets the house queue run again (sunna#94)."
+  @doc "Lets the house queue run again (sunna#94), and takes up each of its residents' lines a stopped run rested, where the actor may (sunna#111)."
   @spec queue_resume(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
-  defexport(queue_resume(household_id, note, actor), do: Queues.resume(household_id, note, actor))
+  defexport(queue_resume(household_id, note, actor),
+    do:
+      with(
+        :ok <- Queues.resume(household_id, note, actor),
+        do: WorkLoop.resume_stopped(Queues.members(household_id), note, actor)
+      )
+  )
 
   @doc "The house queue's state: whether it is paused (sunna#94)."
   @spec queue_state(String.t()) :: Oneiroi.Sunna.QueueStore.State.t()

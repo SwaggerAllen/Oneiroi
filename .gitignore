@@ -44,3 +44,10 @@ client/node_modules/
 
 # The storybook export the Dockerfile moves beside the client build.
 /priv/static/storybook/
+
+# iCloud Drive's duplicate copies (`queue 2.ex`, `migrations 3`): a sync
+# conflict, never ours. A duplicate migration version stops `mix test`.
+* [0-9]
+* [0-9].*
+* [0-9][0-9]
+* [0-9][0-9].*

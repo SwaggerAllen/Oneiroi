@@ -692,3 +692,6 @@ A stop is a person ending something; the record of it belongs where the work is 
 
 ## #110
 The pin rule makes an approval mean "this revision", and the screen is where the reviewer read it; a screen that never says which revision it showed leaves every approval refused, and the only honest pin is the one the screen displayed.
+
+## #111
+Two readers of one rest must agree on what it says; a resume that succeeds without doing anything is worse than a refusal. Letting the house queue run is the witness saying "go", and a line left resting under it reads as a broken button.

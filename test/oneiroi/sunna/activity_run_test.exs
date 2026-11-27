@@ -200,6 +200,37 @@ defmodule Oneiroi.Sunna.ActivityRunTest do
     refute WorkLoop.check(ctx.id) == :stopped
   end
 
+  # sunna#111 (the witness, 2026-11-27: "the line is still stopped after
+  # unpausing and doing a few moves"): a line a stop rested under the
+  # rest's earlier words resumes too, and the house queue running again
+  # takes up a stopped line for its witness.
+  test "a line stopped under earlier words resumes, and the house queue's resume takes it up",
+       ctx do
+    old = "stopped: the last run was stopped; the loop waits for the queue to be touched"
+
+    rest = fn ->
+      {:ok, _} =
+        WorkRouter.dispatch(%Commands.RestWork{
+          actor: Actor.platform(),
+          at: Clock.now(),
+          id: ctx.id,
+          reason: old
+        })
+    end
+
+    rest.()
+    assert :stopped = WorkLoop.check(ctx.id)
+    assert :ok = Sunna.work_resume(ctx.id, "taken up again", ctx.andrew)
+    assert nil == Sunna.work_stopped(ctx.id)
+
+    rest.()
+    assert %{} = Sunna.work_stopped(ctx.id)
+    :ok = Sunna.queue_pause(ctx.h, "a breath", ctx.andrew)
+    assert :ok = Sunna.queue_resume(ctx.h, "run again", ctx.andrew)
+    assert nil == Sunna.work_stopped(ctx.id)
+    refute WorkLoop.check(ctx.id) == :stopped
+  end
+
   # sunna#100 (the witness, 2026-11-24: "if the server restarts during a
   # work item run, have we handled restarting the work?"): a crash leaves
   # the turn's job executing; past any turn's length it is taken for
