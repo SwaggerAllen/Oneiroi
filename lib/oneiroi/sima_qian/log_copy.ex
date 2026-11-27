@@ -32,6 +32,10 @@ defmodule Oneiroi.SimaQian.LogCopy do
   alias Oneiroi.SimaQian.Export
   alias Oneiroi.SimaQian.Repos
 
+  # One step's bound (sima-qian#72): a year's largest table copies in
+  # tens of seconds; ten minutes is a hung step, not a slow one.
+  @step :timer.minutes(10)
+
   # Tables the copy never carries: the platform's reports and the
   # household's rounds (keyed without her id; a copy joins no household).
   @not_copied ~w(gaia_feedback gaia_round_turn)
@@ -117,18 +121,28 @@ defmodule Oneiroi.SimaQian.LogCopy do
   `{:all, id}` for a fork, every copied row the copy's own id, which no
   account is, so a fork's rows never reach the witness's view (they
   carry her session keys, and a key is read as unique there); `{:map,
-  from, to}` at a cutover, the copy's id back to her account. One
-  transaction: a failure leaves no row copied.
+  from, to}` at a cutover, the copy's id back to her account. Each
+  table is its own transaction; with `replace: true` (a cutover) the
+  target's rows in it are deleted in the same one, so a table is never
+  half hers and half the fork's.
   """
-  @spec rows(String.t(), String.t(), [String.t()], map(), tuple()) :: :ok
-  def rows(from, to, tables, resident, account) do
-    platform(fn ->
-      for table <- tables,
-          table not in @not_copied,
-          do: copy_table(table, from, to, overrides(table, resident, account))
-    end)
+  @spec rows(String.t(), String.t(), [String.t()], map(), tuple(), keyword()) :: :ok
+  def rows(from, to, tables, resident, account, opts \\ []) do
+    replace = Keyword.get(opts, :replace, false)
+    {:ok, target} = Ecto.UUID.dump(to)
+
+    for table <- tables, table not in @not_copied do
+      platform(fn ->
+        table_step(table, from, to, target, replace, overrides(table, resident, account))
+      end)
+    end
 
     :ok
+  end
+
+  defp table_step(table, from, to, target, replace, overrides) do
+    if replace, do: clear(table, target)
+    copy_table(table, from, to, overrides)
   end
 
   defp overrides("agathos_daimon_resident", resident, _account), do: resident
@@ -280,12 +294,14 @@ defmodule Oneiroi.SimaQian.LogCopy do
 
              q(conn, "DELETE FROM #{s}.streams WHERE stream_uuid = ANY($1::text[])", [uuids])
            end) do
-      platform(fn -> Enum.each(resident_tables(), &clear(&1, id)) end)
+      Enum.each(resident_tables(), &clear_alone(&1, id))
 
       _ = Repos.delete({:resident, copy})
       :ok
     end
   end
+
+  defp clear_alone(table, id), do: platform(fn -> clear(table, id) end)
 
   # The table name is the catalog's own, never a request value.
   # sobelow_skip ["SQL.Query"]
@@ -562,7 +578,7 @@ defmodule Oneiroi.SimaQian.LogCopy do
   defp transaction(fun) do
     conn = Keyword.fetch!(EventStore.Config.lookup(Oneiroi.EventStore), :conn)
 
-    case Postgrex.transaction(conn, fun, timeout: :infinity) do
+    case Postgrex.transaction(conn, fun, timeout: @step) do
       {:ok, result} ->
         {:ok, result}
 
@@ -576,10 +592,13 @@ defmodule Oneiroi.SimaQian.LogCopy do
 
   defp schema, do: ~s|"eventstore"|
 
-  # A whole life is copied in one statement or one transaction: no query
-  # here is cut off by the pool's 15 s default (it was, 2026-11-26, and
-  # left half a copy's rows behind).
-  defp q(conn, sql, params), do: Postgrex.query!(conn, sql, params, timeout: :infinity)
-  defp rq(sql, params), do: Repo.query!(sql, params, timeout: :infinity)
-  defp platform(fun), do: Scope.platform(fun, timeout: :infinity)
+  # Each step (the events' one statement, one table's rows) is its own
+  # transaction with a bound well past the pool's 15 s default, which cut
+  # the first production fork off and left half its rows (2026-11-26);
+  # never unbounded, so a hung step fails rather than holding a
+  # connection and a "being made" page forever. The copy as a whole is
+  # all or nothing by `remove/1`, not by one long transaction.
+  defp q(conn, sql, params), do: Postgrex.query!(conn, sql, params, timeout: @step)
+  defp rq(sql, params), do: Repo.query!(sql, params, timeout: @step)
+  defp platform(fun), do: Scope.platform(fun, timeout: @step)
 end
