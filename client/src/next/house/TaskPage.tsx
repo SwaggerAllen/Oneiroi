@@ -9,6 +9,7 @@ import { HOUSE } from './keys';
 import { actName, documentRows, outOfRuns, runNowLine, drawLayers, forkNote, fromLine, GATED, glyph, LETS, nameOf, pairedHolders, pin, rearranged, replacedDocument, roleChoices, since, TYPES, withPaired, type DrawnLayer, type Names } from './queueText';
 import * as w from './work.css';
 import { useWorkNav, workPath } from './workRoutes';
+import { PUSHED_FALLBACK_MS } from '../live/notices';
 
 const QUEUE = [...HOUSE, 'queue'];
 
@@ -680,7 +681,7 @@ function RunsBack({ residentId, a, busy, onGive }: { residentId: string; a: Queu
  */
 function RunNow({ a, names }: { a: QueueActivity; names: Names }) {
   const residentId = a.assignee.slice('resident:'.length);
-  const line = useQuery({ queryKey: ['resident', residentId, 'settings', 'work'], queryFn: () => api.work(residentId), refetchInterval: 15_000 });
+  const line = useQuery({ queryKey: ['resident', residentId, 'settings', 'work'], queryFn: () => api.work(residentId), refetchInterval: PUSHED_FALLBACK_MS });
   const q = line.data;
   if (!q || q.running_act !== a.act_id) return null;
   return <p className={w.runNow}>{runNowLine(q, nameOf(names, a.assignee))}</p>;

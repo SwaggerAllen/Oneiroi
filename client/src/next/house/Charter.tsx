@@ -6,6 +6,8 @@ import * as css from '../settings/settings.css';
 import { useAct } from '../settings/useAct';
 import { HousePage } from './common';
 import { CONTRACT, HOUSE, when } from './keys';
+import { PUSHED_FALLBACK_MS } from '../live/notices';
+import { useMyHouseLive } from './workRoutes';
 
 /**
  * The house's charter (screen:next-house), where its soul tab would be: the
@@ -15,7 +17,8 @@ import { CONTRACT, HOUSE, when } from './keys';
  * that made it; and a change proposed as a ballot.
  */
 export function Charter() {
-  const contract = useQuery({ queryKey: CONTRACT, queryFn: api.householdContract, refetchInterval: 60_000 });
+  useMyHouseLive();
+  const contract = useQuery({ queryKey: CONTRACT, queryFn: api.householdContract, refetchInterval: PUSHED_FALLBACK_MS });
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
   const c = contract.data;
   // One ballot holds any number of changes (the witness, 2026-11-18:

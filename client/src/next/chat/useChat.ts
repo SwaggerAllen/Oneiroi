@@ -12,6 +12,7 @@ import type { Message } from '../../api/types';
 import { failedFrom, loadOutbox, newRef, remove, settle, stuck, update, underWay, type Outgoing } from './outbox';
 import { compareCursor, mergeNewest, newestCursor } from './page';
 import { useGeneration, useGenerations, type Stream } from '../state/generations';
+import { PUSHED_FALLBACK_MS } from '../live/notices';
 
 const PAGE = 40;
 
@@ -128,7 +129,7 @@ export function useChat(residentId: string) {
   // still marks its message, and a scheduled turn's failure (a check-in,
   // with no message of his waiting) shows as a line of its own.
   const failuresKey = useMemo(() => ['resident', residentId, 'capture-failures'], [residentId]);
-  const failures = useQuery({ queryKey: failuresKey, queryFn: () => api.captureFailures(residentId), enabled: !!key, refetchInterval: 60_000 });
+  const failures = useQuery({ queryKey: failuresKey, queryFn: () => api.captureFailures(residentId), enabled: !!key, refetchInterval: PUSHED_FALLBACK_MS });
   useEffect(() => {
     if (failures.data) setOutbox((o) => failedFrom(o, failures.data));
   }, [failures.data, setOutbox]);

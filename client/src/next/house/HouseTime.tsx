@@ -5,6 +5,8 @@ import { ScrollArea } from '../shell/ScrollArea';
 import { allZones, deviceZone, isTime } from '../time/rules';
 import * as css from '../time/time.css';
 import { ACTIVITY, BEATS, CHECKINS, HOUSE, when } from './keys';
+import { PUSHED_FALLBACK_MS } from '../live/notices';
+import { useMyHouseLive } from './workRoutes';
 
 /**
  * The house's Time (screen:next-house), laid out as a resident's Rhythm
@@ -14,7 +16,8 @@ import { ACTIVITY, BEATS, CHECKINS, HOUSE, when } from './keys';
  */
 export function HouseTime() {
   const checkins = useQuery({ queryKey: CHECKINS, queryFn: api.houseCheckins });
-  const beats = useQuery({ queryKey: BEATS, queryFn: api.householdBeats, refetchInterval: 60_000 });
+  useMyHouseLive();
+  const beats = useQuery({ queryKey: BEATS, queryFn: api.householdBeats, refetchInterval: PUSHED_FALLBACK_MS });
   const zone = checkins.data?.zone ?? 'Etc/UTC';
   return (
     <ScrollArea label="Time">
@@ -332,7 +335,7 @@ function activityLine(r: HouseActivity): { what: string; meta: string } {
 function Activity({ b }: { b: HouseBeats }) {
   const residents = b.profiles.filter((p) => p.kind === 'resident');
   const [who, setWho] = useState('');
-  const q = useQuery({ queryKey: [...ACTIVITY, who], queryFn: () => api.householdActivity(who || undefined), refetchInterval: 30_000 });
+  const q = useQuery({ queryKey: [...ACTIVITY, who], queryFn: () => api.householdActivity(who || undefined), refetchInterval: PUSHED_FALLBACK_MS });
   const rows = q.data?.activity ?? [];
   return (
     <section className={css.section} aria-label="Activity">

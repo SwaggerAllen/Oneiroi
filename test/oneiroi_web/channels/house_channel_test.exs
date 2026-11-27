@@ -31,6 +31,18 @@ defmodule OneiroiWeb.HouseChannelTest do
     assert_push "notice", %{stream: "queue", kind: "ProjectOpened"}, 5_000
   end
 
+  # The witness, 2026-11-26: pages are pushed to, not polled; the
+  # charter's page hears its household's own stream.
+  test "`house:mine` is the caller's household, and its charter's changes arrive", ctx do
+    {:ok, _reply, _socket} = join_as(ctx.witness.id, "mine")
+    andrew = Actor.new(:witness, ctx.witness.id)
+
+    {:ok, _} =
+      Oneiroi.Seshat.household_propose_contract(andrew, "We share this house.", "founding")
+
+    assert_push "notice", %{stream: "household"}, 5_000
+  end
+
   test "a stranger cannot join another household's channel", ctx do
     stranger = Fixtures.account!()
     assert {:error, %{reason: "not a member"}} = join_as(stranger.id, ctx.witness.id)

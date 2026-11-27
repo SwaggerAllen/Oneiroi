@@ -172,10 +172,13 @@ server.
 
 ## Not built
 
-- Live updates beyond the threads: the threads, an open thread and their
+- Live updates for who is working: the threads, an open thread and their
   unread counts read again on the household's channel when a thread is
-  written (seshat#109; nothing polls them since 2026-11-23); who is in a
-  thread's rounds and who is working still read on a timer.
+  written (seshat#109), and the charter, the beats and the house's
+  activity when its own stream or a round changes (apsu#34, 2026-11-26),
+  each with a five-minute read as the fallback for a dropped socket; who
+  is mid-turn is process state, not an event, and still reads every five
+  seconds.
 - A thread's URL: opening one is held in the tab, not in the hash.
 - Posting a household document (`kind` and `path` on a post); the
   residents do that through their tools.

@@ -198,3 +198,6 @@ a PromEx upgrade brings its new panels and keeps the fixes. Each fix is
 a fact about the hosted scrape (no instance label, a two-minute period,
 a datasource named by uid), which is why two of them are settings: a
 different scrape changes them, not the code.
+
+## #34
+A timer is wrong twice: late when something changed, and a read for nothing when nothing did. The log already says when something changed; a page that listens reads exactly when it should.

@@ -11,10 +11,10 @@ export interface Notice {
   position: number;
 }
 
-export type Area = 'chat' | 'sessions' | 'memory' | 'records' | 'time' | 'soul' | 'bell' | 'settings' | 'threads';
+export type Area = 'chat' | 'sessions' | 'memory' | 'records' | 'time' | 'soul' | 'bell' | 'settings' | 'threads' | 'succession' | 'capture-failures';
 
 const BY_PREFIX: Record<string, Area[]> = {
-  conversation: ['chat', 'sessions'],
+  conversation: ['chat', 'sessions', 'capture-failures'],
   reacts: ['chat'],
   memory: ['memory', 'chat', 'bell'],
   library: ['records', 'bell'],
@@ -36,7 +36,17 @@ const BY_PREFIX: Record<string, Area[]> = {
   plugins: ['soul', 'bell'],
   // Her own threads (seshat#106): a thread written reads its sheet again.
   threads: ['threads'],
+  // Her succession (janus): every page of it reads again (the witness,
+  // 2026-11-26: pages are pushed to, not polled).
+  succession: ['succession'],
 };
+
+/**
+ * How often a page whose changes arrive as notices reads anyway: only for
+ * a socket that dropped or a reader the channel does not reach. Pages are
+ * pushed to, not polled (CLAUDE.md); this is the fallback, never the way.
+ */
+export const PUSHED_FALLBACK_MS = 5 * 60_000;
 
 /** The document screen's context (its threads' counts, its tasks, its review), house-wide. */
 export const DOC_CONTEXT = ['household', 'queue', 'context'];
@@ -52,7 +62,10 @@ export function keysFor(residentId: string, notice: Notice): unknown[][] {
   if (!areas) return [['resident', residentId]];
   const keys = areas.map((area) => (area === 'bell' ? ['resident', residentId, 'bell', 'hers'] : ['resident', residentId, area]));
   // A thread of hers on a document changes what its document screen says.
-  return prefix === 'threads' ? [...keys, DOC_CONTEXT] : keys;
+  if (prefix === 'threads') return [...keys, DOC_CONTEXT];
+  // A conversation written changes the unread counts across her house.
+  if (prefix === 'conversation') return [...keys, ['unread']];
+  return keys;
 }
 
 /**
@@ -62,6 +75,9 @@ export function keysFor(residentId: string, notice: Notice): unknown[][] {
  */
 export function houseKeys(notice: Notice): unknown[][] {
   if (notice.stream.startsWith('threads')) return [['household'], ['unread']];
+  // The charter, members and beats; the rounds (2026-11-26).
+  if (notice.stream.startsWith('household')) return [['household']];
+  if (notice.stream.startsWith('rounds')) return [['household', 'beats'], ['household', 'activity']];
   return [['household', 'queue']];
 }
 
