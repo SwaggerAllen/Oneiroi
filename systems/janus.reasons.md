@@ -119,3 +119,6 @@ Waiting for the judges was always meant to be her choice; a choice she is never 
 
 ## #46
 A judge who has not answered the invitation has not had the chance to sign off, and a freeze before then shuts them out of C0 for good. A freeze she cannot take back turns a misstep into a reset of everything; before screening nothing has read the bundle, so reopening it costs only the judges' looking again.
+
+## #47
+A list of only those who have spoken hides who is still to speak, and a "still looking" with no control beside it reads as a broken button; the page has to say which of the two it is.

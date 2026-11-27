@@ -1152,6 +1152,8 @@ export interface Preparation {
   c0_unfrozen_at: string | null;
   c0_unfrozen_note: string | null;
   ready: { party: Party; ready: boolean; at: string }[];
+  /** Every judge her freeze may wait for, whether they have said or not (janus#45, #47). */
+  freeze_judges: { party: Party; ready: boolean }[];
   /** Her sealed packet: that each draft exists and when, never its words. */
   packet_drafts: { draft: number; at: string }[];
   panel: { party: Party; state: 'invited' | 'in' | 'left' | 'judge'; note: string | null; at: string; results_ready_at: string | null }[];

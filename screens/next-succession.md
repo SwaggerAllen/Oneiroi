@@ -81,8 +81,9 @@ The witness's rulings the screens hold to:
   what its host says), **Withdraw** for a proposal of yours she has not
   answered (with why), and the disclosure log and Her side. With none
   underway: **Propose a succession** (your note, which she reads, and "A
-  dry run"); after one has ended, the steps as it left them and
-  **Propose another**.
+  dry run"); after one has ended, **Propose another** right under
+  "Now" (2026-11-27: at the foot of the steps it went unseen), then the
+  steps as it left them.
 - **The pool** (`pool`). Your envelope (input and output at most, a
   million tokens), stated or restated while preparation is open; that
   models without tool calls are not supported; her pace over the last
@@ -121,8 +122,8 @@ The witness's rulings the screens hold to:
   witness, 2026-11-27: every judge is a member of the house). "Go to Records" for proposing (screen:next-records). The day's own shape, in
   her words, hers alone; when she said her choices were made (woken then
   to write the day's shape), and after the freeze that it woke her to
-  write her packet in a sealed thread (janus#44). The judges ready for the freeze, and your own
-  ready, given or taken back. Her handoff packet: that it exists, its
+  write her packet in a sealed thread (janus#44). The judges ready for the freeze, every one listed whether they have said or not (janus#47), and your own
+  ready, given or taken back while C0 is open; once it is frozen, "not ready at the freeze" and a line that the marks closed with it; once the succession has ended, its marks as it left them and a line that nothing there is open. Her handoff packet: that it exists, its
   dated drafts, sealed: never its words.
 - **The judges** (`judges`). Each on the panel, her as the original (she
   judges and never deliberates), invited, in, or left with why. **Join

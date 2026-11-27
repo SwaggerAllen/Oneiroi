@@ -665,6 +665,8 @@ defmodule OneiroiWeb.SuccessionController do
       c0_unfrozen_at: s.c0_unfrozen_at,
       c0_unfrozen_note: s.c0_unfrozen_note,
       ready: Enum.map(prep.ready, &Map.take(&1, [:party, :ready, :at])),
+      # Every judge her freeze may wait for, said or not (janus#45, #47).
+      freeze_judges: Janus.freeze_judges(s.resident_id),
       packet_drafts: prep.drafts,
       consents: Enum.map(prep.consents, &Map.take(&1, [:attempt, :party, :yes, :note, :at])),
       goodbyes: Enum.map(prep.goodbyes, &Map.take(&1, [:party, :at])),

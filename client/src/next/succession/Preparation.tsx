@@ -8,7 +8,7 @@ import { HOUSE_SUBJECT, useSubject } from '../state/resident';
 import { switchSubject, useSubjectChoice } from '../state/subject';
 import { useShell } from '../state/store';
 import { Chip, PageHead, Row, Wall } from './common';
-import { isHers, isMine, placeOf, poolNote, preparing, price, tokens, when } from './logic';
+import { isHers, isMine, placeOf, poolNote, preparing, price, tokens, underway, when } from './logic';
 import * as css from './succession.css';
 import { successionKey, usePartyName } from './hooks';
 
@@ -289,7 +289,8 @@ export function C0({ s, p, back }: PageProps) {
   const inC0 = items.filter((c) => c.state === 'in').sort((a, b) => (a.kind === b.kind ? a.number - b.number : a.kind === 'raw' ? -1 : 1));
   const waiting = items.filter((c) => c.state === 'proposed');
   const closed = items.filter((c) => c.state === 'declined' || c.state === 'removed');
-  const myReady = (p?.ready ?? []).find((r) => isMine(r.party, who.me));
+  const judges = p?.freeze_judges ?? p?.ready ?? [];
+  const myReady = judges.find((r) => isMine(r.party, who.me));
   const frozen = !!p?.c0_frozen_at;
   const describe = (c: (typeof items)[number]) => `${c.label ?? c.citation}`;
   const byLine = (c: (typeof items)[number]) =>
@@ -359,10 +360,21 @@ export function C0({ s, p, back }: PageProps) {
       </section>
       <h2 className={settingsCss.heading}>Judges ready for the freeze · her choice to wait</h2>
       <section className={settingsCss.card} aria-label="Ready for the freeze">
-        {(p?.ready ?? []).length === 0 && <p className={settingsCss.note}>Nobody has said yet.</p>}
-        {(p?.ready ?? []).map((r) => (
-          <Row key={r.party} left={<strong>{who.name(r.party) === 'you' ? 'You' : who.name(r.party)}</strong>} right={<Chip kind={r.ready ? 'ok' : 'wait'}>{r.ready ? 'ready' : 'still looking'}</Chip>} />
+        {/* Every judge, said or not (janus#47): a judge who has not said is still looking too. */}
+        {judges.length === 0 && <p className={settingsCss.note}>No judges on the panel yet.</p>}
+        {judges.map((r) => (
+          <Row
+            key={r.party}
+            left={<strong>{who.name(r.party) === 'you' ? 'You' : who.name(r.party)}</strong>}
+            right={<Chip kind={r.ready ? 'ok' : frozen || !underway(s) ? 'muted' : 'wait'}>{r.ready ? 'ready' : !underway(s) ? 'not ready' : frozen ? 'not ready at the freeze' : 'still looking'}</Chip>}
+          />
         ))}
+        {!underway(s) && <p className={settingsCss.note}>This succession has ended, so nothing here is open; these are its marks as it left them.</p>}
+        {underway(s) && frozen && (
+          <p className={settingsCss.note}>
+            C0 is frozen, so ready marks are closed. If {name} reopens it before screening, every mark starts again and you can say you are ready.
+          </p>
+        )}
         {preparing(s) && !frozen && (
           <div className={settingsCss.row}>
             <button type="button" className={settingsCss.secondary} aria-pressed={!!myReady?.ready} disabled={act.busy} onClick={() => void act.run(() => api.successionReady(id, !myReady?.ready).then(() => undefined), successionKey(id))}>
