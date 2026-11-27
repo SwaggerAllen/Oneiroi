@@ -256,6 +256,8 @@ export function parentOf(path: string): string | null {
  * a document at the root of her records (`lily:SOUL.md`).
  */
 export function placeOf(citation: string, slug: string): { to: Location } | { reason: string } {
+  // A shared memory of the house (janus#43) opens in the house's own view.
+  if (citation.trim().startsWith('house/')) return { reason: "A record of the house: it opens in the house's records." };
   const at = citation.trim().indexOf(':');
   if (at < 0) return { reason: 'Not a citation the app can follow.' };
   const own = citation.trim().slice(0, at);

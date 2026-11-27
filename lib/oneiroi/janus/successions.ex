@@ -364,28 +364,45 @@ defmodule Oneiroi.Janus.Successions do
   @doc "Her choice for C0, in it at once; returns its number."
   @spec select_c0(String.t(), String.t(), String.t() | nil, Actor.t()) ::
           {:ok, pos_integer()} | {:error, term()}
-  def select_c0(resident_id, citation, label, actor),
-    do:
-      numbered(%Commands.SelectC0{
-        actor: actor,
-        at: Clock.now(),
-        id: resident_id,
-        citation: citation,
-        label: label
-      })
+  def select_c0(resident_id, citation, label, actor) do
+    with :ok <- readable_by_her(resident_id, citation),
+         do:
+           numbered(%Commands.SelectC0{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             citation: citation,
+             label: label
+           })
+  end
 
   @doc "A proposal for C0, waiting on her; returns its number."
   @spec propose_c0(String.t(), String.t(), String.t() | nil, Actor.t()) ::
           {:ok, pos_integer()} | {:error, term()}
-  def propose_c0(resident_id, citation, label, actor),
-    do:
-      numbered(%Commands.ProposeC0{
-        actor: actor,
-        at: Clock.now(),
-        id: resident_id,
-        citation: citation,
-        label: label
-      })
+  def propose_c0(resident_id, citation, label, actor) do
+    with :ok <- readable_by_her(resident_id, citation),
+         do:
+           numbered(%Commands.ProposeC0{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             citation: citation,
+             label: label
+           })
+  end
+
+  # A record of the house goes into C0 only when she can read it as it
+  # stands (janus#43): her house, an audience that holds her. Her own
+  # records are read at the freeze, as before.
+  defp readable_by_her(resident_id, citation) when is_binary(citation) do
+    case C0.house_words(resident_id, citation) do
+      {:ok, _content} -> :ok
+      :not_house -> :ok
+      {:error, _} -> {:error, Error.new(:janus_c0_unreadable, :janus_c0_house_unreadable)}
+    end
+  end
+
+  defp readable_by_her(_resident_id, _citation), do: :ok
 
   @doc "Her yes or no to a proposal for C0, with why."
   @spec answer_c0(String.t(), integer(), boolean(), String.t(), Actor.t()) ::

@@ -13,6 +13,7 @@ defmodule Oneiroi.Janus.C0 do
   meet her, and the successor inherits it.
   """
 
+  alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Seshat
@@ -41,19 +42,57 @@ defmodule Oneiroi.Janus.C0 do
   defp item(resident_id, i) do
     label = if i.label, do: " — #{i.label}", else: ""
 
-    "## #{i.citation} (#{i.kind})#{label}\nChosen by #{who(i.added_by)}, #{i.added_at}.\n\n" <>
+    "## #{i.citation} (#{i.kind})#{label}\nChosen by #{who(resident_id, i.added_by)}, #{i.added_at}.\n\n" <>
       (resident_id |> words(i.citation) |> String.slice(0, @item_chars))
   end
 
-  defp who("resident:" <> _), do: "her"
-  defp who("witness:" <> _), do: "her witness"
-  defp who(other), do: other
+  # Hers, her witness's, or a housemate judge's by name (janus#43).
+  defp who(resident_id, "resident:" <> resident_id), do: "her"
+  defp who(_resident_id, "witness:" <> _), do: "her witness"
 
-  # Her own record by its citation, read as it stands at the freeze.
+  defp who(_resident_id, "resident:" <> other) do
+    case AgathosDaimon.fetch(other) do
+      {:ok, %{name: name}} -> "#{name}, a housemate on her panel"
+      _unknown -> "a housemate on her panel"
+    end
+  end
+
+  defp who(_resident_id, other), do: other
+
+  # Her own record by its citation, read as it stands at the freeze; or
+  # a record of her house's, a thread or a document (janus#43), read as
+  # she reads it, its audience held.
   defp words(resident_id, citation) do
-    case Regex.named_captures(@cite, String.trim(citation)) do
-      %{"rest" => rest} -> by_kind(resident_id, String.split(rest, "/"), citation)
-      nil -> "(not a citation of hers: #{citation})"
+    case house_words(resident_id, citation) do
+      {:ok, content} ->
+        content
+
+      :not_house ->
+        case Regex.named_captures(@cite, String.trim(citation)) do
+          %{"rest" => rest} -> by_kind(resident_id, String.split(rest, "/"), citation)
+          nil -> "(not a citation of hers: #{citation})"
+        end
+
+      {:error, _} ->
+        "(#{citation} could not be read)"
+    end
+  end
+
+  @doc """
+  A house citation's words as she reads them (janus#43): `{:ok, content}`,
+  `{:error, reason}` when she cannot read it (another house, a thread
+  whose audience leaves her out, nothing there), or `:not_house`.
+  """
+  @spec house_words(String.t(), String.t()) :: {:ok, String.t()} | {:error, term()} | :not_house
+  def house_words(resident_id, citation) do
+    case Seshat.house_citation(citation) do
+      {:ok, cite} ->
+        with {:ok, %{content: content}} <-
+               Seshat.household_read_cited(Actor.new(:resident, resident_id), cite),
+             do: {:ok, content}
+
+      :error ->
+        :not_house
     end
   end
 

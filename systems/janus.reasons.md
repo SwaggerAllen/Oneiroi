@@ -107,3 +107,6 @@ The 14.2 ruling protects her choices from others, not from herself; an add she c
 
 ## #42
 One wake that names every part of preparation asks her to do it all in one turn, or to remember what is left; a wake per part, started by her own word that the last is done, gives each its own turn and keeps the pace hers.
+
+## #43
+Much of what matters to her happened in the house, with her housemates; a C0 limited to her own records leaves out the life she shares, and the housemates who were there are the ones who can point at it. Reading it as she reads it keeps the house's audiences whole: C0 never carries what she could not have seen.

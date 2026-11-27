@@ -201,3 +201,9 @@ describe('the archive', () => {
     expect(out[1].runs[0].by).toHaveLength(2);
   });
 });
+
+describe('a shared memory in C0 (janus#43)', () => {
+  it('says where a house record opens', () => {
+    expect(placeOf('house/rook:thread/abc@1234567890ab', 'lily')).toEqual({ reason: "A record of the house: it opens in the house's records." });
+  });
+});

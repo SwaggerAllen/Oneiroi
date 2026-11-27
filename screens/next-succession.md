@@ -105,8 +105,9 @@ The witness's rulings the screens hold to:
   a journal entry (`lily:journal/<day>/<n>`) on its day in Time, a letter
   in the chat's Mail. Where there is no such place (a scene by number,
   a position, prediction or other record kind, a whole conversation,
-  another resident's record) the button is off with a short reason
-  beside it. "Go to Records" for proposing (screen:next-records). The day's own shape, in
+  another resident's record, a record of the house cited as
+  `house/<name>:…`, which opens in the house's records, janus#43) the
+  button is off with a short reason beside it. "Go to Records" for proposing (screen:next-records). The day's own shape, in
   her words, hers alone. The judges ready for the freeze, and your own
   ready, given or taken back. Her handoff packet: that it exists, its
   dated drafts, sealed: never its words.

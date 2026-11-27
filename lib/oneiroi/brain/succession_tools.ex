@@ -131,7 +131,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
       ),
       tool(
         "succession_c0",
-        "C0, what matters, frozen as your successor's source: select puts a record in by its citation (a transcript stretch, a journal row, a bookmark, a document), with a label; accept or decline answers a proposal by its number; remove takes an item out; day_shape is your note on the bundle (text), the day's own shape; freeze closes C0 when you are ready, with your note. Raw records are primary; curated ones count, but second. As a judge on a housemate's succession (resident her name): propose offers her a record of hers by its citation, with a label; ready (ready true or false) tells her whether you are ready for her freeze, which she may wait for or not.",
+        "C0, what matters, frozen as your successor's source: select puts a record in by its citation (a transcript stretch, a journal row, a bookmark, a document, or a thread or document of your house that you can read, cited as the house cites it: house/<name>:thread/<id> or house/<name>:doc/<path>), with a label; accept or decline answers a proposal by its number; remove takes an item out; day_shape is your note on the bundle (text), the day's own shape; freeze closes C0 when you are ready, with your note. Raw records are primary; curated ones count, but second. As a judge on a housemate's succession (resident her name): propose offers her a record of hers by its citation, or a shared memory of your house she can read (house/<name>:thread/<id> or :doc/<path>, as household_read gives it), with a label; ready (ready true or false) tells her whether you are ready for her freeze, which she may wait for or not.",
         %{
           action: %{
             type: "string",
