@@ -166,6 +166,18 @@ way before trusting a local green.
   Oneiroi, or a socket that cannot be had), and keep a slow poll as the
   fallback for a dropped socket.
 
+## One staging branch, one open PR
+
+Every change goes on the one open branch and its PR, treated as staging
+(the witness, 2026-11-02, restated 2026-11-27 after three PRs had opened
+at once and two conflicted): never a branch or a PR per feature or per
+fix, a one-liner found along the way included. Separate PRs make merge
+conflicts nobody needs, and each tests its change alone; the staging
+branch tests every change together. Start a new branch, off the latest
+`main`, only once that PR has merged, and grow its description as work
+lands. Before every push, check the PR is still open and fetch `main`,
+merging it in when it has moved.
+
 ## Where things actually run
 
 - **Agent runs have no BEAM**; the gates run in `ci.yml` on the PR.
