@@ -24,16 +24,19 @@ defmodule Oneiroi.Scope do
   @type t :: {:resident, String.t()} | {:account, String.t()} | :platform
 
   @doc "Runs `fun` under `scope`, in a transaction, restoring the previous scope after."
-  @spec run(t(), (-> result)) :: result when result: term()
-  def run(scope, fun) when is_function(fun, 0) do
+  @spec run(t(), (-> result), keyword()) :: result when result: term()
+  def run(scope, fun, opts \\ []) when is_function(fun, 0) do
     previous = Process.get(@key)
     put(scope)
 
     try do
-      Oneiroi.Repo.transaction(fn ->
-        {:ok, _} = set_on_connection(Oneiroi.Repo, scope)
-        fun.()
-      end)
+      Oneiroi.Repo.transaction(
+        fn ->
+          {:ok, _} = set_on_connection(Oneiroi.Repo, scope)
+          fun.()
+        end,
+        opts
+      )
       |> case do
         {:ok, result} -> result
         {:error, reason} -> raise "scoped transaction failed: #{inspect(reason)}"
@@ -54,6 +57,10 @@ defmodule Oneiroi.Scope do
   @doc "`run/2` under the platform scope: every row, by name, in a reviewed call."
   @spec platform((-> result)) :: result when result: term()
   def platform(fun), do: run(:platform, fun)
+
+  @doc "`platform/1` with the transaction's options (a long copy's `timeout:`, sima-qian#72)."
+  @spec platform((-> result), keyword()) :: result when result: term()
+  def platform(fun, opts), do: run(:platform, fun, opts)
 
   @doc "The scope the current process holds, or `nil`."
   @spec current() :: t() | nil

@@ -118,13 +118,7 @@ defmodule Oneiroi.SimaQian.Cutover do
   @doc "The resident tables the cutover clears for a target, and those it keeps by name."
   @spec tables() :: %{cleared: [String.t()], kept: [String.t()]}
   def tables do
-    all =
-      Scope.platform(fn ->
-        Repo.query!(
-          "SELECT DISTINCT tablename FROM pg_policies WHERE qual LIKE '%oneiroi.resident_id%' ORDER BY tablename"
-        ).rows
-      end)
-      |> List.flatten()
+    all = LogCopy.resident_tables()
 
     {kept, cleared} = Enum.split_with(all, &kept?/1)
     %{cleared: cleared, kept: kept}
@@ -200,13 +194,13 @@ defmodule Oneiroi.SimaQian.Cutover do
            LogCopy.carry(copy, target, how, metadata, [
              to_string(Oneiroi.AgathosDaimon.Events.ForkMarked)
            ]) do
-      swap_rows(target, copy)
+      swap_rows(target, copy, original)
       stop_aggregates(Export.stream_uuids(target) ++ Export.stream_uuids(copy))
       {:ok, carried}
     end
   end
 
-  defp swap_rows(target, copy) do
+  defp swap_rows(target, copy, original) do
     {:ok, id} = Ecto.UUID.dump(target)
     life = tables().cleared -- ["agathos_daimon_resident"]
 
@@ -218,8 +212,20 @@ defmodule Oneiroi.SimaQian.Cutover do
       end
     end)
 
-    :ok = LogCopy.rows(copy, target, life, %{})
+    # The fork's rows carry its own id for an account (sima-qian#72):
+    # hers take her account back; a scratch target's stay hidden as its own.
+    account =
+      if target == original,
+        do: {:map, copy, account_of(target)},
+        else: {:map, copy, target}
+
+    :ok = LogCopy.rows(copy, target, life, %{}, account)
     LogCopy.adopt_resident(copy, target)
+  end
+
+  defp account_of(id) do
+    {:ok, %{account_id: account}} = Oneiroi.AgathosDaimon.fetch(id)
+    account
   end
 
   defp delete_streams(uuids) do
