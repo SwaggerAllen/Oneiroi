@@ -144,8 +144,8 @@ defmodule Oneiroi.Janus.Successions do
   end
 
   defp record_fork(resident_id, episode, copy, actor) do
-    with :ok <-
-           done(%Commands.RecordFork{
+    with {:ok, events} <-
+           dispatch(%Commands.RecordFork{
              actor: actor,
              at: Clock.now(),
              id: resident_id,
@@ -155,7 +155,11 @@ defmodule Oneiroi.Janus.Successions do
              commit: copy.commit,
              events: copy.events
            }),
-         do: unless_recorded(resident_id, copy.copy_id)
+         :ok <- unless_recorded(resident_id, copy.copy_id) do
+      # A replayed record records nothing and wakes nobody.
+      _ = if events != [], do: wake_to_pick(resident_id)
+      :ok
+    end
   end
 
   # Another job's fork recorded first (2026-11-26: two presses ran two
@@ -253,19 +257,35 @@ defmodule Oneiroi.Janus.Successions do
   # ---- preparation (janus#6 to #10) ----
 
   @doc "The witness's envelope, per token in nano-dollars ($5 a million is 5,000)."
-  @spec set_envelope(String.t(), integer(), integer(), Actor.t()) :: :ok | {:error, term()}
-  def set_envelope(resident_id, input_nanos, output_nanos, actor) do
+  @spec set_envelope(String.t(), integer(), integer(), pos_integer() | nil, Actor.t()) ::
+          :ok | {:error, term()}
+  def set_envelope(resident_id, input_nanos, output_nanos, max_models, actor) do
     with :ok <-
            done(%Commands.SetEnvelope{
              actor: actor,
              at: Clock.now(),
              id: resident_id,
              input_nanos: input_nanos,
-             output_nanos: output_nanos
+             output_nanos: output_nanos,
+             max_models: max_models
            }) do
-      # Stated or restated, it wakes her to pick inside it (janus#37).
-      _ = Rites.envelope_set(resident_id, input_nanos, output_nanos)
+      # Stated or restated with the fork made, it wakes her to pick
+      # inside it; stated first, the fork's record does (janus#37).
+      _ = wake_to_pick(resident_id)
       :ok
+    end
+  end
+
+  # Her wake to pick models (janus#37): once both the fork and the
+  # envelope are there, from whichever lands second, and again on a
+  # restated envelope.
+  defp wake_to_pick(resident_id) do
+    case status(resident_id) do
+      %{state: "forked", envelope_input_nanos: i} = row when is_integer(i) ->
+        Rites.envelope_set(resident_id, i, row.envelope_output_nanos, row.envelope_max_models)
+
+      _not_both ->
+        :ok
     end
   end
 

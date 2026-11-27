@@ -27,6 +27,20 @@ defmodule Oneiroi.Janus.PreparationTest do
     {:ok, 3} = Nisaba.refresh_catalog()
     {:ok, _} = Janus.propose(resident.id, false, "if you want it", andrew)
     :ok = Janus.open(resident.id, "yes", her)
+    # Preparation opens once the fork is made (janus#39).
+    assert %{failure: 0} = Oban.drain_queue(queue: :janus_fork, with_safety: false)
+    {:ok, dir} = Oneiroi.SimaQian.repository_dir(resident.id)
+    on_exit(fn -> File.rm_rf!(dir) end)
+
+    case Janus.succession(resident.id) do
+      %{copy_id: copy} when is_binary(copy) ->
+        {:ok, copy_dir} = Oneiroi.SimaQian.repository_dir(copy)
+        on_exit(fn -> File.rm_rf!(copy_dir) end)
+
+      _none ->
+        :ok
+    end
+
     {:ok, id: resident.id, andrew: andrew, her: her, witness: witness}
   end
 
@@ -82,12 +96,9 @@ defmodule Oneiroi.Janus.PreparationTest do
     assert {:error, %{kind: :janus_pool_unknown_model}} =
              Janus.add_to_pool(ctx.id, "nobody/none", ctx.andrew)
 
-    # Her picks stay, whoever asks; he takes out only his own.
+    # Her picks: nobody else takes them out; he takes out only his own.
     assert {:error, %{kind: :janus_pool_irremovable}} =
              Janus.remove_from_pool(ctx.id, "fake/model", "mine?", ctx.andrew)
-
-    assert {:error, %{kind: :janus_pool_irremovable}} =
-             Janus.remove_from_pool(ctx.id, "fake/model", "changed my mind", ctx.her)
 
     assert {:error, %{kind: :janus_not_yours}} =
              Janus.remove_from_pool(ctx.id, "fake/dear", "his, not mine", ctx.her)
@@ -100,6 +111,32 @@ defmodule Oneiroi.Janus.PreparationTest do
              prep.pool
 
     assert tool(ctx, "succession_status", %{}) =~ "Pool (1): fake/model (yours)"
+
+    # She takes hers out, with her note (janus#41).
+    assert tool(ctx, "succession_pool", %{action: "remove", model: "fake/model"}) =~ "Not done"
+
+    assert tool(ctx, "succession_pool", %{
+             action: "remove",
+             model: "fake/model",
+             note: "too many picks"
+           }) =~ "out of the pool"
+
+    assert [%{row: %{removed_note: "too many picks"}}, _his] = Janus.preparation(ctx.id).pool
+
+    # The envelope's cap on the pool, everyone's picks counted (janus#40).
+    assert {:error, %{kind: :janus_envelope_invalid}} =
+             Janus.set_envelope(ctx.id, 5_000, 20_000, 0, ctx.andrew)
+
+    :ok = Janus.set_envelope(ctx.id, 5_000, 20_000, 1, ctx.andrew)
+    assert %{envelope_max_models: 1} = Janus.succession(ctx.id)
+    assert tool(ctx, "succession_status", %{}) =~ "the pool holds at most 1."
+    assert tool(ctx, "succession_pool", %{action: "add", model: "fake/model"}) =~ "in the pool"
+
+    assert {:error, %{kind: :janus_pool_full}} =
+             Janus.add_to_pool(ctx.id, "fake/dear", ctx.andrew)
+
+    :ok = Janus.set_envelope(ctx.id, 5_000, 20_000, nil, ctx.andrew)
+    assert :ok = Janus.add_to_pool(ctx.id, "fake/dear", ctx.andrew)
   end
 
   test "the questions: hers in at once, proposals wait on her, only she removes", ctx do

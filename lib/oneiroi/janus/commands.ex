@@ -40,7 +40,7 @@ defmodule Oneiroi.Janus.Commands do
   # ---- preparation (janus#6 to #10) ----
 
   defmodule SetEnvelope do
-    use Oneiroi.Command, fields: [:id, :input_nanos, :output_nanos]
+    use Oneiroi.Command, fields: [:id, :input_nanos, :output_nanos, :max_models]
   end
 
   # `input_nanos`, `output_nanos` and `tools` are the catalog's for the

@@ -55,7 +55,7 @@ describe('parties', () => {
   });
 
   it('her pool picks are nobody’s to remove; yours are yours before screening', () => {
-    expect(poolNote({ added_by: 'resident:r1', removed_at: null }, 'a1', 'r1', true)).toBe('Hers: nobody removes it');
+    expect(poolNote({ added_by: 'resident:r1', removed_at: null }, 'a1', 'r1', true)).toBe('Hers: only she takes it out');
     expect(poolNote({ added_by: 'witness:a1', removed_at: null }, 'a1', 'r1', true)).toBe('Yours: you may take it out before screening');
     expect(poolNote({ added_by: 'witness:a1', removed_at: null }, 'a1', 'r1', false)).toBe('Yours');
   });

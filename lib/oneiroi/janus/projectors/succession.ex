@@ -90,6 +90,7 @@ defmodule Oneiroi.Janus.Projectors.Succession do
     set(multi, e,
       envelope_input_nanos: e.input_nanos,
       envelope_output_nanos: e.output_nanos,
+      envelope_max_models: Map.get(e, :max_models),
       envelope_set_at: e.at
     )
   end)

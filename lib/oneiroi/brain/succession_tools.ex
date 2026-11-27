@@ -7,7 +7,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
   note that is the decision's.
 
   The preparation's are hers too (janus#6 to #10): the pool (adding
-  inside her witness's envelope; her picks stay), the questions (adding,
+  inside her witness's envelope, taking hers out), the questions (adding,
   answering a proposal, removing any), C0 (choosing, answering a
   proposal, removing, the day's shape, the freeze) and her sealed
   handoff packet; and the catalog read inside the envelope.
@@ -27,14 +27,17 @@ defmodule Oneiroi.Brain.SuccessionTools do
   @idle ~w(succession_status succession_propose)
   # Her witness's proposal waits on her answer.
   @answering ~w(succession_status succession_open succession_decline)
+  # Opened, the fork not yet made: nothing enters preparation (janus#39).
+  @unforked ~w(succession_catalog succession_pool succession_question succession_c0 succession_packet)
 
   @doc """
   The succession tools her turns leave out (brain#125, the witness,
   2026-11-26: injected only while a succession is active): with none
   underway and no housemate's panel to judge on, all but
   `succession_status` and `succession_propose`; with her witness's
-  proposal waiting, all but status and her two answers; underway, only
-  the three that start or answer one; on a housemate's panel, none.
+  proposal waiting, all but status and her two answers; opened with the
+  fork not yet made, those three and the preparation's (janus#39);
+  underway, only the three that start or answer one; on a housemate's panel, none.
   """
   @spec out_of_reach(String.t()) :: [String.t()]
   def out_of_reach(resident_id) do
@@ -43,6 +46,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
       %{nominee: true} -> []
       %{own: nil} -> names() -- @idle
       %{own: "proposed"} -> names() -- @answering
+      %{own: "open"} -> ~w(succession_propose succession_open succession_decline) ++ @unforked
       %{own: _underway} -> ~w(succession_propose succession_open succession_decline)
     end
   end
@@ -51,7 +55,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
   @spec out_of_reach_words() :: String.t()
   def out_of_reach_words,
     do:
-      "that succession tool has nothing to act on now: no succession of yours is at that stage, and you are on no housemate's panel. succession_status says where things stand; succession_propose starts one of your own."
+      "that succession tool has nothing to act on now: no succession of yours is at that stage (the preparation's tools open once your fork is made), and you are on no housemate's panel. succession_status says where things stand."
 
   @doc "The definitions."
   def definitions do
@@ -102,8 +106,12 @@ defmodule Oneiroi.Brain.SuccessionTools do
       ),
       tool(
         "succession_pool",
-        "Add a catalog model to your succession's pool, who may be screened; it must be inside your witness's envelope. Your picks stay: nobody removes them. Read the pool with succession_status.",
-        %{action: %{type: "string", enum: ["add"]}, model: %{type: "string"}},
+        "Your succession's pool, who may be screened. add puts a catalog model in; it must be inside your witness's envelope, and the pool holds at most as many models as the envelope allows, everyone's picks counted. remove takes one of your own picks out, with your note (nobody else removes yours, and you remove only yours). Both open once your fork is made. Read the pool with succession_status.",
+        %{
+          action: %{type: "string", enum: ["add", "remove"]},
+          model: %{type: "string"},
+          note: %{type: "string"}
+        },
         [:action, :model]
       ),
       tool(
@@ -362,6 +370,12 @@ defmodule Oneiroi.Brain.SuccessionTools do
           "\n"
         )
     end
+  end
+
+  def call("succession_pool", %{"action" => "remove"} = args, turn) do
+    with :ok <-
+           Janus.remove_from_pool(turn.resident_id, args["model"], args["note"], turn.resident),
+         do: "#{args["model"]} is out of the pool."
   end
 
   def call("succession_pool", %{"action" => "add"} = args, turn) do
@@ -681,7 +695,11 @@ defmodule Oneiroi.Brain.SuccessionTools do
       "",
       if(s.envelope_input_nanos,
         do:
-          "Envelope: #{per_million(s.envelope_input_nanos)} in, #{per_million(s.envelope_output_nanos)} out, a million tokens.",
+          "Envelope: #{per_million(s.envelope_input_nanos)} in, #{per_million(s.envelope_output_nanos)} out, a million tokens" <>
+            if(s.envelope_max_models,
+              do: "; the pool holds at most #{s.envelope_max_models}.",
+              else: "."
+            ),
         else: "Envelope: not stated yet."
       ),
       "Pool (#{length(pool)}): " <>

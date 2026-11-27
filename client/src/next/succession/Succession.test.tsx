@@ -11,7 +11,7 @@ import { base } from './fixtures';
 import { SuccessionBanner } from './Touches';
 
 const prep: Preparation = {
-  envelope: { input_per_million: 5, output_per_million: 20 },
+  envelope: { input_per_million: 5, output_per_million: 20, max_models: 3 },
   pace: { input_per_day: 1_900_000, output_per_day: 140_000, days: 90, monthly_spent: 182.4 },
   current: { model: 'c/now', input_per_million: 3, output_per_million: 15, monthly_estimate: 234 },
   pool: [
@@ -85,12 +85,15 @@ describe('the succession page', () => {
     expect(screen.queryByRole('button', { name: /pause/i })).toBeNull();
   });
 
-  it('her pool picks say nobody removes them; yours may come out', async () => {
+  it('her pool picks are hers alone to take out; yours may come out', async () => {
     view({ succession: { ...base, state: 'forked', forked: true }, preparation: prep }, 'pool');
-    expect(await screen.findByText('Hers: nobody removes it')).toBeTruthy();
+    expect(await screen.findByText('Hers: only she takes it out')).toBeTruthy();
     expect(await screen.findByText(/Yours: you may take it out before screening/)).toBeTruthy();
     // Exactly one way to take a pick out: yours.
     expect(screen.getAllByRole('button', { name: 'Take it out…' })).toHaveLength(1);
+    // The envelope's cap on the pool (janus#40).
+    expect(screen.getByText('The pool · 2 of at most 3')).toBeTruthy();
+    expect(screen.getByText('Models in the pool, at most')).toBeTruthy();
     // What she spends now, and her model's month at its list prices (janus#38).
     expect(screen.getByText('~ $182.40 / mo')).toBeTruthy();
     expect(screen.getByText('c/now')).toBeTruthy();

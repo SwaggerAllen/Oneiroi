@@ -81,8 +81,11 @@ The witness's rulings the screens hold to:
   with its prices and a month of her pace on them (janus#38), and how
   each estimate is made. Each pool entry: the model, whose
   pick ("your pick", or "<Name>'s pick" in her colour), prices and the
-  monthly estimate, its tool calls on Oneiroi. Her picks say "Hers:
-  nobody removes it"; yours say you may take them out before screening,
+  monthly estimate, its tool calls on Oneiroi. The envelope card states
+  input, output and how many models the pool may hold (blank for no
+  cap), and the heading says "n of at most m" (janus#40). Her picks say
+  "Hers: only she takes it out" (janus#41); yours say you may take them
+  out before screening,
   and **Take it out…** asks why first. Adding is on Regression's catalog
   (screen:next-settings), linked from here.
 - **The questions** (`questions`). Her set; what judges proposed, with
