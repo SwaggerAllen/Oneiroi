@@ -171,6 +171,11 @@ defmodule Oneiroi.Janus.Successions do
   def retry_fork(resident_id, %Actor{kind: :witness} = actor) do
     case status(resident_id) do
       %{state: "open", copy_id: nil, episode: episode} ->
+        # What a crashed fork left behind goes first (sima-qian#72); every
+        # copy a succession of hers recorded is kept.
+        keep = for s <- history(resident_id), is_binary(s.copy_id), do: s.copy_id
+        {:ok, _swept} = SimaQian.succession_sweep(resident_id, keep)
+
         with :ok <-
                done(%Commands.RetryFork{
                  actor: actor,

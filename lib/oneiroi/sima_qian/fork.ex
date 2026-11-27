@@ -40,9 +40,26 @@ defmodule Oneiroi.SimaQian.Fork do
 
   @doc "Makes the fork copy of `resident_id`; `{:ok, t()}` or the first step's refusal."
   @spec make(String.t(), Actor.t()) :: {:ok, t()} | {:error, term()}
-  def make(resident_id, %Actor{} = actor) do
-    copy_id = Ecto.UUID.generate()
+  def make(resident_id, %Actor{} = actor), do: make_as(resident_id, Ecto.UUID.generate(), actor)
 
+  defp make_as(resident_id, copy_id, actor) do
+    case build(resident_id, copy_id, actor) do
+      {:ok, _} = made ->
+        made
+
+      failed ->
+        # Half a copy is never left behind (sima-qian#72): its events, rows
+        # and repository go, so the next attempt starts clean.
+        _ = LogCopy.remove(copy_id)
+        failed
+    end
+  rescue
+    exception ->
+      _ = LogCopy.remove(copy_id)
+      reraise exception, __STACKTRACE__
+  end
+
+  defp build(resident_id, copy_id, actor) do
     with {:ok, slug} <- slug_of(resident_id),
          {:ok, %{events: events, sequence: sequence}} <-
            LogCopy.events(resident_id, copy_id, %{
@@ -55,7 +72,8 @@ defmodule Oneiroi.SimaQian.Fork do
              resident_id,
              copy_id,
              Cutover.tables().cleared,
-             fork_row(slug, copy_id, resident_id)
+             fork_row(slug, copy_id, resident_id),
+             {:all, copy_id}
            ),
          {:ok, commit} <- copy_repository(resident_id, copy_id),
          {:ok, _} <- mark(copy_id, resident_id, sequence, commit, actor) do

@@ -77,6 +77,7 @@ defmodule Oneiroi.SimaQian do
   alias Oneiroi.SimaQian.Fork
   alias Oneiroi.SimaQian.Gitea
   alias Oneiroi.SimaQian.Import
+  alias Oneiroi.SimaQian.LogCopy
   alias Oneiroi.SimaQian.Originals
   alias Oneiroi.SimaQian.Rebuild
   alias Oneiroi.SimaQian.Repos
@@ -407,6 +408,12 @@ defmodule Oneiroi.SimaQian do
   @doc "A succession's fork copy of the resident as she stands now (sima-qian#67): `{:ok, %{copy_id, sequence, commit, events}}`; Janus calls it (janus#4)."
   @spec succession_fork(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(succession_fork(resident_id, actor), do: Fork.make(resident_id, actor))
+
+  @doc "Removes every copy of hers a fork left behind (sima-qian#72), keeping those named in `keep`."
+  @spec succession_sweep(String.t(), [String.t()]) :: {:ok, [String.t()]}
+  defexport(succession_sweep(resident_id, keep),
+    do: LogCopy.sweep(resident_id, keep)
+  )
 
   @doc "Whether `url` can hold a succession's backup (janus#5): its shape, then its host asked; `{:ok, %{visibility, push}}`, an unpushable remote refused; Janus records it."
   @spec succession_backup_check(String.t(), term()) :: {:ok, map()} | {:error, term()}

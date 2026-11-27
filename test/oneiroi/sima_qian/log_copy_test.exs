@@ -12,6 +12,7 @@ defmodule Oneiroi.SimaQian.LogCopyTest do
   alias Oneiroi.Seshat
   alias Oneiroi.SimaQian
   alias Oneiroi.SimaQian.Export
+  alias Oneiroi.SimaQian.LogCopy
 
   defp es(sql, params \\ []) do
     conn = Keyword.fetch!(EventStore.Config.lookup(Oneiroi.EventStore), :conn)
@@ -54,6 +55,33 @@ defmodule Oneiroi.SimaQian.LogCopyTest do
 
     # Her rows, under the copy's id.
     assert Seshat.journal_day(copy, day).entries |> length() == 20
+  end
+
+  # 2026-11-26: a fork's rows carried her session keys under the
+  # witness's account, and his view of her transcript found two.
+  test "a fork's rows stay out of the witness's view; a sweep removes an orphaned copy" do
+    witness = Fixtures.account!()
+    resident = Fixtures.resident!(witness)
+    andrew = Actor.new(:witness, witness.id)
+    {:ok, chat} = Oneiroi.Kumbukumbu.main_session(resident.id, witness.id, andrew)
+
+    {:ok, %{copy_id: kept}} = SimaQian.succession_fork(resident.id, andrew)
+
+    assert {:ok, _session, _messages} =
+             Oneiroi.Kumbukumbu.transcript({:account, witness.id}, chat)
+
+    # An orphan: a copy's events and rows with nothing recording it.
+    orphan = Ecto.UUID.generate()
+
+    {:ok, _} =
+      LogCopy.events(resident.id, orphan, %{
+        "fork_of" => resident.id,
+        "imported" => true
+      })
+
+    assert {:ok, [^orphan]} = SimaQian.succession_sweep(resident.id, [kept])
+    assert Export.stream_uuids(orphan) == []
+    assert Export.stream_uuids(kept) != []
   end
 
   # The shape `LogCopy` writes (conventions §12's one exception): a

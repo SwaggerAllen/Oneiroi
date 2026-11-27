@@ -30,6 +30,7 @@ defmodule Oneiroi.SimaQian.LogCopy do
   alias Oneiroi.Scope
   alias Oneiroi.SimaQian.Error
   alias Oneiroi.SimaQian.Export
+  alias Oneiroi.SimaQian.Repos
 
   # Tables the copy never carries: the platform's reports and the
   # household's rounds (keyed without her id; a copy joins no household).
@@ -43,10 +44,10 @@ defmodule Oneiroi.SimaQian.LogCopy do
 
     transaction(fn conn ->
       %{rows: [[count]]} =
-        Postgrex.query!(conn, copy_sql(), [from, to, uuids, metadata])
+        q(conn, copy_sql(), [from, to, uuids, metadata])
 
       %{rows: rows} =
-        Postgrex.query!(
+        q(
           conn,
           "SELECT stream_version FROM #{schema()}.streams WHERE stream_uuid = $1",
           ["resident-" <> from]
@@ -111,20 +112,42 @@ defmodule Oneiroi.SimaQian.LogCopy do
   life (`tables`, the cutover's cleared list), her id rewritten wherever
   it stands. The resident row takes `resident`, a map of column
   overrides (a fork's suffixed slug and state; at a cutover, her own).
+
+  `account` is what a row's `account_id` becomes outside the registry:
+  `{:all, id}` for a fork, every copied row the copy's own id, which no
+  account is, so a fork's rows never reach the witness's view (they
+  carry her session keys, and a key is read as unique there); `{:map,
+  from, to}` at a cutover, the copy's id back to her account. One
+  transaction: a failure leaves no row copied.
   """
-  @spec rows(String.t(), String.t(), [String.t()], map()) :: :ok
-  def rows(from, to, tables, resident) do
-    Scope.platform(fn ->
+  @spec rows(String.t(), String.t(), [String.t()], map(), tuple()) :: :ok
+  def rows(from, to, tables, resident, account) do
+    platform(fn ->
       for table <- tables,
           table not in @not_copied,
-          do: copy_table(table, from, to, overrides(table, resident))
+          do: copy_table(table, from, to, overrides(table, resident, account))
     end)
 
     :ok
   end
 
-  defp overrides("agathos_daimon_resident", resident), do: resident
-  defp overrides(_table, _resident), do: %{}
+  defp overrides("agathos_daimon_resident", resident, _account), do: resident
+
+  defp overrides(_table, _resident, {:all, id}),
+    do: %{"account_id" => {:sql, "'#{uuid!(id)}'::uuid"}}
+
+  defp overrides(_table, _resident, {:map, from, to}),
+    do: %{
+      "account_id" =>
+        {:sql,
+         ~s|CASE WHEN "account_id" = '#{uuid!(from)}'::uuid THEN '#{uuid!(to)}'::uuid ELSE "account_id" END|}
+    }
+
+  # An id written into the statement is a UUID, checked, never text.
+  defp uuid!(id) do
+    {:ok, cast} = Ecto.UUID.cast(id)
+    cast
+  end
 
   defp copy_table(table, from, to, overrides) do
     cols = columns(table)
@@ -144,7 +167,7 @@ defmodule Oneiroi.SimaQian.LogCopy do
 
     # The names are the catalog's own, never a request value.
     # sobelow_skip ["SQL.Query"]
-    Repo.query!(
+    rq(
       ~s|INSERT INTO "#{table}" (#{names}) SELECT #{exprs} FROM "#{table}" WHERE "#{key}" = $1::uuid|,
       [id, to_id]
     )
@@ -162,6 +185,7 @@ defmodule Oneiroi.SimaQian.LogCopy do
 
   defp value(%{name: name}), do: ~s|"#{name}"|
 
+  defp literal({:sql, expr}, _col), do: expr
   defp literal(nil, _col), do: "NULL"
   defp literal(:to, _col), do: "$2::uuid"
   defp literal(value, _col) when is_integer(value), do: Integer.to_string(value)
@@ -170,7 +194,7 @@ defmodule Oneiroi.SimaQian.LogCopy do
     do: "'" <> String.replace(value, "'", "''") <> "'"
 
   defp columns(table) do
-    Repo.query!(
+    rq(
       """
       SELECT column_name, data_type FROM information_schema.columns
       WHERE table_schema = 'public' AND table_name = $1
@@ -198,10 +222,10 @@ defmodule Oneiroi.SimaQian.LogCopy do
     {:ok, from} = Ecto.UUID.dump(copy)
     {:ok, to} = Ecto.UUID.dump(target)
 
-    Scope.platform(fn ->
+    platform(fn ->
       # The names are the catalog's own, never a request value.
       # sobelow_skip ["SQL.Query"]
-      Repo.query!(
+      rq(
         ~s|UPDATE "agathos_daimon_resident" SET (#{Enum.join(cols, ", ")}) = | <>
           ~s|(SELECT #{Enum.join(cols, ", ")} FROM "agathos_daimon_resident" WHERE id = $1) WHERE id = $2|,
         [from, to]
@@ -209,6 +233,93 @@ defmodule Oneiroi.SimaQian.LogCopy do
     end)
 
     :ok
+  end
+
+  @doc "Every resident table: those whose row policy reads `oneiroi.resident_id`."
+  @spec resident_tables() :: [String.t()]
+  def resident_tables do
+    Scope.platform(fn ->
+      rq(
+        "SELECT DISTINCT tablename FROM pg_policies WHERE qual LIKE '%oneiroi.resident_id%' ORDER BY tablename",
+        []
+      ).rows
+    end)
+    |> List.flatten()
+  end
+
+  @doc """
+  Removes a copy wholly (sima-qian#72): every event of its streams with
+  their links, its rows in every resident table, its repository. For a
+  copy this module made and nothing recorded: a fork that failed partway,
+  or one a sweep finds orphaned. Never her: the caller names the copy.
+  """
+  @spec remove(String.t()) :: :ok | {:error, term()}
+  def remove(copy) do
+    s = schema()
+    uuids = Export.stream_uuids(copy)
+    {:ok, id} = Ecto.UUID.dump(copy)
+
+    with {:ok, _} <-
+           transaction(fn conn ->
+             deletes(conn)
+
+             q(
+               conn,
+               """
+               WITH gone AS MATERIALIZED (
+                 SELECT se.event_id FROM #{s}.streams st
+                 JOIN #{s}.stream_events se ON se.stream_id = st.stream_id AND se.original_stream_id = st.stream_id
+                 WHERE st.stream_uuid = ANY($1::text[])
+               ),
+               unlinked AS (DELETE FROM #{s}.stream_events WHERE event_id IN (SELECT event_id FROM gone) RETURNING 1),
+               dropped AS (DELETE FROM #{s}.events WHERE event_id IN (SELECT event_id FROM gone) RETURNING 1)
+               SELECT (SELECT count(*) FROM unlinked) + (SELECT count(*) FROM dropped)
+               """,
+               [uuids]
+             )
+
+             q(conn, "DELETE FROM #{s}.streams WHERE stream_uuid = ANY($1::text[])", [uuids])
+           end) do
+      platform(fn -> Enum.each(resident_tables(), &clear(&1, id)) end)
+
+      _ = Repos.delete({:resident, copy})
+      :ok
+    end
+  end
+
+  # The table name is the catalog's own, never a request value.
+  # sobelow_skip ["SQL.Query"]
+  defp clear(table, id), do: rq(~s|DELETE FROM "#{table}" WHERE resident_id = $1|, [id])
+
+  @doc """
+  Every copy of `resident_id` (a registry stream whose first line names
+  her as `fork_of`) not in `keep`, removed (sima-qian#72): the orphans a
+  fork that crashed left behind. `keep` names every copy a succession of
+  hers recorded.
+  """
+  @spec sweep(String.t(), [String.t()]) :: {:ok, [String.t()]}
+  def sweep(resident_id, keep) do
+    s = schema()
+
+    {:ok, found} =
+      transaction(fn conn ->
+        q(
+          conn,
+          """
+          SELECT substring(st.stream_uuid FROM 10) FROM #{s}.streams st
+          JOIN #{s}.stream_events se ON se.stream_id = st.stream_id AND se.original_stream_id = st.stream_id AND se.stream_version = 1
+          JOIN #{s}.events e ON e.event_id = se.event_id
+          WHERE st.stream_uuid LIKE 'resident-%' AND st.stream_uuid <> $1
+            AND (e.metadata #>> '{}') LIKE '%fork_of%' || $2 || '%'
+          """,
+          ["resident-" <> resident_id, resident_id]
+        ).rows
+        |> List.flatten()
+      end)
+
+    gone = found -- keep
+    Enum.each(gone, &remove/1)
+    {:ok, gone}
   end
 
   @doc """
@@ -225,7 +336,7 @@ defmodule Oneiroi.SimaQian.LogCopy do
       deletes(conn)
 
       %{rows: [[n]]} =
-        Postgrex.query!(
+        q(
           conn,
           """
           WITH fp AS (#{fork_points(s)}),
@@ -256,7 +367,7 @@ defmodule Oneiroi.SimaQian.LogCopy do
           [target, copy, Export.stream_uuids(target), Export.stream_uuids(copy)]
         )
 
-      Postgrex.query!(
+      q(
         conn,
         "DELETE FROM #{s}.streams WHERE stream_version = 0 AND stream_uuid = ANY($1::text[])",
         [Export.stream_uuids(target)]
@@ -300,7 +411,7 @@ defmodule Oneiroi.SimaQian.LogCopy do
     transaction(fn conn ->
       # The target's streams the fork's post-fork events land in, made
       # where the target has none of that name.
-      Postgrex.query!(
+      q(
         conn,
         """
         INSERT INTO #{s}.streams (stream_uuid, stream_version, created_at)
@@ -317,7 +428,7 @@ defmodule Oneiroi.SimaQian.LogCopy do
       n = carry_events(conn, how, s, [copy, target, metadata, drop, copied])
 
       # Each target stream's version is its last event's.
-      Postgrex.query!(
+      q(
         conn,
         """
         UPDATE #{s}.streams st SET stream_version = v.version
@@ -344,7 +455,7 @@ defmodule Oneiroi.SimaQian.LogCopy do
   defp carry_events(conn, :move, s, params) do
     deletes(conn)
 
-    Postgrex.query!(
+    q(
       conn,
       """
       CREATE TEMP TABLE log_copy_carry ON COMMIT DROP AS
@@ -359,20 +470,20 @@ defmodule Oneiroi.SimaQian.LogCopy do
       params
     )
 
-    Postgrex.query!(
+    q(
       conn,
       "DELETE FROM #{s}.stream_events WHERE event_id IN (SELECT old_event FROM log_copy_carry)",
       []
     )
 
-    Postgrex.query!(
+    q(
       conn,
       "DELETE FROM #{s}.events WHERE event_id IN (SELECT old_event FROM log_copy_carry)",
       []
     )
 
     %{num_rows: n} =
-      Postgrex.query!(
+      q(
         conn,
         """
         INSERT INTO #{s}.events (event_id, event_type, causation_id, correlation_id, data, metadata, created_at)
@@ -381,7 +492,7 @@ defmodule Oneiroi.SimaQian.LogCopy do
         []
       )
 
-    Postgrex.query!(
+    q(
       conn,
       """
       INSERT INTO #{s}.stream_events (event_id, stream_id, stream_version, original_stream_id, original_stream_version)
@@ -396,7 +507,7 @@ defmodule Oneiroi.SimaQian.LogCopy do
   end
 
   defp carry_events(conn, :copy, s, params) do
-    %{rows: [[n]]} = Postgrex.query!(conn, carry_sql(:copy, s), params)
+    %{rows: [[n]]} = q(conn, carry_sql(:copy, s), params)
     n
   end
 
@@ -426,7 +537,7 @@ defmodule Oneiroi.SimaQian.LogCopy do
 
   # Deletes in the event store, for this transaction alone.
   defp deletes(conn),
-    do: Postgrex.query!(conn, "SET LOCAL eventstore.enable_hard_deletes TO 'on'", [])
+    do: q(conn, "SET LOCAL eventstore.enable_hard_deletes TO 'on'", [])
 
   defp carry_sql(:copy, s),
     do: """
@@ -464,4 +575,11 @@ defmodule Oneiroi.SimaQian.LogCopy do
   end
 
   defp schema, do: ~s|"eventstore"|
+
+  # A whole life is copied in one statement or one transaction: no query
+  # here is cut off by the pool's 15 s default (it was, 2026-11-26, and
+  # left half a copy's rows behind).
+  defp q(conn, sql, params), do: Postgrex.query!(conn, sql, params, timeout: :infinity)
+  defp rq(sql, params), do: Repo.query!(sql, params, timeout: :infinity)
+  defp platform(fun), do: Scope.platform(fun, timeout: :infinity)
 end
