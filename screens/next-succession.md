@@ -33,9 +33,16 @@ The witness's rulings the screens hold to:
 - A full page over the tabs, at `#/settings/succession/<page>`, under
   the app's usual top bar (subject, search, bell, settings), like every
   settings page (screen:next-settings). Each page has its own title row:
-  "‹ Back", the title with the dry-run mark beside it, and its lede.
+  "‹ Back" and, opposite it on every page but the overview, **Succession
+  home** (the witness, 2026-11-26: the process kept in view), the title
+  with the dry-run mark beside it, and its lede.
+- Until the fork is recorded, the overview is the only page (the
+  witness, 2026-11-26): its steps show no way in and say "The steps open
+  once the fork is made", and a page reached by link or hash goes to the
+  overview. The backup and "Make the fork again" stay on the overview.
 - Reached from the Settings sheet's **Succession** row (a resident's
-  rows only), from the chat banner while one is underway, from the
+  rows only), from the chat banner while one is underway (always the
+  overview), from the
   bell's succession entries, and from the pool's link back from
   Regression.
 - Back: a model's runs go back to results, Ready to results, every other
@@ -162,8 +169,8 @@ The witness's rulings the screens hold to:
 - Records' viewer: **Propose for C0**, the whole record by its
   citation, nothing else (screen:next-records).
 - Her chat: the succession banner, the dry run marked, and the bell's
-  first succession entry's few words beside the way back
-  (screen:next-chat).
+  first succession entry's few words beside the way back, which opens
+  the overview (screen:next-chat).
 - The bell: her succession's entries at the top, each opening its page
   (screen:next-bell-settings).
 - The shell: the deliberation's tab bar (screen:next-shell).

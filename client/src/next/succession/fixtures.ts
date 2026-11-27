@@ -12,7 +12,7 @@ export const base: Succession = {
   opened_at: '2026-11-23T09:00:00Z',
   forked: false,
   fork_sequence: null,
-  forked_at: null,
+  forked_at: '2026-11-23T09:01:00Z',
   fork_failure: null,
   backup_url: null,
   backup_visibility: null,

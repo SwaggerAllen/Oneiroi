@@ -11,6 +11,13 @@ export const ENDED: readonly SuccessionState[] = ['rolled_forward', 'rehearsed',
 
 export const underway = (s: Succession | null | undefined): s is Succession => !!s && !ENDED.includes(s.state);
 
+/**
+ * Whether the succession's pages past the overview are shut (the witness,
+ * 2026-11-26): until the fork is recorded, every later step has nothing
+ * to run on, so the overview is the only page.
+ */
+export const locked = (s: Succession | null | undefined): boolean => underway(s) && !s.forked_at;
+
 /** Preparation (pool, questions, C0, the judges) is open in these two. */
 export const preparing = (s: Succession | null | undefined) => !!s && (s.state === 'open' || s.state === 'forked');
 

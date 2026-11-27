@@ -6,7 +6,7 @@ import * as settingsCss from '../settings/settings.css';
 import { useAct } from '../settings/useAct';
 import { useSubject } from '../state/resident';
 import { Chip, PageHead, Row, Wall } from './common';
-import { isMine, pool, stateWords, steps, underway, when, type Step } from './logic';
+import { isMine, locked, pool, stateWords, steps, underway, when, type Step } from './logic';
 import * as css from './succession.css';
 import { STEP_CHIP, successionKey, useGo, usePartyName } from './hooks';
 
@@ -31,7 +31,8 @@ export function Steps({ s, p, back }: { s: Succession | null; p: Preparation | u
 
   return (
     <>
-      <PageHead title={`${name}'s succession`} lede={lede} back={back} s={s} />
+      <PageHead title={`${name}'s succession`} lede={lede} back={back} s={s} home={false} />
+      {locked(s) && <p className={settingsCss.note}>The steps open once the fork is made: every one of them runs on it.</p>}
       {s && (
         <section className={`${settingsCss.card} ${css.now}`} aria-label="Now">
           <Row left={<strong>Now</strong>} right={<Chip kind={underway(s) ? 'now' : 'muted'}>{stateWords(s, name)}</Chip>} />
@@ -54,7 +55,7 @@ export function Steps({ s, p, back }: { s: Succession | null; p: Preparation | u
               right={<Chip kind={STEP_CHIP[step.kind]}>{KIND_WORD[step.kind]}</Chip>}
             />
             <p className={settingsCss.note}>{stepLine(step, s, p, name, who.name)}</p>
-            {step.page && step.kind !== 'waits' && step.kind !== 'stopped' && (
+            {step.page && step.kind !== 'waits' && step.kind !== 'stopped' && !locked(s) && (
               <button type="button" className={settingsCss.linkButton} onClick={() => go(step.page === 'deliberation' ? 'deliberation/thread' : (step.page as string))}>
                 Open ›
               </button>
@@ -65,7 +66,7 @@ export function Steps({ s, p, back }: { s: Succession | null; p: Preparation | u
       {s?.state === 'proposed' && s.proposed_by && isMine(s.proposed_by, who.me) && <Withdraw />}
       {s?.state === 'open' && !s.forked_at && <RetryFork failure={s.fork_failure ?? null} />}
       {(!s || !underway(s)) && <Propose again={!!s} />}
-      {s && (
+      {s && !locked(s) && (
         <section className={settingsCss.card} aria-label="More">
           <button type="button" className={settingsCss.linkButton} onClick={() => go('log')}>
             Disclosure log ›
