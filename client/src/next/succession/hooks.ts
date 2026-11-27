@@ -5,6 +5,7 @@ import { CONTRACT } from '../house/keys';
 import { useSubject } from '../state/resident';
 import { useShell } from '../state/store';
 import { partyName, type StepKind } from './logic';
+import { PUSHED_FALLBACK_MS } from '../live/notices';
 
 // The succession's reads and ways about (screen:next-succession), shared
 // by its pages and its touches on the app.
@@ -18,7 +19,7 @@ export function useSuccession(enabled = true) {
   return useQuery({
     queryKey: successionKey(id),
     queryFn: () => api.succession(id),
-    refetchInterval: 30_000,
+    refetchInterval: PUSHED_FALLBACK_MS,
     enabled: enabled && !!id,
   });
 }
@@ -46,17 +47,17 @@ export const STEP_CHIP: Record<StepKind, 'ok' | 'now' | 'muted'> = { done: 'ok',
 /** Your judging: blind runs, your judgments, and after the reveal your counts. */
 export function useJudging() {
   const { id } = useSubject();
-  return useQuery({ queryKey: successionKey(id, 'judging'), queryFn: () => api.judging(id).then((r) => r.judging), refetchInterval: 30_000 });
+  return useQuery({ queryKey: successionKey(id, 'judging'), queryFn: () => api.judging(id).then((r) => r.judging), refetchInterval: PUSHED_FALLBACK_MS });
 }
 
 export function useRoom(enabled = true) {
   const { id } = useSubject();
-  return useQuery({ queryKey: successionKey(id, 'room'), queryFn: () => api.room(id).then((r) => r.room), refetchInterval: 10_000, enabled });
+  return useQuery({ queryKey: successionKey(id, 'room'), queryFn: () => api.room(id).then((r) => r.room), refetchInterval: PUSHED_FALLBACK_MS, enabled });
 }
 
 export function useLog() {
   const { id } = useSubject();
-  return useQuery({ queryKey: successionKey(id, 'log'), queryFn: () => api.successionLog(id).then((r) => r.log), refetchInterval: 60_000 });
+  return useQuery({ queryKey: successionKey(id, 'log'), queryFn: () => api.successionLog(id).then((r) => r.log), refetchInterval: PUSHED_FALLBACK_MS });
 }
 
 export const DELIBERATION_TABS = ['thread', 'recommendation', 'yours', 'panel'] as const;

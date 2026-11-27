@@ -10,6 +10,8 @@ import { api } from '../../api/client';
 export function useOperatorQueue() {
   const me = useQuery({ queryKey: ['me'], queryFn: api.me });
   const operator = (me.data?.roles ?? []).includes('super_admin');
+  // Polled on purpose: the operator's items are the platform's, on no
+  // resident's or household's channel.
   const queue = useQuery({ queryKey: ['operator', 'queue'], queryFn: api.operatorQueue, enabled: operator, refetchInterval: 300_000 });
   return operator ? (queue.data?.open ?? []) : [];
 }

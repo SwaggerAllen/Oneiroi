@@ -52,6 +52,16 @@ defmodule OneiroiWeb.ResidentChannelTest do
     refute_push "needs_you", _again, 1_500
   end
 
+  # The witness, 2026-11-26: the succession's pages are pushed to, not
+  # polled; a change to it arrives as a notice on her channel.
+  test "a change to her succession arrives as a notice", ctx do
+    {:ok, _reply, _socket} = join_as(ctx.witness.id, ctx.resident.id)
+
+    {:ok, _} = Oneiroi.Janus.propose(ctx.resident.id, true, "a dry run", ctx.actor)
+
+    assert_push "notice", %{stream: "succession"}, 5_000
+  end
+
   test "another account cannot join", ctx do
     other = Fixtures.account!()
     assert {:error, %{reason: "not witnessed"}} = join_as(other.id, ctx.resident.id)

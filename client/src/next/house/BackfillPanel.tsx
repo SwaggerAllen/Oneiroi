@@ -39,6 +39,8 @@ function Panel({ overview: q }: { overview: QueueOverview }) {
       queryKey: statusKey(r.id),
       queryFn: () => api.backfill(r.id),
       // A job's place, not a record: read again while one runs.
+      // Polled on purpose, while one runs: its progress is its job's, in
+      // Oban, not an event in the log.
       refetchInterval: (query: { state: { data: unknown } }) => (query.state.data ? 30_000 : false),
     })),
   });

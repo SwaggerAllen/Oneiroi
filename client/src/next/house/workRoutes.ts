@@ -49,6 +49,12 @@ export function useWorkNav(): (path: string) => void {
   return (path: string) => setPage('queue', path);
 }
 
+/** Joins the caller's own household's channel (`house:mine`) while the page is up, for a page that does not hold its id. */
+export function useMyHouseLive() {
+  const live = useLive();
+  useEffect(() => (live ? live.house('mine') : undefined), [live]);
+}
+
 /** Joins the household's channel while the page is up (sunna#80, seshat#109); shared, never polled. */
 export function useHouseLive(householdId: string | null | undefined) {
   const live = useLive();

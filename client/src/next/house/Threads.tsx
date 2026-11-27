@@ -8,6 +8,7 @@ import { ScrollArea } from '../shell/ScrollArea';
 import { BEATS, HOUSE, SHELF, WORKING, thread as threadKey, when } from './keys';
 import * as css from './threads.css';
 import { useHouseLive } from './workRoutes';
+import { PUSHED_FALLBACK_MS } from '../live/notices';
 
 /**
  * The house's Chat (screen:next-house; the witness, 2026-11-16: "more like
@@ -42,7 +43,7 @@ export function Threads() {
   const unread = useQuery({ queryKey: ['unread'], queryFn: api.unread }).data?.house?.threads ?? {};
   // Who is in each thread's rounds (the witness, 2026-11-20: "an indicator
   // of who's still opted in to a thread"); nothing under the beats.
-  const rounds = useQuery({ queryKey: BEATS, queryFn: api.householdBeats, refetchInterval: 60_000 }).data?.round_threads ?? [];
+  const rounds = useQuery({ queryKey: BEATS, queryFn: api.householdBeats, refetchInterval: PUSHED_FALLBACK_MS }).data?.round_threads ?? [];
   const [open, setOpen] = useState<string | null>(null);
   const { scroll, list } = useStuckToBottom();
   // The shelf comes newest first; the conversation reads down to now.
@@ -98,6 +99,8 @@ export function Threads() {
  */
 function useWorking(): HouseWorking[] {
   const queries = useQueryClient();
+  // Polled on purpose: who is mid-turn is process state, not an event in
+  // the log, so no notice announces it.
   const q = useQuery({ queryKey: WORKING, queryFn: api.householdWorking, refetchInterval: 5_000 });
   const working = q.data?.working ?? EMPTY;
   const before = useRef<HouseWorking[]>([]);

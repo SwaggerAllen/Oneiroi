@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import { HOUSE_SUBJECT } from '../state/resident';
+import { PUSHED_FALLBACK_MS } from '../live/notices';
 
 /**
  * What the witness has not read, by workspace (gaia#58, seshat#96; the
@@ -8,7 +9,7 @@ import { HOUSE_SUBJECT } from '../state/resident';
  * chat, from the server's "seen up to" marks, so every device agrees.
  */
 export function useUnread() {
-  const q = useQuery({ queryKey: ['unread'], queryFn: api.unread, refetchInterval: 30_000 });
+  const q = useQuery({ queryKey: ['unread'], queryFn: api.unread, refetchInterval: PUSHED_FALLBACK_MS });
   const counts: Record<string, number> = {};
   for (const r of q.data?.residents ?? []) counts[r.id] = r.count;
   if (q.data?.house) counts[HOUSE_SUBJECT] = q.data.house.count;

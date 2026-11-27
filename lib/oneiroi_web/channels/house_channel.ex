@@ -14,9 +14,25 @@ defmodule OneiroiWeb.HouseChannel do
 
   # The household's streams a page here follows.
   # Its threads too (seshat#108): a thread written reads the shelf again.
-  @streams ["queue", "threads"]
+  # Its charter, members and beats (`household`) and its rounds too (the
+  # witness, 2026-11-26: pages are pushed to, not polled).
+  @streams ["queue", "threads", "household", "rounds"]
 
   @impl Phoenix.Channel
+  # `house:mine`, the caller's own household, for a page that does not
+  # hold its id.
+  def join("house:mine", params, socket) do
+    %Principal{account_id: account_id} = socket.assigns.principal
+
+    case Oneiroi.Gaia.household_of(Actor.new(:witness, account_id)) do
+      household_id when is_binary(household_id) ->
+        join("house:" <> household_id, params, socket)
+
+      _none ->
+        {:error, %{reason: "no household"}}
+    end
+  end
+
   def join("house:" <> household_id, _params, socket) do
     %Principal{account_id: account_id} = socket.assigns.principal
 

@@ -8,6 +8,8 @@ describe('notices', () => {
     expect(keysFor('r1', n('conversation-main'))).toEqual([
       ['resident', 'r1', 'chat'],
       ['resident', 'r1', 'sessions'],
+      ['resident', 'r1', 'capture-failures'],
+      ['unread'],
     ]);
     expect(keysFor('r1', n('journal'))).toEqual([['resident', 'r1', 'time']]);
   });
@@ -38,5 +40,18 @@ describe('notices', () => {
   it('reads the queue again for a queue notice, and the house and unread for a thread', () => {
     expect(houseKeys(n('queue'))).toEqual([['household', 'queue']]);
     expect(houseKeys(n('threads'))).toEqual([['household'], ['unread']]);
+  });
+
+  // The witness, 2026-11-26: pages are pushed to, not polled.
+  it('reads her succession pages again for a succession notice', () => {
+    expect(keysFor('r1', n('succession'))).toEqual([['resident', 'r1', 'succession']]);
+  });
+
+  it('reads the house again for its charter, and its beats and activity for a round', () => {
+    expect(houseKeys(n('household'))).toEqual([['household']]);
+    expect(houseKeys(n('rounds'))).toEqual([
+      ['household', 'beats'],
+      ['household', 'activity'],
+    ]);
   });
 });

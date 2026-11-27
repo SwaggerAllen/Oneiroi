@@ -168,6 +168,13 @@ The witness's rulings the screens hold to:
   (screen:next-bell-settings).
 - The shell: the deliberation's tab bar (screen:next-shell).
 
+## Live
+
+Every page of the succession reads again when a notice of it arrives on
+her channel (apsu#34, 2026-11-26: pages are pushed to, not polled); a
+five-minute read is the fallback for a dropped socket or a reader her
+channel does not reach.
+
 ## Not built
 
 - A stretch of a conversation chosen message by message, as the mock's
@@ -175,6 +182,4 @@ The witness's rulings the screens hold to:
   citation (the witness, 2026-11-26).
 - Her side shows her tools' names and purpose, not what they last said
   to her: no endpoint reads her tool output, and it is hers.
-- Change notices of the succession's own: its pages (and the chat
-  banner's words, from the bell's read) are read by polling.
 - Swiping between models on the Panel tab: a select instead.

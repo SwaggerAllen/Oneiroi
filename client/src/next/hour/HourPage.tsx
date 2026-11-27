@@ -10,6 +10,7 @@ import { bars, count, ms, unitName } from './hour';
  * under five read as "few". Open to anyone at #/hour.
  */
 export function HourPage() {
+  // Polled on purpose: the hour turns with the clock, not with an event.
   const hour = useQuery({ queryKey: ['hour'], queryFn: api.hour, refetchInterval: 60_000 });
   const h = hour.data;
   return (
