@@ -1007,3 +1007,6 @@ One list is where the witness looks for what waits on him; a succession's parts 
 
 ## #124
 A rest nobody sees is a stall; the bell is where the witness looks for what waits on him, and a stopped line waits on one of them.
+
+## #125
+A tool with nothing to act on is noise in every turn's context and an invitation to a refused call; the stage already knows which acts are possible, so her turns carry those. A catalog of hundreds read forty at a time, cheapest first, hides most of what she might want; searching it is how she finds her own.

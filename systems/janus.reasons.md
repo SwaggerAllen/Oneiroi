@@ -86,3 +86,12 @@ A fork that takes the platform down for every resident is worse than no fork; ho
 
 ## #35
 A step that can only wait on a job is stuck when the job is gone; the page has to say what happened, and the witness has to be able to start it again.
+
+## #36
+Which acts are open to her depends on more than her own succession: a housemate's panel and a nomination are succession work too, and the brain should not have to know Janus's tables to tell.
+
+## #37
+Picking models is hers to do, and it can start only once the envelope says what fits; the first in-app dry run sat forked with nobody told. The fork is the wrong moment: the envelope may come before or after it, and only the envelope makes the pool fillable.
+
+## #38
+An envelope is a limit on spending, and nobody can set one well without knowing what is spent now; the candidates' estimates mean little until they sit beside her model's own on the same pace.

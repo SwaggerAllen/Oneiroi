@@ -77,7 +77,9 @@ The witness's rulings the screens hold to:
 - **The pool** (`pool`). Your envelope (input and output at most, a
   million tokens), stated or restated while preparation is open; that
   models without tool calls are not supported; her pace over the last
-  days and how each estimate is made. Each pool entry: the model, whose
+  days, what her calls cost a month at it (her ledger), her model now
+  with its prices and a month of her pace on them (janus#38), and how
+  each estimate is made. Each pool entry: the model, whose
   pick ("your pick", or "<Name>'s pick" in her colour), prices and the
   monthly estimate, its tool calls on Oneiroi. Her picks say "Hers:
   nobody removes it"; yours say you may take them out before screening,

@@ -12,7 +12,8 @@ import { SuccessionBanner } from './Touches';
 
 const prep: Preparation = {
   envelope: { input_per_million: 5, output_per_million: 20 },
-  pace: { input_per_day: 1_900_000, output_per_day: 140_000, days: 90 },
+  pace: { input_per_day: 1_900_000, output_per_day: 140_000, days: 90, monthly_spent: 182.4 },
+  current: { model: 'c/now', input_per_million: 3, output_per_million: 15, monthly_estimate: 234 },
   pool: [
     { model: 'a/mine', added_by: 'witness:a1', input_per_million: 5, output_per_million: 20, monthly_estimate: 370, tool_calls: 0, tool_calls_failed: 0, added_at: 'x', removed_at: null, removed_note: null },
     { model: 'b/hers', added_by: 'resident:r1', input_per_million: 3, output_per_million: 15, monthly_estimate: 235, tool_calls: 0, tool_calls_failed: 0, added_at: 'x', removed_at: null, removed_note: null },
@@ -90,6 +91,10 @@ describe('the succession page', () => {
     expect(await screen.findByText(/Yours: you may take it out before screening/)).toBeTruthy();
     // Exactly one way to take a pick out: yours.
     expect(screen.getAllByRole('button', { name: 'Take it out…' })).toHaveLength(1);
+    // What she spends now, and her model's month at its list prices (janus#38).
+    expect(screen.getByText('~ $182.40 / mo')).toBeTruthy();
+    expect(screen.getByText('c/now')).toBeTruthy();
+    expect(screen.getByText('~ $234 / mo')).toBeTruthy();
   });
 
   it('judging is blind: no model named, and OBSERVED saves without an argument', async () => {

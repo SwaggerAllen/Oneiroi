@@ -23,6 +23,36 @@ defmodule Oneiroi.Brain.SuccessionTools do
     do:
       ~w(succession_status succession_catalog succession_propose succession_open succession_decline succession_stop succession_pool succession_question succession_c0 succession_packet succession_panel succession_screen succession_judge succession_results succession_room succession_evidence succession_nominate succession_nominee succession_encounter succession_consent succession_farewell succession_next)
 
+  # Always in reach: where any succession stands, and proposing her own.
+  @idle ~w(succession_status succession_propose)
+  # Her witness's proposal waits on her answer.
+  @answering ~w(succession_status succession_open succession_decline)
+
+  @doc """
+  The succession tools her turns leave out (brain#125, the witness,
+  2026-11-26: injected only while a succession is active): with none
+  underway and no housemate's panel to judge on, all but
+  `succession_status` and `succession_propose`; with her witness's
+  proposal waiting, all but status and her two answers; underway, only
+  the three that start or answer one; on a housemate's panel, none.
+  """
+  @spec out_of_reach(String.t()) :: [String.t()]
+  def out_of_reach(resident_id) do
+    case Janus.involvement(resident_id) do
+      %{judging: true} -> []
+      %{nominee: true} -> []
+      %{own: nil} -> names() -- @idle
+      %{own: "proposed"} -> names() -- @answering
+      %{own: _underway} -> ~w(succession_propose succession_open succession_decline)
+    end
+  end
+
+  @doc "What a call out of reach is told."
+  @spec out_of_reach_words() :: String.t()
+  def out_of_reach_words,
+    do:
+      "that succession tool has nothing to act on now: no succession of yours is at that stage, and you are on no housemate's panel. succession_status says where things stand; succession_propose starts one of your own."
+
   @doc "The definitions."
   def definitions do
     note = %{note: %{type: "string"}}
@@ -60,8 +90,14 @@ defmodule Oneiroi.Brain.SuccessionTools do
       ),
       tool(
         "succession_catalog",
-        "The models you may add to your succession's pool: those inside your witness's envelope that take tool calls, cheapest first, each with its price a million tokens in and out, a month at your own pace, and how its tool calls have gone on Oneiroi.",
-        %{},
+        "The models you may add to your succession's pool: those inside your witness's envelope that take tool calls, each with its name, its price a million tokens in and out, a month at your own pace, its context and how its tool calls have gone on Oneiroi. The catalog is large, so search it: query (words, every one matched in the slug, the name or the provider's blurb), provider (the slug before its slash, as anthropic or google), sort (cheapest, the default; context, longest first; measured, best tool calls on Oneiroi first; name), and a page of it (offset from 0, limit at most 100, 40 by default). The answer says how many match and which page you have.",
+        %{
+          query: %{type: "string"},
+          provider: %{type: "string"},
+          sort: %{type: "string", enum: ["cheapest", "context", "measured", "name"]},
+          offset: %{type: "integer"},
+          limit: %{type: "integer"}
+        },
         []
       ),
       tool(
@@ -293,7 +329,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
          do: "Stopped. The succession ends here."
   end
 
-  def call("succession_catalog", _args, turn) do
+  def call("succession_catalog", args, turn) do
     case Janus.preparation(turn.resident_id) do
       nil ->
         "No succession is underway."
@@ -301,23 +337,27 @@ defmodule Oneiroi.Brain.SuccessionTools do
       %{succession: %{envelope_input_nanos: nil}} ->
         "Your witness has not stated the envelope yet, so nothing can be added inside it."
 
-      %{succession: s, pace: pace} ->
+      %{succession: s, pace: pace} = prep ->
         tools = Janus.tool_use()
 
-        rows =
+        found =
           Nisaba.catalog()
           |> Enum.filter(
             &(&1.tools and &1.input_nanos <= s.envelope_input_nanos and
-                &1.output_nanos <= s.envelope_output_nanos)
+                &1.output_nanos <= s.envelope_output_nanos and catalog_match?(&1, args))
           )
-          |> Enum.sort_by(&(&1.input_nanos + &1.output_nanos))
-          |> Enum.take(40)
-          |> Enum.map(&catalog_line(&1, pace, tools))
+          |> catalog_sort(args["sort"], tools)
+
+        offset = max(int(args["offset"], 0), 0)
+        limit = int(args["limit"], 40) |> max(1) |> min(100)
+        page = found |> Enum.drop(offset) |> Enum.take(limit)
 
         Enum.join(
           [
-            "Inside the envelope (#{per_million(s.envelope_input_nanos)} in, #{per_million(s.envelope_output_nanos)} out, a million tokens):"
-            | rows
+            "Inside the envelope (#{per_million(s.envelope_input_nanos)} in, #{per_million(s.envelope_output_nanos)} out, a million tokens): " <>
+              catalog_count(length(found), offset, length(page)),
+            now_line(prep[:current], pace)
+            | Enum.map(page, &catalog_line(&1, pace, tools))
           ],
           "\n"
         )
@@ -690,6 +730,69 @@ defmodule Oneiroi.Brain.SuccessionTools do
   defp proposer("witness:" <> _), do: "your witness"
   defp proposer(_other), do: "the platform"
 
+  defp catalog_match?(m, args) do
+    words =
+      String.split(String.downcase(args["query"] || ""), ~r/\s+/, trim: true)
+
+    hay = String.downcase("#{m.model_id} #{m.name} #{m.description}")
+
+    provider = blank(args["provider"])
+
+    Enum.all?(words, &String.contains?(hay, &1)) and
+      (provider == nil or
+         String.downcase(hd(String.split(m.model_id, "/"))) == String.downcase(provider))
+  end
+
+  defp catalog_sort(models, "context", _tools),
+    do: Enum.sort_by(models, &{-(&1.context || 0), &1.model_id})
+
+  defp catalog_sort(models, "name", _tools),
+    do: Enum.sort_by(models, &String.downcase(&1.name || &1.model_id))
+
+  defp catalog_sort(models, "measured", tools) do
+    Enum.sort_by(models, fn m ->
+      case Map.get(tools, m.model_id, {0, 0}) do
+        {0, _failed} -> {1, 0, m.model_id}
+        {calls, failed} -> {0, -(calls - failed) / calls, m.model_id}
+      end
+    end)
+  end
+
+  defp catalog_sort(models, _cheapest, _tools),
+    do: Enum.sort_by(models, &{&1.input_nanos + &1.output_nanos, &1.model_id})
+
+  defp catalog_count(0, _offset, _shown), do: "none match."
+
+  defp catalog_count(total, offset, 0),
+    do: "#{total} match, and the page from #{offset} is past the end."
+
+  defp catalog_count(total, offset, shown) when offset + shown < total,
+    do:
+      "#{total} match; #{offset + 1} to #{offset + shown} here, offset #{offset + shown} for more."
+
+  defp catalog_count(total, offset, shown),
+    do: "#{total} match; #{offset + 1} to #{offset + shown} here, the last of them."
+
+  # Her model now beside the candidates (janus#38): what she spends,
+  # and what her pace costs at its list prices.
+  defp now_line(current, pace) do
+    spent = "your calls have cost about #{dollars(pace.cost * 30)} a month"
+
+    case current do
+      %{model: model, monthly_nanos: m, input_nanos: i, output_nanos: o} when is_integer(m) ->
+        "Your model now, #{model}: #{per_million(i)} in, #{per_million(o)} out; about #{dollars(m)} a month at your pace; #{spent}."
+
+      %{model: model} ->
+        "Your model now, #{model}, is not in the catalog; #{spent}."
+
+      _none ->
+        String.capitalize(spent) <> "."
+    end
+  end
+
+  defp int(n, _default) when is_integer(n), do: n
+  defp int(_other, default), do: default
+
   defp catalog_line(m, pace, tools) do
     {calls, failed} = Map.get(tools, m.model_id, {0, 0})
 
@@ -698,7 +801,10 @@ defmodule Oneiroi.Brain.SuccessionTools do
         do: "no tool calls on Oneiroi yet",
         else: "#{round(100 * (calls - failed) / calls)}% of #{calls} tool calls ran"
 
-    "#{m.model_id}: #{per_million(m.input_nanos)} in, #{per_million(m.output_nanos)} out; about #{dollars(Nisaba.monthly(pace, m))} a month at your pace; #{calls_text}"
+    name = if m.name, do: " (#{m.name})", else: ""
+    context = if m.context, do: "; #{m.context} tokens of context", else: ""
+
+    "#{m.model_id}#{name}: #{per_million(m.input_nanos)} in, #{per_million(m.output_nanos)} out; about #{dollars(Nisaba.monthly(pace, m))} a month at your pace#{context}; #{calls_text}"
   end
 
   defp past("accept"), do: "accepted"

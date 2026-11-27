@@ -1132,7 +1132,10 @@ export interface C0Item {
 
 export interface Preparation {
   envelope: { input_per_million: number; output_per_million: number } | null;
-  pace: { input_per_day: number; output_per_day: number; days: number };
+  /** Her tokens a day on average, and what her calls cost a month at that pace, as the ledger recorded it. */
+  pace: { input_per_day: number; output_per_day: number; days: number; monthly_spent: number };
+  /** Her model now at its list prices, and a month of her pace on it; prices null when the catalog does not list it (janus#38). */
+  current: { model: string; input_per_million: number | null; output_per_million: number | null; monthly_estimate: number | null } | null;
   pool: PoolEntry[];
   questions: SuccessionQuestion[];
   c0: C0Item[];

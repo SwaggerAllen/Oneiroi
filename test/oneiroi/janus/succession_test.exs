@@ -195,6 +195,56 @@ defmodule Oneiroi.Janus.SuccessionTest do
     assert %{state: "stopped"} = Janus.succession(ctx.id)
   end
 
+  test "her succession tools are in reach by stage, and the envelope wakes her to pick models",
+       ctx do
+    reach = fn ->
+      Enum.sort(
+        for %{function: %{name: "succession_" <> _ = n}} <- Tools.definitions_for(ctx.id),
+            do: n
+      )
+    end
+
+    # None underway: where it stands, and proposing one (brain#125).
+    assert reach.() == ["succession_propose", "succession_status"]
+    assert tool(ctx, "succession_catalog", %{}) =~ "nothing to act on now"
+
+    # His proposal waits on her: her two answers.
+    {:ok, _} = Janus.propose(ctx.id, false, "if you want it", ctx.andrew)
+    assert reach.() == ["succession_decline", "succession_open", "succession_status"]
+
+    # Underway: every tool but the three that start or answer one.
+    assert tool(ctx, "succession_open", %{note: "yes"}) =~ "is open"
+    assert "succession_catalog" in reach.() and "succession_pool" in reach.()
+    refute "succession_open" in reach.() or "succession_propose" in reach.()
+
+    drain()
+    assert %{state: "forked"} = Janus.succession(ctx.id)
+
+    # The envelope stated wakes her to pick inside it (janus#37).
+    wakes = fn ->
+      Oneiroi.Scope.platform(fn ->
+        Oneiroi.Repo.all(
+          from(j in Oban.Job,
+            where:
+              j.worker == "Oneiroi.Janus.WakeWorker" and
+                fragment("?->>'note' LIKE '%stated your succession''s envelope%'", j.args),
+            select: j.args["note"]
+          )
+        )
+      end)
+    end
+
+    assert wakes.() == []
+    :ok = Janus.set_envelope(ctx.id, 5_000, 20_000, ctx.andrew)
+    assert [note] = wakes.()
+    assert note =~ "at most $5.00 a million tokens in and $20.00 out"
+    assert note =~ "succession_catalog" and note =~ "succession_pool"
+    assert note =~ "rounds_extend"
+
+    assert tool(ctx, "succession_stop", %{note: "enough"}) =~ "Stopped"
+    assert reach.() == ["succession_propose", "succession_status"]
+  end
+
   test "her own proposal is her yes; nothing of it is exported", ctx do
     assert tool(ctx, "succession_propose", %{note: "I want to try", dry_run: true}) =~
              "open as a dry run"

@@ -633,6 +633,14 @@ defmodule Oneiroi.Janus do
   @spec panel(String.t()) :: list()
   defexport(panel(resident_id), do: Successions.panel(resident_id))
 
+  @doc "Where a resident stands in any succession: her own underway, a housemate's panel, a fork's nomination (janus#36)."
+  @spec involvement(String.t()) :: %{
+          own: String.t() | nil,
+          judging: boolean(),
+          nominee: boolean()
+        }
+  defexport(involvement(resident_id), do: Successions.involvement(resident_id))
+
   @doc "Whose succession an actor means: her own, or a housemate's by name."
   @spec subject(Oneiroi.Actor.t(), String.t() | nil) :: String.t() | nil
   defexport(subject(actor, name), do: Successions.subject(actor, name))
