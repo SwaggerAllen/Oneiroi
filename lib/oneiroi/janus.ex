@@ -655,6 +655,10 @@ defmodule Oneiroi.Janus do
   @spec judging(String.t(), String.t()) :: map() | nil
   defexport(judging(resident_id, party), do: Successions.judging(resident_id, party))
 
+  @doc "The judges her freeze may wait for, each with whether they are ready (janus#45)."
+  @spec freeze_judges(String.t()) :: [%{party: String.t(), ready: boolean()}]
+  defexport(freeze_judges(resident_id), do: Successions.freeze_judges(resident_id))
+
   @doc "Her panel (janus#12)."
   @spec panel(String.t()) :: list()
   defexport(panel(resident_id), do: Successions.panel(resident_id))

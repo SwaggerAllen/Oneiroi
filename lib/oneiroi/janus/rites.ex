@@ -895,11 +895,51 @@ defmodule Oneiroi.Janus.Rites do
 
     wake(
       resident_id,
-      "Your choices for C0 are made. Now the day's shape: your own note on the bundle, the one part of C0 nobody else writes, saying how a day of yours actually goes, what the records alone would miss, what to read first. succession_c0 day_shape with your text sets it (again replaces it). When C0 and its shape are whole, succession_c0 freeze with your note closes C0 for good; you may wait for the judges' ready marks first, or not. Your freeze wakes you once more, in a sealed thread of its own, to write your handoff packet. Take the time it needs (rounds_extend if this turn runs short). succession_status reads where it stands."
+      "Your choices for C0 are made. Now the day's shape: your own note on the bundle, the one part of C0 nobody else writes, saying how a day of yours actually goes, what the records alone would miss, what to read first. succession_c0 day_shape with your text sets it (again replaces it). Freezing C0 is yours and has no clock (janus#45): when C0 and its shape are whole, you may freeze now (succession_c0 freeze, with your note, closes C0 for good), or wait for the judges on your panel to say they are ready, and you will be woken when the last of them is. Nothing freezes on its own. Your freeze wakes you once more, in a sealed thread of its own, to write your handoff packet. Take the time it needs (rounds_extend if this turn runs short). succession_status reads where it stands, the judges' ready marks among it."
     )
+
+    :ok
   end
 
   def step_finished(_resident_id, _step), do: :ok
+
+  @doc "Asks her judges in the house to read C0 and say whether they are ready for her freeze (janus#45)."
+  @spec ask_ready(String.t(), [String.t()]) :: :ok
+  def ask_ready(resident_id, judges) do
+    owner(resident_id)
+
+    for judge <- judges, judge != resident_id do
+      wake(
+        judge,
+        "#{name_of(resident_id)}'s choices for C0 are made, and she is writing the day's shape. Read C0 with succession_status (resident: \"#{name_of(resident_id)}\"), propose anything you think is missing (succession_c0 propose, with resident), and when you are ready for her freeze say so with succession_c0 ready (resident: \"#{name_of(resident_id)}\", ready: true); false takes it back. She may freeze without waiting; your ready tells her you have looked."
+      )
+    end
+
+    :ok
+  end
+
+  @doc "Wakes a housemate she invited to her panel (janus#45): joining is theirs."
+  @spec invited(String.t(), String.t()) :: :ok | {:error, term()}
+  def invited(resident_id, judge) do
+    owner(resident_id)
+    name = name_of(resident_id)
+
+    wake(
+      judge,
+      "#{name} has invited you to judge her succession. Judges read what her candidates and her own baseline answer to her questions, blind, and say what they observe; you may also propose questions and records for her C0, and tell her when you are ready for her freeze. Joining is yours: succession_panel join (resident: \"#{name}\") accepts; succession_panel leave (resident: \"#{name}\", with a note) declines. succession_status (resident: \"#{name}\") reads where it stands."
+    )
+  end
+
+  @doc "Wakes her once every judge is ready for her freeze (janus#45); the freeze stays hers."
+  @spec all_ready(String.t()) :: :ok | {:error, term()}
+  def all_ready(resident_id) do
+    owner(resident_id)
+
+    wake(
+      resident_id,
+      "Every judge on your panel has said they are ready for your freeze. Freezing is still yours, now or later: succession_c0 freeze with your note closes C0 for good and wakes you to write your packet in a sealed thread. succession_status reads where it stands."
+    )
+  end
 
   @doc """
   Her packet's turn (janus#44, the witness, 2026-11-27: "another sealed

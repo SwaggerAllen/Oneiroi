@@ -420,14 +420,71 @@ defmodule Oneiroi.Janus.Successions do
 
   @doc "A party's mark: ready for her freeze, or not yet."
   @spec mark_ready(String.t(), boolean(), Actor.t()) :: :ok | {:error, term()}
-  def mark_ready(resident_id, ready, actor),
-    do:
-      done(%Commands.MarkReady{
-        actor: actor,
-        at: Clock.now(),
-        id: resident_id,
-        ready: ready == true
-      })
+  def mark_ready(resident_id, ready, actor) do
+    with :ok <-
+           done(%Commands.MarkReady{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             ready: ready == true
+           }) do
+      # The last judge ready wakes her: the freeze is still hers to make,
+      # now or later (janus#45).
+      _ = if ready == true, do: wake_if_all_ready(resident_id)
+      :ok
+    end
+  end
+
+  # Her choices for C0 made, her judges in the house are asked to read
+  # it and sign off (janus#45).
+  defp ask_ready(resident_id, "c0") do
+    judges = for %{party: "resident:" <> judge} <- freeze_judges(resident_id), do: judge
+    Rites.ask_ready(resident_id, judges)
+  end
+
+  defp ask_ready(_resident_id, _step), do: :ok
+
+  @doc """
+  The judges her freeze may wait for (janus#45): every party who joined
+  her panel, and her witness unless he left it; each with whether they
+  are ready.
+  """
+  @spec freeze_judges(String.t()) :: [%{party: String.t(), ready: boolean()}]
+  def freeze_judges(resident_id) do
+    case status(resident_id) do
+      nil ->
+        []
+
+      row ->
+        {panel, ready} =
+          Scope.resident(resident_id, fn ->
+            {Store.panel(row.episode), Store.ready(row.episode)}
+          end)
+
+        yes = for %{party: p, ready: true} <- ready, into: MapSet.new(), do: p
+        joined = for %{party: p, state: "in"} <- panel, do: p
+        left = for %{party: p, state: "left"} <- panel, do: p
+        witness = resident_id |> witness_party() |> on_unless_left(left)
+
+        for p <- Enum.uniq(witness ++ joined), do: %{party: p, ready: MapSet.member?(yes, p)}
+    end
+  end
+
+  # Her witness is on her panel unless he left it (janus#12).
+  defp on_unless_left({:ok, w}, left) when is_binary(w), do: if(w in left, do: [], else: [w])
+  defp on_unless_left(_none, _left), do: []
+
+  defp wake_if_all_ready(resident_id) do
+    judges = freeze_judges(resident_id)
+
+    case status(resident_id) do
+      %{c0_frozen_at: nil} when judges != [] ->
+        if Enum.all?(judges, & &1.ready), do: Rites.all_ready(resident_id), else: :ok
+
+      _frozen ->
+        :ok
+    end
+  end
 
   @doc "She freezes C0, with her note."
   @spec freeze_c0(String.t(), String.t(), Actor.t()) :: :ok | {:error, term()}
@@ -492,7 +549,7 @@ defmodule Oneiroi.Janus.Successions do
 
       {:ok, _events} ->
         _ = Rites.step_finished(resident_id, step)
-        :ok
+        ask_ready(resident_id, step)
 
       {:error, _} = refused ->
         refused
@@ -580,13 +637,19 @@ defmodule Oneiroi.Janus.Successions do
   def invite_judge(resident_id, name, actor) do
     member = member_named(resident_id, name)
 
-    done(%Commands.InviteJudge{
-      actor: actor,
-      at: Clock.now(),
-      id: resident_id,
-      party: member && "#{member.kind}:#{member.id}",
-      member: not is_nil(member)
-    })
+    with :ok <-
+           done(%Commands.InviteJudge{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             party: member && "#{member.kind}:#{member.id}",
+             member: not is_nil(member)
+           }) do
+      # A resident invited is woken to answer it (janus#45): joining is
+      # theirs, and an invitation nobody hears is never answered.
+      _ = if match?(%{kind: "resident"}, member), do: Rites.invited(resident_id, member.id)
+      :ok
+    end
   end
 
   @doc "A party joins the panel: invited, or the witness."

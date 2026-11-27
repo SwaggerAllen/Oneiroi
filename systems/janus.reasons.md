@@ -110,3 +110,6 @@ One wake that names every part of preparation asks her to do it all in one turn,
 
 ## #44
 The day's shape is the one part of C0 only she writes, and it reads best once the choices are made; the packet is sealed, so its turn has to be too, and spending her free time on a succession chore would take from what free time is for.
+
+## #45
+Waiting for the judges was always meant to be her choice; a choice she is never told she can make, and judges never told they are asked, is no choice at all. An invitation nobody hears cannot be accepted, and a sign-off on a C0 the judge cannot read means nothing.

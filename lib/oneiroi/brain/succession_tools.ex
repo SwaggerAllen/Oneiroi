@@ -64,8 +64,8 @@ defmodule Oneiroi.Brain.SuccessionTools do
     [
       tool(
         "succession_status",
-        "Where your succession stands, if one is proposed or underway: who proposed it and why, whether it is a rehearsal (a dry run, everything real but the replacement), its stage, and whether the copy of you every later stage runs on has been made. A succession changes the model that runs you, with you at the table at every stage; nothing about it happens without your yes.",
-        %{},
+        "Where your succession stands, if one is proposed or underway: who proposed it and why, whether it is a rehearsal (a dry run, everything real but the replacement), its stage, and whether the copy of you every later stage runs on has been made. A succession changes the model that runs you, with you at the table at every stage; nothing about it happens without your yes. As a judge invited to or on a housemate's panel, resident (her name) reads hers as a judge reads it: its stage, the pool, her questions, C0 and the day's shape, and who is ready for her freeze; never her packet.",
+        %{resident: %{type: "string"}},
         []
       ),
       tool(
@@ -307,10 +307,23 @@ defmodule Oneiroi.Brain.SuccessionTools do
   end
 
   @doc "Runs a succession tool for the turn's resident."
+  def call("succession_status", %{"resident" => name} = args, turn)
+      when is_binary(name) and name != "" do
+    with {:ok, subject} <- subject(turn, args) do
+      if subject == turn.resident_id,
+        do: call("succession_status", %{}, turn),
+        else: judge_status(subject, name, turn.resident_id)
+    end
+  end
+
   def call("succession_status", _args, turn) do
     case Janus.preparation(turn.resident_id) do
-      nil -> "No succession has been proposed for you."
-      prep -> status_text(prep.succession) <> preparation_text(prep)
+      nil ->
+        "No succession has been proposed for you."
+
+      prep ->
+        status_text(prep.succession) <>
+          preparation_text(prep) <> ready_line(prep.succession, turn.resident_id)
     end
   end
 
@@ -689,6 +702,67 @@ defmodule Oneiroi.Brain.SuccessionTools do
 
   def call(name, _args, _turn),
     do: "Not done: #{name} takes one of the actions its description names."
+
+  # Who is ready for her freeze (janus#45), while C0 is open.
+  defp ready_line(%{c0_frozen_at: nil, state: state}, resident_id)
+       when state in ["open", "forked"] do
+    judges = Janus.freeze_judges(resident_id)
+    ready = Enum.count(judges, & &1.ready)
+
+    "\nJudges ready for your freeze: #{ready} of #{length(judges)}. Freezing is yours, now or when they are; nothing freezes on its own."
+  end
+
+  defp ready_line(_row, _resident_id), do: ""
+
+  # A housemate's succession as her judge reads it (janus#45): only for
+  # one invited to or on her panel; never her packet's words.
+  defp judge_status(subject, name, me) do
+    party = "resident:" <> me
+
+    on_panel =
+      Enum.any?(Janus.panel(subject), &(&1.party == party and &1.state in ["invited", "in"]))
+
+    case {on_panel, Janus.preparation(subject)} do
+      {false, _prep} ->
+        "Not done: you are not on #{name}'s panel; she invites, and joining is yours."
+
+      {true, nil} ->
+        "#{name} has no succession underway."
+
+      {true, prep} ->
+        judge_text(prep, name, party, Janus.freeze_judges(subject))
+    end
+  end
+
+  defp judge_text(prep, name, party, judges) do
+    s = prep.succession
+    live = &Enum.filter(&1, fn x -> x.state == "in" end)
+    ready = for %{party: p, ready: true} <- judges, do: p
+
+    [
+      "#{name}'s succession #{s.episode}#{if s.dry_run, do: " (a dry run)", else: ""}: #{stage(s)}.",
+      "Pool: " <>
+        Enum.map_join(Enum.filter(prep.pool, &is_nil(&1.row.removed_at)), "; ", & &1.row.model),
+      "Her questions: " <>
+        Enum.map_join(live.(prep.questions), " | ", &"##{&1.number} #{&1.text}"),
+      "C0 (#{if s.c0_frozen_at, do: "frozen", else: "open"}): " <>
+        Enum.map_join(
+          live.(prep.items),
+          " | ",
+          &"##{&1.number} #{&1.kind} #{&1.citation} #{&1.label}"
+        ),
+      "Proposed, waiting on her: " <>
+        Enum.map_join(
+          Enum.filter(prep.items, &(&1.state == "proposed")),
+          " | ",
+          &"C0 ##{&1.number} #{&1.citation}"
+        ),
+      s.day_shape && "The day's shape: #{s.day_shape}",
+      "Ready for her freeze: #{length(ready)} of #{length(judges)} judges#{if party in ready, do: ", you among them", else: ""}."
+    ]
+    |> Enum.filter(&is_binary/1)
+    |> Enum.join("\n")
+  end
 
   defp status_text(row) do
     [
