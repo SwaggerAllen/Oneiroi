@@ -309,8 +309,10 @@ history and edit stay theirs).
   last one and whose, "also in the house" when her document is shared
   there; it opens the thread) and, when a review of this document is open
   for you, "<name> is yours" with **Review**: what approving lets happen,
-  a note (it posts to the thread, seshat#110), **Approve**, **Ask for
-  changes**, **Decline**; a refusal goes back to the template's
+  "Reviewing the revision at <sha>" (the context's revision, which an
+  approval names as its pin, sunna#110), a note (it posts to the thread,
+  seshat#110), **Approve** (off, with why, when no revision can be read),
+  **Ask for changes**, **Decline**; a refusal goes back to the template's
   throwback.
 - **The thread sheet:** the document's one thread as bubbles, yours on
   the right, hers (or another member's) on the left, the platform's lines

@@ -475,6 +475,10 @@ defmodule Oneiroi.SimaQian do
       )
   )
 
+  @doc "The resident's repository's head commit (sunna#110): what a review of her document reads."
+  @spec repository_head(String.t()) :: {:ok, String.t()} | {:error, term()}
+  defexport(repository_head(resident_id), do: Repos.head({:resident, resident_id}))
+
   @doc "The resident's repository at its head, `%{path => sha}` (sima-qian#57)."
   @spec repository_files(String.t()) :: {:ok, %{String.t() => String.t()}} | {:error, term()}
   defexport(repository_files(resident_id), do: Repos.snapshot({:resident, resident_id}))

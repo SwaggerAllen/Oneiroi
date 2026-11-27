@@ -689,3 +689,6 @@ Two spellings of one file are one file: the library resolves them alike, so the 
 
 ## #109
 A stop is a person ending something; the record of it belongs where the work is read, and the decision to start again belongs to a person too. A rest that only a retired list could clear was a rest nothing could clear, so it is cleared by an act of its own, on the bell where the witness already looks. Who stopped stays off the house's record: her safe word is hers to use with no reason owed, and the house needs only to know the step stopped.
+
+## #110
+The pin rule makes an approval mean "this revision", and the screen is where the reviewer read it; a screen that never says which revision it showed leaves every approval refused, and the only honest pin is the one the screen displayed.
