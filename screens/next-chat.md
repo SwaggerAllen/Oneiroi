@@ -17,9 +17,9 @@ The rebuilt client's Chat tab (`design/ui-build.md` P1), at
   narrow screen, never hidden), and "Back to the succession ›". When the
   bell holds a succession entry for you (2026-11-26), its few words ("4
   to judge", "Your turn", "Your goodbye") sit beside the link in an amber
-  chip that gives way first when the line is short, and the banner opens
-  that entry's page; otherwise it opens the farewell page during the
-  farewell, else the steps. Goodbyes are said here, in her ordinary
+  chip that gives way first when the line is short. The banner always
+  opens the succession's overview (the witness, 2026-11-26: the witness
+  goes on from there, the whole process in view). Goodbyes are said here, in her ordinary
   chat; nothing else about the chat changes.
 - **Conversation:**
   - The main session's newest page is read from the query cache, so a

@@ -19,7 +19,7 @@ import { successionKey, usePartyName, useSuccession } from './hooks';
  * Her chat's banner while a succession is underway: its words follow the
  * state, a dry run is marked, and it leads back. When something of the
  * succession waits on you (the bell's first succession entry), its few
- * words show beside the way back, which then opens that page.
+ * words show beside the way back, which always opens the overview.
  */
 export function SuccessionBanner() {
   const { id, name, kind } = useSubject();
@@ -30,9 +30,10 @@ export function SuccessionBanner() {
   const s = q.data?.succession;
   if (!underway(s)) return null;
   const need = (bell.data ?? []).find(isSuccessionNeed);
-  const page = need?.about.page ?? (s.state === 'farewell' ? 'farewell' : '');
+  // Always the overview (the witness, 2026-11-26): the witness goes on
+  // from there, the whole process in view.
   return (
-    <button type="button" className={css.banner} onClick={() => setPage('succession', page)}>
+    <button type="button" className={css.banner} onClick={() => setPage('succession', '')}>
       <span className={css.bannerBody}>
         <span className={css.bannerHead}>
           <span>Succession · {stateWords(s, name)}</span>

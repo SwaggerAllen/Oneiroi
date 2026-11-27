@@ -1,3 +1,4 @@
+import { useCallback } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api } from '../../api/client';
 import type { Party } from '../../api/types';
@@ -39,7 +40,8 @@ export function usePartyName() {
 /** Opens a page of the succession: `''` its steps, else `pool`, `judge/12`, … */
 export function useGo() {
   const setPage = useShell((s) => s.setPage);
-  return (path: string) => setPage('succession', path);
+  // Stable, so an effect that leaves a shut page runs once (2026-11-26).
+  return useCallback((path: string) => setPage('succession', path), [setPage]);
 }
 
 export const STEP_CHIP: Record<StepKind, 'ok' | 'now' | 'muted'> = { done: 'ok', now: 'now', waits: 'muted', stopped: 'muted' };

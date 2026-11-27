@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import type { Succession } from '../../api/types';
 import * as settingsCss from '../settings/settings.css';
 import * as css from './succession.css';
+import { useGo } from './hooks';
 
 export function Chip({ kind, children }: { kind: keyof typeof css.chip; children: ReactNode }) {
   return <span className={css.chip[kind]}>{children}</span>;
@@ -31,12 +32,21 @@ export function DryMark({ s }: { s: Succession | null | undefined }) {
  * page has it: back to where it came from, the title with the dry-run
  * mark beside it, and its lede.
  */
-export function PageHead({ title, lede, back, s }: { title: string; lede?: ReactNode; back: () => void; s: Succession | null | undefined }) {
+export function PageHead({ title, lede, back, s, home = true }: { title: string; lede?: ReactNode; back: () => void; s: Succession | null | undefined; home?: boolean }) {
+  const go = useGo();
   return (
     <>
-      <button type="button" className={settingsCss.back} onClick={back}>
-        ‹ Back
-      </button>
+      {/* Back, and opposite it the overview from any page (the witness, 2026-11-26: keep the process in view). */}
+      <div className={css.row}>
+        <button type="button" className={settingsCss.back} onClick={back}>
+          ‹ Back
+        </button>
+        {home && (
+          <button type="button" className={settingsCss.back} onClick={() => go('')}>
+            Succession home
+          </button>
+        )}
+      </div>
       <div className={css.head}>
         <h1 className={settingsCss.title}>{title}</h1>
         <DryMark s={s} />

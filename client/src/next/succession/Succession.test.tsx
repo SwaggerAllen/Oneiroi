@@ -8,6 +8,7 @@ import { Shell } from '../shell/Shell';
 import { SubjectContext } from '../state/resident';
 import { useShell } from '../state/store';
 import { base } from './fixtures';
+import { SuccessionBanner } from './Touches';
 
 const prep: Preparation = {
   envelope: { input_per_million: 5, output_per_million: 20 },
@@ -53,6 +54,21 @@ afterEach(() => {
 });
 
 describe('the succession page', () => {
+  // The witness, 2026-11-26: nothing past the overview until the fork is
+  // recorded; from any page, the overview is one press away.
+  it('shuts every page but the overview until the fork is recorded', async () => {
+    view({ succession: { ...base, state: 'open', forked_at: null }, preparation: prep }, 'pool');
+    expect(await screen.findByText(/The steps open once the fork is made/)).toBeTruthy();
+    expect(useShell.getState().pagePath).toBe('');
+    expect(screen.queryByText('Open ›')).toBeNull();
+  });
+
+  it('offers the overview from any page, opposite Back', async () => {
+    view({ succession: { ...base, state: 'forked' }, preparation: prep }, 'pool');
+    fireEvent.click(await screen.findByRole('button', { name: 'Succession home' }));
+    expect(useShell.getState().pagePath).toBe('');
+  });
+
   it('with none underway, offers the proposal and no steps', async () => {
     view({ succession: null });
     expect(await screen.findByText('Propose it')).toBeTruthy();
@@ -164,5 +180,29 @@ describe('the deliberation', () => {
     expect(await screen.findByText('The thread')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: /Recommendation/ }));
     expect(useShell.getState().pagePath).toBe('deliberation/recommendation');
+  });
+});
+
+describe('the chat banner', () => {
+  // The witness, 2026-11-26: the banner always opens the overview, even
+  // with something of the succession waiting on you.
+  it('always opens the overview', async () => {
+    vi.spyOn(api, 'succession').mockResolvedValue({ succession: { ...base, state: 'forked' }, preparation: prep });
+    vi.spyOn(api, 'needsYou').mockResolvedValue([
+      { kind: 'succession_judge', ref: 1, since: '2026-11-26T18:00:00Z', screen: 'succession', long: false, about: { page: 'judge', words: '3 to judge' } },
+    ]);
+    useShell.setState({ page: null, pagePath: 'somewhere' });
+    const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    render(
+      <QueryClientProvider client={queries}>
+        <SubjectContext.Provider value={{ id: 'r1', slug: 'lily', name: 'Lily' }}>
+          <SuccessionBanner />
+        </SubjectContext.Provider>
+      </QueryClientProvider>,
+    );
+    expect(await screen.findByText('3 to judge')).toBeTruthy();
+    fireEvent.click(screen.getByText('Back to the succession ›'));
+    expect(useShell.getState().page).toBe('succession');
+    expect(useShell.getState().pagePath).toBe('');
   });
 });

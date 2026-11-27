@@ -1,9 +1,10 @@
+import { useEffect } from 'react';
 import * as settingsCss from '../settings/settings.css';
 import { useShell } from '../state/store';
 import { Deliberation } from './Deliberation';
 import { JudgeRun, ModelRuns, Ready, Results } from './Judging';
 import { Encounter, Evidence, Farewell, Hers, Log, Outcome } from './Later';
-import { parentOf } from './logic';
+import { locked, parentOf } from './logic';
 import { C0, Judges, Pool, Questions } from './Preparation';
 import { Steps } from './Steps';
 import { useGo, useSuccession } from './hooks';
@@ -25,10 +26,16 @@ export function SuccessionPage({ onBack }: { onBack: () => void }) {
   const back = () => (up === null ? onBack() : go(up));
   const [page, ...rest] = path.split('/');
   const tail = rest.join('/');
+  // Shut until the fork is recorded: a page reached by link or hash goes
+  // to the overview.
+  const shut = page !== '' && locked(s);
+  useEffect(() => {
+    if (shut) go('');
+  }, [shut, go]);
 
   if (q.isPending) return <p className={settingsCss.note}>Reading…</p>;
   if (q.error) return <p className={settingsCss.refused}>Her succession could not be read.</p>;
-  if (!s || page === '') return <Steps s={s} p={p} back={back} />;
+  if (!s || page === '' || shut) return <Steps s={s} p={p} back={back} />;
   const props = { s, p, back };
   switch (page) {
     case 'pool':
