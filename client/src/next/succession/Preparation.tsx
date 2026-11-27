@@ -4,7 +4,8 @@ import type { Preparation, Succession } from '../../api/types';
 import { Card, Field, Said, TextArea } from '../settings/common';
 import * as settingsCss from '../settings/settings.css';
 import { useAct } from '../settings/useAct';
-import { useSubject } from '../state/resident';
+import { HOUSE_SUBJECT, useSubject } from '../state/resident';
+import { switchSubject, useSubjectChoice } from '../state/subject';
 import { useShell } from '../state/store';
 import { Chip, PageHead, Row, Wall } from './common';
 import { isHers, isMine, placeOf, poolNote, preparing, price, tokens, when } from './logic';
@@ -255,10 +256,22 @@ export function Questions({ s, p, back }: PageProps) {
 function OpenCited({ citation }: { citation: string }) {
   const { slug } = useSubject();
   const go = useShell((x) => x.go);
+  const resetStacks = useShell((x) => x.resetStacks);
+  const choose = useSubjectChoice((x) => x.choose);
   const place = placeOf(citation, slug);
+  // A house record opens with the house as the subject, as choosing it does.
+  const open = () => {
+    if (!('to' in place)) return;
+    if (!place.house) return go(place.to);
+    switchSubject(() => {
+      resetStacks();
+      choose(HOUSE_SUBJECT);
+      go(place.to);
+    });
+  };
   return (
     <div className={settingsCss.row}>
-      <button type="button" className={settingsCss.secondary} disabled={!('to' in place)} onClick={() => 'to' in place && go(place.to)}>
+      <button type="button" className={settingsCss.secondary} disabled={!('to' in place)} onClick={open}>
         Open ›
       </button>
       {'reason' in place && <span className={settingsCss.note}>{place.reason}</span>}

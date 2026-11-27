@@ -203,7 +203,9 @@ describe('the archive', () => {
 });
 
 describe('a shared memory in C0 (janus#43)', () => {
-  it('says where a house record opens', () => {
-    expect(placeOf('house/rook:thread/abc@1234567890ab', 'lily')).toEqual({ reason: "A record of the house: it opens in the house's records." });
+  it("opens a house record in the house's records (every judge is a member)", () => {
+    expect(placeOf('house/rook:thread/abc@1234567890ab', 'lily')).toEqual({ to: { tab: 'records', path: 'doc/threads/abc' }, house: true });
+    expect(placeOf('house/rook:doc/plans/week.md', 'lily')).toEqual({ to: { tab: 'records', path: 'doc/plans/week.md' }, house: true });
+    expect(placeOf('house/rook:elsewhere', 'lily')).toEqual({ reason: 'Not a house citation the app can follow.' });
   });
 });
