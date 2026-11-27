@@ -51,8 +51,11 @@ The witness's rulings the screens hold to:
   overview), from the
   bell's succession entries, and from the pool's link back from
   Regression.
-- Back: a model's runs go back to results, Ready to results, every other
-  page to the steps, and the steps out to the tab underneath.
+- Back is the previous step (the witness, 2026-11-27: Succession home
+  is the way to the overview): a step's page goes to the previous step
+  reached that has a page, the first (the pool) to the overview; a
+  model's runs and Ready go to results; the log and her side to the
+  overview; the overview out to the tab underneath.
 - Reads: the succession and its preparation every 30 s, your judging
   every 30 s, the room every 10 s, the disclosure log every 60 s; every
   action reads them again when it lands. A refusal shows under its

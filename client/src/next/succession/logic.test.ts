@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RoomJudgment, Succession } from '../../api/types';
 import { base } from './fixtures';
-import { archiveByModel, countsOf, isSuccessionNeed, judgmentReady, needHref, nextOf, nextUnjudged, panelRows, parentOf, partyName, placeOf, poolNote, quiet, quietWords, steps, underway } from './logic';
+import { archiveByModel, countsOf, isSuccessionNeed, judgmentReady, backOf, needHref, nextOf, nextUnjudged, panelRows, parentOf, partyName, placeOf, poolNote, quiet, quietWords, steps, underway } from './logic';
 
 
 const kinds = (s: Succession) => steps(s).map((x) => x.kind[0]).join('');
@@ -221,5 +221,24 @@ describe('Next (the witness, 2026-11-27)', () => {
     const judging = { ...base, state: 'deliberating', forked: true, forked_at: 'x', revealed_at: 'y' } as never;
     expect(nextOf('results/a%2Fone', judging)?.page).toBe('deliberation');
     expect(nextOf('ready', judging)?.page).toBe('deliberation');
+  });
+});
+
+describe('Back is the previous step (the witness, 2026-11-27)', () => {
+  const forked = { ...base, state: 'forked', forked: true, forked_at: '2026-11-26T20:00:00Z' } as never;
+  const judging = { ...base, state: 'deliberating', forked: true, forked_at: 'x', revealed_at: 'y' } as never;
+
+  it('steps back through the pages, and from the first to the overview', () => {
+    expect(backOf('questions', forked)).toBe('pool');
+    expect(backOf('judges', forked)).toBe('c0');
+    expect(backOf('pool', forked)).toBe('');
+    expect(backOf('deliberation/thread', judging)).toBe('results');
+  });
+
+  it('takes a page under a step to its step, the log to the overview, the overview out', () => {
+    expect(backOf('results/a%2Fone', judging)).toBe('results');
+    expect(backOf('ready', judging)).toBe('results');
+    expect(backOf('log', forked)).toBe('');
+    expect(backOf('', forked)).toBeNull();
   });
 });

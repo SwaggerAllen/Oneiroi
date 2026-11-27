@@ -271,6 +271,29 @@ export function nextOf(path: string, s: Succession | null | undefined): { page: 
 }
 
 /**
+ * Where Back goes (the witness, 2026-11-27: Succession home is the way
+ * to the overview, so Back is the previous step): a page under a step
+ * (a model's runs, Ready) to that step's page; a step's page to the
+ * previous step reached that has a page, or the overview from the
+ * first; the log and her side to the overview; the overview out of the
+ * succession (null).
+ */
+export function backOf(path: string, s: Succession | null | undefined): string | null {
+  if (path === '') return null;
+  const up = parentOf(path);
+  if (up !== '' || !s) return up;
+  const [first] = path.split('/');
+  const list = steps(s);
+  const at = list.findIndex((step) => step.page === first);
+  if (at < 0) return '';
+  const prev = list
+    .slice(0, at)
+    .reverse()
+    .find((step) => step.page && (step.kind === 'done' || step.kind === 'now'));
+  return prev?.page ?? '';
+}
+
+/**
  * Where a C0 item's citation opens in the app, the way the app already
  * opens a citation (Records' `doc/<path>` or `cite/<kind>/<ref>`, the
  * chat at a turn, Time at a day): or, for a kind with no place to open,
