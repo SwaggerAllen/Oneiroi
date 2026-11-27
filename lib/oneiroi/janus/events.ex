@@ -54,6 +54,12 @@ defmodule Oneiroi.Janus.Events do
     use Oneiroi.Event, version: 1, fields: [:id, :episode, :reason], export: false
   end
 
+  defmodule ForkRetried do
+    # The witness made the fork again (janus#35): the last failure no
+    # longer stands; the fork is being made.
+    use Oneiroi.Event, version: 1, fields: [:id, :episode], export: false
+  end
+
   defmodule BackupSet do
     # Where the whole original is exported before the cutover replaces
     # her (janus#5): the token Vault-encrypted, never exported (the

@@ -168,11 +168,23 @@ defmodule Oneiroi.Janus.Successions do
   with no fork recorded, after a failure or a job that never finished.
   """
   @spec retry_fork(String.t(), Actor.t()) :: {:ok, pos_integer()} | {:error, term()}
-  def retry_fork(resident_id, %Actor{kind: :witness}) do
+  def retry_fork(resident_id, %Actor{kind: :witness} = actor) do
     case status(resident_id) do
-      %{state: "open", copy_id: nil, episode: episode} -> {:ok, episode}
-      %{} -> {:error, Error.new(:janus_stage, :janus_fork_retry_stage)}
-      nil -> {:error, no_succession()}
+      %{state: "open", copy_id: nil, episode: episode} ->
+        with :ok <-
+               done(%Commands.RetryFork{
+                 actor: actor,
+                 at: Clock.now(),
+                 id: resident_id,
+                 episode: episode
+               }),
+             do: {:ok, episode}
+
+      %{} ->
+        {:error, Error.new(:janus_stage, :janus_fork_retry_stage)}
+
+      nil ->
+        {:error, no_succession()}
     end
   end
 
