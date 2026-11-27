@@ -599,6 +599,9 @@ defmodule Oneiroi.SimaQian.LogCopy do
   # connection and a "being made" page forever. The copy as a whole is
   # all or nothing by `remove/1`, not by one long transaction.
   defp q(conn, sql, params), do: Postgrex.query!(conn, sql, params, timeout: @step)
+  # Every statement here is built from the catalog's own table and column
+  # names and this module's literals, never a request value.
+  # sobelow_skip ["SQL.Query"]
   defp rq(sql, params), do: Repo.query!(sql, params, timeout: @step)
   defp platform(fun), do: Scope.platform(fun, timeout: @step)
 end
