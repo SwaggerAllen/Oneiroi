@@ -56,6 +56,7 @@ defmodule Oneiroi.Brain do
   alias Oneiroi.Brain.PluginConsent
   alias Oneiroi.Brain.Preview
   alias Oneiroi.Brain.Progress
+  alias Oneiroi.Brain.Pulls
   alias Oneiroi.Brain.QueueDocs
   alias Oneiroi.Brain.Reactions
   alias Oneiroi.Brain.Retry
@@ -604,6 +605,10 @@ defmodule Oneiroi.Brain do
         Keyword.merge([purpose: :succession], Keyword.take(opts, [:ledger, :c0]))
       )
   )
+
+  @doc "A pull request of the platform's own repository's head commit (sunna#110): `{:ok, sha}`, `:other` for another repository."
+  @spec pr_head(String.t(), term()) :: {:ok, String.t()} | :other | {:error, term()}
+  defexport(pr_head(repo, number), do: Pulls.head(repo, number))
 
   @doc "Her own chat model, her pin or the brain's default: a succession's baseline runs on it (brain#122)."
   @spec succession_model(String.t()) :: String.t() | nil

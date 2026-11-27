@@ -97,6 +97,27 @@ defmodule OneiroiWeb.QueueRoutesTest do
     assert Enum.map(docs, & &1["role"]) == ["design", "pr", "source"]
   end
 
+  # The witness, 2026-11-27: approving task #11's review from the screen
+  # refused for want of a pin; the context now says what the screen
+  # shows, and that is what an approval names (sunna#110).
+  test "the document context names the revision the screen shows", ctx do
+    alias Oneiroi.Brain.Pulls.Fake, as: Pulls
+
+    Pulls.put(132, %{"number" => 132, "head" => %{"sha" => "feedface0123"}}, [])
+    on_exit(fn -> Pulls.clear() end)
+
+    context = fn citation ->
+      ctx.conn |> get("/v1/documents/context", %{citation: citation}) |> json_response(200)
+    end
+
+    assert %{"revision" => "abc123"} = context.("lily:notes/x.md@abc123")
+
+    assert %{"revision" => "feedface0123"} =
+             context.("https://github.com/SwaggerAllen/Oneiroi/pull/132")
+
+    assert %{"revision" => nil} = context.("https://github.com/someone/else/pull/132")
+  end
+
   test "set up, a task opened from doc-to-pr, its review decided, and his bell", ctx do
     conn = ctx.conn
     lily = "resident:#{ctx.lily.id}"

@@ -269,7 +269,8 @@ function ReviewControls({ context, overview }: { context: DocumentContext; overv
   const queries = useQueryClient();
   const [note, setNote] = useState('');
   const decide = useMutation({
-    mutationFn: (outcome: 'approved' | 'changes' | 'declined') => api.queueMove(r.task, r.act, 'decide', { outcome, note }),
+    // An approval names the revision it approved, its pin (sunna#110): the one this screen shows.
+    mutationFn: (outcome: 'approved' | 'changes' | 'declined') => api.queueMove(r.task, r.act, 'decide', { outcome, note, pin: context.revision ?? undefined }),
     onSuccess: () => {
       setNote('');
       void queries.invalidateQueries({ queryKey: HOUSE });
@@ -302,9 +303,16 @@ function ReviewControls({ context, overview }: { context: DocumentContext; overv
           {r.destination ? ` to ${r.destination}` : ''} happen for this revision; a refusal sends it back{r.throwback ? ` to ${r.throwback}` : ''}.
         </span>
       )}
+      <span className={w.meta}>
+        {context.revision
+          ? `Reviewing the revision at ${context.revision.slice(0, 7)}: an approval names it.`
+          : r.artifact
+            ? 'The revision shown here could not be read, so it cannot be approved from this screen; ask for changes or decline, or try again.'
+            : null}
+      </span>
       <textarea className={w.replyBox} rows={2} placeholder="Your note (it posts to the thread)" aria-label="Your note" value={note} onChange={(e) => setNote(e.target.value)} />
       <div className={css.row}>
-        <button type="button" className={css.primary} disabled={decide.isPending || !note.trim()} onClick={() => decide.mutate('approved')}>
+        <button type="button" className={css.primary} disabled={decide.isPending || !note.trim() || (!!r.artifact && !context.revision)} onClick={() => decide.mutate('approved')}>
           Approve
         </button>
         <button type="button" className={css.secondary} disabled={decide.isPending || !note.trim()} onClick={() => decide.mutate('changes')}>

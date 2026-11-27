@@ -18,6 +18,8 @@ defmodule OneiroiWeb.DocumentContextController do
 
   tags(["documents"])
 
+  @pull ~r{\Ahttps://github\.com/([^/\s]+/[^/\s]+)/pull/(\d+)/?\z}
+
   operation(:show,
     summary:
       "Around one document, by its citation (<slug>:<path> for a resident's, house/<slug>:doc/<path> for the house's, a pin allowed): its thread in her own threads (mine), its thread in the house (house, for a house document or her file's shared copy), the tasks it belongs to, and the review of it open for the caller",
@@ -35,6 +37,9 @@ defmodule OneiroiWeb.DocumentContextController do
 
     json(conn, %{
       citation: key,
+      # The revision the screen shows (sunna#110): what a review of it,
+      # approved here, names as its pin.
+      revision: revision(actor, citation, key, resident),
       resident_id: resident,
       mine: mine,
       house: house_thread(actor, house_path),
@@ -42,6 +47,39 @@ defmodule OneiroiWeb.DocumentContextController do
       review: if(household, do: review(household, Queue.me(actor), key))
     })
   end
+
+  # A citation's pin when it carries one (`@<commit>`); else the document
+  # as it stands: a pull request's head, the house's commit, her
+  # repository's head.
+  defp revision(actor, citation, key, resident) do
+    case String.split(citation, "@", parts: 2) do
+      [_bare, pin] when pin != "" -> pin
+      _unpinned -> current(actor, citation, key, resident)
+    end
+  end
+
+  defp current(actor, citation, key, resident) do
+    cond do
+      pr = Regex.run(@pull, citation) -> pr_head(pr)
+      match?({:ok, _}, Seshat.house_citation(key)) -> house_head(actor, key)
+      is_binary(resident) -> ok_or_nil(Oneiroi.SimaQian.repository_head(resident))
+      true -> nil
+    end
+  end
+
+  defp pr_head([_all, repo, number]), do: ok_or_nil(Oneiroi.Brain.pr_head(repo, number))
+
+  defp house_head(actor, key) do
+    {:ok, cite} = Seshat.house_citation(key)
+
+    case Seshat.household_read(actor, cite.path) do
+      {:ok, %{commit: commit}} when is_binary(commit) -> commit
+      _unread -> nil
+    end
+  end
+
+  defp ok_or_nil({:ok, sha}) when is_binary(sha), do: sha
+  defp ok_or_nil(_other), do: nil
 
   # Hers: her one thread on it, and the house thread on its shared copy.
   # The house's: its thread there.

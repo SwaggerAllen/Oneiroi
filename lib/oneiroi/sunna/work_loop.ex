@@ -138,6 +138,22 @@ defmodule Oneiroi.Sunna.WorkLoop do
     end
   end
 
+  @doc """
+  Takes up every resident line a stopped run rested among `members`
+  (sunna#111): letting the house queue run again is letting them run,
+  for the witness, or for a resident her own line. Always `:ok`: a line
+  not stopped, or not the actor's to take up, is left as it is.
+  """
+  def resume_stopped(members, note, %Actor{} = actor) do
+    for %{kind: "resident", id: id} <- members,
+        actor.kind == :witness or actor.id == id,
+        stopped(id) != nil do
+      resume_by(id, note || "the house queue runs again", actor)
+    end
+
+    :ok
+  end
+
   @doc "The run a stop ended, while it rests her line (sunna#109); nil otherwise."
   def stopped(resident_id) do
     case Scope.resident(resident_id, fn -> Store.work_queue() end) do

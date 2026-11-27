@@ -78,10 +78,12 @@ defmodule Oneiroi.Sunna.Work do
     do: {:error, Error.new(:sunna_work_not_a_party, :sunna_work_skip_care_witness_only)}
 
   # A stopped line taken up again (sunna#109): either party's, with a
-  # note, and only while a stop rests it.
+  # note, and only while a stop rests it. By the rest's prefix, as the
+  # loop reads it (sunna#111): a line a stop rested under earlier words
+  # was refused nothing and resumed nothing.
   def execute(%__MODULE__{rested: rested}, %Commands.ResumeWork{actor: %{kind: kind}} = c)
       when kind in [:witness, :resident] do
-    if rested == stopped_rest(),
+    if is_binary(rested) and String.starts_with?(rested, "stopped:"),
       do: %Events.WorkResumed{actor: c.actor, at: c.at, id: c.id, note: c.note},
       else: []
   end

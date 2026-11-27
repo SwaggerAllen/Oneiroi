@@ -42,6 +42,27 @@ defmodule Oneiroi.Brain.Pulls do
     end
   end
 
+  @doc """
+  A pull request's head commit, for a review of it to name what it read
+  (sunna#110): `{:ok, sha}` when `repo` is the platform's own
+  (`BRAIN_PULLS_REPO`), `:other` for any other repository.
+  """
+  @spec head(String.t(), term(), term()) :: {:ok, String.t()} | :other | {:error, Error.t()}
+  def head(repo, number, token \\ nil) do
+    if String.downcase(repo) == String.downcase(repo()) do
+      with {:ok, n} <- number(number),
+           {:ok, %{"head" => %{"sha" => sha}}} when is_binary(sha) <-
+             call(:pull, [repo(), n, token(token)]) do
+        {:ok, sha}
+      else
+        {:error, _} = failed -> failed
+        _no_head -> {:error, Error.new(:brain_pulls_invalid, :brain_pulls_no_head)}
+      end
+    else
+      :other
+    end
+  end
+
   @doc "The diffs of the files named in a pull request, exactly those, each cut at `BRAIN_PULLS_DIFF_CHARS` from `from` with the way on said."
   @spec diffs(term(), term(), term(), term()) :: {:ok, String.t()} | {:error, Error.t()}
   def diffs(number, names, from \\ 0, token \\ nil) do

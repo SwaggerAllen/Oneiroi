@@ -980,6 +980,8 @@ export interface DocThreadSummary {
 
 export interface DocumentContext {
   citation: string;
+  /** The revision this screen shows: its pin, a pull request's head, the house's or her repository's commit; what an approval here names (sunna#110). */
+  revision: string | null;
   resident_id: string | null;
   mine: DocThreadSummary | null;
   house: DocThreadSummary | null;
