@@ -272,6 +272,7 @@ Carried from spec §6.3; the reason for each is there.
 - **#115 A succession's encounter is a session of its own.** (janus#19.) Kind `encounter`, titled "The encounter", opened private as free time is: the witness sees what it did, never what it said.
 
 - **#116 A session may carry a label naming what it is for.** (sunna#109.) `open_session/6` takes `label:` (trimmed, at most 64 characters) beside the adapter sessions' folder label; a work run's names its task and activity, and the session list shows it as the session's place.
+- **#117 Her handoff packet's turn is a session of its own.** (janus#44.) Kind `packet`, titled "The handoff packet", opened private as the encounter's is: the witness sees what it did, never what it said; never her main chat, never her free time.
 
 ## #8 Initial vs target
 

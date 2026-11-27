@@ -32,10 +32,16 @@ The witness's rulings the screens hold to:
 
 - A full page over the tabs, at `#/settings/succession/<page>`, under
   the app's usual top bar (subject, search, bell, settings), like every
-  settings page (screen:next-settings). Each page has its own title row:
-  "‹ Back" and, opposite it on every page but the overview, **Succession
-  home** (the witness, 2026-11-26: the process kept in view), the title
-  with the dry-run mark beside it, and its lede.
+  settings page (screen:next-settings). Each page opens with a nav row:
+  "‹ Back" at the left; **Succession home** in the middle on every page
+  but the overview (the witness, 2026-11-26: the process kept in view);
+  and **Next ›** at the right (2026-11-27), to the next step after this
+  page's that has a page and has been reached, in the steps' order (from
+  the overview, the first such; a model's runs and Ready count as
+  results). There is no Next on the last step reached, on the log or her
+  side, or while the pages are shut before the fork. Then the title with
+  the dry-run mark beside it, and its lede. The deliberation has the same
+  row over its own tabs.
 - Until the fork is recorded, the overview is the only page (the
   witness, 2026-11-26): its steps show no way in and say "The steps open
   once the fork is made", and a page reached by link or hash goes to the
@@ -45,8 +51,11 @@ The witness's rulings the screens hold to:
   overview), from the
   bell's succession entries, and from the pool's link back from
   Regression.
-- Back: a model's runs go back to results, Ready to results, every other
-  page to the steps, and the steps out to the tab underneath.
+- Back is the previous step (the witness, 2026-11-27: Succession home
+  is the way to the overview): a step's page goes to the previous step
+  reached that has a page, the first (the pool) to the overview; a
+  model's runs and Ready go to results; the log and her side to the
+  overview; the overview out to the tab underneath.
 - Reads: the succession and its preparation every 30 s, your judging
   every 30 s, the room every 10 s, the disclosure log every 60 s; every
   action reads them again when it lands. A refusal shows under its
@@ -106,8 +115,13 @@ The witness's rulings the screens hold to:
   in the chat's Mail. Where there is no such place (a scene by number,
   a position, prediction or other record kind, a whole conversation,
   another resident's record) the button is off with a short reason
-  beside it. "Go to Records" for proposing (screen:next-records). The day's own shape, in
-  her words, hers alone. The judges ready for the freeze, and your own
+  beside it. A record of the house (`house/<name>:thread/<id>` or
+  `:doc/<path>`, janus#43) opens in the house's records, the house
+  chosen as the subject the way the household row chooses it (the
+  witness, 2026-11-27: every judge is a member of the house). "Go to Records" for proposing (screen:next-records). The day's own shape, in
+  her words, hers alone; when she said her choices were made (woken then
+  to write the day's shape), and after the freeze that it woke her to
+  write her packet in a sealed thread (janus#44). The judges ready for the freeze, and your own
   ready, given or taken back. Her handoff packet: that it exists, its
   dated drafts, sealed: never its words.
 - **The judges** (`judges`). Each on the panel, her as the original (she

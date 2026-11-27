@@ -44,6 +44,7 @@ defmodule Oneiroi.Janus.Store do
       field(:envelope_max_models, :integer)
       field(:pool_done_at, :utc_datetime_usec)
       field(:questions_done_at, :utc_datetime_usec)
+      field(:c0_done_at, :utc_datetime_usec)
       field(:envelope_set_at, :utc_datetime_usec)
       field(:day_shape, :string)
       field(:day_shape_at, :utc_datetime_usec)

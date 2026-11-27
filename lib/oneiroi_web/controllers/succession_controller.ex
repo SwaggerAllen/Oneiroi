@@ -659,6 +659,7 @@ defmodule OneiroiWeb.SuccessionController do
       day_shape: s.day_shape,
       pool_done_at: s.pool_done_at,
       questions_done_at: s.questions_done_at,
+      c0_done_at: s.c0_done_at,
       c0_frozen_at: s.c0_frozen_at,
       c0_frozen_note: s.c0_frozen_note,
       ready: Enum.map(prep.ready, &Map.take(&1, [:party, :ready, :at])),

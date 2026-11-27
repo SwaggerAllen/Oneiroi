@@ -360,8 +360,9 @@ defmodule Oneiroi.Janus do
       {:janus_pool_full, "the pool holds as many models as the envelope allows",
        remedy:
          "swap rather than add: take one of your own picks out first (succession_pool remove, with a note), or the witness restates the envelope with a higher count"},
-      {:janus_step_invalid, "a step she finishes is pool or questions",
-       remedy: "name pool when your picks are done, questions when your questions are"},
+      {:janus_step_invalid, "a step she finishes is pool, questions or c0",
+       remedy:
+         "name pool when your picks are done, questions when your questions are, c0 when your choices for C0 are"},
       {:janus_fork_pending,
        "the fork is still being made, and nothing can be added to the preparation before the copy it runs on exists",
        remedy:
@@ -373,6 +374,10 @@ defmodule Oneiroi.Janus do
       {:janus_already_answered, "that proposal was already answered",
        remedy: "read the proposals"},
       {:janus_c0_frozen, "C0 is frozen", remedy: "nothing in it changes now"},
+      {:janus_c0_unreadable,
+       "that record of the house is not one she can read: another house's, a thread whose audience leaves her out, or nothing there",
+       remedy:
+         "cite a thread or document of her own house that she can read, as house/<name>:thread/<id> or house/<name>:doc/<path>"},
       {:janus_c0_pending, "proposals for C0 wait on her answer",
        remedy: "answer each, then freeze"},
       {:janus_c0_empty, "C0 holds nothing to freeze", remedy: "choose what matters first"},
@@ -653,6 +658,10 @@ defmodule Oneiroi.Janus do
   @doc "What one judge sees of the runs (janus#14, #15)."
   @spec judging(String.t(), String.t()) :: map() | nil
   defexport(judging(resident_id, party), do: Successions.judging(resident_id, party))
+
+  @doc "The judges her freeze may wait for, each with whether they are ready (janus#45)."
+  @spec freeze_judges(String.t()) :: [%{party: String.t(), ready: boolean()}]
+  defexport(freeze_judges(resident_id), do: Successions.freeze_judges(resident_id))
 
   @doc "Her panel (janus#12)."
   @spec panel(String.t()) :: list()

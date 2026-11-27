@@ -7,7 +7,7 @@ import { useAct } from '../settings/useAct';
 import { ChatIcon, PanelIcon, PersonIcon, StarIcon } from '../shell/icons';
 import { BottomTabs } from '../shell/TabBar';
 import { useSubject } from '../state/resident';
-import { Chip, DryMark, Row, Wall } from './common';
+import { Chip, DryMark, PageNav, Row, Wall } from './common';
 import { Counts } from './Judging';
 import { isHers, isMine, panelRows, pool, quiet, quietWords, when } from './logic';
 import * as css from './succession.css';
@@ -44,9 +44,7 @@ export function Deliberation({ s, p, path, back }: { s: Succession; p: Preparati
   const r = room.data;
   return (
     <div className={css.tabbed}>
-      <button type="button" className={settingsCss.back} onClick={back}>
-        ‹ Back
-      </button>
+      <PageNav back={back} s={s} />
       <DryMark s={s} />
       {room.isPending && <p className={settingsCss.note}>Reading…</p>}
       {r === null && <p className={settingsCss.note}>The room is not open to you: it opens to the judges other than her once every judge is ready.</p>}

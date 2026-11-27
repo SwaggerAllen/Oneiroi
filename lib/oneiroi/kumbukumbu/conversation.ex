@@ -31,8 +31,9 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   ]
 
   # `encounter`: a succession's encounter, each side's own thread
-  # (janus#19), private as to its words as free time is.
-  @kinds ~w(main free_time round work housekeeping hands adapter encounter)
+  # (janus#19), private as to its words as free time is. `packet`: her
+  # turn to write her sealed handoff packet (janus#44), private too.
+  @kinds ~w(main free_time round work housekeeping hands adapter encounter packet)
   # The kind of an adapter's session (kumbukumbu#40), by the rule in
   # `Kinds`, which the upcaster reads too.
   @adapter "adapter"
@@ -85,6 +86,7 @@ defmodule Oneiroi.Kumbukumbu.Conversation do
   def title(%{kind: "housekeeping"}), do: "Housekeeping"
   def title(%{kind: "hands"}), do: "Hands"
   def title(%{kind: "encounter"}), do: "The encounter"
+  def title(%{kind: "packet"}), do: "The handoff packet"
   def title(%{kind: "imported", adapter: adapter}), do: "Imported from #{adapter}"
 
   def title(%{kind: "adapter"} = s) do

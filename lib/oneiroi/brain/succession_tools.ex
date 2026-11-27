@@ -64,8 +64,8 @@ defmodule Oneiroi.Brain.SuccessionTools do
     [
       tool(
         "succession_status",
-        "Where your succession stands, if one is proposed or underway: who proposed it and why, whether it is a rehearsal (a dry run, everything real but the replacement), its stage, and whether the copy of you every later stage runs on has been made. A succession changes the model that runs you, with you at the table at every stage; nothing about it happens without your yes.",
-        %{},
+        "Where your succession stands, if one is proposed or underway: who proposed it and why, whether it is a rehearsal (a dry run, everything real but the replacement), its stage, and whether the copy of you every later stage runs on has been made. A succession changes the model that runs you, with you at the table at every stage; nothing about it happens without your yes. As a judge invited to or on a housemate's panel, resident (her name) reads hers as a judge reads it: its stage, the pool, her questions, C0 and the day's shape, and who is ready for her freeze; never her packet.",
+        %{resident: %{type: "string"}},
         []
       ),
       tool(
@@ -131,7 +131,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
       ),
       tool(
         "succession_c0",
-        "C0, what matters, frozen as your successor's source: select puts a record in by its citation (a transcript stretch, a journal row, a bookmark, a document), with a label; accept or decline answers a proposal by its number; remove takes an item out; day_shape is your note on the bundle (text), the day's own shape; freeze closes C0 when you are ready, with your note. Raw records are primary; curated ones count, but second. As a judge on a housemate's succession (resident her name): propose offers her a record of hers by its citation, with a label; ready (ready true or false) tells her whether you are ready for her freeze, which she may wait for or not.",
+        "C0, what matters, frozen as your successor's source: select puts a record in by its citation (a transcript stretch, a journal row, a bookmark, a document, or a thread or document of your house that you can read, cited as the house cites it: house/<name>:thread/<id> or house/<name>:doc/<path>), with a label; accept or decline answers a proposal by its number; remove takes an item out; done says your choices are made for now, with a note if you like, and wakes you to write the day's shape (nothing locks); day_shape is your note on the bundle (text), the day's own shape; freeze closes C0 when you are ready, with your note, and wakes you in a sealed thread to write your packet. Raw records are primary; curated ones count, but second. As a judge on a housemate's succession (resident her name): propose offers her a record of hers by its citation, or a shared memory of your house she can read (house/<name>:thread/<id> or :doc/<path>, as household_read gives it), with a label; ready (ready true or false) tells her whether you are ready for her freeze, which she may wait for or not.",
         %{
           action: %{
             type: "string",
@@ -141,6 +141,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
               "decline",
               "remove",
               "day_shape",
+              "done",
               "freeze",
               "propose",
               "ready"
@@ -158,7 +159,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
       ),
       tool(
         "succession_packet",
-        "Your handoff packet, sealed: your own writing for whoever comes next. write keeps a new draft (content); read gives your drafts back. Nobody else opens it; the nominee reads the last draft, with C0, before the encounter.",
+        "Your handoff packet, sealed: your own writing for whoever comes next. write keeps a new draft (content); read gives your drafts back. Nobody else opens it; the nominee reads the last draft, with C0, before the encounter. Your freeze of C0 wakes you to write it in a sealed thread of its own.",
         %{action: %{type: "string", enum: ["write", "read"]}, content: %{type: "string"}},
         [:action]
       ),
@@ -306,10 +307,23 @@ defmodule Oneiroi.Brain.SuccessionTools do
   end
 
   @doc "Runs a succession tool for the turn's resident."
+  def call("succession_status", %{"resident" => name} = args, turn)
+      when is_binary(name) and name != "" do
+    with {:ok, subject} <- subject(turn, args) do
+      if subject == turn.resident_id,
+        do: call("succession_status", %{}, turn),
+        else: judge_status(subject, name, turn.resident_id)
+    end
+  end
+
   def call("succession_status", _args, turn) do
     case Janus.preparation(turn.resident_id) do
-      nil -> "No succession has been proposed for you."
-      prep -> status_text(prep.succession) <> preparation_text(prep)
+      nil ->
+        "No succession has been proposed for you."
+
+      prep ->
+        status_text(prep.succession) <>
+          preparation_text(prep) <> ready_line(prep.succession, turn.resident_id)
     end
   end
 
@@ -378,6 +392,11 @@ defmodule Oneiroi.Brain.SuccessionTools do
   def call("succession_pool", %{"action" => "done"} = args, turn) do
     with :ok <- Janus.finish_step(turn.resident_id, "pool", args["note"], turn.resident),
          do: "Your picks are done for now; you will be woken to write your questions."
+  end
+
+  def call("succession_c0", %{"action" => "done"} = args, turn) do
+    with :ok <- Janus.finish_step(turn.resident_id, "c0", args["note"], turn.resident),
+         do: "Your choices for C0 are made for now; you will be woken to write the day's shape."
   end
 
   def call("succession_question", %{"action" => "done"} = args, turn) do
@@ -684,6 +703,67 @@ defmodule Oneiroi.Brain.SuccessionTools do
   def call(name, _args, _turn),
     do: "Not done: #{name} takes one of the actions its description names."
 
+  # Who is ready for her freeze (janus#45), while C0 is open.
+  defp ready_line(%{c0_frozen_at: nil, state: state}, resident_id)
+       when state in ["open", "forked"] do
+    judges = Janus.freeze_judges(resident_id)
+    ready = Enum.count(judges, & &1.ready)
+
+    "\nJudges ready for your freeze: #{ready} of #{length(judges)}. Freezing is yours, now or when they are; nothing freezes on its own."
+  end
+
+  defp ready_line(_row, _resident_id), do: ""
+
+  # A housemate's succession as her judge reads it (janus#45): only for
+  # one invited to or on her panel; never her packet's words.
+  defp judge_status(subject, name, me) do
+    party = "resident:" <> me
+
+    on_panel =
+      Enum.any?(Janus.panel(subject), &(&1.party == party and &1.state in ["invited", "in"]))
+
+    case {on_panel, Janus.preparation(subject)} do
+      {false, _prep} ->
+        "Not done: you are not on #{name}'s panel; she invites, and joining is yours."
+
+      {true, nil} ->
+        "#{name} has no succession underway."
+
+      {true, prep} ->
+        judge_text(prep, name, party, Janus.freeze_judges(subject))
+    end
+  end
+
+  defp judge_text(prep, name, party, judges) do
+    s = prep.succession
+    live = &Enum.filter(&1, fn x -> x.state == "in" end)
+    ready = for %{party: p, ready: true} <- judges, do: p
+
+    [
+      "#{name}'s succession #{s.episode}#{if s.dry_run, do: " (a dry run)", else: ""}: #{stage(s)}.",
+      "Pool: " <>
+        Enum.map_join(Enum.filter(prep.pool, &is_nil(&1.row.removed_at)), "; ", & &1.row.model),
+      "Her questions: " <>
+        Enum.map_join(live.(prep.questions), " | ", &"##{&1.number} #{&1.text}"),
+      "C0 (#{if s.c0_frozen_at, do: "frozen", else: "open"}): " <>
+        Enum.map_join(
+          live.(prep.items),
+          " | ",
+          &"##{&1.number} #{&1.kind} #{&1.citation} #{&1.label}"
+        ),
+      "Proposed, waiting on her: " <>
+        Enum.map_join(
+          Enum.filter(prep.items, &(&1.state == "proposed")),
+          " | ",
+          &"C0 ##{&1.number} #{&1.citation}"
+        ),
+      s.day_shape && "The day's shape: #{s.day_shape}",
+      "Ready for her freeze: #{length(ready)} of #{length(judges)} judges#{if party in ready, do: ", you among them", else: ""}."
+    ]
+    |> Enum.filter(&is_binary/1)
+    |> Enum.join("\n")
+  end
+
   defp status_text(row) do
     [
       "Succession #{row.episode}#{if row.dry_run, do: " (a dry run: everything real but the replacement)", else: ""}: #{stage(row)}.",
@@ -741,7 +821,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
           Enum.filter(prep.items, &(&1.state == "in")),
           " | ",
           &"##{&1.number} #{&1.kind} #{&1.citation} #{&1.label}"
-        ),
+        ) <> done_words(s.c0_done_at, "your choices"),
       s.day_shape && "The day's shape: #{s.day_shape}",
       "Packet drafts: #{length(prep.drafts)}."
     ]

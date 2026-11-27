@@ -4,7 +4,7 @@ import { useShell } from '../state/store';
 import { Deliberation } from './Deliberation';
 import { JudgeRun, ModelRuns, Ready, Results } from './Judging';
 import { Encounter, Evidence, Farewell, Hers, Log, Outcome } from './Later';
-import { locked, parentOf } from './logic';
+import { backOf, locked } from './logic';
 import { C0, Judges, Pool, Questions } from './Preparation';
 import { Steps } from './Steps';
 import { useGo, useSuccession } from './hooks';
@@ -22,7 +22,7 @@ export function SuccessionPage({ onBack }: { onBack: () => void }) {
   const q = useSuccession();
   const s = q.data?.succession ?? null;
   const p = q.data?.preparation;
-  const up = parentOf(path);
+  const up = backOf(path, s);
   const back = () => (up === null ? onBack() : go(up));
   const [page, ...rest] = path.split('/');
   const tail = rest.join('/');

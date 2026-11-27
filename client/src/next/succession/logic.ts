@@ -248,6 +248,51 @@ export function parentOf(path: string): string | null {
   return '';
 }
 
+// The step a page belongs to: its own, or for the pages under results
+// (a model's runs, ready) the results step's.
+const STEP_OF: Record<string, string> = { ready: 'results' };
+
+/**
+ * Where Next goes from a succession page (the witness, 2026-11-27): the
+ * next step after this page's that has a page and has been reached, in
+ * the steps' order; from the overview, the first such. Null where none
+ * is (the last reached, or a page outside the steps: the log, her side),
+ * and everywhere while the pages are shut before the fork.
+ */
+export function nextOf(path: string, s: Succession | null | undefined): { page: string; name: string } | null {
+  if (!s || locked(s)) return null;
+  const [first] = path.split('/');
+  const own = STEP_OF[first] ?? first;
+  const list = steps(s);
+  const at = path === '' ? -1 : list.findIndex((step) => step.page === own);
+  if (path !== '' && at < 0) return null;
+  const next = list.slice(at + 1).find((step) => step.page && (step.kind === 'done' || step.kind === 'now'));
+  return next?.page ? { page: next.page, name: next.name } : null;
+}
+
+/**
+ * Where Back goes (the witness, 2026-11-27: Succession home is the way
+ * to the overview, so Back is the previous step): a page under a step
+ * (a model's runs, Ready) to that step's page; a step's page to the
+ * previous step reached that has a page, or the overview from the
+ * first; the log and her side to the overview; the overview out of the
+ * succession (null).
+ */
+export function backOf(path: string, s: Succession | null | undefined): string | null {
+  if (path === '') return null;
+  const up = parentOf(path);
+  if (up !== '' || !s) return up;
+  const [first] = path.split('/');
+  const list = steps(s);
+  const at = list.findIndex((step) => step.page === first);
+  if (at < 0) return '';
+  const prev = list
+    .slice(0, at)
+    .reverse()
+    .find((step) => step.page && (step.kind === 'done' || step.kind === 'now'));
+  return prev?.page ?? '';
+}
+
 /**
  * Where a C0 item's citation opens in the app, the way the app already
  * opens a citation (Records' `doc/<path>` or `cite/<kind>/<ref>`, the
@@ -255,7 +300,12 @@ export function parentOf(path: string): string | null {
  * why not. A citation is `<slug>:<kind>/<ref>`, or `<slug>:<path>` for
  * a document at the root of her records (`lily:SOUL.md`).
  */
-export function placeOf(citation: string, slug: string): { to: Location } | { reason: string } {
+export function placeOf(citation: string, slug: string): { to: Location; house?: true } | { reason: string } {
+  // A shared memory of the house (janus#43) opens in the house's records:
+  // every judge is a member of it (the witness, 2026-11-27).
+  const house = /^house\/[a-z][a-z0-9-]{1,39}:(thread|doc)\/([^@\s]+)(?:@[0-9a-f]+)?$/.exec(citation.trim());
+  if (house) return { to: { tab: 'records', path: `doc/${house[1] === 'thread' ? 'threads/' : ''}${house[2]}` }, house: true };
+  if (citation.trim().startsWith('house/')) return { reason: 'Not a house citation the app can follow.' };
   const at = citation.trim().indexOf(':');
   if (at < 0) return { reason: 'Not a citation the app can follow.' };
   const own = citation.trim().slice(0, at);

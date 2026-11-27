@@ -62,7 +62,7 @@ defmodule Oneiroi.Janus.Preparation do
   # The most models an envelope may allow (janus#40): a cap, not a target.
   @max_models 50
   # The steps she says are done, each waking her to the next (janus#42).
-  @steps ~w(pool questions)
+  @steps ~w(pool questions c0)
   @question_chars 2_000
   @label_chars 300
   @citation_chars 500
@@ -70,7 +70,8 @@ defmodule Oneiroi.Janus.Preparation do
   @packet_chars 40_000
   # A record is raw when it was written at the time (base §2 Stage 1: raw
   # contemporaneous samples primary, curated selections secondary).
-  @raw ~r{:(transcript|journal|bookmark|letter|scene)/}
+  # A house thread is a conversation as it happened (janus#43).
+  @raw ~r{:(transcript|journal|bookmark|letter|scene|thread)/}
 
   @doc "The commands this module decides."
   def commands, do: @commands
