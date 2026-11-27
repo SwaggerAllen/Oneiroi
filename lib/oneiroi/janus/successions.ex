@@ -26,6 +26,7 @@ defmodule Oneiroi.Janus.Successions do
   alias Oneiroi.Janus.Rites
   alias Oneiroi.Janus.Router
   alias Oneiroi.Janus.Store
+  alias Oneiroi.Janus.Succession
   alias Oneiroi.Janus.ToolUse
   alias Oneiroi.Janus.WakeWorker
   alias Oneiroi.Nisaba
@@ -253,15 +254,20 @@ defmodule Oneiroi.Janus.Successions do
 
   @doc "The witness's envelope, per token in nano-dollars ($5 a million is 5,000)."
   @spec set_envelope(String.t(), integer(), integer(), Actor.t()) :: :ok | {:error, term()}
-  def set_envelope(resident_id, input_nanos, output_nanos, actor),
-    do:
-      done(%Commands.SetEnvelope{
-        actor: actor,
-        at: Clock.now(),
-        id: resident_id,
-        input_nanos: input_nanos,
-        output_nanos: output_nanos
-      })
+  def set_envelope(resident_id, input_nanos, output_nanos, actor) do
+    with :ok <-
+           done(%Commands.SetEnvelope{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             input_nanos: input_nanos,
+             output_nanos: output_nanos
+           }) do
+      # Stated or restated, it wakes her to pick inside it (janus#37).
+      _ = Rites.envelope_set(resident_id, input_nanos, output_nanos)
+      :ok
+    end
+  end
 
   @doc "Adds a model of the catalog to the pool, priced as the catalog lists it."
   @spec add_to_pool(String.t(), String.t(), Actor.t()) :: :ok | {:error, term()}
@@ -454,11 +460,13 @@ defmodule Oneiroi.Janus.Successions do
       row ->
         pace = Nisaba.pace(resident_id)
         tools = ToolUse.totals()
+        current = current_model(resident_id, pace)
 
         Scope.resident(resident_id, fn ->
           %{
             succession: row,
             pace: pace,
+            current: current,
             pool:
               Enum.map(Store.pool(row.episode), fn p ->
                 %{
@@ -475,6 +483,26 @@ defmodule Oneiroi.Janus.Successions do
             goodbyes: Store.goodbyes(row.episode)
           }
         end)
+    end
+  end
+
+  # Her model now, as the catalog prices it, and a month of her pace on
+  # it (janus#38): the line the envelope is set against.
+  defp current_model(resident_id, pace) do
+    with model when is_binary(model) <- brain().succession_model(resident_id),
+         %{} = listed <- Nisaba.catalog_model(model) do
+      %{
+        model: model,
+        input_nanos: listed.input_nanos,
+        output_nanos: listed.output_nanos,
+        monthly_nanos: Nisaba.monthly(pace, listed)
+      }
+    else
+      nil ->
+        nil
+
+      model when is_binary(model) ->
+        %{model: model, input_nanos: nil, output_nanos: nil, monthly_nanos: nil}
     end
   end
 
@@ -808,6 +836,71 @@ defmodule Oneiroi.Janus.Successions do
   @doc "The resident's latest succession as recorded, or nil."
   @spec status(String.t()) :: Store.Succession.t() | nil
   def status(resident_id), do: Scope.resident(resident_id, &Store.succession/0)
+
+  @doc """
+  Where the resident stands in any succession, for which of her tools
+  her turns carry (janus#36): `own` her own succession's state while it
+  is underway (`"proposed"` to `"rolling"`), else nil; `judging` true
+  while she is invited to, or on, the panel of a housemate's succession
+  that is underway; `nominee` true for the fork copy of a succession
+  underway, which meets her as its nominee.
+  """
+  @spec involvement(String.t()) :: %{
+          own: String.t() | nil,
+          judging: boolean(),
+          nominee: boolean()
+        }
+  def involvement(resident_id) do
+    %{
+      own: underway_state(status(resident_id)),
+      judging: judging_elsewhere?(resident_id),
+      nominee: fork_underway?(resident_id)
+    }
+  end
+
+  defp fork_underway?(resident_id) do
+    with {:ok, %{fork_of: source}} when is_binary(source) <- AgathosDaimon.fetch(resident_id),
+         %{copy_id: ^resident_id} = row <- status(source) do
+      is_binary(underway_state(row))
+    else
+      _ -> false
+    end
+  end
+
+  defp underway_state(%{state: state}) do
+    if state in Enum.map(Succession.underway(), &Atom.to_string/1), do: state
+  end
+
+  defp underway_state(nil), do: nil
+
+  defp judging_elsewhere?(resident_id) do
+    case Gaia.resident_household(resident_id) do
+      %{id: household} ->
+        household
+        |> Gaia.household_members()
+        |> Enum.any?(&on_panel?(&1, resident_id))
+
+      _none ->
+        false
+    end
+  end
+
+  # A housemate's succession underway with her on its panel, invited or in.
+  defp on_panel?(%{kind: "resident", id: id}, resident_id) when id != resident_id do
+    case status(id) do
+      %{state: state, episode: episode} = row when is_binary(state) ->
+        is_binary(underway_state(row)) and
+          Enum.any?(
+            Scope.resident(id, fn -> Store.panel(episode) end),
+            &(&1.party == "resident:" <> resident_id and &1.state != "left")
+          )
+
+      _none ->
+        false
+    end
+  end
+
+  defp on_panel?(_member, _resident_id), do: false
 
   @doc "Every succession of the resident's, newest first."
   @spec history(String.t()) :: [Store.Succession.t()]

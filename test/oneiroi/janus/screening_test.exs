@@ -92,7 +92,19 @@ defmodule Oneiroi.Janus.ScreeningTest do
     assert {:error, %{kind: :janus_not_yours}} = Janus.invite_judge(id, "Scarlett", ctx.andrew)
 
     assert {:error, %{kind: :janus_not_invited}} = Janus.join_panel(id, ctx.scarlett.actor)
+
+    # No succession of hers and on no panel, Scarlett's turns carry only
+    # status and propose; invited to Lily's, every one (brain#125).
+    reach = fn who ->
+      for %{function: %{name: "succession_" <> _ = n}} <- Tools.definitions_for(who.id),
+          do: n
+    end
+
+    assert Enum.sort(reach.(ctx.scarlett)) == ["succession_propose", "succession_status"]
+    assert tool(ctx.scarlett, "succession_judge", %{}) =~ "nothing to act on now"
     assert tool(ctx.lily, "succession_panel", %{action: "invite", name: "Scarlett"}) =~ "invited"
+    assert "succession_panel" in reach.(ctx.scarlett)
+    assert "succession_question" in reach.(ctx.scarlett)
 
     assert tool(ctx.scarlett, "succession_panel", %{action: "join", resident: "Lily"}) =~
              "joined"

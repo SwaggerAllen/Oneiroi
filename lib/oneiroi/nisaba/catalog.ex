@@ -69,10 +69,14 @@ defmodule Oneiroi.Nisaba.Catalog do
   or over the days since her first call when she is younger than that,
   never fewer than one; the witness's own spending on her (drafting,
   regression) and a succession's runs are not hers and are left out.
+  `cost` is what those calls cost a day on average, in nano-dollars, as
+  the ledger recorded it (nisaba#27): her spending now, beside the
+  estimates at list prices.
   """
   @spec pace(String.t()) :: %{
           input: non_neg_integer(),
           output: non_neg_integer(),
+          cost: non_neg_integer(),
           days: pos_integer()
         }
   def pace(resident_id) do
@@ -81,14 +85,14 @@ defmodule Oneiroi.Nisaba.Catalog do
     # A succession's runs are the process's, not her pace (janus#12).
     hers = Enum.map(Purpose.all() -- [:succession | Purpose.witness_only()], &to_string/1)
 
-    {input, output, first} =
+    {input, output, cost, first} =
       Scope.resident(resident_id, fn ->
         Repo.one(
           from(u in Usage,
             where: u.at >= ^since and u.purpose in ^hers,
             select:
               {coalesce(sum(u.prompt_tokens), 0), coalesce(sum(u.completion_tokens), 0),
-               min(u.at)}
+               coalesce(sum(u.cost_nanos), 0), min(u.at)}
           )
         )
       end)
@@ -99,7 +103,12 @@ defmodule Oneiroi.Nisaba.Catalog do
         at -> now |> DateTime.diff(at, :second) |> div(86_400) |> Kernel.+(1) |> min(@window_days)
       end
 
-    %{input: div(to_int(input), days), output: div(to_int(output), days), days: days}
+    %{
+      input: div(to_int(input), days),
+      output: div(to_int(output), days),
+      cost: div(to_int(cost), days),
+      days: days
+    }
   end
 
   @doc "A month at `pace` and a model's prices, in nano-dollars: the day's average × 30."

@@ -121,3 +121,6 @@ The estimate is there so the envelope's cost is seen coming, not to set it. Her 
 
 ## #26
 Billing the screening under `regression` would hide from her a process she started and consented to, and folding it into chat would make her look dearer than she is. A line of its own lets the witness set its budget and both of them see it.
+
+## #27
+An estimate at list prices says what a pace would cost on a model; what it does cost now is the ledger's, and an envelope is set against the second.

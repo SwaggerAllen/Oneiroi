@@ -137,7 +137,19 @@ clipboard, or "Couldn't copy; select it" when the browser refuses
     preparation is open, each entry has **Add to the succession pool**,
     or says it is in the pool and whose pick it is.
     `#/settings/regression/catalog` opens on it (the pool page links
-    there);
+    there). Searched and filtered in the client (the witness,
+    2026-11-26: too big to navigate by scrolling): words matched in the
+    slug, name and blurb; a provider (with its count); output at most a
+    price; context at least a size; "Takes tool calls" (on by default),
+    "Tool calls measured on Oneiroi", and, while preparation is open with
+    an envelope stated, "Inside the succession's envelope"; sorted
+    cheapest, dearest, longest context, best tool calls or by name. While
+    preparation is open, her spending a month and her model now head
+    the filters, each tool-capable model says what a month at her pace
+    would cost, and "Cheapest a month at her pace" sorts by it
+    (janus#38). It
+    says "n of N models", offers **Clear**, and shows thirty at a time
+    with **Show more**;
   - write a trial (what you say, passes if, fails if); edit one;
   - "Suggest some" (agathos-daimon#42): trials drafted from her files,
     with an optional steer; each kept only with "Keep this trial", or

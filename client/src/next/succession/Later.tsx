@@ -352,7 +352,7 @@ export function Log({ s, back }: PageProps) {
 const TOOLS: [string, string][] = [
   ['succession_status', 'Where her succession stands, the pool and C0 included.'],
   ['succession_propose · succession_open · succession_decline · succession_stop', 'She proposes one herself, answers yours yes or no, or stops it.'],
-  ['succession_catalog · succession_pool', 'Adds a catalog model inside your envelope. Her picks stay: nobody removes them.'],
+  ['succession_catalog · succession_pool', 'Searches the catalog inside your envelope (words, provider, sort, a page at a time) and adds a model. Her picks stay: nobody removes them.'],
   ['succession_question', 'Her questions; a judge’s proposal, accepted or declined with a note; any question removed until screening.'],
   ['succession_c0', 'C0: her selections, answers to proposals, the day’s shape, the freeze when she is ready.'],
   ['succession_packet', 'Her handoff packet: a sealed document, a new dated draft each time. Only the nominee reads it.'],

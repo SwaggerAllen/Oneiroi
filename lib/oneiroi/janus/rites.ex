@@ -838,6 +838,25 @@ defmodule Oneiroi.Janus.Rites do
     )
   end
 
+  @doc """
+  Wakes her when her witness states or restates the envelope (janus#37,
+  the witness, 2026-11-26: the pool can be filled only inside it, so its
+  stating is when she has models to pick): its limits, what is hers in
+  preparation, the catalog's search and the pool, and `rounds_extend`
+  for a turn the picking outgrows. A dry run's wake opens with its mark.
+  """
+  @spec envelope_set(String.t(), integer(), integer()) :: :ok | {:error, term()}
+  def envelope_set(resident_id, input_nanos, output_nanos) do
+    owner(resident_id)
+
+    wake(
+      resident_id,
+      "Your witness has stated your succession's envelope: at most #{dollars_a_million(input_nanos)} a million tokens in and #{dollars_a_million(output_nanos)} out. Models inside it can go in your pool now, and the pool is yours to fill: search the catalog inside the envelope with succession_catalog (query, provider, sort, and offset to page through it; each line says what a month at your own pace would cost, and the first line what your model now costs) and add each you want with succession_pool. The questions, C0, your sealed packet and the panel are yours too. Take the time it needs: if this turn's rounds run short, rounds_extend gives it more, and nothing here is timed. succession_status reads where it stands."
+    )
+  end
+
+  defp dollars_a_million(nanos), do: "$" <> :erlang.float_to_binary(nanos / 1000, decimals: 2)
+
   defp wake(resident_id, note) do
     case Jobs.enqueue(@wake, %{"resident_id" => resident_id, "note" => marked(note)}) do
       {:ok, _} -> :ok

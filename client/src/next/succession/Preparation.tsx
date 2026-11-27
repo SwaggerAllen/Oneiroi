@@ -35,7 +35,23 @@ export function Pool({ s, p, back }: PageProps) {
       {p && (
         <Card title={`Her pace · last ${p.pace.days} days`}>
           <Row left="A day, on average" right={<Chip kind="muted">{`${tokens(p.pace.input_per_day)} in · ${tokens(p.pace.output_per_day)} out`}</Chip>} />
-          <p className={settingsCss.note}>Each model's estimate below is that average × 30 at its prices. A guess, to see it coming: never the limit.</p>
+          <Row left="Spent a month, at that pace" right={<Chip kind="muted">{`~ ${price(p.pace.monthly_spent)} / mo`}</Chip>} />
+          {p.current && (
+            <Row
+              left={
+                <>
+                  Her model now, <span className={settingsCss.mono}>{p.current.model}</span>
+                  {p.current.input_per_million !== null && p.current.output_per_million !== null
+                    ? ` · ${price(p.current.input_per_million)} / ${price(p.current.output_per_million)} per M`
+                    : ' · not in the catalog'}
+                </>
+              }
+              right={p.current.monthly_estimate !== null ? <Chip kind="now">{`~ ${price(p.current.monthly_estimate)} / mo`}</Chip> : null}
+            />
+          )}
+          <p className={settingsCss.note}>
+            Spent is what her ledger recorded; her model's estimate, and each one below, is that daily average × 30 at its list prices, so the two can differ (cached prompts, a model change). A guess, to see it coming: never the limit.
+          </p>
         </Card>
       )}
       <h2 className={settingsCss.heading}>The pool · {live.length}</h2>

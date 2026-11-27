@@ -54,9 +54,20 @@ defmodule Oneiroi.Janus.PreparationTest do
              Janus.set_envelope(ctx.id, 9_000, 9_000, ctx.her)
 
     catalog = tool(ctx, "succession_catalog", %{})
-    assert catalog =~ "fake/model: $1.00 in, $1.00 out"
+    assert catalog =~ "1 match; 1 to 1 here, the last of them."
+    # Her model now beside them, and what she spends (janus#38).
+    assert catalog =~ "Your model now, fake/model: $1.00 in, $1.00 out"
+    assert catalog =~ "your calls have cost about $"
+    assert catalog =~ "fake/model (Fake): $1.00 in, $1.00 out"
+    assert catalog =~ "128000 tokens of context"
     refute catalog =~ "fake/dear"
     refute catalog =~ "fake/mute"
+
+    # Searched (brain#125): every word must match, the provider too.
+    assert tool(ctx, "succession_catalog", %{query: "fake's own"}) =~ "1 match"
+    assert tool(ctx, "succession_catalog", %{query: "nothing like it"}) =~ "none match."
+    assert tool(ctx, "succession_catalog", %{provider: "other"}) =~ "none match."
+    assert tool(ctx, "succession_catalog", %{offset: 5}) =~ "past the end"
 
     assert tool(ctx, "succession_pool", %{action: "add", model: "fake/model"}) =~ "in the pool"
 
@@ -175,6 +186,14 @@ defmodule Oneiroi.Janus.PreparationTest do
 
     pace = Nisaba.pace(ctx.id)
     assert pace.input == r.usage.prompt_tokens and pace.output == r.usage.completion_tokens
+    # What her calls cost a day, as the ledger recorded it (nisaba#27).
+    assert pace.cost == r.usage.cost_nanos
+
+    # Her model now, priced, beside her pace (janus#38).
+    assert %{current: %{model: "fake/model", input_nanos: 1_000, monthly_nanos: m}} =
+             Janus.preparation(ctx.id)
+
+    assert m == Nisaba.monthly(pace, %{input_nanos: 1_000, output_nanos: 1_000})
 
     assert Nisaba.monthly(pace, %{input_nanos: 1_000, output_nanos: 2_000}) ==
              (pace.input * 1_000 + pace.output * 2_000) * 30

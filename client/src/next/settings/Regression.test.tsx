@@ -98,3 +98,49 @@ describe('regression: one model alone, after grading (2026-11-16)', () => {
     expect(screen.queryByRole('button', { name: 'Review its answers' })).toBeNull();
   });
 });
+
+describe('the catalog: search and filters (2026-11-26)', () => {
+  afterEach(() => {
+    cleanup();
+    vi.restoreAllMocks();
+  });
+
+  const model = (slug: string, output: number, tools = true) => ({
+    model: slug,
+    name: null,
+    description: null,
+    input_per_million: 1,
+    output_per_million: output,
+    context: 128_000,
+    tools,
+    tool_calls: 0,
+    tool_calls_failed: 0,
+    fetched_at: null,
+  });
+
+  it('finds by words, hides tool-less models by default, and pages a screenful at a time', async () => {
+    mocks([]);
+    vi.spyOn(api, 'succession').mockResolvedValue({ succession: null, preparation: null } as never);
+    const many = Array.from({ length: 40 }, (_, i) => model(`maker/m-${String(i).padStart(2, '0')}`, i + 1));
+    vi.spyOn(api, 'catalog').mockResolvedValue({ models: [...many, model('other/notools', 0.1, false)] });
+    page();
+    fireEvent.click(await screen.findByRole('button', { name: /Catalog/ }));
+
+    expect(await screen.findByText('40 of 41 models')).toBeTruthy();
+    expect(screen.queryByText('other/notools')).toBeNull();
+    expect(screen.getByText('maker/m-00')).toBeTruthy();
+    expect(screen.queryByText('maker/m-35')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Show 10 more of 10' }));
+    expect(screen.getByText('maker/m-35')).toBeTruthy();
+
+    fireEvent.change(screen.getByRole('searchbox'), { target: { value: 'm-07' } });
+    expect(screen.getByText('1 of 41 models')).toBeTruthy();
+    expect(screen.getByText('maker/m-07')).toBeTruthy();
+    expect(screen.queryByText('maker/m-00')).toBeNull();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Clear' }));
+    fireEvent.click(screen.getByLabelText(/Takes tool calls/));
+    expect(screen.getByText('All 41 models')).toBeTruthy();
+    expect(screen.getByText('other/notools')).toBeTruthy();
+  });
+});

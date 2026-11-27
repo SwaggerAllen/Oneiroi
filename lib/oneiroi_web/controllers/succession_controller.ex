@@ -572,6 +572,26 @@ defmodule OneiroiWeb.SuccessionController do
     end
   end
 
+  # Her model now (janus#38): its list prices and a month of her pace
+  # on them; prices nil when the catalog does not list it.
+  defp current(nil), do: nil
+
+  defp current(%{input_nanos: nil, model: model}),
+    do: %{
+      model: model,
+      input_per_million: nil,
+      output_per_million: nil,
+      monthly_estimate: nil
+    }
+
+  defp current(c),
+    do: %{
+      model: c.model,
+      input_per_million: per_million(c.input_nanos),
+      output_per_million: per_million(c.output_nanos),
+      monthly_estimate: Float.round(c.monthly_nanos / 1_000_000_000, 2)
+    }
+
   # The preparation as the screens read it; never the packet's words.
   defp preparation(prep) do
     s = prep.succession
@@ -586,8 +606,10 @@ defmodule OneiroiWeb.SuccessionController do
       pace: %{
         input_per_day: prep.pace.input,
         output_per_day: prep.pace.output,
-        days: prep.pace.days
+        days: prep.pace.days,
+        monthly_spent: Float.round(prep.pace.cost * 30 / 1_000_000_000, 2)
       },
+      current: current(prep.current),
       pool:
         Enum.map(prep.pool, fn %{row: p, monthly_nanos: m, tool_calls: {calls, failed}} ->
           %{

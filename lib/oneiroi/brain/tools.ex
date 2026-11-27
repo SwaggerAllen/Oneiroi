@@ -168,14 +168,15 @@ defmodule Oneiroi.Brain.Tools do
   The tool definitions a resident's request carries: every tool, less
   those whose contract switch is off for the resident (agathos-daimon#34),
   and the night passes' own (`seed_plant`, brain#91) outside a
-  housekeeping turn (`housekeeping: true`).
+  housekeeping turn (`housekeeping: true`), and the succession tools no
+  succession of hers, or on her panel, has use for (brain#125).
   """
   @spec definitions_for(String.t(), keyword()) :: [map()]
   def definitions_for(resident_id, opts \\ []) do
     off = off_switches(resident_id)
     triage? = Oneiroi.Gaia.triage?(resident_id)
     night? = Keyword.get(opts, :housekeeping, false)
-    held = held_tools(resident_id)
+    held = held_tools(resident_id) ++ SuccessionTools.out_of_reach(resident_id)
 
     Enum.reject(definitions(), fn %{function: f} ->
       AgathosDaimon.Switches.for_tool(f.name) in off or (f.name in @triage and not triage?) or
@@ -1672,6 +1673,10 @@ defmodule Oneiroi.Brain.Tools do
 
       name in @held_from_house and AgathosDaimon.held?(turn.resident_id) ->
         @not_done <> @held_house
+
+      String.starts_with?(name, "succession_") and
+          name in SuccessionTools.out_of_reach(turn.resident_id) ->
+        @not_done <> SuccessionTools.out_of_reach_words()
 
       true ->
         run_switched(name, arguments, turn)
