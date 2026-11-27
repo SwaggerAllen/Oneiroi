@@ -153,10 +153,10 @@ export function partyName(party: Party, me: string | undefined, resident: { id: 
 export const isMine = (party: Party, me: string | undefined) => !!me && party === `witness:${me}`;
 export const isHers = (party: Party, residentId: string) => party === `resident:${residentId}`;
 
-/** A pool entry's line: yours may come out before screening; hers nobody removes. */
+/** A pool entry's line: yours may come out before screening; hers only she takes out (janus#41). */
 export function poolNote(entry: { added_by: Party; removed_at: string | null }, me: string | undefined, residentId: string, open: boolean): string {
   if (entry.removed_at) return 'Taken out';
-  if (isHers(entry.added_by, residentId)) return 'Hers: nobody removes it';
+  if (isHers(entry.added_by, residentId)) return 'Hers: only she takes it out';
   if (isMine(entry.added_by, me)) return open ? 'Yours: you may take it out before screening' : 'Yours';
   return "A witness's pick: theirs to take out";
 }

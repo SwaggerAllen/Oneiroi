@@ -57,6 +57,8 @@ defmodule Oneiroi.Janus.Preparation do
   ]
 
   @open [:open, :forked]
+  # The most models an envelope may allow (janus#40): a cap, not a target.
+  @max_models 50
   @question_chars 2_000
   @label_chars 300
   @citation_chars 500
@@ -94,6 +96,12 @@ defmodule Oneiroi.Janus.Preparation do
   def execute(%{state: state}, _command) when state not in @open,
     do: {:error, Error.new(:janus_stage, :janus_preparation_stage, stage: state)}
 
+  # Nothing enters preparation before the copy it runs on exists (janus#39,
+  # the witness and Lily, 2026-11-26: her picks landed while the fork was
+  # still being made); the envelope alone may be stated first.
+  def execute(%{state: :open}, %command{}) when command != Commands.SetEnvelope,
+    do: {:error, Error.new(:janus_fork_pending, :janus_preparation_unforked)}
+
   def execute(cur, %Commands.SetEnvelope{} = c) do
     cond do
       not witness?(c) ->
@@ -102,6 +110,10 @@ defmodule Oneiroi.Janus.Preparation do
       not (price?(c.input_nanos) and price?(c.output_nanos)) ->
         {:error, Error.new(:janus_envelope_invalid, :janus_envelope_value)}
 
+      not (is_nil(c.max_models) or (is_integer(c.max_models) and c.max_models in 1..@max_models)) ->
+        {:error,
+         Error.new(:janus_envelope_invalid, :janus_envelope_max_models, at_most: @max_models)}
+
       true ->
         %Events.EnvelopeSet{
           actor: c.actor,
@@ -109,7 +121,8 @@ defmodule Oneiroi.Janus.Preparation do
           id: c.id,
           episode: cur.episode,
           input_nanos: c.input_nanos,
-          output_nanos: c.output_nanos
+          output_nanos: c.output_nanos,
+          max_models: c.max_models
         }
     end
   end
@@ -140,11 +153,12 @@ defmodule Oneiroi.Janus.Preparation do
       nil ->
         {:error, Error.new(:janus_pool_absent, :janus_pool_remove_absent, model: c.model)}
 
-      # Her picks are irremovable, by anyone (delta §8, the 14.2 ruling);
-      # the witness takes out only his own, before screening (the mocks
-      # the witness approved, 2026-11-25).
-      %{by: {:resident, _}} ->
-        {:error, Error.new(:janus_pool_irremovable, :janus_pool_remove_hers, model: c.model)}
+      # Her picks are hers to take out, with her note (janus#41, the
+      # witness and Lily, 2026-11-26: an add was otherwise permanent the
+      # moment it landed); nobody else removes them (delta §8, the 14.2
+      # ruling). The witness takes out only his own, before screening.
+      %{by: {:resident, rid}} ->
+        her_removal(cur, c, rid)
 
       %{by: by} ->
         if witness?(c) and by == who(c),
@@ -459,7 +473,14 @@ defmodule Oneiroi.Janus.Preparation do
   # ---- apply ----
 
   def apply(cur, %Events.EnvelopeSet{} = e),
-    do: %{cur | envelope: %{input_nanos: e.input_nanos, output_nanos: e.output_nanos}}
+    do: %{
+      cur
+      | envelope: %{
+          input_nanos: e.input_nanos,
+          output_nanos: e.output_nanos,
+          max_models: Map.get(e, :max_models)
+        }
+    }
 
   def apply(cur, %Events.PoolModelAdded{} = e),
     do: %{cur | pool: Map.put(cur.pool, e.model, %{by: {e.actor.kind, e.actor.id}})}
@@ -489,6 +510,28 @@ defmodule Oneiroi.Janus.Preparation do
   def apply(cur, %Events.C0Frozen{}), do: %{cur | frozen: true}
   def apply(cur, %Events.PacketDrafted{} = e), do: %{cur | drafts: e.draft}
 
+  # Her own pick, taken out by her with her note (janus#41).
+  defp her_removal(cur, c, rid) do
+    cond do
+      not (hers?(c) and rid == c.id) ->
+        {:error, Error.new(:janus_pool_irremovable, :janus_pool_remove_hers, model: c.model)}
+
+      not text?(c.note, @question_chars) ->
+        {:error,
+         Error.new(:janus_text_invalid, :janus_pool_remove_note, at_most: @question_chars)}
+
+      true ->
+        %Events.PoolModelRemoved{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          episode: cur.episode,
+          model: c.model,
+          note: c.note
+        }
+    end
+  end
+
   # Whoever adds, the model is listed and takes tools; hers must also fit
   # inside the envelope, which must be stated first. His may cost more
   # (the witness's 14.2 ruling: anything it costs him nothing to run).
@@ -502,6 +545,9 @@ defmodule Oneiroi.Janus.Preparation do
 
       c.tools != true ->
         Error.new(:janus_pool_no_tools, :janus_pool_add_no_tools, model: c.model)
+
+      full?(cur) ->
+        Error.new(:janus_pool_full, :janus_pool_add_full, at_most: cur.envelope.max_models)
 
       hers?(c) ->
         envelope_refusal(cur.envelope, c)
@@ -555,6 +601,13 @@ defmodule Oneiroi.Janus.Preparation do
   defp who(%{actor: %{kind: kind, id: id}}), do: {kind, id}
 
   defp price?(n), do: is_integer(n) and n >= 0
+
+  # Whoever adds, the envelope's cap holds (janus#40); a cap stated
+  # below the pool keeps what is in and lets nothing more in.
+  defp full?(%{envelope: %{max_models: max}, pool: pool}) when is_integer(max),
+    do: map_size(pool) >= max
+
+  defp full?(_cur), do: false
 
   defp inside?(%{input_nanos: i, output_nanos: o}, c),
     do: c.input_nanos <= i and c.output_nanos <= o

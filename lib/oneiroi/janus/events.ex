@@ -75,10 +75,17 @@ defmodule Oneiroi.Janus.Events do
   defmodule EnvelopeSet do
     # The witness's limit, per token in nano-dollars ($5 a million is
     # 5,000): a resource constraint stated in advance (delta §3).
+    # Version 2 adds `max_models` (janus#40, the witness, 2026-11-26):
+    # how many models the pool may hold, nil for no cap; a version 1
+    # envelope upcasts to nil, the only cap there was.
     use Oneiroi.Event,
-      version: 1,
-      fields: [:id, :episode, :input_nanos, :output_nanos],
+      version: 2,
+      fields: [:id, :episode, :input_nanos, :output_nanos, :max_models],
       export: false
+  end
+
+  defimpl Commanded.Event.Upcaster, for: EnvelopeSet do
+    def upcast(event, _metadata), do: event
   end
 
   defmodule PoolModelAdded do

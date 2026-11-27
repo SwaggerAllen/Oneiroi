@@ -54,7 +54,10 @@ export function Pool({ s, p, back }: PageProps) {
           </p>
         </Card>
       )}
-      <h2 className={settingsCss.heading}>The pool · {live.length}</h2>
+      <h2 className={settingsCss.heading}>
+        The pool · {live.length}
+        {p?.envelope?.max_models ? ` of at most ${p.envelope.max_models}` : ''}
+      </h2>
       {entries.length === 0 && <p className={settingsCss.note}>No model in the pool yet.</p>}
       {entries.map((e) => (
         <PoolCard key={e.model} entry={e} mine={isMine(e.added_by, who.me)} hers={isHers(e.added_by, id)} line={poolNote(e, who.me, id, open)} by={who.name(e.added_by)} open={open} />
@@ -78,6 +81,7 @@ function Envelope({ s, p }: { s: Succession; p: Preparation | undefined }) {
   const act = useAct();
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
+  const [max, setMax] = useState('');
   const env = p?.envelope ?? null;
   return (
     <Card title="Your envelope · per million tokens" witness>
@@ -85,22 +89,26 @@ function Envelope({ s, p }: { s: Succession; p: Preparation | undefined }) {
         <>
           <Row left="Input, at most" right={<Chip kind="now">{`${price(env.input_per_million)} / M`}</Chip>} />
           <Row left="Output, at most" right={<Chip kind="now">{`${price(env.output_per_million)} / M`}</Chip>} />
+          <Row left="Models in the pool, at most" right={<Chip kind="now">{env.max_models === null ? 'no cap' : String(env.max_models)}</Chip>} />
         </>
       ) : (
         <p className={settingsCss.note}>Not stated yet.</p>
       )}
       <Row left="Not supported" right={<Chip kind="muted">models without tool calls</Chip>} />
-      <p className={settingsCss.note}>Stated once, in advance: a resource limit, pointed at the budget. With no candidate inside it, the answer is no succession, never a substitute.</p>
+      <p className={settingsCss.note}>
+        Stated once, in advance: a resource limit, pointed at the budget. With no candidate inside it, the answer is no succession, never a substitute. The model count caps the pool, your picks and hers together; stated below what is in, it keeps those and lets nothing more in.
+      </p>
       {preparing(s) && (
         <>
           <div className={settingsCss.row}>
             <Field label="Input, $ a million" inputMode="decimal" value={input} onChange={(e) => setInput(e.target.value)} placeholder={env ? String(env.input_per_million) : '5'} />
             <Field label="Output, $ a million" inputMode="decimal" value={output} onChange={(e) => setOutput(e.target.value)} placeholder={env ? String(env.output_per_million) : '20'} />
+            <Field label="Models, at most (blank: no cap)" inputMode="numeric" value={max} onChange={(e) => setMax(e.target.value)} placeholder={env?.max_models ? String(env.max_models) : '3'} />
             <button
               type="button"
               className={settingsCss.secondary}
-              disabled={act.busy || !(Number(input) >= 0 && Number(output) >= 0 && input.trim() && output.trim())}
-              onClick={() => void act.run(() => api.successionEnvelope(id, Number(input), Number(output)).then(() => 'Stated.'), successionKey(id))}
+              disabled={act.busy || !(Number(input) >= 0 && Number(output) >= 0 && input.trim() && output.trim()) || !(max.trim() === '' || (Number.isInteger(Number(max)) && Number(max) >= 1))}
+              onClick={() => void act.run(() => api.successionEnvelope(id, Number(input), Number(output), max.trim() === '' ? null : Number(max)).then(() => 'Stated.'), successionKey(id))}
             >
               {env ? 'Restate' : 'State it'}
             </button>

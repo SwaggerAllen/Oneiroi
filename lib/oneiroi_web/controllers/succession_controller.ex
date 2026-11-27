@@ -85,14 +85,24 @@ defmodule OneiroiWeb.SuccessionController do
          required: [:input_per_million, :output_per_million],
          properties: %{
            input_per_million: %Schema{type: :number},
-           output_per_million: %Schema{type: :number}
+           output_per_million: %Schema{type: :number},
+           max_models: %Schema{
+             type: :integer,
+             nullable: true,
+             description:
+               "how many models the pool may hold (janus#40); absent or null for no cap"
+           }
          }
        }},
     responses: [no_content: "set"]
   )
 
-  def envelope(conn, %{"id" => id, "input_per_million" => i, "output_per_million" => o}),
-    do: respond(conn, Janus.set_envelope(id, nanos(i), nanos(o), actor(conn)))
+  def envelope(conn, %{"id" => id, "input_per_million" => i, "output_per_million" => o} = params),
+    do:
+      respond(
+        conn,
+        Janus.set_envelope(id, nanos(i), nanos(o), count(params["max_models"]), actor(conn))
+      )
 
   def envelope(conn, _params),
     do:
@@ -601,7 +611,8 @@ defmodule OneiroiWeb.SuccessionController do
         s.envelope_input_nanos &&
           %{
             input_per_million: per_million(s.envelope_input_nanos),
-            output_per_million: per_million(s.envelope_output_nanos)
+            output_per_million: per_million(s.envelope_output_nanos),
+            max_models: s.envelope_max_models
           },
       pace: %{
         input_per_day: prep.pace.input,
@@ -673,6 +684,21 @@ defmodule OneiroiWeb.SuccessionController do
   end
 
   defp nanos(_other), do: nil
+
+  # A count as sent: nil for none; anything not a whole number is passed
+  # on as given, for the aggregate to refuse.
+  defp count(nil), do: nil
+  defp count(""), do: nil
+  defp count(n) when is_integer(n), do: n
+
+  defp count(s) when is_binary(s) do
+    case Integer.parse(s) do
+      {n, ""} -> n
+      _other -> s
+    end
+  end
+
+  defp count(other), do: other
 
   # What the screens read: the token never.
   defp view(nil), do: nil

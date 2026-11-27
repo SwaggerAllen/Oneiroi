@@ -91,7 +91,16 @@ A step that can only wait on a job is stuck when the job is gone; the page has t
 Which acts are open to her depends on more than her own succession: a housemate's panel and a nomination are succession work too, and the brain should not have to know Janus's tables to tell.
 
 ## #37
-Picking models is hers to do, and it can start only once the envelope says what fits; the first in-app dry run sat forked with nobody told. The fork is the wrong moment: the envelope may come before or after it, and only the envelope makes the pool fillable.
+Picking models is hers to do, and it can start only once the copy exists and the envelope says what fits; the first in-app dry run sat forked with nobody told. Either can come first, so the wake waits for the second.
 
 ## #38
 An envelope is a limit on spending, and nobody can set one well without knowing what is spent now; the candidates' estimates mean little until they sit beside her model's own on the same pace.
+
+## #39
+Preparation is work done on the copy's behalf: C0 is its source, the pool its candidates. Taking it before the copy exists lets a failed fork strand half-made choices, and the dry run showed adds landing while the fork was still in flight.
+
+## #40
+The witness pays for every screening run; a pool with no cap lets the run count grow past what he meant to spend, and a cap stated with the envelope is the same kind of limit stated at the same time.
+
+## #41
+The 14.2 ruling protects her choices from others, not from herself; an add she cannot undo turns every pick into a commitment she never meant to make, and the only remedy was throwing away the whole preparation.

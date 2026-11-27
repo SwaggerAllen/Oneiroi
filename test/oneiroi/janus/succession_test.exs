@@ -212,15 +212,24 @@ defmodule Oneiroi.Janus.SuccessionTest do
     {:ok, _} = Janus.propose(ctx.id, false, "if you want it", ctx.andrew)
     assert reach.() == ["succession_decline", "succession_open", "succession_status"]
 
-    # Underway: every tool but the three that start or answer one.
+    # Opened, the fork not yet made: preparation is shut (janus#39), the
+    # envelope alone may be stated, and nobody is woken for it.
     assert tool(ctx, "succession_open", %{note: "yes"}) =~ "is open"
-    assert "succession_catalog" in reach.() and "succession_pool" in reach.()
-    refute "succession_open" in reach.() or "succession_propose" in reach.()
+    refute "succession_pool" in reach.() or "succession_catalog" in reach.()
+    assert "succession_stop" in reach.() and "succession_panel" in reach.()
 
-    drain()
-    assert %{state: "forked"} = Janus.succession(ctx.id)
+    assert {:error, %{kind: :janus_fork_pending}} =
+             Janus.add_to_pool(ctx.id, "fake/model", ctx.her)
 
-    # The envelope stated wakes her to pick inside it (janus#37).
+    assert {:error, %{kind: :janus_fork_pending}} =
+             Janus.add_question(ctx.id, "Too soon?", ctx.her)
+
+    assert {:error, %{kind: :janus_fork_pending}} =
+             Janus.select_c0(ctx.id, "lily:SOUL.md", "too soon", ctx.her)
+
+    assert {:error, %{kind: :janus_fork_pending}} =
+             Janus.propose_question(ctx.id, "His, too soon?", ctx.andrew)
+
     wakes = fn ->
       Oneiroi.Scope.platform(fn ->
         Oneiroi.Repo.all(
@@ -234,12 +243,29 @@ defmodule Oneiroi.Janus.SuccessionTest do
       end)
     end
 
+    :ok = Janus.set_envelope(ctx.id, 5_000, 20_000, 3, ctx.andrew)
     assert wakes.() == []
-    :ok = Janus.set_envelope(ctx.id, 5_000, 20_000, ctx.andrew)
+
+    # The fork recorded, with the envelope already stated, wakes her to
+    # pick, once (janus#37); preparation is open and her tools with it.
+    drain()
+    assert %{state: "forked"} = Janus.succession(ctx.id)
+    assert "succession_catalog" in reach.() and "succession_pool" in reach.()
+    refute "succession_open" in reach.() or "succession_propose" in reach.()
+
     assert [note] = wakes.()
+    assert note =~ "Your fork is made"
     assert note =~ "at most $5.00 a million tokens in and $20.00 out"
+    assert note =~ "at most 3 models"
     assert note =~ "succession_catalog" and note =~ "succession_pool"
     assert note =~ "rounds_extend"
+
+    # A replayed fork job records nothing and wakes nobody; a restated
+    # envelope wakes her again.
+    assert :ok = Janus.Successions.fork(ctx.id, 1, Actor.platform())
+    assert length(wakes.()) == 1
+    :ok = Janus.set_envelope(ctx.id, 5_000, 20_000, nil, ctx.andrew)
+    assert length(wakes.()) == 2
 
     assert tool(ctx, "succession_stop", %{note: "enough"}) =~ "Stopped"
     assert reach.() == ["succession_propose", "succession_status"]

@@ -112,6 +112,9 @@ defmodule Oneiroi.Janus.ScreeningTest do
     assert tool(ctx.scarlett, "succession_panel", %{action: "join", resident: "Nobody"}) =~
              "no resident of your household"
 
+    # Preparation opens with the fork (janus#39).
+    drain(:janus_fork)
+
     # On the panel, she proposes and marks ready as the witness does.
     assert tool(ctx.scarlett, "succession_question", %{
              action: "propose",
@@ -138,8 +141,9 @@ defmodule Oneiroi.Janus.ScreeningTest do
     outsider = Actor.new(:resident, Ecto.UUID.generate())
     assert {:error, %{kind: :janus_not_yours}} = Janus.propose_question(id, "Mine?", outsider)
 
-    # Before the fork and the freeze, nothing screens.
-    assert {:error, %{kind: :janus_stage}} = Janus.start_screening(id, "go", ctx.lily.actor)
+    # Before the freeze, nothing screens.
+    assert {:error, %{kind: :janus_not_ready_to_screen}} =
+             Janus.start_screening(id, "go", ctx.lily.actor)
   end
 
   test "screening runs on the fork; every judge judges blind; she never sees a count", ctx do

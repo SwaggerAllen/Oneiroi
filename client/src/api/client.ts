@@ -1199,8 +1199,9 @@ export const api = {
   retryFork: (residentId: string) => call<void>('POST', `/v1/residents/${residentId}/succession/fork`),
   successionBackup: (residentId: string, url: string, token: string) =>
     call<{ visibility: string; push: string }>('PUT', `/v1/residents/${residentId}/succession/backup`, { url, token }),
-  successionEnvelope: (residentId: string, input: number, output: number) =>
-    call<void>('PUT', `/v1/residents/${residentId}/succession/envelope`, { input_per_million: input, output_per_million: output }),
+  /** The envelope, with its cap on the pool's models: null for none (janus#40). */
+  successionEnvelope: (residentId: string, input: number, output: number, maxModels: number | null) =>
+    call<void>('PUT', `/v1/residents/${residentId}/succession/envelope`, { input_per_million: input, output_per_million: output, max_models: maxModels }),
   poolAdd: (residentId: string, model: string) => call<void>('POST', `/v1/residents/${residentId}/succession/pool`, { model }),
   poolRemove: (residentId: string, model: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/succession/pool/remove`, { model, note }),
   proposeQuestion: (residentId: string, text: string) => call<{ number: number }>('POST', `/v1/residents/${residentId}/succession/questions`, { text }),

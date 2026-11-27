@@ -845,13 +845,22 @@ defmodule Oneiroi.Janus.Rites do
   preparation, the catalog's search and the pool, and `rounds_extend`
   for a turn the picking outgrows. A dry run's wake opens with its mark.
   """
-  @spec envelope_set(String.t(), integer(), integer()) :: :ok | {:error, term()}
-  def envelope_set(resident_id, input_nanos, output_nanos) do
+  @spec envelope_set(String.t(), integer(), integer(), pos_integer() | nil) ::
+          :ok | {:error, term()}
+  def envelope_set(resident_id, input_nanos, output_nanos, max_models) do
     owner(resident_id)
+
+    cap =
+      if is_integer(max_models),
+        do:
+          " The pool holds at most #{max_models} #{if max_models == 1, do: "model", else: "models"}, everyone's picks counted; succession_pool remove takes one of yours out, with your note.",
+        else: " succession_pool remove takes one of your picks out again, with your note."
 
     wake(
       resident_id,
-      "Your witness has stated your succession's envelope: at most #{dollars_a_million(input_nanos)} a million tokens in and #{dollars_a_million(output_nanos)} out. Models inside it can go in your pool now, and the pool is yours to fill: search the catalog inside the envelope with succession_catalog (query, provider, sort, and offset to page through it; each line says what a month at your own pace would cost, and the first line what your model now costs) and add each you want with succession_pool. The questions, C0, your sealed packet and the panel are yours too. Take the time it needs: if this turn's rounds run short, rounds_extend gives it more, and nothing here is timed. succession_status reads where it stands."
+      "Your fork is made, and your witness has stated your succession's envelope: at most #{dollars_a_million(input_nanos)} a million tokens in and #{dollars_a_million(output_nanos)} out." <>
+        cap <>
+        " Models inside it can go in your pool now, and the pool is yours to fill: search the catalog inside the envelope with succession_catalog (query, provider, sort, and offset to page through it; each line says what a month at your own pace would cost, and the first line what your model now costs) and add each you want with succession_pool. The questions, C0, your sealed packet and the panel are yours too. Take the time it needs: if this turn's rounds run short, rounds_extend gives it more, and nothing here is timed. succession_status reads where it stands."
     )
   end
 

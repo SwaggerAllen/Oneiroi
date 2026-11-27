@@ -262,7 +262,7 @@ defmodule Oneiroi.Janus do
       {Oneiroi.Janus.Events.ForkFailed, 1},
       {Oneiroi.Janus.Events.ForkRetried, 1},
       {Oneiroi.Janus.Events.BackupSet, 1},
-      {Oneiroi.Janus.Events.EnvelopeSet, 1},
+      {Oneiroi.Janus.Events.EnvelopeSet, 2},
       {Oneiroi.Janus.Events.PoolModelAdded, 1},
       {Oneiroi.Janus.Events.PoolModelRemoved, 1},
       {Oneiroi.Janus.Events.QuestionAdded, 1},
@@ -353,8 +353,14 @@ defmodule Oneiroi.Janus do
        remedy: "choose a model inside it, or ask the witness"},
       {:janus_pool_absent, "the model is not in the pool", remedy: "read the pool"},
       {:janus_pool_irremovable,
-       "a model she chose stays in the pool; the witness takes out only his own picks",
-       remedy: "nothing removes her picks"},
+       "a model she chose stays in the pool unless she takes it out; the witness takes out only his own picks",
+       remedy: "only she removes her picks"},
+      {:janus_pool_full, "the pool holds as many models as the envelope allows",
+       remedy: "take one out first, or the witness restates the envelope with a higher count"},
+      {:janus_fork_pending,
+       "the fork is still being made, and nothing can be added to the preparation before the copy it runs on exists",
+       remedy:
+         "wait for the fork; everything opens once it is made, and if it failed the witness makes it again, or the succession is stopped"},
       {:janus_text_invalid, "the text is empty or too long", remedy: "say it in fewer words"},
       {:janus_no_such_question, "no question in the set has that number",
        remedy: "read the questions"},
@@ -476,7 +482,14 @@ defmodule Oneiroi.Janus do
   @spec set_envelope(String.t(), integer(), integer(), Oneiroi.Actor.t()) ::
           :ok | {:error, term()}
   defexport(set_envelope(resident_id, input_nanos, output_nanos, actor),
-    do: Successions.set_envelope(resident_id, input_nanos, output_nanos, actor)
+    do: Successions.set_envelope(resident_id, input_nanos, output_nanos, nil, actor)
+  )
+
+  @doc "The witness's envelope with its cap on the pool's models, nil for none (janus#40)."
+  @spec set_envelope(String.t(), integer(), integer(), pos_integer() | nil, Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(set_envelope(resident_id, input_nanos, output_nanos, max_models, actor),
+    do: Successions.set_envelope(resident_id, input_nanos, output_nanos, max_models, actor)
   )
 
   @doc "Adds a catalog model to the pool (janus#7)."
