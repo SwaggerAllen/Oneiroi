@@ -64,25 +64,29 @@ defmodule Oneiroi.SimaQian.GiteaTest do
 
   # sima-qian#73 (2026-11-26: the first production fork had nowhere to
   # put its repository, a fork joining no household).
-  test "a fork's repository is the platform's, under forks, granted to nobody", ctx do
+  test "a fork's repository is the platform's, in an organization of its own, granted to nobody",
+       ctx do
     # Made on the local records (no Gitea contents API in the suite),
     # then located and made on Gitea as the fork's writes would.
     {:ok, %{copy_id: copy}} = SimaQian.succession_fork(ctx.wren, ctx.andrew)
     {:ok, %{slug: slug}} = AgathosDaimon.fetch(copy)
     on(ctx.values)
 
-    assert {:ok, {_instance, "forks", ^slug}} = Gitea.locate({:resident, copy})
+    org = Gitea.fork_org(copy)
+    assert {:ok, {_instance, ^org, ^slug}} = Gitea.locate({:resident, copy})
     assert :ok = Gitea.ensure({:resident, copy})
     state = Fake.state()
-    assert "forks/#{slug}" in state.repos
+    assert "#{org}/#{slug}" in state.repos
 
-    refute Enum.any?(Map.get(state, :grants, []), fn {repo, _login} -> repo == "forks/#{slug}" end)
+    refute Enum.any?(Map.get(state, :grants, []), fn {repo, _login} ->
+             repo == "#{org}/#{slug}"
+           end)
   end
 
   # sima-qian#74 (2026-11-26: a fork's repository sent as one JSON body
   # of every file took Gitea down): the fork's copy and the cutover's
   # graft go by git on disk, her history whole and a fast-forward.
-  test "a fork's repository is her history by git; a graft is one commit on top", ctx do
+  test "a fork's repository is Gitea's own fork of hers; a graft is one commit on top", ctx do
     {:ok, %{copy_id: copy}} = SimaQian.succession_fork(ctx.wren, ctx.andrew)
     {:ok, %{slug: fork_slug}} = AgathosDaimon.fetch(copy)
     {:ok, _} = SimaQian.backup(ctx.wren, Actor.platform())
@@ -97,7 +101,7 @@ defmodule Oneiroi.SimaQian.GiteaTest do
 
     hers = head.(Fake.bare(org, ctx.slug))
     assert {:ok, ^hers} = Repos.copy({:resident, ctx.wren}, {:resident, copy})
-    assert head.(Fake.bare("forks", fork_slug)) == hers
+    assert head.(Fake.bare(Gitea.fork_org(copy), fork_slug)) == hers
 
     # Her tree is the fork's already: the graft changes nothing.
     assert {:ok, ^hers} =
@@ -106,7 +110,7 @@ defmodule Oneiroi.SimaQian.GiteaTest do
     # The fork lives on: a file of its own, pushed to its repository.
     work = Path.join(System.tmp_dir!(), "fork-work-#{System.unique_integer([:positive])}")
     on_exit(fn -> File.rm_rf!(work) end)
-    {_, 0} = System.cmd("git", ["clone", "-q", Fake.bare("forks", fork_slug), work])
+    {_, 0} = System.cmd("git", ["clone", "-q", Fake.bare(Gitea.fork_org(copy), fork_slug), work])
     File.write!(Path.join(work, "new.md"), "The fork's own.")
 
     for args <- [

@@ -90,10 +90,11 @@ defmodule Oneiroi.SimaQian.Cutover do
         uuids = Export.stream_uuids(copy)
         stop_aggregates(uuids)
 
-        with :ok <- delete_streams(uuids),
-             :ok <- clear_all(copy) do
-          Repos.delete({:resident, copy})
-        end
+        # Its repository first: a fork's is found by its registry row,
+        # which clearing its rows takes (sima-qian#73, #74).
+        with :ok <- Repos.delete({:resident, copy}),
+             :ok <- delete_streams(uuids),
+             do: clear_all(copy)
 
       _not_a_fork ->
         {:error, Error.new(:sima_qian_not_a_fork, :sima_qian_discard_not_a_fork)}

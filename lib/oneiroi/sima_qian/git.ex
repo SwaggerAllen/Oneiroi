@@ -161,24 +161,13 @@ defmodule Oneiroi.SimaQian.Git do
     end
   end
 
-  @doc """
-  Copies `from`'s `main`, its history whole, into `to`, through a bare
-  clone on disk (sima-qian#74): git streams both ways, so no side holds
-  the repository in memory. A fork's repository was once sent to Gitea
-  as one JSON body of every file and took its server down (2026-11-26).
-  `{:ok, head}`, or `{:ok, nil}` when `from` has no `main` yet.
-  """
-  @spec mirror(String.t() | Secret.t(), String.t() | Secret.t()) ::
-          {:ok, String.t() | nil} | {:error, Error.t()}
-  # sobelow_skip ["Traversal.FileModule"]
-  def mirror(from, to), do: within_tmp(&mirror_into(&1, from, to))
-
-  defp mirror_into(tmp, from, to) do
-    case bare_clone(from, tmp) do
-      {:ok, nil} -> {:ok, nil}
-      {:ok, head} -> with :ok <- push_ref(tmp, to, head), do: {:ok, head}
-      failed -> failed
-    end
+  @doc "`remote`'s `main`, read by git: its commit, or nil when it has none (sima-qian#74)."
+  @spec remote_head(String.t() | Secret.t()) :: {:ok, String.t() | nil} | {:error, Error.t()}
+  def remote_head(remote) do
+    credentialed(remote, fn url, config ->
+      with {:ok, out} <- git(System.tmp_dir!(), config ++ ["ls-remote", url, "refs/heads/main"]),
+           do: {:ok, out |> String.trim() |> String.split() |> List.first()}
+    end)
   end
 
   @doc """
@@ -193,6 +182,8 @@ defmodule Oneiroi.SimaQian.Git do
   def graft(target, source, message, author),
     do: within_tmp(&graft_in(&1, target, source, message, author))
 
+  # Her repository one commit deep: the new commit needs only her head
+  # and the fork's tree, never her history.
   defp graft_in(tmp, target, source, message, author) do
     with {:ok, head} when is_binary(head) <- bare_clone(target, tmp),
          {:ok, tree} <- source_tree(tmp, source),
@@ -222,7 +213,8 @@ defmodule Oneiroi.SimaQian.Git do
         {:ok, @empty_tree}
 
       {:ok, true} ->
-        with {:ok, _} <- git(dir, config ++ ["fetch", "-q", "--no-tags", url, "main"]),
+        with {:ok, _} <-
+               git(dir, config ++ ["fetch", "-q", "--no-tags", "--depth", "1", url, "main"]),
              do: rev(dir, "FETCH_HEAD^{tree}")
 
       failed ->
@@ -230,8 +222,8 @@ defmodule Oneiroi.SimaQian.Git do
     end
   end
 
-  # A bare clone of `remote`'s main at `tmp`: its head, or nil when it
-  # has no main.
+  # A bare clone of `remote`'s main at `tmp`, one commit deep: its head,
+  # or nil when it has no main.
   defp bare_clone(remote, tmp), do: credentialed(remote, &clone_main(tmp, &1, &2))
 
   defp clone_main(tmp, url, config) do
@@ -243,7 +235,10 @@ defmodule Oneiroi.SimaQian.Git do
 
       {:ok, true} ->
         with {:ok, _} <-
-               git(parent, config ++ ["clone", "-q", "--bare", "--branch", "main", url, tmp]),
+               git(
+                 parent,
+                 config ++ ["clone", "-q", "--bare", "--depth", "1", "--branch", "main", url, tmp]
+               ),
              do: rev(tmp, "refs/heads/main")
 
       failed ->

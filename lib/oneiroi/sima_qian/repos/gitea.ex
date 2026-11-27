@@ -75,7 +75,8 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
   def delete(repo) do
     with {:ok, {inst, org, name}} <- Gitea.locate(repo) do
       case request(inst, :delete, "/repos/#{org}/#{name}", nil, []) do
-        {:ok, status, _} when status in [204, 404] -> :ok
+        # A fork copy's organization goes with it (sima-qian#74).
+        {:ok, status, _} when status in [204, 404] -> Gitea.remove_fork_org(repo)
         other -> failed(other)
       end
     end
@@ -135,14 +136,27 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
   end
 
   @impl true
-  # On disk, never through the contents API (sima-qian#74): the fork's
-  # repository made in its place, then her history pushed into it.
+  # Gitea's own fork (sima-qian#74): the copy made on Gitea's disk, her
+  # history whole, nothing through ours. A repository with no history yet
+  # is no fork, and the copy names no commit.
   def copy(from, to) do
     with :ok <- moved(),
-         :ok <- Gitea.ensure(to),
          {:ok, source} <- remote(from),
+         {:ok, head} when is_binary(head) <- Git.remote_head(source),
+         :ok <- Gitea.fork_repo(from, to),
          {:ok, target} <- remote(to),
-         do: Git.mirror(source, target)
+         {:ok, ^head} <- Git.remote_head(target) do
+      {:ok, head}
+    else
+      {:ok, nil} ->
+        {:ok, nil}
+
+      {:ok, other} when is_binary(other) ->
+        {:error, Error.new(:sima_qian_gitea_failed, :sima_qian_repos_gitea_fork_head)}
+
+      failed ->
+        failed
+    end
   end
 
   @impl true

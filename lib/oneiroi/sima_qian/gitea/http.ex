@@ -54,6 +54,32 @@ defmodule Oneiroi.SimaQian.Gitea.HTTP do
     end)
   end
 
+  # Gitea's fork, on its own disk (sima-qian#74); a repository already
+  # there is the fork made. Gitea answers when the copy is made, so it
+  # waits as long as a large one takes.
+  @impl true
+  def fork(inst, from_org, from_repo, org, repo) do
+    exists(get(inst, "/repos/#{org}/#{repo}"), fn ->
+      with {:ok, status, _body} <-
+             request_body(
+               inst,
+               :post,
+               "/repos/#{from_org}/#{from_repo}/forks",
+               %{organization: org, name: repo},
+               :timer.minutes(10)
+             ),
+           do: {:ok, status}
+    end)
+  end
+
+  @impl true
+  def delete_org(inst, org) do
+    case request(inst, :delete, "/orgs/#{org}", nil) do
+      {:ok, status} when status in [204, 404] -> :ok
+      other -> done(other)
+    end
+  end
+
   # A rule on main (sima-qian#64): Gitea refuses a force-push or a
   # deletion of a protected branch, and lets those who write push.
   @impl true
@@ -134,12 +160,12 @@ defmodule Oneiroi.SimaQian.Gitea.HTTP do
     with {:ok, status, _body} <- request_body(inst, method, path, body), do: {:ok, status}
   end
 
-  defp request_body(inst, method, path, body \\ nil) do
+  defp request_body(inst, method, path, body \\ nil, timeout \\ 15_000) do
     with {:ok, %{url: url, token: token}} <- GiteaQueue.endpoint(inst),
-         do: send_request(url, token, method, path, body)
+         do: send_request(url, token, method, path, body, timeout)
   end
 
-  defp send_request(url, token, method, path, body) do
+  defp send_request(url, token, method, path, body, timeout) do
     # A repository server, not a model provider: the repositories' port
     # (sima-qian#55), registered in the externals with its fake.
     # oneiroi:allow model_port
@@ -149,7 +175,7 @@ defmodule Oneiroi.SimaQian.Gitea.HTTP do
            json: body,
            headers: [{"authorization", "token " <> (token || "")}],
            retry: false,
-           receive_timeout: 15_000
+           receive_timeout: timeout
          ) do
       {:ok, %Req.Response{status: status, body: body}} ->
         {:ok, status, body}

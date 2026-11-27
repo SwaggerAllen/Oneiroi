@@ -482,4 +482,4 @@ Every line appended to the log is read by every subscriber, so a copy through it
 A fork is hidden from the house by design; its repository has to be hidden the same way, and a household organization is where the house reads.
 
 ## #74
-A repository is git's to move: git streams objects from disk to disk, while a contents API carries every byte in a request body somebody has to hold. The fork also gains her history whole, which is the more faithful copy.
+A repository is Gitea's to copy when it is on Gitea: its fork copies on its own disk, so neither the app nor the network carries a byte. The cutover's commit needs only two tips, never a history. And each fork its own organization, because the server's rule of one fork per owner is a fact of the server, not of ours.
