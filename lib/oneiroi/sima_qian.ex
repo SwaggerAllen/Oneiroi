@@ -409,6 +409,12 @@ defmodule Oneiroi.SimaQian do
   @spec succession_fork(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
   defexport(succession_fork(resident_id, actor), do: Fork.make(resident_id, actor))
 
+  @doc "Removes one copy a fork made that no succession recorded (sima-qian#72)."
+  @spec succession_remove(String.t()) :: {:ok, String.t()} | {:error, term()}
+  defexport(succession_remove(copy),
+    do: with(:ok <- LogCopy.remove(copy), do: {:ok, copy})
+  )
+
   @doc "Removes every copy of hers a fork left behind (sima-qian#72), keeping those named in `keep`."
   @spec succession_sweep(String.t(), [String.t()]) :: {:ok, [String.t()]}
   defexport(succession_sweep(resident_id, keep),

@@ -120,16 +120,7 @@ defmodule Oneiroi.Janus.Successions do
       %{episode: ^episode, state: "open"} ->
         case fork_copy(resident_id, actor) do
           {:ok, copy} ->
-            done(%Commands.RecordFork{
-              actor: actor,
-              at: Clock.now(),
-              id: resident_id,
-              episode: episode,
-              copy_id: copy.copy_id,
-              sequence: copy.sequence,
-              commit: copy.commit,
-              events: copy.events
-            })
+            record_fork(resident_id, episode, copy, actor)
 
           {:error, error} ->
             Logger.error("janus: a succession's fork failed", Oneiroi.Error.metadata(error))
@@ -148,6 +139,30 @@ defmodule Oneiroi.Janus.Successions do
 
       _other ->
         :ok
+    end
+  end
+
+  defp record_fork(resident_id, episode, copy, actor) do
+    with :ok <-
+           done(%Commands.RecordFork{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             episode: episode,
+             copy_id: copy.copy_id,
+             sequence: copy.sequence,
+             commit: copy.commit,
+             events: copy.events
+           }),
+         do: unless_recorded(resident_id, copy.copy_id)
+  end
+
+  # Another job's fork recorded first (2026-11-26: two presses ran two
+  # forks at once): this one's copy is nobody's, and goes (sima-qian#72).
+  defp unless_recorded(resident_id, copy_id) do
+    case status(resident_id) do
+      %{copy_id: ^copy_id} -> :ok
+      _another -> with {:ok, _} <- SimaQian.succession_remove(copy_id), do: :ok
     end
   end
 
