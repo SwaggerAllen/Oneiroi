@@ -107,3 +107,6 @@ The 14.2 ruling protects her choices from others, not from herself; an add she c
 
 ## #42
 One wake that names every part of preparation asks her to do it all in one turn, or to remember what is left; a wake per part, started by her own word that the last is done, gives each its own turn and keeps the pace hers.
+
+## #44
+The day's shape is the one part of C0 only she writes, and it reads best once the choices are made; the packet is sealed, so its turn has to be too, and spending her free time on a succession chore would take from what free time is for.

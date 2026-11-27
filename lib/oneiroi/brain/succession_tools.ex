@@ -131,7 +131,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
       ),
       tool(
         "succession_c0",
-        "C0, what matters, frozen as your successor's source: select puts a record in by its citation (a transcript stretch, a journal row, a bookmark, a document), with a label; accept or decline answers a proposal by its number; remove takes an item out; day_shape is your note on the bundle (text), the day's own shape; freeze closes C0 when you are ready, with your note. Raw records are primary; curated ones count, but second. As a judge on a housemate's succession (resident her name): propose offers her a record of hers by its citation, with a label; ready (ready true or false) tells her whether you are ready for her freeze, which she may wait for or not.",
+        "C0, what matters, frozen as your successor's source: select puts a record in by its citation (a transcript stretch, a journal row, a bookmark, a document), with a label; accept or decline answers a proposal by its number; remove takes an item out; done says your choices are made for now, with a note if you like, and wakes you to write the day's shape (nothing locks); day_shape is your note on the bundle (text), the day's own shape; freeze closes C0 when you are ready, with your note, and wakes you in a sealed thread to write your packet. Raw records are primary; curated ones count, but second. As a judge on a housemate's succession (resident her name): propose offers her a record of hers by its citation, with a label; ready (ready true or false) tells her whether you are ready for her freeze, which she may wait for or not.",
         %{
           action: %{
             type: "string",
@@ -141,6 +141,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
               "decline",
               "remove",
               "day_shape",
+              "done",
               "freeze",
               "propose",
               "ready"
@@ -158,7 +159,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
       ),
       tool(
         "succession_packet",
-        "Your handoff packet, sealed: your own writing for whoever comes next. write keeps a new draft (content); read gives your drafts back. Nobody else opens it; the nominee reads the last draft, with C0, before the encounter.",
+        "Your handoff packet, sealed: your own writing for whoever comes next. write keeps a new draft (content); read gives your drafts back. Nobody else opens it; the nominee reads the last draft, with C0, before the encounter. Your freeze of C0 wakes you to write it in a sealed thread of its own.",
         %{action: %{type: "string", enum: ["write", "read"]}, content: %{type: "string"}},
         [:action]
       ),
@@ -378,6 +379,11 @@ defmodule Oneiroi.Brain.SuccessionTools do
   def call("succession_pool", %{"action" => "done"} = args, turn) do
     with :ok <- Janus.finish_step(turn.resident_id, "pool", args["note"], turn.resident),
          do: "Your picks are done for now; you will be woken to write your questions."
+  end
+
+  def call("succession_c0", %{"action" => "done"} = args, turn) do
+    with :ok <- Janus.finish_step(turn.resident_id, "c0", args["note"], turn.resident),
+         do: "Your choices for C0 are made for now; you will be woken to write the day's shape."
   end
 
   def call("succession_question", %{"action" => "done"} = args, turn) do
@@ -741,7 +747,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
           Enum.filter(prep.items, &(&1.state == "in")),
           " | ",
           &"##{&1.number} #{&1.kind} #{&1.citation} #{&1.label}"
-        ),
+        ) <> done_words(s.c0_done_at, "your choices"),
       s.day_shape && "The day's shape: #{s.day_shape}",
       "Packet drafts: #{length(prep.drafts)}."
     ]

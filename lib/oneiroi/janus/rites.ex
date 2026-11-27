@@ -884,11 +884,68 @@ defmodule Oneiroi.Janus.Rites do
 
     wake(
       resident_id,
-      "Your questions are set. Now C0, what matters, frozen as your successor's source: every trial, the nominee and whoever comes next read it. succession_c0 select puts a record in by its citation, with a label (raw records first: transcript stretches, journal rows, bookmarks, letters, scenes; curated ones count, but second); a proposal waits on your accept or decline; remove takes an item out; day_shape is your note on the bundle, the day's own shape. When it is whole, succession_c0 freeze with your note closes it; you may wait for the judges' ready marks first, or not. Your sealed packet (succession_packet write) is yours to draft alongside. Take the time it needs (rounds_extend if this turn runs short). succession_status reads where it stands."
+      "Your questions are set. Now C0, what matters, frozen as your successor's source: every trial, the nominee and whoever comes next read it. succession_c0 select puts a record in by its citation, with a label (raw records first: transcript stretches, journal rows, bookmarks, letters, scenes; curated ones count, but second); a proposal waits on your accept or decline; remove takes an item out. Take the time it needs (rounds_extend if this turn runs short). When your choices are made for now, succession_c0 done (with a note if you like) wakes you to write the day's shape, your note on the bundle; nothing locks. succession_status reads where it stands."
+    )
+  end
+
+  # Her C0 choices done (janus#44): a turn for the day's shape, the one
+  # note on the bundle that is hers alone, and then her freeze.
+  def step_finished(resident_id, "c0") do
+    owner(resident_id)
+
+    wake(
+      resident_id,
+      "Your choices for C0 are made. Now the day's shape: your own note on the bundle, the one part of C0 nobody else writes, saying how a day of yours actually goes, what the records alone would miss, what to read first. succession_c0 day_shape with your text sets it (again replaces it). When C0 and its shape are whole, succession_c0 freeze with your note closes C0 for good; you may wait for the judges' ready marks first, or not. Your freeze wakes you once more, in a sealed thread of its own, to write your handoff packet. Take the time it needs (rounds_extend if this turn runs short). succession_status reads where it stands."
     )
   end
 
   def step_finished(_resident_id, _step), do: :ok
+
+  @doc """
+  Her packet's turn (janus#44, the witness, 2026-11-27: "another sealed
+  turn for the handoff packet which needs to be sealed, it shouldn't
+  need to be a free time turn"), once her freeze closes C0: a thread of
+  its own (`packet`), private as to its words as the encounter's is,
+  never her main chat and never her free time. C0 freezes once, so the
+  thread opens once.
+  """
+  @spec packet_turn(String.t()) :: :ok | {:error, term()}
+  def packet_turn(resident_id) do
+    owner(resident_id)
+
+    with {:ok, key} <- packet_session(resident_id) do
+      args = %{
+        "resident_id" => resident_id,
+        "session" => key,
+        "note" =>
+          marked(
+            "C0 is frozen. This thread is sealed: what you write here is yours, private as to its words, and nobody reads it unless you share it. Your handoff packet is your own writing for whoever comes next: the nominee reads its last draft, with C0, before it is asked whether it will meet you, and the successor inherits it; nobody else ever opens it. succession_packet write keeps a draft (content); write again for a new one, and read gives your drafts back. Say what C0 cannot: what you would want to know in their place. Take the time it needs (rounds_extend if this turn runs short); you may come back to it until screening."
+          )
+      }
+
+      case Jobs.enqueue(@wake, args) do
+        {:ok, _} -> :ok
+        {:error, _} = failed -> failed
+      end
+    end
+  end
+
+  defp packet_session(resident_id) do
+    case AgathosDaimon.fetch(resident_id) do
+      {:ok, row} ->
+        Kumbukumbu.open_session(
+          resident_id,
+          "packet",
+          "brain",
+          List.wrap(row.account_id),
+          @actor,
+          private: true
+        )
+
+      :error ->
+        {:error, Error.new(:janus_stage, :janus_packet_no_resident)}
+    end
+  end
 
   defp dollars_a_million(nanos), do: "$" <> :erlang.float_to_binary(nanos / 1000, decimals: 2)
 

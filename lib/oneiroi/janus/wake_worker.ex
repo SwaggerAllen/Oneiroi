@@ -9,6 +9,16 @@ defmodule Oneiroi.Janus.WakeWorker do
   alias Oneiroi.Apsu.Jobs
   alias Oneiroi.Config
 
+  # A wake in a session named (her sealed packet thread, janus#44), or
+  # in her main conversation.
+  def run(%{"resident_id" => resident_id, "note" => note, "session" => key})
+      when is_binary(key) do
+    case Config.fetch!(:janus, :brain).succession_wake(resident_id, note, key) do
+      {:ok, _answer} -> :ok
+      {:error, _} = failed -> failed
+    end
+  end
+
   def run(%{"resident_id" => resident_id, "note" => note}) do
     case Config.fetch!(:janus, :brain).succession_wake(resident_id, note) do
       {:ok, _answer} -> :ok

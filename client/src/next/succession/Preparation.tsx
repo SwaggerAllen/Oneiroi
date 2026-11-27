@@ -293,8 +293,10 @@ export function C0({ s, p, back }: PageProps) {
         <section className={`${settingsCss.card} ${css.now}`} aria-label="Frozen">
           <Row left={<strong>Frozen</strong>} right={<Chip kind="ok">{when(p?.c0_frozen_at)}</Chip>} />
           {p?.c0_frozen_note && <p className={settingsCss.note}>Her note: “{p.c0_frozen_note}”</p>}
+          <p className={settingsCss.note}>Her freeze woke her to write her handoff packet, in a sealed thread of its own.</p>
         </section>
       )}
+      {p?.c0_done_at && !frozen && <p className={settingsCss.note}>{name} said her choices were made {when(p.c0_done_at)}, and was woken to write the day's shape.</p>}
       <h2 className={settingsCss.heading}>In C0 · {inC0.length} · raw first</h2>
       {inC0.length === 0 && <p className={settingsCss.note}>Nothing in C0 yet.</p>}
       {inC0.map((c) => (

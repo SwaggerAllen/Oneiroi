@@ -442,14 +442,19 @@ defmodule Oneiroi.Janus.Successions do
           C0.render(resident_id, Enum.filter(items, &(&1.state == "in")), row.day_shape)
       end
 
-    done(%Commands.FreezeC0{
-      actor: actor,
-      at: Clock.now(),
-      id: resident_id,
-      bundle: bundle,
-      digest: digest,
-      note: note
-    })
+    with :ok <-
+           done(%Commands.FreezeC0{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             bundle: bundle,
+             digest: digest,
+             note: note
+           }) do
+      # Her freeze opens her packet's sealed turn (janus#44).
+      _ = Rites.packet_turn(resident_id)
+      :ok
+    end
   end
 
   @doc "A draft of her sealed handoff packet; returns the draft's number."

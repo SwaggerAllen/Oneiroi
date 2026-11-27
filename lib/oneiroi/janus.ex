@@ -360,8 +360,9 @@ defmodule Oneiroi.Janus do
       {:janus_pool_full, "the pool holds as many models as the envelope allows",
        remedy:
          "swap rather than add: take one of your own picks out first (succession_pool remove, with a note), or the witness restates the envelope with a higher count"},
-      {:janus_step_invalid, "a step she finishes is pool or questions",
-       remedy: "name pool when your picks are done, questions when your questions are"},
+      {:janus_step_invalid, "a step she finishes is pool, questions or c0",
+       remedy:
+         "name pool when your picks are done, questions when your questions are, c0 when your choices for C0 are"},
       {:janus_fork_pending,
        "the fork is still being made, and nothing can be added to the preparation before the copy it runs on exists",
        remedy:
