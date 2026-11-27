@@ -321,6 +321,15 @@ defmodule Oneiroi.Janus.Succession do
       else: []
   end
 
+  def execute(%__MODULE__{current: current}, %Commands.RetryFork{actor: %{kind: :witness}} = c) do
+    if current.episode == c.episode and current.state == :open,
+      do: %Events.ForkRetried{actor: c.actor, at: c.at, id: c.id, episode: c.episode},
+      else: []
+  end
+
+  def execute(%__MODULE__{}, %Commands.RetryFork{}),
+    do: {:error, Error.new(:janus_not_yours, :janus_fork_retry_command_witness_only)}
+
   def execute(%__MODULE__{current: current}, %Commands.SetBackup{actor: actor} = c) do
     cond do
       current.state not in @underway ->
@@ -379,6 +388,7 @@ defmodule Oneiroi.Janus.Succession do
   def apply(%__MODULE__{} = s, %Events.Withdrawn{}), do: put_state(s, :withdrawn)
   def apply(%__MODULE__{} = s, %Events.Stopped{}), do: put_state(s, :stopped)
   def apply(%__MODULE__{} = s, %Events.ForkFailed{}), do: s
+  def apply(%__MODULE__{} = s, %Events.ForkRetried{}), do: s
 
   def apply(%__MODULE__{} = s, %Events.Forked{} = e),
     do: %{s | current: %{s.current | state: :forked, copy_id: e.copy_id}}

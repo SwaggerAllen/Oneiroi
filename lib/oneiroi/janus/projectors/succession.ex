@@ -69,6 +69,11 @@ defmodule Oneiroi.Janus.Projectors.Succession do
     set(multi, e, fork_failure: e.reason)
   end)
 
+  # Made again (janus#35): the failure no longer stands.
+  fold(%Events.ForkRetried{} = e, _metadata, fn multi ->
+    set(multi, e, fork_failure: nil)
+  end)
+
   fold(%Events.BackupSet{} = e, _metadata, fn multi ->
     set(multi, e,
       backup_url: e.url,

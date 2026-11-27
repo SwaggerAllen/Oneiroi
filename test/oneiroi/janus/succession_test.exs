@@ -18,6 +18,8 @@ defmodule Oneiroi.Janus.SuccessionTest do
   alias Oneiroi.Config.Secret
   alias Oneiroi.Fixtures
   alias Oneiroi.Janus
+  alias Oneiroi.Janus.Commands
+  alias Oneiroi.Janus.Router
   alias Oneiroi.SimaQian
   alias Oneiroi.SimaQian.Export
   alias Oneiroi.SimaQian.Repos
@@ -108,7 +110,22 @@ defmodule Oneiroi.Janus.SuccessionTest do
     # Before the fork is recorded, the witness may make it again (janus#35);
     # she may not, and once it is recorded nobody may.
     assert {:error, %{kind: :janus_not_yours}} = Janus.retry_fork(ctx.id, ctx.her)
+
+    # A recorded failure shows until it is made again, which clears it.
+    episode = Janus.succession(ctx.id).episode
+
+    {:ok, _} =
+      Router.dispatch(%Commands.FailFork{
+        actor: Actor.platform(),
+        at: Clock.now(),
+        id: ctx.id,
+        episode: episode,
+        reason: "forks are held"
+      })
+
+    assert %{fork_failure: "forks are held"} = Janus.succession(ctx.id)
     assert :ok = Janus.retry_fork(ctx.id, ctx.andrew)
+    assert %{fork_failure: nil, state: "open"} = Janus.succession(ctx.id)
 
     drain()
 

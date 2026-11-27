@@ -29,6 +29,10 @@ defmodule Oneiroi.Janus.Commands do
     use Oneiroi.Command, fields: [:id, :episode, :reason]
   end
 
+  defmodule RetryFork do
+    use Oneiroi.Command, fields: [:id, :episode]
+  end
+
   defmodule SetBackup do
     use Oneiroi.Command, fields: [:id, :url, :token_ciphertext, :visibility, :push]
   end
