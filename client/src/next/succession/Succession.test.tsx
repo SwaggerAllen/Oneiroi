@@ -72,6 +72,17 @@ describe('the succession page', () => {
     expect(useShell.getState().pagePath).toBe('');
   });
 
+  // The witness, 2026-11-27: Next beside Back, the overview between them.
+  it('goes Next through the steps reached, and offers none past the last', async () => {
+    view({ succession: { ...base, state: 'forked', forked: true, forked_at: '2026-11-26T20:00:00Z' }, preparation: prep }, 'pool');
+    fireEvent.click(await screen.findByRole('button', { name: 'Next: The questions' }));
+    expect(useShell.getState().pagePath).toBe('questions');
+    cleanup();
+    view({ succession: { ...base, state: 'forked', forked: true, forked_at: '2026-11-26T20:00:00Z' }, preparation: prep }, 'judges');
+    expect(await screen.findByRole('button', { name: 'Succession home' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /^Next/ })).toBeNull();
+  });
+
   it('with none underway, offers the proposal and no steps', async () => {
     view({ succession: null });
     expect(await screen.findByText('Propose it')).toBeTruthy();

@@ -248,6 +248,28 @@ export function parentOf(path: string): string | null {
   return '';
 }
 
+// The step a page belongs to: its own, or for the pages under results
+// (a model's runs, ready) the results step's.
+const STEP_OF: Record<string, string> = { ready: 'results' };
+
+/**
+ * Where Next goes from a succession page (the witness, 2026-11-27): the
+ * next step after this page's that has a page and has been reached, in
+ * the steps' order; from the overview, the first such. Null where none
+ * is (the last reached, or a page outside the steps: the log, her side),
+ * and everywhere while the pages are shut before the fork.
+ */
+export function nextOf(path: string, s: Succession | null | undefined): { page: string; name: string } | null {
+  if (!s || locked(s)) return null;
+  const [first] = path.split('/');
+  const own = STEP_OF[first] ?? first;
+  const list = steps(s);
+  const at = path === '' ? -1 : list.findIndex((step) => step.page === own);
+  if (path !== '' && at < 0) return null;
+  const next = list.slice(at + 1).find((step) => step.page && (step.kind === 'done' || step.kind === 'now'));
+  return next?.page ? { page: next.page, name: next.name } : null;
+}
+
 /**
  * Where a C0 item's citation opens in the app, the way the app already
  * opens a citation (Records' `doc/<path>` or `cite/<kind>/<ref>`, the

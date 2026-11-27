@@ -40,6 +40,15 @@ export const dry = style([
   },
 ]);
 
+/** Back, home and Next: three columns, home centred, Next at the right edge. */
+export const nav = style({
+  display: 'grid',
+  gridTemplateColumns: '1fr auto 1fr',
+  alignItems: 'baseline',
+  gap: 10,
+});
+export const navEnd = style({ justifySelf: 'end' });
+
 export const row = style({
   display: 'flex',
   justifyContent: 'space-between',

@@ -32,10 +32,16 @@ The witness's rulings the screens hold to:
 
 - A full page over the tabs, at `#/settings/succession/<page>`, under
   the app's usual top bar (subject, search, bell, settings), like every
-  settings page (screen:next-settings). Each page has its own title row:
-  "‹ Back" and, opposite it on every page but the overview, **Succession
-  home** (the witness, 2026-11-26: the process kept in view), the title
-  with the dry-run mark beside it, and its lede.
+  settings page (screen:next-settings). Each page opens with a nav row:
+  "‹ Back" at the left; **Succession home** in the middle on every page
+  but the overview (the witness, 2026-11-26: the process kept in view);
+  and **Next ›** at the right (2026-11-27), to the next step after this
+  page's that has a page and has been reached, in the steps' order (from
+  the overview, the first such; a model's runs and Ready count as
+  results). There is no Next on the last step reached, on the log or her
+  side, or while the pages are shut before the fork. Then the title with
+  the dry-run mark beside it, and its lede. The deliberation has the same
+  row over its own tabs.
 - Until the fork is recorded, the overview is the only page (the
   witness, 2026-11-26): its steps show no way in and say "The steps open
   once the fork is made", and a page reached by link or hash goes to the

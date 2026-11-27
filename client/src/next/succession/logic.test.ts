@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { RoomJudgment, Succession } from '../../api/types';
 import { base } from './fixtures';
-import { archiveByModel, countsOf, isSuccessionNeed, judgmentReady, needHref, nextUnjudged, panelRows, parentOf, partyName, placeOf, poolNote, quiet, quietWords, steps, underway } from './logic';
+import { archiveByModel, countsOf, isSuccessionNeed, judgmentReady, needHref, nextOf, nextUnjudged, panelRows, parentOf, partyName, placeOf, poolNote, quiet, quietWords, steps, underway } from './logic';
 
 
 const kinds = (s: Succession) => steps(s).map((x) => x.kind[0]).join('');
@@ -199,5 +199,27 @@ describe('the archive', () => {
     expect(out.map((m) => m.model)).toEqual(['b/m', 'a/m']);
     expect(out[0].runs.map((r) => r.run)).toEqual([2, 3]);
     expect(out[1].runs[0].by).toHaveLength(2);
+  });
+});
+
+describe('Next (the witness, 2026-11-27)', () => {
+  const forked = { ...base, state: 'forked', forked: true, forked_at: '2026-11-26T20:00:00Z' } as never;
+
+  it('goes from the overview to the first step reached, and on through preparation', () => {
+    expect(nextOf('', forked)).toEqual({ page: 'pool', name: 'The pool' });
+    expect(nextOf('pool', forked)?.page).toBe('questions');
+    expect(nextOf('c0', forked)?.page).toBe('judges');
+  });
+
+  it('stops at the last step reached, outside the steps, and before the fork', () => {
+    expect(nextOf('judges', forked)).toBeNull();
+    expect(nextOf('log', forked)).toBeNull();
+    expect(nextOf('pool', { ...base, state: 'open', forked: false, forked_at: null } as never)).toBeNull();
+  });
+
+  it('counts a model\'s runs and ready as results', () => {
+    const judging = { ...base, state: 'deliberating', forked: true, forked_at: 'x', revealed_at: 'y' } as never;
+    expect(nextOf('results/a%2Fone', judging)?.page).toBe('deliberation');
+    expect(nextOf('ready', judging)?.page).toBe('deliberation');
   });
 });
