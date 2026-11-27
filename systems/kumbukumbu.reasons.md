@@ -860,3 +860,6 @@ The encounter is hers and the nominee's; her main chat is shared with her witnes
 
 ## #116
 "Work" alone says nothing of which work; the run knows its task and activity when it opens the session, so the session can say so.
+
+## #117
+The packet is sealed by design; writing it in her main chat would put its words where the witness reads them, and free time is hers for other things.

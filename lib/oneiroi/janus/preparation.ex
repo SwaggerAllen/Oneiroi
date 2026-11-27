@@ -62,7 +62,7 @@ defmodule Oneiroi.Janus.Preparation do
   # The most models an envelope may allow (janus#40): a cap, not a target.
   @max_models 50
   # The steps she says are done, each waking her to the next (janus#42).
-  @steps ~w(pool questions)
+  @steps ~w(pool questions c0)
   @question_chars 2_000
   @label_chars 300
   @citation_chars 500

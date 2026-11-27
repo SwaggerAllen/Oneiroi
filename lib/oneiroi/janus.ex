@@ -360,8 +360,9 @@ defmodule Oneiroi.Janus do
       {:janus_pool_full, "the pool holds as many models as the envelope allows",
        remedy:
          "swap rather than add: take one of your own picks out first (succession_pool remove, with a note), or the witness restates the envelope with a higher count"},
-      {:janus_step_invalid, "a step she finishes is pool or questions",
-       remedy: "name pool when your picks are done, questions when your questions are"},
+      {:janus_step_invalid, "a step she finishes is pool, questions or c0",
+       remedy:
+         "name pool when your picks are done, questions when your questions are, c0 when your choices for C0 are"},
       {:janus_fork_pending,
        "the fork is still being made, and nothing can be added to the preparation before the copy it runs on exists",
        remedy:
@@ -657,6 +658,10 @@ defmodule Oneiroi.Janus do
   @doc "What one judge sees of the runs (janus#14, #15)."
   @spec judging(String.t(), String.t()) :: map() | nil
   defexport(judging(resident_id, party), do: Successions.judging(resident_id, party))
+
+  @doc "The judges her freeze may wait for, each with whether they are ready (janus#45)."
+  @spec freeze_judges(String.t()) :: [%{party: String.t(), ready: boolean()}]
+  defexport(freeze_judges(resident_id), do: Successions.freeze_judges(resident_id))
 
   @doc "Her panel (janus#12)."
   @spec panel(String.t()) :: list()

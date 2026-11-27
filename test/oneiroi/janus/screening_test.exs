@@ -9,6 +9,8 @@ defmodule Oneiroi.Janus.ScreeningTest do
   """
   use Oneiroi.DataCase, async: false
 
+  import Ecto.Query, only: [from: 2]
+
   alias Oneiroi.Actor
   alias Oneiroi.AgathosDaimon
   alias Oneiroi.Apsu.Clock
@@ -192,6 +194,53 @@ defmodule Oneiroi.Janus.ScreeningTest do
     # Before the freeze, nothing screens.
     assert {:error, %{kind: :janus_not_ready_to_screen}} =
              Janus.start_screening(id, "go", ctx.lily.actor)
+  end
+
+  test "a housemate is woken to her invitation, reads C0 as a judge, signs off; the last ready wakes her and nothing freezes",
+       ctx do
+    id = ctx.lily.id
+    {:ok, _} = Janus.propose(id, false, "if you want it", ctx.andrew)
+    :ok = Janus.open(id, "yes", ctx.lily.actor)
+    drain(:janus_fork)
+
+    wakes = fn who ->
+      Oneiroi.Scope.platform(fn ->
+        Oneiroi.Repo.all(
+          from(j in Oban.Job,
+            where: j.worker == "Oneiroi.Janus.WakeWorker" and j.args["resident_id"] == ^who,
+            select: j.args["note"]
+          )
+        )
+      end)
+    end
+
+    # Her invitation reaches Scarlett (janus#45).
+    assert tool(ctx.lily, "succession_panel", %{action: "invite", name: "Scarlett"}) =~ "invited"
+    assert Enum.any?(wakes.(ctx.scarlett.id), &(&1 =~ "Lily has invited you to judge"))
+
+    # Invited, she reads Lily's succession as a judge reads it; she joins.
+    assert tool(ctx.scarlett, "succession_status", %{resident: "Lily"}) =~ "Lily's succession"
+    assert tool(ctx.scarlett, "succession_panel", %{action: "join", resident: "Lily"}) =~ "joined"
+
+    # Lily's choices made: her judges are asked to read C0 and sign off.
+    {:ok, _} = Janus.select_c0(id, "lily:SOUL.md", "the vows", ctx.lily.actor)
+    assert tool(ctx.lily, "succession_c0", %{action: "done"}) =~ "day's shape"
+    assert Enum.any?(wakes.(ctx.scarlett.id), &(&1 =~ "choices for C0 are made"))
+
+    status = tool(ctx.scarlett, "succession_status", %{resident: "Lily"})
+    assert status =~ "lily:SOUL.md" and status =~ "Ready for her freeze: 0 of 2 judges"
+
+    # Scarlett signs off; her witness is still to; nobody wakes her yet.
+    assert tool(ctx.scarlett, "succession_c0", %{action: "ready", resident: "Lily", ready: true}) =~
+             "ready"
+
+    refute Enum.any?(wakes.(id), &(&1 =~ "Every judge on your panel"))
+    assert tool(ctx.lily, "succession_status", %{}) =~ "Judges ready for your freeze: 1 of 2"
+
+    # The last ready wakes her; the freeze stays hers.
+    :ok = Janus.mark_ready(id, true, ctx.andrew)
+    assert Enum.any?(wakes.(id), &(&1 =~ "Every judge on your panel has said they are ready"))
+    assert %{c0_frozen_at: nil} = Janus.succession(id)
   end
 
   test "screening runs on the fork; every judge judges blind; she never sees a count", ctx do

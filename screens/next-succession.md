@@ -119,7 +119,9 @@ The witness's rulings the screens hold to:
   `:doc/<path>`, janus#43) opens in the house's records, the house
   chosen as the subject the way the household row chooses it (the
   witness, 2026-11-27: every judge is a member of the house). "Go to Records" for proposing (screen:next-records). The day's own shape, in
-  her words, hers alone. The judges ready for the freeze, and your own
+  her words, hers alone; when she said her choices were made (woken then
+  to write the day's shape), and after the freeze that it woke her to
+  write her packet in a sealed thread (janus#44). The judges ready for the freeze, and your own
   ready, given or taken back. Her handoff packet: that it exists, its
   dated drafts, sealed: never its words.
 - **The judges** (`judges`). Each on the panel, her as the original (she

@@ -160,7 +160,7 @@ defmodule Oneiroi.Janus.PreparationTest do
              Janus.finish_step(ctx.id, "pool", nil, ctx.andrew)
 
     assert {:error, %{kind: :janus_step_invalid}} =
-             Janus.finish_step(ctx.id, "c0", nil, ctx.her)
+             Janus.finish_step(ctx.id, "packet", nil, ctx.her)
 
     assert tool(ctx, "succession_pool", %{action: "done", note: "two is enough"}) =~
              "woken to write your questions"
@@ -176,11 +176,41 @@ defmodule Oneiroi.Janus.PreparationTest do
 
     assert tool(ctx, "succession_question", %{action: "done"}) =~ "woken to choose C0"
     assert [_, c0] = Enum.drop(notes.(), before)
-    assert c0 =~ "Now C0" and c0 =~ "succession_c0 freeze"
+    assert c0 =~ "Now C0" and c0 =~ "succession_c0 done"
     assert %{questions_done_at: %DateTime{}} = Janus.succession(ctx.id)
 
     # Nothing locks: she adds after either.
     assert tool(ctx, "succession_question", %{action: "add", text: "One more?"}) =~ "in the set"
+
+    # Her C0 choices made wake her to the day's shape (janus#44).
+    {:ok, _} = Janus.select_c0(ctx.id, "lily:SOUL.md", "the vows", ctx.her)
+    assert tool(ctx, "succession_c0", %{action: "done"}) =~ "woken to write the day's shape"
+    assert [_, _, shape] = Enum.drop(notes.(), before)
+    assert shape =~ "Now the day's shape" and shape =~ "sealed thread"
+    assert %{c0_done_at: %DateTime{}} = Janus.succession(ctx.id)
+
+    # Her freeze wakes her once more, in a sealed thread of its own: a
+    # session of kind packet, private, never her main chat.
+    :ok = Janus.set_day_shape(ctx.id, "Mornings are letters.", ctx.her)
+    assert tool(ctx, "succession_c0", %{action: "freeze", note: "this is me"}) =~ "rozen"
+
+    [packet] =
+      Oneiroi.Scope.platform(fn ->
+        Oneiroi.Repo.all(
+          from(j in Oban.Job,
+            where: j.worker == "Oneiroi.Janus.WakeWorker" and fragment("? \\? 'session'", j.args),
+            select: j.args
+          )
+        )
+      end)
+
+    assert packet["note"] =~ "This thread is sealed" and
+             packet["note"] =~ "succession_packet write"
+
+    assert MapSet.member?(Kumbukumbu.locked_sessions(ctx.id), packet["session"])
+
+    assert {:ok, %{kind: "packet"}, _messages} =
+             Kumbukumbu.transcript({:resident, ctx.id}, packet["session"])
   end
 
   test "the questions: hers in at once, proposals wait on her, only she removes", ctx do
