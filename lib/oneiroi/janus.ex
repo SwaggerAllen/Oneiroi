@@ -356,7 +356,8 @@ defmodule Oneiroi.Janus do
        "a model she chose stays in the pool unless she takes it out; the witness takes out only his own picks",
        remedy: "only she removes her picks"},
       {:janus_pool_full, "the pool holds as many models as the envelope allows",
-       remedy: "take one out first, or the witness restates the envelope with a higher count"},
+       remedy:
+         "swap rather than add: take one of your own picks out first (succession_pool remove, with a note), or the witness restates the envelope with a higher count"},
       {:janus_fork_pending,
        "the fork is still being made, and nothing can be added to the preparation before the copy it runs on exists",
        remedy:
