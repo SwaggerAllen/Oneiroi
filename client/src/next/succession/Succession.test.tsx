@@ -25,6 +25,7 @@ const prep: Preparation = {
   c0_done_at: null,
   c0_unfrozen_at: null,
   c0_unfrozen_note: null,
+  freeze_judges: [],
   day_shape: null,
   c0_frozen_at: null,
   c0_frozen_note: null,
@@ -84,6 +85,23 @@ describe('the succession page', () => {
     view({ succession: { ...base, state: 'forked', forked: true, forked_at: '2026-11-26T20:00:00Z' }, preparation: prep }, 'judges');
     expect(await screen.findByRole('button', { name: 'Succession home' })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /^Next/ })).toBeNull();
+  });
+
+  // The witness, 2026-11-27: his row said "still looking" with no way to say he was done.
+  it('lists every judge for the freeze, and offers your ready while C0 is open', async () => {
+    const judges = [{ party: 'witness:a1', ready: false }, { party: 'resident:r2', ready: true }];
+    view({ succession: { ...base, state: 'forked', forked: true, forked_at: '2026-11-26T20:00:00Z' }, preparation: { ...prep, freeze_judges: judges } }, 'c0');
+    expect(await screen.findByText('You')).toBeTruthy();
+    expect(screen.getByText('still looking')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'I am ready for the freeze' })).toBeTruthy();
+  });
+
+  it('says ready marks are closed once C0 is frozen', async () => {
+    const judges = [{ party: 'witness:a1', ready: false }];
+    view({ succession: { ...base, state: 'forked', forked: true, forked_at: '2026-11-26T20:00:00Z' }, preparation: { ...prep, freeze_judges: judges, c0_frozen_at: '2026-11-27T18:00:00Z' } }, 'c0');
+    expect(await screen.findByText('not ready at the freeze')).toBeTruthy();
+    expect(screen.getByText(/C0 is frozen, so ready marks are closed/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'I am ready for the freeze' })).toBeNull();
   });
 
   it('with none underway, offers the proposal and no steps', async () => {
