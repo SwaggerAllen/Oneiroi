@@ -300,7 +300,12 @@ export function backOf(path: string, s: Succession | null | undefined): string |
  * why not. A citation is `<slug>:<kind>/<ref>`, or `<slug>:<path>` for
  * a document at the root of her records (`lily:SOUL.md`).
  */
-export function placeOf(citation: string, slug: string): { to: Location } | { reason: string } {
+export function placeOf(citation: string, slug: string): { to: Location; house?: true } | { reason: string } {
+  // A shared memory of the house (janus#43) opens in the house's records:
+  // every judge is a member of it (the witness, 2026-11-27).
+  const house = /^house\/[a-z][a-z0-9-]{1,39}:(thread|doc)\/([^@\s]+)(?:@[0-9a-f]+)?$/.exec(citation.trim());
+  if (house) return { to: { tab: 'records', path: `doc/${house[1] === 'thread' ? 'threads/' : ''}${house[2]}` }, house: true };
+  if (citation.trim().startsWith('house/')) return { reason: 'Not a house citation the app can follow.' };
   const at = citation.trim().indexOf(':');
   if (at < 0) return { reason: 'Not a citation the app can follow.' };
   const own = citation.trim().slice(0, at);

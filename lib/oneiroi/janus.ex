@@ -373,6 +373,10 @@ defmodule Oneiroi.Janus do
       {:janus_already_answered, "that proposal was already answered",
        remedy: "read the proposals"},
       {:janus_c0_frozen, "C0 is frozen", remedy: "nothing in it changes now"},
+      {:janus_c0_unreadable,
+       "that record of the house is not one she can read: another house's, a thread whose audience leaves her out, or nothing there",
+       remedy:
+         "cite a thread or document of her own house that she can read, as house/<name>:thread/<id> or house/<name>:doc/<path>"},
       {:janus_c0_pending, "proposals for C0 wait on her answer",
        remedy: "answer each, then freeze"},
       {:janus_c0_empty, "C0 holds nothing to freeze", remedy: "choose what matters first"},

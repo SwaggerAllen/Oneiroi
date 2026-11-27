@@ -115,7 +115,10 @@ The witness's rulings the screens hold to:
   in the chat's Mail. Where there is no such place (a scene by number,
   a position, prediction or other record kind, a whole conversation,
   another resident's record) the button is off with a short reason
-  beside it. "Go to Records" for proposing (screen:next-records). The day's own shape, in
+  beside it. A record of the house (`house/<name>:thread/<id>` or
+  `:doc/<path>`, janus#43) opens in the house's records, the house
+  chosen as the subject the way the household row chooses it (the
+  witness, 2026-11-27: every judge is a member of the house). "Go to Records" for proposing (screen:next-records). The day's own shape, in
   her words, hers alone. The judges ready for the freeze, and your own
   ready, given or taken back. Her handoff packet: that it exists, its
   dated drafts, sealed: never its words.

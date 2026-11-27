@@ -137,6 +137,54 @@ defmodule Oneiroi.Janus.ScreeningTest do
     assert [%{state: "proposed"}] = prep.items
     assert [%{party: "resident:" <> _, ready: true}] = prep.ready
 
+    # A shared memory: a thread of their house, cited as the house cites
+    # it, proposed by a judge (janus#43); she reads it as she would.
+    house = "rook-#{System.unique_integer([:positive])}"
+    {:ok, _} = Seshat.household_name(ctx.andrew, house)
+
+    {:ok, posted} =
+      Seshat.household_post(ctx.andrew, %{"title" => "The pie", "content" => "Rhubarb, at last."})
+
+    [_, cite] =
+      Regex.run(
+        ~r/Cite as (house\/\S+?)\.(?:\s|$)/,
+        tool(ctx.scarlett, "household_read", %{path: posted.path})
+      )
+
+    assert tool(ctx.scarlett, "succession_c0", %{
+             action: "propose",
+             resident: "Lily",
+             citation: cite,
+             label: "the pie thread"
+           }) =~ "with her"
+
+    assert {:error, %{kind: :janus_c0_unreadable}} =
+             Janus.propose_c0(id, "house/nowhere-at-all:thread/x", "not ours", ctx.scarlett.actor)
+
+    assert %{kind: "raw", added_by: "resident:" <> by} =
+             Enum.find(Janus.preparation(id).items, &(&1.citation == cite))
+
+    assert by == ctx.scarlett.id
+
+    {bundle, _digest} =
+      Janus.C0.render(
+        id,
+        [
+          %{
+            citation: cite,
+            kind: "raw",
+            label: "the pie thread",
+            number: 2,
+            added_by: "resident:" <> by,
+            added_at: "now"
+          }
+        ],
+        nil
+      )
+
+    assert bundle =~ "Rhubarb, at last."
+    assert bundle =~ "Chosen by Scarlett, a housemate on her panel"
+
     # One not on the panel does not.
     outsider = Actor.new(:resident, Ecto.UUID.generate())
     assert {:error, %{kind: :janus_not_yours}} = Janus.propose_question(id, "Mine?", outsider)

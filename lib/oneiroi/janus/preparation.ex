@@ -70,7 +70,8 @@ defmodule Oneiroi.Janus.Preparation do
   @packet_chars 40_000
   # A record is raw when it was written at the time (base §2 Stage 1: raw
   # contemporaneous samples primary, curated selections secondary).
-  @raw ~r{:(transcript|journal|bookmark|letter|scene)/}
+  # A house thread is a conversation as it happened (janus#43).
+  @raw ~r{:(transcript|journal|bookmark|letter|scene|thread)/}
 
   @doc "The commands this module decides."
   def commands, do: @commands
