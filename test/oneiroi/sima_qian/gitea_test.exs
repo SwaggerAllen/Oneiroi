@@ -62,6 +62,23 @@ defmodule Oneiroi.SimaQian.GiteaTest do
 
   defp pending(kind, id), do: Enum.find(GiteaMigration.pending(), &match?({^kind, ^id, _}, &1))
 
+  # sima-qian#73 (2026-11-26: the first production fork had nowhere to
+  # put its repository, a fork joining no household).
+  test "a fork's repository is the platform's, under forks, granted to nobody", ctx do
+    # Made on the local records (no Gitea contents API in the suite),
+    # then located and made on Gitea as the fork's writes would.
+    {:ok, %{copy_id: copy}} = SimaQian.succession_fork(ctx.wren, ctx.andrew)
+    {:ok, %{slug: slug}} = AgathosDaimon.fetch(copy)
+    on(ctx.values)
+
+    assert {:ok, {_instance, "forks", ^slug}} = Gitea.locate({:resident, copy})
+    assert :ok = Gitea.ensure({:resident, copy})
+    state = Fake.state()
+    assert "forks/#{slug}" in state.repos
+
+    refute Enum.any?(Map.get(state, :grants, []), fn {repo, _login} -> repo == "forks/#{slug}" end)
+  end
+
   test "unset: nothing is sent, nothing fails", ctx do
     {:ok, _} =
       Seshat.household_post(ctx.andrew, %{"title" => "Plans", "content" => "For the week."})

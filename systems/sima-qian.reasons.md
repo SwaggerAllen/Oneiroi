@@ -477,3 +477,6 @@ A copy of a life is the largest write the platform makes, and every projector re
 
 ## #72
 Every line appended to the log is read by every subscriber, so a copy through it costs a life times the platform's readers, and a life only grows. A copy that never touches the log costs her data once, at the speed of the database, and the cutover only has to carry what the fork lived since; the price is one module that knows the store's tables, pinned by a test.
+
+## #73
+A fork is hidden from the house by design; its repository has to be hidden the same way, and a household organization is where the house reads.
