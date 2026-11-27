@@ -66,7 +66,8 @@ defmodule Oneiroi.Janus.Succession do
     Commands.SetDayShape,
     Commands.MarkReady,
     Commands.FreezeC0,
-    Commands.WritePacket
+    Commands.WritePacket,
+    Commands.FinishStep
   ]
   @screening [
     Commands.InviteJudge,
@@ -165,7 +166,8 @@ defmodule Oneiroi.Janus.Succession do
     Events.DayShapeSet,
     Events.ReadyMarked,
     Events.C0Frozen,
-    Events.PacketDrafted
+    Events.PacketDrafted,
+    Events.StepFinished
   ]
 
   @doc "The stages a succession is underway in."

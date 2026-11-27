@@ -106,19 +106,22 @@ defmodule Oneiroi.Brain.SuccessionTools do
       ),
       tool(
         "succession_pool",
-        "Your succession's pool, who may be screened. add puts a catalog model in; it must be inside your witness's envelope, and the pool holds at most as many models as the envelope allows, everyone's picks counted. remove takes one of your own picks out, with your note (nobody else removes yours, and you remove only yours). Both open once your fork is made. Read the pool with succession_status.",
+        "Your succession's pool, who may be screened. add puts a catalog model in; it must be inside your witness's envelope, and the pool holds at most as many models as the envelope allows, everyone's picks counted. remove takes one of your own picks out, with your note (nobody else removes yours, and you remove only yours). done says your picks are done for now, with a note if you like, and wakes you to write your questions; nothing locks. All open once your fork is made. Read the pool with succession_status.",
         %{
-          action: %{type: "string", enum: ["add", "remove"]},
+          action: %{type: "string", enum: ["add", "remove", "done"]},
           model: %{type: "string"},
           note: %{type: "string"}
         },
-        [:action, :model]
+        [:action]
       ),
       tool(
         "succession_question",
-        "The questions every candidate, and your own baseline, will answer. add puts yours in the set; accept or decline answers a judge's proposal by its number, with your note; remove takes any question out of the set, with your note. Only you decide the set. As a judge on a housemate's succession, propose offers her a question (text, with resident her name); she decides.",
+        "The questions every candidate, and your own baseline, will answer. add puts yours in the set; accept or decline answers a judge's proposal by its number, with your note; remove takes any question out of the set, with your note. Only you decide the set. done says the set is right for now, with a note if you like, and wakes you to choose C0; nothing locks. As a judge on a housemate's succession, propose offers her a question (text, with resident her name); she decides.",
         %{
-          action: %{type: "string", enum: ["add", "accept", "decline", "remove", "propose"]},
+          action: %{
+            type: "string",
+            enum: ["add", "accept", "decline", "remove", "done", "propose"]
+          },
           resident: %{type: "string"},
           text: %{type: "string"},
           number: %{type: "integer"},
@@ -370,6 +373,16 @@ defmodule Oneiroi.Brain.SuccessionTools do
           "\n"
         )
     end
+  end
+
+  def call("succession_pool", %{"action" => "done"} = args, turn) do
+    with :ok <- Janus.finish_step(turn.resident_id, "pool", args["note"], turn.resident),
+         do: "Your picks are done for now; you will be woken to write your questions."
+  end
+
+  def call("succession_question", %{"action" => "done"} = args, turn) do
+    with :ok <- Janus.finish_step(turn.resident_id, "questions", args["note"], turn.resident),
+         do: "Your questions are set for now; you will be woken to choose C0."
   end
 
   def call("succession_pool", %{"action" => "remove"} = args, turn) do
@@ -703,13 +716,14 @@ defmodule Oneiroi.Brain.SuccessionTools do
         else: "Envelope: not stated yet."
       ),
       "Pool (#{length(pool)}): " <>
-        Enum.map_join(pool, "; ", &"#{&1.row.model} (#{by(&1.row.added_by)})"),
+        Enum.map_join(pool, "; ", &"#{&1.row.model} (#{by(&1.row.added_by)})") <>
+        done_words(s.pool_done_at, "your picks"),
       "Questions in the set: " <>
         Enum.map_join(
           Enum.filter(prep.questions, &(&1.state == "in")),
           " | ",
           &"##{&1.number} #{&1.text}"
-        ),
+        ) <> done_words(s.questions_done_at, "your questions"),
       "Proposals waiting on you: " <>
         Enum.map_join(
           Enum.filter(prep.questions, &(&1.state == "proposed")),
@@ -793,6 +807,10 @@ defmodule Oneiroi.Brain.SuccessionTools do
 
   # Her model now beside the candidates (janus#38): what she spends,
   # and what her pace costs at its list prices.
+  # Her steps said done (janus#42).
+  defp done_words(nil, _what), do: ""
+  defp done_words(_at, what), do: " (#{what} said done)"
+
   defp now_line(current, pace) do
     spent = "your calls have cost about #{dollars(pace.cost * 30)} a month"
 

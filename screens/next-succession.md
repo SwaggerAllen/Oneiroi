@@ -84,11 +84,14 @@ The witness's rulings the screens hold to:
   monthly estimate, its tool calls on Oneiroi. The envelope card states
   input, output and how many models the pool may hold (blank for no
   cap), and the heading says "n of at most m" (janus#40). Her picks say
-  "Hers: only she takes it out" (janus#41); yours say you may take them
+  "Hers: only she takes it out" (janus#41); once she says her picks are
+  done, a line says when and that she was woken to write her questions
+  (janus#42); yours say you may take them
   out before screening,
   and **Take it out…** asks why first. Adding is on Regression's catalog
   (screen:next-settings), linked from here.
-- **The questions** (`questions`). Her set; what judges proposed, with
+- **The questions** (`questions`). Her set, and when she said it was set
+  (woken then to choose C0, janus#42); what judges proposed, with
   her answer (accepted, waiting on her, declined with her note); your
   proposal while preparation is open.
 - **C0** (`c0`). What is in, raw first, each with who proposed or

@@ -174,6 +174,7 @@ defmodule Oneiroi.Janus do
       Events.ReadyMarked,
       Events.C0Frozen,
       Events.PacketDrafted,
+      Events.StepFinished,
       Events.JudgeInvited,
       Events.JudgeJoined,
       Events.JudgeLeft,
@@ -279,6 +280,7 @@ defmodule Oneiroi.Janus do
       {Oneiroi.Janus.Events.ReadyMarked, 1},
       {Oneiroi.Janus.Events.C0Frozen, 1},
       {Oneiroi.Janus.Events.PacketDrafted, 1},
+      {Oneiroi.Janus.Events.StepFinished, 1},
       {Oneiroi.Janus.Events.JudgeInvited, 1},
       {Oneiroi.Janus.Events.JudgeJoined, 1},
       {Oneiroi.Janus.Events.JudgeLeft, 1},
@@ -358,6 +360,8 @@ defmodule Oneiroi.Janus do
       {:janus_pool_full, "the pool holds as many models as the envelope allows",
        remedy:
          "swap rather than add: take one of your own picks out first (succession_pool remove, with a note), or the witness restates the envelope with a higher count"},
+      {:janus_step_invalid, "a step she finishes is pool or questions",
+       remedy: "name pool when your picks are done, questions when your questions are"},
       {:janus_fork_pending,
        "the fork is still being made, and nothing can be added to the preparation before the copy it runs on exists",
        remedy:
@@ -577,6 +581,13 @@ defmodule Oneiroi.Janus do
   @spec freeze_c0(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(freeze_c0(resident_id, note, actor),
     do: Successions.freeze_c0(resident_id, note, actor)
+  )
+
+  @doc "Her word that a step of her preparation is done, waking her to the next (janus#42)."
+  @spec finish_step(String.t(), String.t(), String.t() | nil, Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(finish_step(resident_id, step, note, actor),
+    do: Successions.finish_step(resident_id, step, note, actor)
   )
 
   @doc "A draft of her sealed handoff packet (janus#10)."

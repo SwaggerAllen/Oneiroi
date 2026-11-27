@@ -20,6 +20,8 @@ const prep: Preparation = {
   ],
   questions: [],
   c0: [],
+  pool_done_at: '2026-11-27T16:00:00Z',
+  questions_done_at: null,
   day_shape: null,
   c0_frozen_at: null,
   c0_frozen_note: null,
@@ -93,6 +95,8 @@ describe('the succession page', () => {
     expect(screen.getAllByRole('button', { name: 'Take it out…' })).toHaveLength(1);
     // The envelope's cap on the pool (janus#40).
     expect(screen.getByText('The pool · 2 of at most 3')).toBeTruthy();
+    // Her word that her picks are done (janus#42).
+    expect(screen.getByText(/Lily said her picks were done .*, and was woken to write her questions\./)).toBeTruthy();
     expect(screen.getByText('Models in the pool, at most')).toBeTruthy();
     // What she spends now, and her model's month at its list prices (janus#38).
     expect(screen.getByText('~ $182.40 / mo')).toBeTruthy();

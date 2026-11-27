@@ -104,3 +104,6 @@ The witness pays for every screening run; a pool with no cap lets the run count 
 
 ## #41
 The 14.2 ruling protects her choices from others, not from herself; an add she cannot undo turns every pick into a commitment she never meant to make, and the only remedy was throwing away the whole preparation.
+
+## #42
+One wake that names every part of preparation asks her to do it all in one turn, or to remember what is left; a wake per part, started by her own word that the last is done, gives each its own turn and keeps the pace hers.

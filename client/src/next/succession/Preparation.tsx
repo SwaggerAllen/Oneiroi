@@ -58,6 +58,7 @@ export function Pool({ s, p, back }: PageProps) {
         The pool · {live.length}
         {p?.envelope?.max_models ? ` of at most ${p.envelope.max_models}` : ''}
       </h2>
+      {p?.pool_done_at && <p className={settingsCss.note}>{name} said her picks were done {when(p.pool_done_at)}, and was woken to write her questions.</p>}
       {entries.length === 0 && <p className={settingsCss.note}>No model in the pool yet.</p>}
       {entries.map((e) => (
         <PoolCard key={e.model} entry={e} mine={isMine(e.added_by, who.me)} hers={isHers(e.added_by, id)} line={poolNote(e, who.me, id, open)} by={who.name(e.added_by)} open={open} />
@@ -195,6 +196,7 @@ export function Questions({ s, p, back }: PageProps) {
         s={s}
       />
       <h2 className={settingsCss.heading}>Her set · {set.length}</h2>
+      {p?.questions_done_at && <p className={settingsCss.note}>{name} said her questions were set {when(p.questions_done_at)}, and was woken to choose C0.</p>}
       {set.length === 0 && <p className={settingsCss.note}>{name} has chosen none yet.</p>}
       {set.map((q) => (
         <section key={q.number} className={settingsCss.card} aria-label={`Question ${q.number}`}>

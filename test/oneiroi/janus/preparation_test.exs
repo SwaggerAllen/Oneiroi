@@ -8,6 +8,8 @@ defmodule Oneiroi.Janus.PreparationTest do
   """
   use Oneiroi.DataCase, async: false
 
+  import Ecto.Query, only: [from: 2]
+
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Brain.Tools
@@ -137,6 +139,48 @@ defmodule Oneiroi.Janus.PreparationTest do
 
     :ok = Janus.set_envelope(ctx.id, 5_000, 20_000, nil, ctx.andrew)
     assert :ok = Janus.add_to_pool(ctx.id, "fake/dear", ctx.andrew)
+  end
+
+  test "her picks done wake her to the questions, her questions done to C0", ctx do
+    notes = fn ->
+      Oneiroi.Scope.platform(fn ->
+        Oneiroi.Repo.all(
+          from(j in Oban.Job,
+            where: j.worker == "Oneiroi.Janus.WakeWorker",
+            select: j.args["note"]
+          )
+        )
+      end)
+    end
+
+    before = length(notes.())
+
+    # Hers alone (janus#42).
+    assert {:error, %{kind: :janus_not_yours}} =
+             Janus.finish_step(ctx.id, "pool", nil, ctx.andrew)
+
+    assert {:error, %{kind: :janus_step_invalid}} =
+             Janus.finish_step(ctx.id, "c0", nil, ctx.her)
+
+    assert tool(ctx, "succession_pool", %{action: "done", note: "two is enough"}) =~
+             "woken to write your questions"
+
+    assert [questions] = Enum.drop(notes.(), before)
+    assert questions =~ "Now the questions" and questions =~ "succession_question done"
+    assert %{pool_done_at: %DateTime{}, questions_done_at: nil} = Janus.succession(ctx.id)
+    assert tool(ctx, "succession_status", %{}) =~ "(your picks said done)"
+
+    # Once a step; a second wakes nobody.
+    assert tool(ctx, "succession_pool", %{action: "done"}) =~ "Not done"
+    assert length(notes.()) == before + 1
+
+    assert tool(ctx, "succession_question", %{action: "done"}) =~ "woken to choose C0"
+    assert [_, c0] = Enum.drop(notes.(), before)
+    assert c0 =~ "Now C0" and c0 =~ "succession_c0 freeze"
+    assert %{questions_done_at: %DateTime{}} = Janus.succession(ctx.id)
+
+    # Nothing locks: she adds after either.
+    assert tool(ctx, "succession_question", %{action: "add", text: "One more?"}) =~ "in the set"
   end
 
   test "the questions: hers in at once, proposals wait on her, only she removes", ctx do
