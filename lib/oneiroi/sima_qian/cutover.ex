@@ -201,16 +201,7 @@ defmodule Oneiroi.SimaQian.Cutover do
   end
 
   defp swap_rows(target, copy, original) do
-    {:ok, id} = Ecto.UUID.dump(target)
     life = tables().cleared -- ["agathos_daimon_resident"]
-
-    Scope.platform(fn ->
-      for table <- life do
-        # The table name is the catalog's own, never a request value.
-        # sobelow_skip ["SQL.Query"]
-        Repo.query!(~s|DELETE FROM "#{table}" WHERE resident_id = $1|, [id])
-      end
-    end)
 
     # The fork's rows carry its own id for an account (sima-qian#72):
     # hers take her account back; a scratch target's stay hidden as its own.
@@ -219,7 +210,7 @@ defmodule Oneiroi.SimaQian.Cutover do
         do: {:map, copy, account_of(target)},
         else: {:map, copy, target}
 
-    :ok = LogCopy.rows(copy, target, life, %{}, account)
+    :ok = LogCopy.rows(copy, target, life, %{}, account, replace: true)
     LogCopy.adopt_resident(copy, target)
   end
 
