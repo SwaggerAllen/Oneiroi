@@ -158,6 +158,14 @@ way before trusting a local green.
 - The core makes model calls only through the provider port, metered by
   the ledger (from P1).
 
+- **Pages are pushed to, not polled** (the witness, 2026-11-26). A page
+  showing server state that changes subscribes to a Phoenix channel
+  topic and refetches on its notice; the notice names what changed,
+  never its content, so the endpoints still decide who reads what. Poll
+  only with a stated reason in a comment (state that lives outside
+  Oneiroi, or a socket that cannot be had), and keep a slow poll as the
+  fallback for a dropped socket.
+
 ## Where things actually run
 
 - **Agent runs have no BEAM**; the gates run in `ci.yml` on the PR.

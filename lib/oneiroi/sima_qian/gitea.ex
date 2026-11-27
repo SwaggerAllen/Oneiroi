@@ -54,6 +54,9 @@ defmodule Oneiroi.SimaQian.Gitea do
               :ok | {:error, term()}
 
   @house "house"
+  # A succession's fork copies (sima-qian#73): the platform's own
+  # organization, never a household's, and nobody granted.
+  @forks "forks"
 
   @doc "Whether the server is set up here."
   defdelegate configured?(), to: GiteaQueue
@@ -85,6 +88,16 @@ defmodule Oneiroi.SimaQian.Gitea do
     do: {:ok, {instance(household_id), org(household_id), @house}}
 
   def locate({:resident, resident_id}) do
+    case AgathosDaimon.fetch(resident_id) do
+      {:ok, %{state: "fork", slug: slug}} -> {:ok, {GiteaQueue.primary(), @forks, slug}}
+      _housed -> locate_housed(resident_id)
+    end
+  end
+
+  # A fork joins no household (sima-qian#67), so it is never located under
+  # one: that left the first production fork with nowhere to put its
+  # repository (2026-11-26).
+  defp locate_housed(resident_id) do
     with {:ok, resident} <- AgathosDaimon.fetch(resident_id),
          household_id when is_binary(household_id) <-
            Gaia.resident_household(resident_id) |> id_of() do
@@ -105,6 +118,21 @@ defmodule Oneiroi.SimaQian.Gitea do
   end
 
   def ensure({:resident, resident_id} = repo) do
+    case locate(repo) do
+      {:ok, {inst, @forks, name}} -> ensure_fork(inst, name)
+      _housed -> ensure_housed(resident_id, repo)
+    end
+  end
+
+  # A fork's repository: made and protected, read by nobody but the
+  # platform.
+  defp ensure_fork(inst, name) do
+    with :ok <- client().ensure_org(inst, @forks),
+         :ok <- client().ensure_repo(inst, @forks, name),
+         do: client().protect(inst, @forks, name)
+  end
+
+  defp ensure_housed(resident_id, repo) do
     with {:ok, {inst, org, name}} <- locate(repo),
          {:ok, resident} <- AgathosDaimon.fetch(resident_id),
          :ok <- client().ensure_org(inst, org),
