@@ -27,6 +27,28 @@ defmodule Oneiroi.SimaQian.Gitea.Fake do
   def protect(_inst, org, repo), do: put(:protected, "#{org}/#{repo}")
 
   @impl true
+  # Gitea's fork: the parent's bare repository cloned whole.
+  # sobelow_skip ["Traversal.FileModule"]
+  def fork(_inst, from_org, from_repo, org, repo) do
+    target = bare(org, repo)
+    File.mkdir_p!(Path.dirname(target))
+
+    # Through the git port, the one caller of an external binary.
+    with {:ok, _} <-
+           Git.run(Git.binary(), Path.dirname(target), [
+             "clone",
+             "-q",
+             "--bare",
+             bare(from_org, from_repo),
+             target
+           ]),
+         do: put(:repos, "#{org}/#{repo}")
+  end
+
+  @impl true
+  def delete_org(_inst, _org), do: :ok
+
+  @impl true
   def grant_read(_inst, org, repo, login), do: put(:grants, {"#{org}/#{repo}", login})
 
   @impl true

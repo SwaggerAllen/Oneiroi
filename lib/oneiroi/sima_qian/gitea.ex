@@ -52,11 +52,23 @@ defmodule Oneiroi.SimaQian.Gitea do
   # so history is only ever added to and every citation of it holds.
   @callback protect(inst :: String.t(), org :: String.t(), repo :: String.t()) ::
               :ok | {:error, term()}
+  # Gitea's own fork of a repository into an organization (sima-qian#74):
+  # the copy made on its disk, nothing through ours.
+  @callback fork(
+              inst :: String.t(),
+              from_org :: String.t(),
+              from_repo :: String.t(),
+              org :: String.t(),
+              repo :: String.t()
+            ) :: :ok | {:error, term()}
+  @callback delete_org(inst :: String.t(), org :: String.t()) :: :ok | {:error, term()}
 
   @house "house"
-  # A succession's fork copies (sima-qian#73): the platform's own
-  # organization, never a household's, and nobody granted.
-  @forks "forks"
+  # A succession's fork copies (sima-qian#73, #74): an organization of
+  # each copy's own, never a household's, and nobody granted. Its own,
+  # because Gitea forks a repository once per owner, and a dry run's
+  # scratch copy is made while the fork still stands.
+  @fork_prefix "fork-"
 
   @doc "Whether the server is set up here."
   defdelegate configured?(), to: GiteaQueue
@@ -89,8 +101,11 @@ defmodule Oneiroi.SimaQian.Gitea do
 
   def locate({:resident, resident_id}) do
     case AgathosDaimon.fetch(resident_id) do
-      {:ok, %{state: "fork", slug: slug}} -> {:ok, {GiteaQueue.primary(), @forks, slug}}
-      _housed -> locate_housed(resident_id)
+      {:ok, %{state: "fork", slug: slug}} ->
+        {:ok, {GiteaQueue.primary(), fork_org(resident_id), slug}}
+
+      _housed ->
+        locate_housed(resident_id)
     end
   end
 
@@ -107,6 +122,11 @@ defmodule Oneiroi.SimaQian.Gitea do
     end
   end
 
+  @doc "A repository's git remote on Gitea, its token held in a secret (sima-qian#74)."
+  def remote(repo) do
+    with {:ok, {inst, org, name}} <- locate(repo), do: client().remote(inst, org, name)
+  end
+
   @doc "Makes a repository on Gitea if it is missing: its organization, the repository, its readers."
   def ensure({:household, household_id}) do
     {inst, org} = {instance(household_id), org(household_id)}
@@ -119,17 +139,41 @@ defmodule Oneiroi.SimaQian.Gitea do
 
   def ensure({:resident, resident_id} = repo) do
     case locate(repo) do
-      {:ok, {inst, @forks, name}} -> ensure_fork(inst, name)
+      {:ok, {inst, @fork_prefix <> _ = org, name}} -> ensure_fork(inst, org, name)
       _housed -> ensure_housed(resident_id, repo)
     end
   end
 
   # A fork's repository: made and protected, read by nobody but the
   # platform.
-  defp ensure_fork(inst, name) do
-    with :ok <- client().ensure_org(inst, @forks),
-         :ok <- client().ensure_repo(inst, @forks, name),
-         do: client().protect(inst, @forks, name)
+  defp ensure_fork(inst, org, name) do
+    with :ok <- client().ensure_org(inst, org),
+         :ok <- client().ensure_repo(inst, org, name),
+         do: client().protect(inst, org, name)
+  end
+
+  @doc "A fork copy's own organization (sima-qian#74)."
+  def fork_org(resident_id), do: @fork_prefix <> String.replace(resident_id, "-", "")
+
+  @doc """
+  Gitea forks `from` into `to`, a fork copy's place (sima-qian#74): the
+  copy made on Gitea's own disk, her history whole, nothing through
+  ours; then protected, as every repository is.
+  """
+  def fork_repo(from, to) do
+    with {:ok, {inst, from_org, from_name}} <- locate(from),
+         {:ok, {^inst, org, name}} <- locate(to),
+         :ok <- client().ensure_org(inst, org),
+         :ok <- client().fork(inst, from_org, from_name, org, name),
+         do: client().protect(inst, org, name)
+  end
+
+  @doc "A fork copy's organization, emptied of its repository, removed (sima-qian#74)."
+  def remove_fork_org(repo) do
+    case locate(repo) do
+      {:ok, {inst, @fork_prefix <> _ = org, _name}} -> client().delete_org(inst, org)
+      _housed -> :ok
+    end
   end
 
   defp ensure_housed(resident_id, repo) do

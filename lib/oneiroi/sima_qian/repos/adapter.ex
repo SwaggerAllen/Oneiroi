@@ -25,4 +25,9 @@ defmodule Oneiroi.SimaQian.Repos.Adapter do
   # The repository gone (sima-qian#70): only a succession's discarded fork
   # copy is ever deleted, and `Repos.delete/1` refuses anything else.
   @callback delete(Repos.repo()) :: :ok | {:error, term()}
+  # A repository's history whole into a new one, and one repository's tree
+  # onto another's main as a commit (sima-qian#74): both by git on disk.
+  @callback copy(Repos.repo(), Repos.repo()) :: {:ok, String.t() | nil} | {:error, term()}
+  @callback graft(Repos.repo(), Repos.repo(), String.t(), Repos.author()) ::
+              {:ok, String.t() | nil} | {:error, term()}
 end

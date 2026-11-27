@@ -12,8 +12,8 @@ defmodule Oneiroi.SimaQian.Fork do
   unlinked from `$all`, so no subscription reads one; then her rows,
   copied table by table, the registry's row a fork from the start
   (agathos-daimon#63: its slug suffixed, its state `fork`, no backup
-  remote); then her repository's files at its head, copied byte for byte
-  into the copy's repository in one commit; then `MarkFork`, the
+  remote); then her repository's history whole, by git on disk
+  (sima-qian#74); then `MarkFork`, the
   decision on the copy's own stream naming the source, the last of her
   events it holds and the commit it copied.
 
@@ -113,31 +113,11 @@ defmodule Oneiroi.SimaQian.Fork do
         )
       )
 
-  # Her repository at one commit, so a write landing meanwhile cannot
-  # tear the copy; the copy's own repository is new, so every path is
-  # put whatever stands there (`:any`): the replay's own writers may
-  # have rendered a file first.
-  defp copy_repository(resident_id, copy_id) do
-    source = {:resident, resident_id}
-
-    with {:ok, commit} when is_binary(commit) <- Repos.head(source),
-         {:ok, snapshot} <- Repos.snapshot_at(source, commit) do
-      changes =
-        for path <- snapshot |> Map.keys() |> Enum.sort(),
-            bytes = Repos.at(source, snapshot, path),
-            is_binary(bytes),
-            do: {:put, path, bytes, :any}
-
-      message = "Forked from #{resident_id} at #{commit} for a succession"
-
-      with {:ok, _} <- Repos.write({:resident, copy_id}, changes, message, Repos.platform()),
-           do: {:ok, commit}
-    else
-      # No repository yet: nothing to copy, and the copy names no commit.
-      {:ok, nil} -> {:ok, nil}
-      other -> other
-    end
-  end
+  # Her repository's history whole, by git on disk (sima-qian#74): the
+  # copy's head is her head. No repository yet: nothing to copy, and the
+  # copy names no commit.
+  defp copy_repository(resident_id, copy_id),
+    do: Repos.copy({:resident, resident_id}, {:resident, copy_id})
 
   defp mark(copy_id, source, sequence, commit, actor) do
     Router.dispatch_sited(%Commands.MarkFork{

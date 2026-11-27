@@ -272,6 +272,10 @@ defmodule Oneiroi.SimaQian.LogCopy do
     s = schema()
     uuids = Export.stream_uuids(copy)
     {:ok, id} = Ecto.UUID.dump(copy)
+    # Its repository first: a fork's is found by its registry row
+    # (sima-qian#73), which the rows' removal takes (2026-11-26: the
+    # failed forks' repositories stayed on Gitea).
+    _ = Repos.delete({:resident, copy})
 
     with {:ok, _} <-
            transaction(fn conn ->
@@ -295,8 +299,6 @@ defmodule Oneiroi.SimaQian.LogCopy do
              q(conn, "DELETE FROM #{s}.streams WHERE stream_uuid = ANY($1::text[])", [uuids])
            end) do
       Enum.each(resident_tables(), &clear_alone(&1, id))
-
-      _ = Repos.delete({:resident, copy})
       :ok
     end
   end

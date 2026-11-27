@@ -90,10 +90,11 @@ defmodule Oneiroi.SimaQian.Cutover do
         uuids = Export.stream_uuids(copy)
         stop_aggregates(uuids)
 
-        with :ok <- delete_streams(uuids),
-             :ok <- clear_all(copy) do
-          Repos.delete({:resident, copy})
-        end
+        # Its repository first: a fork's is found by its registry row,
+        # which clearing its rows takes (sima-qian#73, #74).
+        with :ok <- Repos.delete({:resident, copy}),
+             :ok <- delete_streams(uuids),
+             do: clear_all(copy)
 
       _not_a_fork ->
         {:error, Error.new(:sima_qian_not_a_fork, :sima_qian_discard_not_a_fork)}
@@ -274,38 +275,15 @@ defmodule Oneiroi.SimaQian.Cutover do
 
   # ---- 4. her repository, the fork's, with the artifacts ----
 
+  # By git on disk (sima-qian#74): the fork's tree as one commit on her
+  # history, then the artifacts, which are small, through the API.
   defp replace_repository(target, copy, artifacts, actor) do
-    changes =
-      changes({:resident, target}, copy) ++
-        Enum.map(artifacts, fn {path, content} -> {:put, path, content, :any} end)
+    message = "A succession's cutover: the successor's records, with what the protocol carries"
+    author = Repos.author(actor)
+    puts = Enum.map(artifacts, fn {path, content} -> {:put, path, content, :any} end)
 
-    with {:ok, _} <-
-           Repos.write(
-             {:resident, target},
-             changes,
-             "A succession's cutover: the successor's records, with what the protocol carries",
-             Repos.author(actor)
-           ),
+    with {:ok, _} <- Repos.graft({:resident, target}, {:resident, copy}, message, author),
+         {:ok, _} <- Repos.write({:resident, target}, puts, message, author),
          do: Repos.head({:resident, target})
-  end
-
-  defp changes(target_repo, copy) do
-    source = {:resident, copy}
-    {:ok, theirs} = Repos.snapshot(source)
-
-    mine =
-      case Repos.snapshot(target_repo) do
-        {:ok, snapshot} -> snapshot
-        _none -> %{}
-      end
-
-    puts =
-      for {path, _sha} <- Enum.sort(theirs),
-          bytes = Repos.at(source, theirs, path),
-          is_binary(bytes),
-          do: {:put, path, bytes, :any}
-
-    deletes = for path <- Map.keys(mine) -- Map.keys(theirs), do: {:delete, path, :any}
-    puts ++ deletes
   end
 end

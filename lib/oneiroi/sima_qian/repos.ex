@@ -88,6 +88,13 @@ defmodule Oneiroi.SimaQian.Repos do
   @doc "Deletes a resident's repository; only a succession's fork copy's, which the caller has checked (sima-qian#70)."
   def delete({:resident, _id} = repo), do: client().delete(repo)
 
+  @doc "Copies `from`'s history whole into `to`, a new repository (sima-qian#74): `{:ok, head}` or `{:ok, nil}` when `from` is empty."
+  def copy({:resident, _} = from, {:resident, _} = to), do: client().copy(from, to)
+
+  @doc "Puts `source`'s tree on `target`'s main as one commit on its history (sima-qian#74)."
+  def graft({:resident, _} = target, {:resident, _} = source, message, author),
+    do: client().graft(target, source, message, author)
+
   @doc "The repository's history, or a path's, newest first: `%{sha, at, author, subject}`."
   def log(repo, path, limit), do: client().log(repo, path, limit)
 

@@ -15,6 +15,7 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
   @behaviour Oneiroi.SimaQian.Repos.Adapter
 
   alias Oneiroi.SimaQian.Error
+  alias Oneiroi.SimaQian.Git
   alias Oneiroi.SimaQian.Gitea
   alias Oneiroi.SimaQian.GiteaQueue
 
@@ -74,7 +75,8 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
   def delete(repo) do
     with {:ok, {inst, org, name}} <- Gitea.locate(repo) do
       case request(inst, :delete, "/repos/#{org}/#{name}", nil, []) do
-        {:ok, status, _} when status in [204, 404] -> :ok
+        # A fork copy's organization goes with it (sima-qian#74).
+        {:ok, status, _} when status in [204, 404] -> Gitea.remove_fork_org(repo)
         other -> failed(other)
       end
     end
@@ -132,6 +134,40 @@ defmodule Oneiroi.SimaQian.Repos.Gitea do
     body["truncated"] == true and
       not (is_integer(body["total_count"]) and seen >= body["total_count"])
   end
+
+  @impl true
+  # Gitea's own fork (sima-qian#74): the copy made on Gitea's disk, her
+  # history whole, nothing through ours. A repository with no history yet
+  # is no fork, and the copy names no commit.
+  def copy(from, to) do
+    with :ok <- moved(),
+         {:ok, source} <- remote(from),
+         {:ok, head} when is_binary(head) <- Git.remote_head(source),
+         :ok <- Gitea.fork_repo(from, to),
+         {:ok, target} <- remote(to),
+         {:ok, ^head} <- Git.remote_head(target) do
+      {:ok, head}
+    else
+      {:ok, nil} ->
+        {:ok, nil}
+
+      {:ok, other} when is_binary(other) ->
+        {:error, Error.new(:sima_qian_gitea_failed, :sima_qian_repos_gitea_fork_head)}
+
+      failed ->
+        failed
+    end
+  end
+
+  @impl true
+  def graft(target, source, message, author) do
+    with :ok <- moved(),
+         {:ok, into} <- remote(target),
+         {:ok, from} <- remote(source),
+         do: Git.graft(into, from, message, author)
+  end
+
+  defp remote(repo), do: Gitea.remote(repo)
 
   @impl true
   def write(repo, changes, message, author) do
