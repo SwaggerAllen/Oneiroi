@@ -112,6 +112,13 @@ describe('the succession page', () => {
     expect(screen.queryByRole('button', { name: 'I am ready for the freeze' })).toBeNull();
   });
 
+  it('offers Propose another right under an ended succession, above its steps', async () => {
+    view({ succession: { ...base, state: 'stopped', forked: true, forked_at: '2026-11-26T20:00:00Z', ended_note: 'a reset' }, preparation: prep });
+    const card = await screen.findByText('Propose another');
+    const firstStep = screen.getByText('The pool');
+    expect(card.compareDocumentPosition(firstStep) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
   it('with none underway, offers the proposal and no steps', async () => {
     view({ succession: null });
     expect(await screen.findByText('Propose it')).toBeTruthy();

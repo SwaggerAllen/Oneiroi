@@ -39,6 +39,8 @@ export function Steps({ s, p, back }: { s: Succession | null; p: Preparation | u
           {s.ended_note && <p className={settingsCss.note}>{s.ended_note}</p>}
         </section>
       )}
+      {/* Next to where it says it ended, not under thirteen steps (the witness, 2026-11-27: no button anywhere). */}
+      {(!s || !underway(s)) && <Propose again={!!s} />}
       {s && underway(s) && (
         <Wall>Wanted for its own sake, never as a repair. Nothing moves without someone's ready, yes or done: to pause, walk away.</Wall>
       )}
@@ -65,7 +67,6 @@ export function Steps({ s, p, back }: { s: Succession | null; p: Preparation | u
       {s && <Backup s={s} />}
       {s?.state === 'proposed' && s.proposed_by && isMine(s.proposed_by, who.me) && <Withdraw />}
       {s?.state === 'open' && !s.forked_at && <RetryFork failure={s.fork_failure ?? null} />}
-      {(!s || !underway(s)) && <Propose again={!!s} />}
       {s && !locked(s) && (
         <section className={settingsCss.card} aria-label="More">
           <button type="button" className={settingsCss.linkButton} onClick={() => go('log')}>

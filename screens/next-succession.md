@@ -81,8 +81,9 @@ The witness's rulings the screens hold to:
   what its host says), **Withdraw** for a proposal of yours she has not
   answered (with why), and the disclosure log and Her side. With none
   underway: **Propose a succession** (your note, which she reads, and "A
-  dry run"); after one has ended, the steps as it left them and
-  **Propose another**.
+  dry run"); after one has ended, **Propose another** right under
+  "Now" (2026-11-27: at the foot of the steps it went unseen), then the
+  steps as it left them.
 - **The pool** (`pool`). Your envelope (input and output at most, a
   million tokens), stated or restated while preparation is open; that
   models without tool calls are not supported; her pace over the last
