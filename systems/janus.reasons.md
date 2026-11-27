@@ -83,3 +83,6 @@ Every other part of hers wakes her; a proposal that waits on her answer and neve
 
 ## #34
 A fork that takes the platform down for every resident is worse than no fork; holding it is reversible, and the switch says why it is off.
+
+## #35
+A step that can only wait on a job is stuck when the job is gone; the page has to say what happened, and the witness has to be able to start it again.

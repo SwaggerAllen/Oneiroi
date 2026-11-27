@@ -432,6 +432,16 @@ defmodule Oneiroi.Janus do
       )
   )
 
+  @doc "The witness makes the fork again for an open succession that has none (janus#35)."
+  @spec retry_fork(String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(retry_fork(resident_id, actor),
+    do:
+      with(
+        {:ok, episode} <- Successions.retry_fork(resident_id, actor),
+        do: ForkWorker.retry(resident_id, episode)
+      )
+  )
+
   @doc "Her no to a proposed succession (janus#3)."
   @spec decline(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(decline(resident_id, note, actor), do: Successions.decline(resident_id, note, actor))

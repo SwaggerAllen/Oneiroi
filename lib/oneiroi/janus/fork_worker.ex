@@ -17,6 +17,23 @@ defmodule Oneiroi.Janus.ForkWorker do
   def run(%{"resident_id" => resident_id, "episode" => episode}),
     do: Successions.fork(resident_id, episode, Actor.platform())
 
+  @doc "Enqueues the fork again (janus#35), unique on the moment asked, so a spent job never blocks it."
+  @spec retry(String.t(), pos_integer()) :: :ok | {:error, term()}
+  def retry(resident_id, episode) do
+    args = %{
+      "resident_id" => resident_id,
+      "episode" => episode,
+      "retry" => System.unique_integer([:positive, :monotonic])
+    }
+
+    case Jobs.enqueue(__MODULE__, args,
+           unique: [period: 60, keys: [:resident_id, :episode, :retry]]
+         ) do
+      {:ok, _job} -> :ok
+      {:error, refused} -> {:error, refused}
+    end
+  end
+
   @doc "Enqueues the fork for `episode`; unique on the episode, so a doubled insert is one job."
   @spec enqueue(String.t(), pos_integer()) :: :ok | {:error, term()}
   def enqueue(resident_id, episode) do

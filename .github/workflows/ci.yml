@@ -24,13 +24,23 @@ env:
   RENDER_SERVICE_ID: ${{ secrets.RENDER_SERVICE_ID }}
 
 jobs:
-  ci:
+  # The gates, four jobs side by side: `mix test` is split four ways
+  # (`--partitions`, a partition a job, each with its own Postgres), and
+  # every other gate runs once, on the first. The suite ran ten minutes
+  # in one job, nearly all of it serial (2026-11-26).
+  gates:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        partition: [1, 2, 3, 4]
     env:
       MIX_ENV: test
       PGHOST: localhost
       PGUSER: oneiroi
       PGPASSWORD: oneiroi
+      MIX_TEST_PARTITION: ${{ matrix.partition }}
+      MIX_TEST_PARTITIONS: 4
     services:
       postgres:
         # Pinned to the major production runs (P0.2 reads Render's
@@ -61,6 +71,7 @@ jobs:
           version-type: strict
 
       - uses: actions/setup-node@v4
+        if: matrix.partition == 1
         with:
           node-version-file: .tool-versions
           cache: npm
@@ -86,34 +97,45 @@ jobs:
       - name: deps
         run: mix deps.get --check-locked
       - name: deps audit
+        if: matrix.partition == 1
         run: mix deps.audit
       - name: format
+        if: matrix.partition == 1
         run: mix format --check-formatted
       - name: credo
+        if: matrix.partition == 1
         run: mix credo --strict
       # Config.HTTPS is ignored permanently: Render terminates TLS and
       # redirects at its edge, and the container-local health probe
       # arrives over plain http, which a `force_ssl:` would answer with
       # a 301 and fail the deploy. HSTS goes on the browser pipeline.
       - name: sobelow
+        if: matrix.partition == 1
         run: mix sobelow --exit --skip --ignore Config.HTTPS
       - name: compile
+        if: matrix.partition == 1
         run: mix compile --warnings-as-errors
       - name: xref cycles
+        if: matrix.partition == 1
         run: mix xref graph --format cycles --fail-above 0
       # The ratchet, armed at the only number it is free to arm at. The
       # cap also lives in qualityGates, so raising it is an author change.
       - name: xref compile-connected
+        if: matrix.partition == 1
         run: mix xref graph --label compile-connected --fail-above 0
       - name: audit
+        if: matrix.partition == 1
         run: mix oneiroi.audit
       - name: test
-        run: mix test
+        run: mix test --partitions ${MIX_TEST_PARTITIONS:-1}
       - name: client
+        if: matrix.partition == 1
         run: cd client && npm ci && npm run lint && npm run typecheck && npm test && npm run build-storybook
       - name: daedalus
+        if: matrix.partition == 1
         run: cd components/daedalus && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
       - name: sdk
+        if: matrix.partition == 1
         run: cd sdk && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
       # oneiroi:gates end
 
@@ -121,6 +143,7 @@ jobs:
       # pipeline token, and prints "skipped" otherwise, so a clean run on
       # an author branch never reads as those checks having passed.
       - name: gate the pipeline audit
+        if: matrix.partition == 1
         id: audit_gate
         env:
           TOKEN: ${{ secrets.PIPELINE_REPO_TOKEN }}
@@ -134,12 +157,12 @@ jobs:
             echo "pipeline audit skipped:${TOKEN:+}${TOKEN:- no PIPELINE_REPO_TOKEN;}${KEY:+}${KEY:- no ticket key in branch '$BRANCH'}"
           fi
       - name: set up the pipeline
-        if: steps.audit_gate.outputs.run == 'true'
+        if: matrix.partition == 1 && steps.audit_gate.outputs.run == 'true'
         uses: SwaggerAllen/orchestration/.github/actions/setup-pipeline@main
         with:
           pipeline_repo_token: ${{ secrets.PIPELINE_REPO_TOKEN }}
       - name: pipeline audit (mutex, doc lint, class, design ownership)
-        if: steps.audit_gate.outputs.run == 'true'
+        if: matrix.partition == 1 && steps.audit_gate.outputs.run == 'true'
         env:
           LINEAR_API_KEY: ${{ secrets.LINEAR_API_KEY }}
         run: |
@@ -152,3 +175,13 @@ jobs:
           pipeline audit --changed-files /tmp/changed --added-files /tmp/added \
             --design-files /tmp/design \
             --ticket "${{ steps.audit_gate.outputs.key }}"
+
+  # The one check branch protection and the metronome read, by its old
+  # name: green only when every partition and gate is.
+  ci:
+    runs-on: ubuntu-latest
+    needs: gates
+    if: always()
+    steps:
+      - name: every gate
+        run: test "${{ needs.gates.result }}" = "success"

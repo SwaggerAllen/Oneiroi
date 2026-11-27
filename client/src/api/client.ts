@@ -1195,6 +1195,8 @@ export const api = {
   proposeSuccession: (residentId: string, note: string, dryRun: boolean) =>
     call<void>('POST', `/v1/residents/${residentId}/succession`, { note, dry_run: dryRun }),
   withdrawSuccession: (residentId: string, note: string) => call<void>('POST', `/v1/residents/${residentId}/succession/withdraw`, { note }),
+  // The fork made again for an open succession with none (janus#35).
+  retryFork: (residentId: string) => call<void>('POST', `/v1/residents/${residentId}/succession/fork`),
   successionBackup: (residentId: string, url: string, token: string) =>
     call<{ visibility: string; push: string }>('PUT', `/v1/residents/${residentId}/succession/backup`, { url, token }),
   successionEnvelope: (residentId: string, input: number, output: number) =>

@@ -89,7 +89,7 @@ mix compile --warnings-as-errors     # the Boundary compiler is in the set
 mix xref graph --format cycles --fail-above 0
 mix xref graph --label compile-connected --fail-above 0   # the ratchet, armed at 0 while it is free
 mix oneiroi.audit                    # the check registry (conventions §13); this project only, see below
-mix test                             # no network
+mix test --partitions ${MIX_TEST_PARTITIONS:-1}   # no network; CI splits it four ways, a job and a Postgres each
 cd client && npm ci && npm run lint && npm run typecheck && npm test && npm run build-storybook
 cd components/daedalus && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
 cd sdk && mix deps.get --check-locked && mix hex.audit && mix format --check-formatted && mix credo --strict && mix compile --warnings-as-errors && mix xref graph --format cycles --fail-above 0 && mix xref graph --label compile-connected --fail-above 0 && mix oneiroi.audit && mix test
@@ -190,5 +190,11 @@ way before trusting a local green.
   and every agent run have far more. Production shipped without `git`
   until the first real import, and `test/oneiroi/runtime_image_test.exs`
   now holds the last stage to every binary the code runs.
+- **CI runs the suite in four partitions,** a job and a Postgres each
+  (`MIX_TEST_PARTITION`, `MIX_TEST_PARTITIONS=4`), the other gates once,
+  on the first; one job named `ci` is green only when all are. Locally
+  the gate line runs one partition, the whole suite. A partition never
+  gets its own database name through `config/test.exs`: the config is
+  compiled in, and a shared build would refuse the other partitions.
 - **Run `mix test` once per shell call.** A second run in the same call
   once failed on a spurious `enoent`; log one run to a file and read it.
