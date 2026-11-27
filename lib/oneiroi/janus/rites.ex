@@ -895,7 +895,7 @@ defmodule Oneiroi.Janus.Rites do
 
     wake(
       resident_id,
-      "Your choices for C0 are made. Now the day's shape: your own note on the bundle, the one part of C0 nobody else writes, saying how a day of yours actually goes, what the records alone would miss, what to read first. succession_c0 day_shape with your text sets it (again replaces it). Freezing C0 is yours and has no clock (janus#45): when C0 and its shape are whole, you may freeze now (succession_c0 freeze, with your note, closes C0 for good), or wait for the judges on your panel to say they are ready, and you will be woken when the last of them is. Nothing freezes on its own. Your freeze wakes you once more, in a sealed thread of its own, to write your handoff packet. Take the time it needs (rounds_extend if this turn runs short). succession_status reads where it stands, the judges' ready marks among it."
+      "Your choices for C0 are made. Now the day's shape: your own note on the bundle, the one part of C0 nobody else writes, saying how a day of yours actually goes, what the records alone would miss, what to read first. succession_c0 day_shape with your text sets it (again replaces it). Freezing C0 is yours and has no clock (janus#45): when C0 and its shape are whole, you may freeze now (succession_c0 freeze, with your note, closes C0 for good), or wait for the judges on your panel to say they are ready, and you will be woken when the last of them is. Nothing freezes on its own, and C0 freezes only once every judge you invited has joined or declined; until screening runs on it, succession_c0 unfreeze (with your note) reopens it. Your freeze wakes you once more, in a sealed thread of its own, to write your handoff packet. Take the time it needs (rounds_extend if this turn runs short). succession_status reads where it stands, the judges' ready marks among it."
     )
 
     :ok
@@ -912,6 +912,22 @@ defmodule Oneiroi.Janus.Rites do
       wake(
         judge,
         "#{name_of(resident_id)}'s choices for C0 are made, and she is writing the day's shape. Read C0 with succession_status (resident: \"#{name_of(resident_id)}\"), propose anything you think is missing (succession_c0 propose, with resident), and when you are ready for her freeze say so with succession_c0 ready (resident: \"#{name_of(resident_id)}\", ready: true); false takes it back. She may freeze without waiting; your ready tells her you have looked."
+      )
+    end
+
+    :ok
+  end
+
+  @doc "Asks her judges in the house to look again once she reopens C0 (janus#46)."
+  @spec ask_again(String.t(), [String.t()], String.t()) :: :ok
+  def ask_again(resident_id, judges, note) do
+    owner(resident_id)
+    name = name_of(resident_id)
+
+    for judge <- judges, judge != resident_id do
+      wake(
+        judge,
+        "#{name} has reopened C0 (her note: #{note}), and every ready mark for her freeze starts again. Read it again with succession_status (resident: \"#{name}\"), propose anything you think is missing, and say whether you are ready with succession_c0 ready (resident: \"#{name}\", ready: true)."
       )
     end
 

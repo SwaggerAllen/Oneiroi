@@ -45,6 +45,8 @@ defmodule Oneiroi.Janus.Store do
       field(:pool_done_at, :utc_datetime_usec)
       field(:questions_done_at, :utc_datetime_usec)
       field(:c0_done_at, :utc_datetime_usec)
+      field(:c0_unfrozen_at, :utc_datetime_usec)
+      field(:c0_unfrozen_note, :string)
       field(:envelope_set_at, :utc_datetime_usec)
       field(:day_shape, :string)
       field(:day_shape_at, :utc_datetime_usec)

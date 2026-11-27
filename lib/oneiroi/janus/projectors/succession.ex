@@ -178,6 +178,23 @@ defmodule Oneiroi.Janus.Projectors.Succession do
     )
   end)
 
+  # Reopened (janus#46): the bundle and the ready marks go, the items stay.
+  fold(%Events.C0Unfrozen{} = e, _metadata, fn multi ->
+    multi
+    |> set(e,
+      c0_frozen_at: nil,
+      c0_frozen_note: nil,
+      c0_bundle: nil,
+      c0_digest: nil,
+      c0_unfrozen_at: e.at,
+      c0_unfrozen_note: e.note
+    )
+    |> Multi.delete_all(
+      :unready,
+      from(r in Ready, where: r.resident_id == ^e.id and r.episode == ^e.episode)
+    )
+  end)
+
   fold(%Events.StepFinished{step: "pool"} = e, _metadata, fn multi ->
     set(multi, e, pool_done_at: e.at)
   end)

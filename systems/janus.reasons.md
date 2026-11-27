@@ -116,3 +116,6 @@ The day's shape is the one part of C0 only she writes, and it reads best once th
 
 ## #45
 Waiting for the judges was always meant to be her choice; a choice she is never told she can make, and judges never told they are asked, is no choice at all. An invitation nobody hears cannot be accepted, and a sign-off on a C0 the judge cannot read means nothing.
+
+## #46
+A judge who has not answered the invitation has not had the chance to sign off, and a freeze before then shuts them out of C0 for good. A freeze she cannot take back turns a misstep into a reset of everything; before screening nothing has read the bundle, so reopening it costs only the judges' looking again.

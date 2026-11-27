@@ -525,9 +525,26 @@ defmodule Oneiroi.Janus.Successions do
              digest: digest,
              note: note
            }) do
-      # Her freeze opens her packet's sealed turn (janus#44).
-      _ = Rites.packet_turn(resident_id)
+      # Her freeze opens her packet's sealed turn (janus#44), once: a
+      # freeze after an unfreeze (janus#46) opens no second thread.
+      _ = if not reopened?(resident_id), do: Rites.packet_turn(resident_id)
       :ok
+    end
+  end
+
+  defp reopened?(resident_id), do: match?(%{c0_unfrozen_at: %DateTime{}}, status(resident_id))
+
+  @doc """
+  She reopens C0 before any screening ran on it (janus#46), with her
+  note: the bundle and the judges' ready marks go, the items stay, and
+  her judges in the house are asked to look again.
+  """
+  @spec unfreeze_c0(String.t(), String.t(), Actor.t()) :: :ok | {:error, term()}
+  def unfreeze_c0(resident_id, note, actor) do
+    with :ok <-
+           done(%Commands.UnfreezeC0{actor: actor, at: Clock.now(), id: resident_id, note: note}) do
+      judges = for %{party: "resident:" <> judge} <- freeze_judges(resident_id), do: judge
+      Rites.ask_again(resident_id, judges, note)
     end
   end
 

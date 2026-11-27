@@ -33,6 +33,7 @@ defmodule Oneiroi.Janus.Preparation do
     Commands.SetDayShape,
     Commands.MarkReady,
     Commands.FreezeC0,
+    Commands.UnfreezeC0,
     Commands.WritePacket,
     Commands.FinishStep
   ]
@@ -55,7 +56,8 @@ defmodule Oneiroi.Janus.Preparation do
     Events.ReadyMarked,
     Events.C0Frozen,
     Events.PacketDrafted,
-    Events.StepFinished
+    Events.StepFinished,
+    Events.C0Unfrozen
   ]
 
   @open [:open, :forked]
@@ -442,6 +444,10 @@ defmodule Oneiroi.Janus.Preparation do
       Enum.any?(cur.c0, fn {_n, state} -> state == :proposed end) ->
         {:error, Error.new(:janus_c0_pending, :janus_freeze_pending)}
 
+      # Every judge she invited has joined or declined (janus#46).
+      Enum.any?(Map.get(cur, :panel, %{}), fn {_party, state} -> state == :invited end) ->
+        {:error, Error.new(:janus_judges_pending, :janus_freeze_judges_pending)}
+
       true ->
         %Events.C0Frozen{
           actor: c.actor,
@@ -473,6 +479,26 @@ defmodule Oneiroi.Janus.Preparation do
           draft: cur.drafts + 1,
           content: c.content
         }
+    end
+  end
+
+  # Her C0 reopened (janus#46): hers, frozen, and no screening run on it.
+  def execute(cur, %Commands.UnfreezeC0{} = c) do
+    cond do
+      not hers?(c) ->
+        {:error, Error.new(:janus_not_yours, :janus_unfreeze_actor)}
+
+      not cur.frozen ->
+        {:error, Error.new(:janus_c0_not_frozen, :janus_unfreeze_open)}
+
+      Map.get(cur, :runs, %{}) != %{} ->
+        {:error, Error.new(:janus_c0_screened, :janus_unfreeze_screened)}
+
+      not text?(c.note, @question_chars) ->
+        {:error, Error.new(:janus_text_invalid, :janus_unfreeze_note, at_most: @question_chars)}
+
+      true ->
+        %Events.C0Unfrozen{actor: c.actor, at: c.at, id: c.id, episode: cur.episode, note: c.note}
     end
   end
 
@@ -539,6 +565,7 @@ defmodule Oneiroi.Janus.Preparation do
     do: %{cur | ready: MapSet.delete(cur.ready, {e.actor.kind, e.actor.id})}
 
   def apply(cur, %Events.C0Frozen{}), do: %{cur | frozen: true}
+  def apply(cur, %Events.C0Unfrozen{}), do: %{cur | frozen: false, ready: MapSet.new()}
   def apply(cur, %Events.PacketDrafted{} = e), do: %{cur | drafts: e.draft}
 
   def apply(cur, %Events.StepFinished{} = e),

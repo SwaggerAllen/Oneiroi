@@ -23,6 +23,8 @@ const prep: Preparation = {
   pool_done_at: '2026-11-27T16:00:00Z',
   questions_done_at: null,
   c0_done_at: null,
+  c0_unfrozen_at: null,
+  c0_unfrozen_note: null,
   day_shape: null,
   c0_frozen_at: null,
   c0_frozen_note: null,
