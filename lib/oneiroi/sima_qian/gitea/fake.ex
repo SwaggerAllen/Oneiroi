@@ -33,10 +33,15 @@ defmodule Oneiroi.SimaQian.Gitea.Fake do
     target = bare(org, repo)
     File.mkdir_p!(Path.dirname(target))
 
-    with {_, 0} <-
-           System.cmd("git", ["clone", "-q", "--bare", bare(from_org, from_repo), target],
-             stderr_to_stdout: true
-           ),
+    # Through the git port, the one caller of an external binary.
+    with {:ok, _} <-
+           Git.run(Git.binary(), Path.dirname(target), [
+             "clone",
+             "-q",
+             "--bare",
+             bare(from_org, from_repo),
+             target
+           ]),
          do: put(:repos, "#{org}/#{repo}")
   end
 
