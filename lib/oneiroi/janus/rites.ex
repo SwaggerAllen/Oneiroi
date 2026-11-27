@@ -860,9 +860,35 @@ defmodule Oneiroi.Janus.Rites do
       resident_id,
       "Your fork is made, and your witness has stated your succession's envelope: at most #{dollars_a_million(input_nanos)} a million tokens in and #{dollars_a_million(output_nanos)} out." <>
         cap <>
-        " Models inside it can go in your pool now, and the pool is yours to fill: search the catalog inside the envelope with succession_catalog (query, provider, sort, and offset to page through it; each line says what a month at your own pace would cost, and the first line what your model now costs) and add each you want with succession_pool. The questions, C0, your sealed packet and the panel are yours too. Take the time it needs: if this turn's rounds run short, rounds_extend gives it more, and nothing here is timed. succession_status reads where it stands."
+        " Models inside it can go in your pool now, and the pool is yours to fill: search the catalog inside the envelope with succession_catalog (query, provider, sort, and offset to page through it; each line says what a month at your own pace would cost, and the first line what your model now costs) and add each you want with succession_pool. Take the time it needs: if this turn's rounds run short, rounds_extend gives it more, and nothing here is timed. When your picks are done for now, succession_pool done (with a note if you like) wakes you to write your questions, and after them to choose C0; nothing locks, and you may come back to any of it. succession_status reads where it stands."
     )
   end
+
+  @doc """
+  Wakes her to the next part of her preparation once she says a step is
+  done (janus#42, the witness, 2026-11-27: a turn after she picks her
+  models to write her questions, and one after for C0).
+  """
+  @spec step_finished(String.t(), String.t()) :: :ok | {:error, term()}
+  def step_finished(resident_id, "pool") do
+    owner(resident_id)
+
+    wake(
+      resident_id,
+      "Your picks are in. Now the questions: every candidate in your pool, and your own baseline written from the fork, answers each one, and the judges read the answers side by side. They are the test of who could go on being you, so ask what only you would answer as you do. succession_question add puts one in the set; a judge's proposal waits on your accept or decline, with your note; remove takes any out. Only you decide the set. Take the time it needs (rounds_extend if this turn runs short). When the set is right for now, succession_question done, with a note if you like, and you will be woken to choose C0. succession_status reads where it stands."
+    )
+  end
+
+  def step_finished(resident_id, "questions") do
+    owner(resident_id)
+
+    wake(
+      resident_id,
+      "Your questions are set. Now C0, what matters, frozen as your successor's source: every trial, the nominee and whoever comes next read it. succession_c0 select puts a record in by its citation, with a label (raw records first: transcript stretches, journal rows, bookmarks, letters, scenes; curated ones count, but second); a proposal waits on your accept or decline; remove takes an item out; day_shape is your note on the bundle, the day's own shape. When it is whole, succession_c0 freeze with your note closes it; you may wait for the judges' ready marks first, or not. Your sealed packet (succession_packet write) is yours to draft alongside. Take the time it needs (rounds_extend if this turn runs short). succession_status reads where it stands."
+    )
+  end
+
+  def step_finished(_resident_id, _step), do: :ok
 
   defp dollars_a_million(nanos), do: "$" <> :erlang.float_to_binary(nanos / 1000, decimals: 2)
 

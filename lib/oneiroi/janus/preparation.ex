@@ -33,7 +33,8 @@ defmodule Oneiroi.Janus.Preparation do
     Commands.SetDayShape,
     Commands.MarkReady,
     Commands.FreezeC0,
-    Commands.WritePacket
+    Commands.WritePacket,
+    Commands.FinishStep
   ]
 
   @events [
@@ -53,12 +54,15 @@ defmodule Oneiroi.Janus.Preparation do
     Events.DayShapeSet,
     Events.ReadyMarked,
     Events.C0Frozen,
-    Events.PacketDrafted
+    Events.PacketDrafted,
+    Events.StepFinished
   ]
 
   @open [:open, :forked]
   # The most models an envelope may allow (janus#40): a cap, not a target.
   @max_models 50
+  # The steps she says are done, each waking her to the next (janus#42).
+  @steps ~w(pool questions)
   @question_chars 2_000
   @label_chars 300
   @citation_chars 500
@@ -85,7 +89,8 @@ defmodule Oneiroi.Janus.Preparation do
       next_c0: 1,
       ready: MapSet.new(),
       frozen: false,
-      drafts: 0
+      drafts: 0,
+      steps: MapSet.new()
     }
 
   @doc "A record's kind by its citation: raw or curated."
@@ -470,6 +475,31 @@ defmodule Oneiroi.Janus.Preparation do
     end
   end
 
+  # Her word that a step is done for now (janus#42): once a step an
+  # episode; a second is nothing, and it locks nothing.
+  def execute(cur, %Commands.FinishStep{} = c) do
+    cond do
+      not hers?(c) ->
+        {:error, Error.new(:janus_not_yours, :janus_step_actor)}
+
+      c.step not in @steps ->
+        {:error, Error.new(:janus_step_invalid, :janus_step_name, steps: @steps)}
+
+      MapSet.member?(Map.get(cur, :steps, MapSet.new()), c.step) ->
+        []
+
+      true ->
+        %Events.StepFinished{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          episode: cur.episode,
+          step: c.step,
+          note: c.note
+        }
+    end
+  end
+
   # ---- apply ----
 
   def apply(cur, %Events.EnvelopeSet{} = e),
@@ -509,6 +539,9 @@ defmodule Oneiroi.Janus.Preparation do
 
   def apply(cur, %Events.C0Frozen{}), do: %{cur | frozen: true}
   def apply(cur, %Events.PacketDrafted{} = e), do: %{cur | drafts: e.draft}
+
+  def apply(cur, %Events.StepFinished{} = e),
+    do: Map.put(cur, :steps, MapSet.put(Map.get(cur, :steps, MapSet.new()), e.step))
 
   # Her own pick, taken out by her with her note (janus#41).
   defp her_removal(cur, c, rid) do

@@ -466,6 +466,35 @@ defmodule Oneiroi.Janus.Successions do
   end
 
   @doc """
+  Her word that a step of her preparation is done for now (janus#42):
+  `"pool"` wakes her to write her questions, `"questions"` to choose C0.
+  Once a step an episode; a second says so and wakes nobody.
+  """
+  @spec finish_step(String.t(), String.t(), String.t() | nil, Actor.t()) ::
+          :ok | {:error, term()}
+  def finish_step(resident_id, step, note, actor) do
+    command = %Commands.FinishStep{
+      actor: actor,
+      at: Clock.now(),
+      id: resident_id,
+      step: step,
+      note: note
+    }
+
+    case dispatch(command) do
+      {:ok, []} ->
+        {:error, Error.new(:janus_already_answered, :janus_step_again, step: step)}
+
+      {:ok, _events} ->
+        _ = Rites.step_finished(resident_id, step)
+        :ok
+
+      {:error, _} = refused ->
+        refused
+    end
+  end
+
+  @doc """
   The preparation as the screens read it: the envelope, her pace, the
   pool with each model's monthly estimate and its tool calls on
   Oneiroi, the questions, C0's items, the ready marks, and the packet's

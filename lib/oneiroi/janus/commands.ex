@@ -102,6 +102,12 @@ defmodule Oneiroi.Janus.Commands do
     use Oneiroi.Command, fields: [:id, :content]
   end
 
+  # `step` is "pool" or "questions": hers, saying that part is done for
+  # now (janus#42).
+  defmodule FinishStep do
+    use Oneiroi.Command, fields: [:id, :step, :note]
+  end
+
   # ---- the panel, screening and judging (janus#12 to #15) ----
 
   # `party` is `resident:<id>` or `witness:<id>`; `member` whether the

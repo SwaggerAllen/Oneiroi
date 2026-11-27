@@ -1141,6 +1141,9 @@ export interface Preparation {
   questions: SuccessionQuestion[];
   c0: C0Item[];
   day_shape: string | null;
+  /** When she said her picks, then her questions, were done for now (janus#42). */
+  pool_done_at: string | null;
+  questions_done_at: string | null;
   c0_frozen_at: string | null;
   c0_frozen_note: string | null;
   ready: { party: Party; ready: boolean; at: string }[];

@@ -178,6 +178,14 @@ defmodule Oneiroi.Janus.Projectors.Succession do
     )
   end)
 
+  fold(%Events.StepFinished{step: "pool"} = e, _metadata, fn multi ->
+    set(multi, e, pool_done_at: e.at)
+  end)
+
+  fold(%Events.StepFinished{step: "questions"} = e, _metadata, fn multi ->
+    set(multi, e, questions_done_at: e.at)
+  end)
+
   fold(%Events.PacketDrafted{} = e, _metadata, fn multi ->
     Multi.insert(
       multi,

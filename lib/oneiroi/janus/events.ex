@@ -169,6 +169,13 @@ defmodule Oneiroi.Janus.Events do
       export: false
   end
 
+  defmodule StepFinished do
+    # Her word that a part of her preparation is done for now (janus#42):
+    # "pool" wakes her to the questions, "questions" to C0. Once a step
+    # an episode; nothing is locked by it.
+    use Oneiroi.Event, version: 1, fields: [:id, :episode, :step, :note], export: false
+  end
+
   defmodule PacketDrafted do
     # Her handoff packet, sealed (janus#10): the words are here and in
     # one projection row; no route or tool but hers reads them, until
