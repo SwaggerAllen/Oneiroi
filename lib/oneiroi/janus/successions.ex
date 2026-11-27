@@ -120,16 +120,7 @@ defmodule Oneiroi.Janus.Successions do
       %{episode: ^episode, state: "open"} ->
         case fork_copy(resident_id, actor) do
           {:ok, copy} ->
-            done(%Commands.RecordFork{
-              actor: actor,
-              at: Clock.now(),
-              id: resident_id,
-              episode: episode,
-              copy_id: copy.copy_id,
-              sequence: copy.sequence,
-              commit: copy.commit,
-              events: copy.events
-            })
+            record_fork(resident_id, episode, copy, actor)
 
           {:error, error} ->
             Logger.error("janus: a succession's fork failed", Oneiroi.Error.metadata(error))
@@ -151,6 +142,30 @@ defmodule Oneiroi.Janus.Successions do
     end
   end
 
+  defp record_fork(resident_id, episode, copy, actor) do
+    with :ok <-
+           done(%Commands.RecordFork{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             episode: episode,
+             copy_id: copy.copy_id,
+             sequence: copy.sequence,
+             commit: copy.commit,
+             events: copy.events
+           }),
+         do: unless_recorded(resident_id, copy.copy_id)
+  end
+
+  # Another job's fork recorded first (2026-11-26: two presses ran two
+  # forks at once): this one's copy is nobody's, and goes (sima-qian#72).
+  defp unless_recorded(resident_id, copy_id) do
+    case status(resident_id) do
+      %{copy_id: ^copy_id} -> :ok
+      _another -> with {:ok, _} <- SimaQian.succession_remove(copy_id), do: :ok
+    end
+  end
+
   # Held while `JANUS_FORKS` is off (janus#34): the copy is never made,
   # and the fork is recorded failed, saying why.
   defp fork_copy(resident_id, actor) do
@@ -164,6 +179,25 @@ defmodule Oneiroi.Janus.Successions do
   end
 
   @doc """
+  The fork made again (janus#35), in its job: what a crashed fork left
+  behind is swept away first (sima-qian#72), every copy a succession of
+  hers recorded kept, then the fork is made. Never in the witness's
+  request: a sweep of several copies outlasts it.
+  """
+  @spec sweep_and_fork(String.t(), pos_integer(), Actor.t()) :: :ok | {:error, term()}
+  def sweep_and_fork(resident_id, episode, %Actor{} = actor) do
+    case status(resident_id) do
+      %{episode: ^episode, state: "open", copy_id: nil} ->
+        keep = for s <- history(resident_id), is_binary(s.copy_id), do: s.copy_id
+        {:ok, _swept} = SimaQian.succession_sweep(resident_id, keep)
+        fork(resident_id, episode, actor)
+
+      _other ->
+        :ok
+    end
+  end
+
+  @doc """
   Makes the fork again (janus#35): the witness's, for an open succession
   with no fork recorded, after a failure or a job that never finished.
   """
@@ -171,11 +205,6 @@ defmodule Oneiroi.Janus.Successions do
   def retry_fork(resident_id, %Actor{kind: :witness} = actor) do
     case status(resident_id) do
       %{state: "open", copy_id: nil, episode: episode} ->
-        # What a crashed fork left behind goes first (sima-qian#72); every
-        # copy a succession of hers recorded is kept.
-        keep = for s <- history(resident_id), is_binary(s.copy_id), do: s.copy_id
-        {:ok, _swept} = SimaQian.succession_sweep(resident_id, keep)
-
         with :ok <-
                done(%Commands.RetryFork{
                  actor: actor,

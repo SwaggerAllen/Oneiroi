@@ -122,6 +122,12 @@ defmodule Oneiroi.SimaQian.LogCopyTest do
       )
       |> List.flatten()
 
+    # Deleting a stream row checks its links by this index (2026-11-26).
+    assert [[_]] =
+             es(
+               "SELECT 1 FROM pg_indexes WHERE schemaname = 'eventstore' AND indexname = 'ix_stream_events_original_stream'"
+             )
+
     assert triggers ==
              ~w(event_notification no_delete_events no_delete_stream_events no_delete_streams no_update_events no_update_stream_events)
   end
