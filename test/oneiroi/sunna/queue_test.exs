@@ -525,6 +525,58 @@ defmodule Oneiroi.Sunna.QueueTest do
     assert [%{name: "t"}] = Queues.templates(ctx.h)
   end
 
+  # sunna#114 (the witness, 2026-11-27, task #15: the peer review and his
+  # final review shared a layer; his refusal sent the draft back, and her
+  # approval of the text sent back stood, so her review never came round
+  # again).
+  test "a refusal sends back the reviews beside it in its layer, approvals and all", ctx do
+    :ok = Queues.open_project(ctx.h, %{slug: "s", name: "S"}, ctx.lily)
+
+    {:ok, n} =
+      Queues.open_task(
+        ctx.h,
+        %{
+          project: "s",
+          slug: "w",
+          title: "W",
+          outcome: "designed",
+          layers: [
+            [%{name: "Draft", type: "draft", assignee: ctx.a_lily}],
+            [
+              %{name: "Peer review", type: "review", assignee: ctx.a_scarlett, throwback: "1.1"},
+              %{name: "Final review", type: "review", assignee: ctx.a_andrew, throwback: "1.1"}
+            ]
+          ]
+        },
+        ctx.lily
+      )
+
+    :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
+
+    :ok =
+      Queues.decide(ctx.h, n, "#{n}.2", %{outcome: "approved", note: "fine"}, ctx.scarlett)
+
+    assert %{view: "done"} = act(ctx, n, "#{n}.2")
+
+    :ok =
+      Queues.decide(
+        ctx.h,
+        n,
+        "#{n}.3",
+        %{outcome: "changes", note: "rescope", return_to: "#{n}.1"},
+        ctx.andrew
+      )
+
+    # The draft is open again, and both reviews wait on it: hers no longer
+    # stands on the text he sent back.
+    assert %{view: "ready"} = act(ctx, n, "#{n}.1")
+    assert %{view: "waiting", approved_pin: nil} = act(ctx, n, "#{n}.2")
+    assert %{view: "waiting"} = act(ctx, n, "#{n}.3")
+
+    :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
+    assert %{view: "ready"} = act(ctx, n, "#{n}.2")
+  end
+
   describe "editing a task's layers (sunna#85)" do
     setup ctx do
       :ok = Queues.open_project(ctx.h, %{slug: "e", name: "E"}, ctx.lily)

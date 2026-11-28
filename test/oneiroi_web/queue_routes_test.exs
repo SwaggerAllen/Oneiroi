@@ -132,6 +132,120 @@ defmodule OneiroiWeb.QueueRoutesTest do
     assert %{"revision" => ^rev} = context.(cite)
   end
 
+  # sunna#113 (the witness, 2026-11-27: task #11's merge refused "a gated
+  # activity is done on the revision its review approved" right after he
+  # approved it): the merge's head is read the way the review's was, the
+  # pull request's head, so the approved revision merges, and a moved one
+  # does not.
+  test "a pull request approved on the screen merges on the revision approved", ctx do
+    alias Oneiroi.Brain.Pulls.Fake, as: Pulls
+
+    conn = ctx.conn
+    h = ctx.account.id
+    scarlett = Actor.new(:resident, ctx.scarlett.id)
+    pr = "https://github.com/SwaggerAllen/Oneiroi/pull/77"
+    Pulls.put(77, %{"number" => 77, "head" => %{"sha" => "aaaa1111bbbb"}}, [])
+    on_exit(fn -> Pulls.clear() end)
+
+    post(conn, "/v1/household/queue/templates", %{name: "doc-to-pr", from: "doc-to-pr"})
+    post(conn, "/v1/household/queue/projects", %{slug: "q", name: "Q"})
+    {:ok, _} = Oneiroi.Seshat.write(ctx.lily.id, "design/x.md", "X.", ctx.lily_actor)
+
+    assert %{"number" => n} =
+             conn
+             |> post("/v1/household/queue/tasks", %{
+               project: "q",
+               slug: "x",
+               title: "X",
+               outcome: "built",
+               owner: "resident:#{ctx.lily.id}",
+               template: "doc-to-pr",
+               slots: %{"design" => "#{ctx.lily.slug}:design/x.md"}
+             })
+             |> json_response(200)
+
+    move = fn act, what, body ->
+      conn
+      |> post("/v1/household/queue/tasks/#{n}/activities/#{act}/#{what}", body)
+      |> json_response(:ok)
+    end
+
+    named = fn name ->
+      %{layers: layers} = Oneiroi.Sunna.queue_task(h, n)
+      Enum.find(List.flatten(layers), &(&1.name == name))
+    end
+
+    :ok = Oneiroi.Sunna.queue_finish(h, n, named.("Draft the design").act_id, %{}, ctx.lily_actor)
+
+    assert %{"ok" => true} =
+             move.(named.("Witness review").act_id, "decide", %{outcome: "approved", note: "good"})
+
+    :ok =
+      Oneiroi.Sunna.queue_skip(
+        h,
+        n,
+        named.("Share with the house").act_id,
+        "not now",
+        ctx.lily_actor
+      )
+
+    peer = named.("Peer review")
+
+    reviewer =
+      if peer.assignee == "resident:#{ctx.scarlett.id}", do: scarlett, else: ctx.lily_actor
+
+    :ok =
+      Oneiroi.Brain.queue_decide(
+        h,
+        n,
+        peer.act_id,
+        %{outcome: "approved", note: "fine"},
+        reviewer
+      )
+
+    :ok = Oneiroi.Sunna.queue_fill_slot(h, n, "pr", pr, Actor.new(:witness, h))
+    # The hand-off and the build are hers and her Claude Code's.
+    :ok =
+      Oneiroi.Sunna.queue_finish(h, n, named.("Hand to Claude Code").act_id, %{}, ctx.lily_actor)
+
+    :ok =
+      Oneiroi.Sunna.queue_finish(
+        h,
+        n,
+        named.("Build it").act_id,
+        %{},
+        Actor.new(:witness, h)
+      )
+
+    pr_review = named.("PR review").act_id
+    merge = named.("Merge").act_id
+
+    # The screen names the PR's head; the approval records it.
+    assert %{"revision" => "aaaa1111bbbb"} =
+             conn |> get("/v1/documents/context", %{citation: pr}) |> json_response(200)
+
+    assert %{"ok" => true} =
+             move.(pr_review, "decide", %{outcome: "approved", note: "ship", pin: "aaaa1111bbbb"})
+
+    # A push after the approval lapses it: the merge is refused, and the
+    # review waits again, on the new head (Scarlett's first guard).
+    Pulls.put(77, %{"number" => 77, "head" => %{"sha" => "cccc2222dddd"}}, [])
+
+    assert %{"error" => %{"site" => "sunna_queue_approval_lapsed"}} =
+             conn
+             |> post("/v1/household/queue/tasks/#{n}/activities/#{merge}/finish", %{})
+             |> json_response(422)
+
+    # Approved again as the screen now shows it, the merge is done.
+    assert %{"revision" => "cccc2222dddd"} =
+             conn |> get("/v1/documents/context", %{citation: pr}) |> json_response(200)
+
+    assert %{"ok" => true} =
+             move.(pr_review, "decide", %{outcome: "approved", note: "again", pin: "cccc2222dddd"})
+
+    assert %{"ok" => true} = move.(merge, "finish", %{})
+  end
+
   test "set up, a task opened from doc-to-pr, its review decided, and his bell", ctx do
     conn = ctx.conn
     lily = "resident:#{ctx.lily.id}"

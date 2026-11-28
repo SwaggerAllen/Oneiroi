@@ -9,16 +9,24 @@ defmodule Oneiroi.Brain.QueueHeads do
     to that path;
   - `<resident>:<kind>/<path>`: that member resident's repository's last
     commit to `<kind>/<path>` (`.md` added when it has no extension);
-  - anything else (a PR, an external page): nil, no head the platform
-    can read, so the pin named at approval stands alone.
+  - a pull request of the platform's own repository
+    (`https://github.com/<owner>/<repo>/pull/<n>`): its head commit,
+    read through the pull requests port (sunna#113), so a merge is
+    checked against the revision its review approved;
+  - anything else (another repository's PR, an external page): nil, no
+    head the platform can read, so the pin named at approval stands
+    alone.
 
   A citation already pinned (`@<commit>`) names its pin, not a head.
   """
 
   alias Oneiroi.AgathosDaimon
+  alias Oneiroi.Brain.Pulls
   alias Oneiroi.Gaia
   alias Oneiroi.Seshat
   alias Oneiroi.SimaQian
+
+  @pull ~r{\Ahttps://github\.com/([^/\s]+/[^/\s]+)/pull/(\d+)/?\z}
 
   @doc "The head commit of what `citation` names in this household, or nil."
   @spec head(String.t(), String.t() | nil) :: String.t() | nil
@@ -29,6 +37,7 @@ defmodule Oneiroi.Brain.QueueHeads do
       String.starts_with?(citation, "slot:") -> nil
       String.contains?(citation, "@") -> nil
       String.starts_with?(citation, "house/") -> house(household_id, citation)
+      pr = Regex.run(@pull, citation) -> pull(pr)
       true -> resident(household_id, citation)
     end
   end
@@ -48,6 +57,13 @@ defmodule Oneiroi.Brain.QueueHeads do
     case String.split(citation, ":", parts: 2) do
       [slug, _rest] -> not is_nil(resident_by_slug(household_id, slug))
       _other -> false
+    end
+  end
+
+  defp pull([_all, repo, number]) do
+    case Pulls.head(repo, number) do
+      {:ok, sha} -> sha
+      _other -> nil
     end
   end
 

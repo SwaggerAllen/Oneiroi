@@ -698,3 +698,9 @@ Two readers of one rest must agree on what it says; a resume that succeeds witho
 
 ## #112
 A guard compares two readings of one thing; computed two ways, they disagree on nothing at all, and the guard refuses honest reviewers. One function for both sides is the fix.
+
+## #113
+The guard is only as good as the two readings it compares; once the platform could read a pull request's head for the review, leaving the merge unable to read it made every approved merge fail the guard.
+
+## #114
+Work that sat beside the refusing review acted on the same revision as everything before it; leaving it finished lets an approval of withdrawn text ride into the next round unread, which is the one thing a review exists to prevent.

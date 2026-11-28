@@ -238,7 +238,14 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
       :returned,
       # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
       from(a in S.Activity, where: a.household_id == ^e.id and a.act_id in ^returned),
-      set: [status: "pending", waits_on: nil, reason: nil, note: e.note, updated_at: e.at]
+      set: [
+        status: "pending",
+        waits_on: nil,
+        reason: nil,
+        approved_pin: nil,
+        note: e.note,
+        updated_at: e.at
+      ]
     )
     |> refresh(e.id, e.task, e.at)
   end)
