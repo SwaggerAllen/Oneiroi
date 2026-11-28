@@ -58,6 +58,7 @@ defmodule Oneiroi.Brain do
   alias Oneiroi.Brain.Progress
   alias Oneiroi.Brain.Pulls
   alias Oneiroi.Brain.QueueDocs
+  alias Oneiroi.Brain.QueueHeads
   alias Oneiroi.Brain.Reactions
   alias Oneiroi.Brain.Retry
   alias Oneiroi.Brain.Session
@@ -609,6 +610,12 @@ defmodule Oneiroi.Brain do
   @doc "A pull request of the platform's own repository's head commit (sunna#110): `{:ok, sha}`, `:other` for another repository."
   @spec pr_head(String.t(), term()) :: {:ok, String.t()} | :other | {:error, term()}
   defexport(pr_head(repo, number), do: Pulls.head(repo, number))
+
+  @doc "The commit that last changed a house or member resident's document, as a review's decision reads it (sunna#98, #112); nil when it cannot be read."
+  @spec queue_head(String.t(), String.t()) :: String.t() | nil
+  defexport(queue_head(household_id, citation),
+    do: QueueHeads.head(household_id, citation)
+  )
 
   @doc "Her own chat model, her pin or the brain's default: a succession's baseline runs on it (brain#122)."
   @spec succession_model(String.t()) :: String.t() | nil

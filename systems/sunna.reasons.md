@@ -695,3 +695,6 @@ The pin rule makes an approval mean "this revision", and the screen is where the
 
 ## #111
 Two readers of one rest must agree on what it says; a resume that succeeds without doing anything is worse than a refusal. Letting the house queue run is the witness saying "go", and a line left resting under it reads as a broken button.
+
+## #112
+A guard compares two readings of one thing; computed two ways, they disagree on nothing at all, and the guard refuses honest reviewers. One function for both sides is the fix.
