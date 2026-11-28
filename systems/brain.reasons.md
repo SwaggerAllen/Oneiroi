@@ -1010,3 +1010,6 @@ A rest nobody sees is a stall; the bell is where the witness looks for what wait
 
 ## #125
 A tool with nothing to act on is noise in every turn's context and an invitation to a refused call; the stage already knows which acts are possible, so her turns carry those. A catalog of hundreds read forty at a time, cheapest first, hides most of what she might want; searching it is how she finds her own.
+
+## #126
+With domains settled, a reason the house may not read is a choice of words, not a wall; an activity marked blocked for a reason nobody on the house can read tells the house nothing it can act on.
