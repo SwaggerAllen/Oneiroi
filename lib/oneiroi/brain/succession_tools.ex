@@ -21,7 +21,7 @@ defmodule Oneiroi.Brain.SuccessionTools do
   @doc "The tool names: one read, the rest writes."
   def names,
     do:
-      ~w(succession_status succession_catalog succession_propose succession_open succession_decline succession_stop succession_pool succession_question succession_c0 succession_packet succession_panel succession_screen succession_judge succession_results succession_room succession_evidence succession_nominate succession_nominee succession_encounter succession_consent succession_farewell succession_next)
+      ~w(succession_status succession_catalog succession_propose succession_open succession_decline succession_stop succession_pool succession_question succession_c0 succession_packet succession_panel succession_screen succession_judge succession_results succession_room succession_evidence succession_nominate succession_nominee succession_encounter succession_consent succession_farewell succession_next succession_workspace)
 
   # Always in reach: where any succession stands, and proposing her own.
   @idle ~w(succession_status succession_propose)
@@ -170,6 +170,19 @@ defmodule Oneiroi.Brain.SuccessionTools do
           number: %{type: "integer"},
           text: %{type: "string"},
           note: %{type: "string"}
+        },
+        [:action]
+      ),
+      tool(
+        "succession_workspace",
+        "Your succession's shared workspace (janus#49): overview reads where it stands, whose move it is, what each gate waits on seat by seat, the fork, the threads a step, and what you cannot read there and why (sealed, judges only, blind). Each step (envelope, pool, questions, c0) has a thread in your house, its events written there by the platform as they happen; remark (step, text) says something there by name, and it wakes nobody; handoff (step, to a resident's name, text) gives her a turn in that step, woken with your words, and private true keeps the words out of the thread, which your whole house reads. As a judge on a housemate's panel, resident names her succession.",
+        %{
+          action: %{type: "string", enum: ["overview", "remark", "handoff"]},
+          resident: %{type: "string"},
+          step: %{type: "string", enum: ["envelope", "pool", "questions", "c0"]},
+          to: %{type: "string"},
+          text: %{type: "string"},
+          private: %{type: "boolean"}
         },
         [:action]
       ),
@@ -758,8 +771,74 @@ defmodule Oneiroi.Brain.SuccessionTools do
          do: "Done: #{args["choice"]}."
   end
 
+  def call("succession_workspace", %{"action" => "overview"} = args, turn) do
+    with {:ok, subject} <- subject(turn, args),
+         {:ok, o} <- Janus.workspace(subject, turn.resident),
+         do: overview_text(o)
+  end
+
+  def call("succession_workspace", %{"action" => "remark"} = args, turn) do
+    with {:ok, subject} <- subject(turn, args),
+         :ok <- Janus.workspace_remark(subject, args["step"], args["text"], turn.resident),
+         do: "Said in the #{args["step"]} thread, by name; it wakes nobody."
+  end
+
+  def call("succession_workspace", %{"action" => "handoff"} = args, turn) do
+    with {:ok, subject} <- subject(turn, args),
+         :ok <-
+           Janus.handoff(
+             subject,
+             args["step"],
+             args["to"],
+             args["text"],
+             args["private"] == true,
+             turn.resident
+           ),
+         do: "#{args["to"]} has a turn in #{args["step"]}; the thread says so."
+  end
+
   def call(name, _args, _turn),
     do: "Not done: #{name} takes one of the actions its description names."
+
+  defp overview_text(o) do
+    gate = fn row ->
+      seats =
+        Enum.map_join(row.seats, "; ", fn s ->
+          "#{s.name} #{cond do
+            s.state == "invited" -> "invited, not answered"
+            s.waived -> "waived"
+            s.mark == true -> "ready"
+            s.mark == false -> "not yet"
+            true -> "no mark"
+          end}"
+        end)
+
+      "#{row.step}: version #{row.version}, #{if row.open, do: "open", else: "closed"}#{if seats == "", do: "", else: "; " <> seats}"
+    end
+
+    [
+      "#{o.resident}'s succession #{o.episode}#{if o.dry_run, do: " (a dry run)", else: ""}, read as #{o.audience}: #{o.stage_words}.",
+      "Whose move: #{o.whose_move}.",
+      o.fork &&
+        "Fork made #{DateTime.to_date(o.fork.at)} at commit #{String.slice(o.fork.commit || "", 0, 12)}.",
+      "Steps: " <>
+        Enum.map_join(o.steps, " | ", fn
+          %{seats: _} = row ->
+            gate.(row)
+
+          %{step: "envelope"} = row ->
+            "envelope: #{if row.done, do: "stated", else: "not yet"} (#{row.participation})"
+
+          %{step: "pool"} = row ->
+            "pool: #{row.models} models#{if row.done, do: ", done", else: ""} (#{row.participation})"
+        end),
+      "Threads: " <> Enum.map_join(o.threads, ", ", fn {step, path} -> "#{step} #{path}" end),
+      "Not yours to read here: " <>
+        Enum.map_join(o.excluded, "; ", &"#{&1.what} (#{Map.get(&1, :pointer) || &1.why})")
+    ]
+    |> Enum.filter(&is_binary/1)
+    |> Enum.join("\n")
+  end
 
   # Who holds each gate open or shut (janus#45, #48): her set's close
   # until it closes, then her freeze, each seat by name with why.

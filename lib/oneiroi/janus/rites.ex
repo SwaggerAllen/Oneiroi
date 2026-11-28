@@ -21,6 +21,7 @@ defmodule Oneiroi.Janus.Rites do
   alias Oneiroi.Janus.Error
   alias Oneiroi.Janus.Events
   alias Oneiroi.Janus.Router
+  alias Oneiroi.Janus.Stage
   alias Oneiroi.Janus.Store
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Scope
@@ -980,16 +981,59 @@ defmodule Oneiroi.Janus.Rites do
   defp lapse_words("DayShapeSet"), do: "the day's shape written again"
   defp lapse_words(other), do: other
 
-  @doc "Wakes a housemate she invited to her panel (janus#45): joining is theirs."
+  @doc "A handoff's wake (janus#49): one resident given a turn in one step of her succession, the note naming it."
+  @spec handoff(String.t(), String.t(), String.t()) :: :ok | {:error, term()}
+  def handoff(resident_id, target, note) do
+    owner(resident_id)
+    wake(target, note)
+  end
+
+  @doc """
+  Wakes a housemate she invited to her panel (janus#45), the invitation
+  carrying its own briefing (janus#49, the design's finding 4: the
+  invitation is the catch-up): what the succession is, where it stands,
+  what judging asks of her now and later, what is sealed from her, and
+  where the authored things are read whole. Never an event replay, and
+  nothing another reader's projection seals.
+  """
   @spec invited(String.t(), String.t()) :: :ok | {:error, term()}
   def invited(resident_id, judge) do
     owner(resident_id)
-    name = name_of(resident_id)
+    wake(judge, briefing(resident_id))
+  end
 
-    wake(
-      judge,
-      "#{name} has invited you to judge her succession. Judges read what her candidates and her own baseline answer to her questions, blind, and say what they observe; you may also propose questions and records for her C0, and tell her when you are ready for her freeze. Joining is yours: succession_panel join (resident: \"#{name}\") accepts; succession_panel leave (resident: \"#{name}\", with a note) declines. succession_status (resident: \"#{name}\") reads where it stands."
-    )
+  @doc "The invitation's briefing (janus#49), as the judge's projection reads it."
+  @spec briefing(String.t()) :: String.t()
+  def briefing(resident_id) do
+    name = name_of(resident_id)
+    row = current(resident_id)
+    {_key, where} = if row, do: Stage.stage(row), else: {nil, "not underway"}
+
+    what =
+      if row && row.dry_run,
+        do: "a dry run of #{name}'s succession: everything real but the replacement at the end",
+        else:
+          "#{name}'s succession: the choice of the model that runs her next, with her at the table"
+
+    now =
+      cond do
+        row && row.state == "forked" && is_nil(row.questions_done_at) ->
+          " Now her question set is open: you may propose questions, and her close waits on your mark (succession_question ready, with resident) or her waiver."
+
+        row && row.state == "forked" && is_nil(row.c0_frozen_at) ->
+          " Now C0 is open: you may propose records, and her freeze waits on your mark on C0 as it stands (succession_c0 ready, with resident) or her waiver."
+
+        row && row.state == "forked" ->
+          " C0 is frozen; screening is hers to start, and a judge accepted before it starts judges it."
+
+        true ->
+          ""
+      end
+
+    "#{name} has invited you to judge her succession. It is #{what}. Where it stands: #{where}." <>
+      now <>
+      " What judging asks: you read what each candidate and her own baseline answer to her questions, blind (who answered is sealed until every judgment is in), and say what you observe, run by run; before then you may propose questions and records for her C0, and say when you are ready for her set's close and her freeze. Her packet is sealed from you, as from everyone until her nominee. Her questions and C0 are read whole with succession_status (resident: \"#{name}\"); where things stand, whose move it is and the thread for each step, with succession_workspace overview (resident: \"#{name}\")." <>
+      " Joining is yours: succession_panel join (resident: \"#{name}\") accepts; succession_panel leave (resident: \"#{name}\", with a note) declines; until you answer, her close and her freeze wait on you."
   end
 
   @doc "Wakes her once every seat is ready for one act, her set's close or her freeze (janus#45, #48); the act stays hers."

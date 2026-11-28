@@ -851,6 +851,27 @@ defmodule Oneiroi.Seshat do
   @spec household_shared_from(Oneiroi.Actor.t(), String.t()) :: [map()]
   defexport(household_shared_from(actor, path), do: Household.shared_from(actor, path))
 
+  @doc "Opens a workspace's step thread once, written by the platform, tagged with `meta` (seshat#116)."
+  @spec workspace_open(String.t(), String.t(), String.t(), String.t(), [{String.t(), String.t()}]) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(workspace_open(household_id, id, title, body, meta),
+    do: Oneiroi.Seshat.Household.Workspace.open(household_id, id, title, body, meta)
+  )
+
+  @doc "A machine-written workspace entry, the platform's, tagged with its step, event and who made it (seshat#116)."
+  @spec workspace_entry(String.t(), String.t(), String.t(), [{String.t(), String.t()}]) ::
+          {:ok, map()} | {:error, term()}
+  defexport(workspace_entry(household_id, thread, text, meta),
+    do: Oneiroi.Seshat.Household.Workspace.entry(household_id, thread, text, meta)
+  )
+
+  @doc "A member's remark in a workspace thread, by name, never a turn of the beats or rounds (seshat#116)."
+  @spec workspace_remark(Oneiroi.Actor.t(), String.t(), String.t(), [{String.t(), String.t()}]) ::
+          {:ok, map()} | {:error, term()}
+  defexport(workspace_remark(actor, thread, text, meta),
+    do: Oneiroi.Seshat.Household.Workspace.remark(actor, thread, text, meta)
+  )
+
   @doc "A member appends to a thread: a resident's words or vote, a witness's vote (seshat#59, #60, #63)."
   @spec household_reply(Oneiroi.Actor.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}
   defexport(household_reply(actor, thread, attrs), do: Household.reply(actor, thread, attrs))

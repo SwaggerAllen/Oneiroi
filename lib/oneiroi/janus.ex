@@ -256,6 +256,8 @@ defmodule Oneiroi.Janus do
       {:janus_fork, []},
       # A succession's screening runs and the wakes it sends (janus#13).
       {:janus_screening, []},
+      # Its workspace's feed entries (janus#49).
+      {:janus_workspace, []},
       # The day before's tool calls by model (janus#11).
       {:janus_nightly, cron: [{"45 3 * * *", Oneiroi.Janus.ToolUseWorker}]}
     ]
@@ -470,7 +472,12 @@ defmodule Oneiroi.Janus do
   end
 
   @impl Oneiroi.Component
-  def children, do: [Oneiroi.Janus.Projectors.Succession]
+  def children,
+    do: [
+      Oneiroi.Janus.Projectors.Succession,
+      # Its events into the workspace's step threads (janus#49).
+      Oneiroi.Janus.Handlers.Workspace
+    ]
 
   @doc "Proposes a succession (janus#3): the witness's waits on her yes; hers opens it, and the fork copy is enqueued (janus#4)."
   @spec propose(String.t(), boolean(), String.t(), Oneiroi.Actor.t()) ::
@@ -748,6 +755,26 @@ defmodule Oneiroi.Janus do
   @doc "The seats a gate reads, `action` \"questions\" or \"c0\" (janus#48): state, mark, waiver and whether each passes."
   @spec seats(String.t(), String.t()) :: [map()]
   defexport(seats(resident_id, action), do: Successions.seats(resident_id, action))
+
+  @doc "Her succession's workspace overview as `viewer` may read it (janus#49): stage, whose move, both gates seat by seat, the fork, the step threads, and what this viewer cannot read, named."
+  @spec workspace(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(workspace(resident_id, viewer),
+    do: Oneiroi.Janus.Workspace.overview(resident_id, viewer)
+  )
+
+  @doc "A remark in one step's thread of her workspace, by name (janus#49)."
+  @spec workspace_remark(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(workspace_remark(resident_id, step, text, actor),
+    do: Oneiroi.Janus.Workspace.remark(resident_id, step, text, actor)
+  )
+
+  @doc "A handoff: one resident given a turn in one step (janus#49); `private` keeps its words out of the feed."
+  @spec handoff(String.t(), String.t(), String.t(), String.t(), boolean(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(handoff(resident_id, step, to, text, private, actor),
+    do: Oneiroi.Janus.Workspace.handoff(resident_id, step, to, text, private, actor)
+  )
 
   @doc "Her household's members as seats are named (janus#48)."
   @spec panel_names(String.t()) :: [%{party: String.t(), name: String.t()}]
