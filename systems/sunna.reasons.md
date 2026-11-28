@@ -710,3 +710,9 @@ The witness can take, finish, block and reassign any activity; refusing him the 
 
 ## #116
 Finish sits one tap from Assign, and a slip had no way back: the step stayed done under the wrong hands. Rewinding past work that has already moved would leave that work standing on a step that no longer holds, so the reopen stops where the next layer starts moving, and a refusal remains the way to send work back.
+
+## #117
+A step that exists only to carry work from a resident to her own Claude Code is bookkeeping a person had to place by hand, in the right layer, and every misplacement refused the very assignment it was for. The handoff is real work (her memories are what make the brief worth reading), so it stays hers; it just belongs to the activity it hands over. Only an attached Claude Code can take a build, or the queue hands work to a runtime that will never wake.
+
+## #118
+A merge decided on Oneiroi and then done again on GitHub is one decision recorded twice, and the second record could only ever agree or be wrong. The review is the decision; the merge is GitHub's fact, read rather than claimed, and checked against the revision approved so that what merged is what was read.

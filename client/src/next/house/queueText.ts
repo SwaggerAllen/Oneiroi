@@ -158,13 +158,14 @@ export const glyph = (type: string) => GLYPHS[type] ?? '•';
 export const LETS: Record<string, string> = { 'promote-to-house': 'it be shared', merge: 'it be merged', send: 'it be sent', publish: 'it be published', spend: 'it be spent' };
 
 /**
- * Who a template's activity can be held by (sunna#93): each member, each
- * resident's Claude Code, and not known yet. Fixed in the template: never
- * who opens the task.
+ * Who an activity can be held by (sunna#93, #117): each member, the Claude
+ * Code of each resident who has one attached, and not known yet; an
+ * implement only by such a Claude Code, or nobody yet. Fixed in a
+ * template: never who opens the task.
  */
-export function holderChoices(members: { assignee: string; kind: string; name: string }[]): { value: string; label: string }[] {
-  const people = members.map((m) => ({ value: m.assignee, label: m.name }));
-  const builders = members.filter((m) => m.kind === 'resident').map((m) => ({ value: `claude-code:${m.assignee.slice('resident:'.length)}`, label: `${m.name}'s Claude Code` }));
+export function holderChoices(members: { assignee: string; kind: string; name: string; builder?: boolean }[], type?: string): { value: string; label: string }[] {
+  const people = type === 'implement' ? [] : members.map((m) => ({ value: m.assignee, label: m.name }));
+  const builders = members.filter((m) => m.kind === 'resident' && m.builder).map((m) => ({ value: `claude-code:${m.assignee.slice('resident:'.length)}`, label: `${m.name}'s Claude Code` }));
   return [...people, ...builders, { value: 'unknown', label: 'not known yet' }];
 }
 
@@ -361,37 +362,6 @@ export function rearranged(layers: { act_id: string }[][], change: { id: string 
 }
 
 /**
- * The holders that move with one (the witness, 2026-11-23: "the option to
- * change both assignees"): a resident's Claude Code is reached only
- * through her deliver in the layer before it (§3), so giving a Claude
- * Code activity to another resident's Claude Code gives that resident the
- * deliver before it, and giving a deliver to another resident gives her
- * Claude Code the activities after it. Pending ones only; started work
- * stays as it is.
- */
-export function pairedHolders(layers: { act_id: string; type: string; assignee: string; status: string }[][], actId: string, assignee: string): { id: string; assignee: string }[] {
-  const at = layers.findIndex((l) => l.some((a) => a.act_id === actId));
-  if (at < 0) return [];
-  const pending = (a: { status: string }) => a.status === 'pending';
-  if (assignee.startsWith('claude-code:')) {
-    const hers = `resident:${assignee.slice('claude-code:'.length)}`;
-    return (layers[at - 1] ?? []).filter((a) => a.type === 'deliver' && pending(a) && a.assignee !== hers).map((a) => ({ id: a.act_id, assignee: hers }));
-  }
-  const self = layers[at].find((a) => a.act_id === actId);
-  if (self?.type === 'deliver' && assignee.startsWith('resident:')) {
-    const builder = `claude-code:${assignee.slice('resident:'.length)}`;
-    return (layers[at + 1] ?? []).filter((a) => a.assignee.startsWith('claude-code:') && pending(a) && a.assignee !== builder).map((a) => ({ id: a.act_id, assignee: builder }));
-  }
-  return [];
-}
-
-/** An arrangement with the paired holders set on their entries. */
-export function withPaired(arrangement: QueueEditEntry[][], pairs: { id: string; assignee: string }[]): QueueEditEntry[][] {
-  const by = new Map(pairs.map((p) => [p.id, p.assignee]));
-  return arrangement.map((l) => l.map((e) => ('id' in e && e.id && by.has(e.id) ? { ...e, assignee: by.get(e.id) as string } : e)));
-}
-
-/**
  * A task's document changed for another (the witness, 2026-11-23: a task
  * named her file where the document was the house's): every pending
  * activity working on it works on the new one instead; started work
@@ -418,8 +388,12 @@ export function replacedDocument(layers: { act_id: string; artifact: string | nu
  * show the current status of the current activity"): its view in words,
  * since when, and for a resident's step what her line is doing about it.
  */
-export function stepStatus(c: Pick<QueueCard, 'view' | 'reason' | 'ready_at' | 'updated_at' | 'line' | 'type'>, now = Date.now()): string {
+export function stepStatus(c: Pick<QueueCard, 'view' | 'reason' | 'ready_at' | 'updated_at' | 'line' | 'type'> & Partial<Pick<QueueCard, 'awaiting_merge' | 'handed_off' | 'assignee'>>, now = Date.now()): string {
   const ago = (iso: string | null | undefined) => (iso ? ` ${since(iso, now)} ago` : '');
+  // An approved PR review waits on its merge (sunna#118).
+  if (c.awaiting_merge) return `approved; waiting on the merge${ago(c.updated_at)}`;
+  // A Claude Code's step waits on its resident's handoff, then on it (sunna#117).
+  if (c.view === 'ready' && c.assignee?.startsWith('claude-code:')) return c.handed_off ? `handed over${ago(c.updated_at)}; waiting on her Claude Code` : `ready${ago(c.ready_at)} · waiting on her handoff`;
   switch (c.view) {
     case 'blocked':
       return `blocked${c.reason ? `: ${c.reason}` : ''}`;

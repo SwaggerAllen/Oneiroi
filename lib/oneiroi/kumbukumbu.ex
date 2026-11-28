@@ -734,6 +734,12 @@ defmodule Oneiroi.Kumbukumbu do
   @spec folder_label(term()) :: String.t() | nil
   defexport(folder_label(path), do: Conversations.folder_label(path))
 
+  @doc "Whether a resident has a conversation another runtime opened as `runtime` (`claude-code`): one attached to her (sunna#117)."
+  @spec runtime_attached?(String.t(), String.t()) :: boolean()
+  defexport(runtime_attached?(resident_id, runtime),
+    do: Conversations.runtime_attached?(resident_id, runtime)
+  )
+
   @doc "The platform's own conversation with a witness: kind `main` through the platform's adapter, the oldest, opened on first ask (kumbukumbu#40)."
   @spec main_session(String.t(), String.t(), Oneiroi.Actor.t()) ::
           {:ok, String.t()} | {:error, term()}

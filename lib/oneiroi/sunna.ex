@@ -57,6 +57,8 @@ defmodule Oneiroi.Sunna do
       QueueCommands.SkipActivity,
       QueueCommands.BlockActivity,
       QueueCommands.ReopenActivity,
+      QueueCommands.HandOffActivity,
+      QueueCommands.SettleMerge,
       QueueCommands.FailActivity,
       QueueCommands.AssignActivity,
       QueueCommands.DecideReview,
@@ -78,6 +80,9 @@ defmodule Oneiroi.Sunna do
       Events.Queue.ActivitySkipped,
       Events.Queue.ActivityBlocked,
       Events.Queue.ActivityReopened,
+      Events.Queue.ActivityHandedOff,
+      Events.Queue.MergeAwaited,
+      Events.Queue.MergeSettled,
       Events.Queue.ActivityFailed,
       Events.Queue.ActivityAssigned,
       Events.Queue.ReviewDecided,
@@ -407,6 +412,9 @@ defmodule Oneiroi.Sunna do
       {Oneiroi.Sunna.Events.Queue.ActivitySkipped, 1},
       {Oneiroi.Sunna.Events.Queue.ActivityBlocked, 1},
       {Oneiroi.Sunna.Events.Queue.ActivityReopened, 1},
+      {Oneiroi.Sunna.Events.Queue.ActivityHandedOff, 1},
+      {Oneiroi.Sunna.Events.Queue.MergeAwaited, 1},
+      {Oneiroi.Sunna.Events.Queue.MergeSettled, 1},
       {Oneiroi.Sunna.Events.Queue.ActivityFailed, 1},
       {Oneiroi.Sunna.Events.Queue.ActivityAssigned, 1},
       {Oneiroi.Sunna.Events.Queue.ReviewDecided, 1},
@@ -532,9 +540,14 @@ defmodule Oneiroi.Sunna do
       {:sunna_queue_import_gated,
        "an imported task carries no approvals (Scarlett's third guard): it cannot start at a layer holding a gated activity, since its review would be imported",
        remedy: "start the task one layer earlier, at the review, so the review is given afresh"},
-      {:sunna_queue_route_required,
-       "a resident's Claude Code (claude-code:<id>) is reached only through her reviewed deliver step (§3): the layer before its activity holds a deliver by that resident, whose memories it runs on",
-       remedy: "put her deliver in the layer before the Claude Code activity"},
+      {:sunna_queue_builder_required,
+       "an implement activity is held by a resident's Claude Code (claude-code:<id>), and a Claude Code is one its resident has attached: a Claude Code conversation of hers on the platform (sunna#117)",
+       remedy:
+         "assign it to the Claude Code of a resident who has one attached, or leave it not known yet"},
+      {:sunna_queue_throwback_order,
+       "a review sends work back to an activity in an earlier layer: the activity its throwback names cannot sit in the review's layer or after it",
+       remedy:
+         "keep the activity a review sends back to in a layer before the review, or change the review's throwback"},
       {:sunna_queue_review_required,
        "a gated activity runs only behind its approved review, and a review standing in front of a gated activity still to run is never skipped",
        remedy: "approve the review, or skip the gated activity first"},
@@ -812,6 +825,24 @@ defmodule Oneiroi.Sunna do
   defexport(queue_reopen(household_id, task, act, note, actor),
     do: Queues.reopen(household_id, task, act, note, actor)
   )
+
+  @doc "Hands a resident's Claude Code activity to it (sunna#117), with a note."
+  @spec queue_hand_off(String.t(), pos_integer(), String.t(), String.t() | nil, Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_hand_off(household_id, task, act, note, actor),
+    do: Queues.hand_off(household_id, task, act, note, actor)
+  )
+
+  @doc "Settles a review awaiting its pull request's merge (sunna#118): `sha` the head it merged at."
+  @spec queue_settle_merge(String.t(), pos_integer(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(queue_settle_merge(household_id, task, act, sha, actor),
+    do: Queues.settle_merge(household_id, task, act, sha, actor)
+  )
+
+  @doc "Reviews awaiting their pull request's merge, across households (sunna#118), for the platform's watch."
+  @spec queue_awaiting_merge() :: [map()]
+  defexport(queue_awaiting_merge(), do: Queues.awaiting_merge())
 
   @doc "Marks an activity failed, saying what failed."
   @spec queue_fail(String.t(), pos_integer(), String.t(), String.t(), Oneiroi.Actor.t()) ::

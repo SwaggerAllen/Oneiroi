@@ -289,7 +289,7 @@ export function TemplateActivity({ name, at, overview: q }: { name: string; at: 
         {/* Fixed in the template, whoever opens the task (sunna#93). */}
         <Select label="Held by" value={f.assignee ?? ''} onChange={(v) => set({ assignee: v, role: null })}>
           {!f.assignee && <option value="">{holderWords(f, namesOf(q))}</option>}
-          {holderChoices(q.members).map((h) => (
+          {holderChoices(q.members, f.type).map((h) => (
             <option key={h.value} value={h.value}>
               {h.value === q.me ? `${h.label} (you)` : h.label}
             </option>

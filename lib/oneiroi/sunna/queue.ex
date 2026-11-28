@@ -11,7 +11,8 @@ defmodule Oneiroi.Sunna.Queue do
   - an activity is worked (taken, finished, blocked, failed) by its
     assignee, the task's owner or a witness; an `unknown` one by whoever
     takes it, and a resident's Claude Code one (`claude-code:<id>`) by
-    that resident, whose memories it runs on (§3);
+    that resident, whose memories it runs on (§3), once she has handed it
+    off to it (sunna#117);
   - a review is decided by its assignee alone, since the decision is the
     authorization (§6.1);
   - an activity is skipped by the task's owner, or by its assignee when
@@ -121,7 +122,10 @@ defmodule Oneiroi.Sunna.Queue do
 
     with :ok <- task_head_ok(s, c),
          {:ok, layers} <- task_layers(n, c.layers),
-         :ok <- task_shape_ok(layers, c.start_layer) do
+         :ok <- task_shape_ok(layers, c.start_layer),
+         true <-
+           builders_ok?(List.flatten(layers), c.builders) ||
+             {:error, Error.new(:sunna_queue_builder_required, :sunna_queue_task_builder)} do
       %E.TaskOpened{
         actor: c.actor,
         at: c.at,
@@ -145,7 +149,10 @@ defmodule Oneiroi.Sunna.Queue do
     with {:ok, task} <- open_task(s, c.task),
          :ok <- may_edit(task, c.actor),
          {:ok, layers, removed} <- edited_layers(s, task, c.layers),
-         :ok <- edited_shape_ok(layers) do
+         :ok <- edited_shape_ok(layers),
+         true <-
+           builders_ok?(not_started(s, layers), c.builders) ||
+             {:error, Error.new(:sunna_queue_builder_required, :sunna_queue_edit_builder)} do
       edited = %E.LayersEdited{
         actor: c.actor,
         at: c.at,
@@ -265,7 +272,7 @@ defmodule Oneiroi.Sunna.Queue do
     with {:ok, task, act} <- activity(s, c.task, c.act),
          :ok <- unfinished(act),
          :ok <- may_assign(task, act, c.actor),
-         :ok <- assignee_ok(s, task, act, c.assignee),
+         :ok <- assignee_ok(act, c.assignee, c.builders),
          :ok <- optional_words(c.note) do
       %E.ActivityAssigned{
         actor: c.actor,
@@ -276,6 +283,57 @@ defmodule Oneiroi.Sunna.Queue do
         assignee: c.assignee,
         note: c.note && String.trim(c.note)
       }
+    end
+  end
+
+  def execute(%__MODULE__{} = s, %C.HandOffActivity{} = c) do
+    with {:ok, task, act} <- activity(s, c.task, c.act),
+         :ok <- hand_off_ok(s, task, act, c.actor) do
+      %E.ActivityHandedOff{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        task: c.task,
+        act: c.act,
+        note: c.note
+      }
+    end
+  end
+
+  # The pull request merged (sunna#118): at the approved head the review
+  # is done; at another, what merged was never approved, and the review
+  # is blocked for a person to settle.
+  def execute(%__MODULE__{} = s, %C.SettleMerge{} = c) do
+    with {:ok, _task, act} <- activity(s, c.task, c.act),
+         :ok <- platform_only(c.actor),
+         :ok <- awaiting_merge(act) do
+      if is_binary(c.sha) and is_binary(act.approved_pin) and same_pin?(c.sha, act.approved_pin) do
+        completing(
+          s,
+          [
+            %E.MergeSettled{
+              actor: c.actor,
+              at: c.at,
+              id: c.id,
+              task: c.task,
+              act: c.act,
+              sha: c.sha
+            }
+          ],
+          c
+        )
+      else
+        %E.ActivityBlocked{
+          actor: c.actor,
+          at: c.at,
+          id: c.id,
+          task: c.task,
+          act: c.act,
+          reason:
+            "the pull request merged at #{short(c.sha)}, not at #{short(act.approved_pin)}, the revision approved; reopen the review to approve what merged, or skip it",
+          waits_on: nil
+        }
+      end
     end
   end
 
@@ -453,7 +511,7 @@ defmodule Oneiroi.Sunna.Queue do
         act =
           case acts[id] do
             nil -> activity_from(spec, e.task, false)
-            old -> Map.merge(old, Map.take(activity_from(spec, e.task, false), @spec_fields))
+            old -> edited_act(old, activity_from(spec, e.task, false))
           end
 
         {id, act}
@@ -485,13 +543,30 @@ defmodule Oneiroi.Sunna.Queue do
     do: put_act(s, e.act, status: "blocked", waits_on: e.waits_on)
 
   def apply(%__MODULE__{} = s, %E.ActivityReopened{} = e),
-    do: put_act(s, e.act, status: "pending", waits_on: nil, approved_pin: nil)
+    do:
+      put_act(s, e.act,
+        status: "pending",
+        waits_on: nil,
+        approved_pin: nil,
+        handed_off: false,
+        awaiting_merge: false
+      )
+
+  def apply(%__MODULE__{} = s, %E.ActivityHandedOff{} = e),
+    do: put_act(s, e.act, handed_off: true)
+
+  def apply(%__MODULE__{} = s, %E.MergeAwaited{} = e),
+    do: put_act(s, e.act, status: "active", approved_pin: e.pin, awaiting_merge: true)
+
+  def apply(%__MODULE__{} = s, %E.MergeSettled{} = e),
+    do: put_act(s, e.act, status: "done", awaiting_merge: false)
 
   def apply(%__MODULE__{} = s, %E.ActivityFailed{} = e),
     do: put_act(s, e.act, status: "failed")
 
+  # A new holder starts from her own handoff (sunna#117).
   def apply(%__MODULE__{} = s, %E.ActivityAssigned{} = e),
-    do: put_act(s, e.act, assignee: e.assignee)
+    do: put_act(s, e.act, assignee: e.assignee, handed_off: false)
 
   def apply(%__MODULE__{} = s, %E.ReviewDecided{outcome: "approved"} = e) do
     s = put_act(s, e.act, status: "done", approved_pin: e.pin)
@@ -499,13 +574,15 @@ defmodule Oneiroi.Sunna.Queue do
   end
 
   def apply(%__MODULE__{} = s, %E.ReviewDecided{} = e) do
-    s = put_act(s, e.act, status: "pending", approved_pin: nil)
+    s = put_act(s, e.act, status: "pending", approved_pin: nil, awaiting_merge: false)
     # A returned review's approval goes with it (sunna#114): it approved
     # a revision that has just been sent back.
     Enum.reduce(
       List.wrap(e.returned),
       s,
-      &put_act(&2, &1, status: "pending", waits_on: nil, approved_pin: nil)
+      # Work sent back is handed off again, with what the review asked
+      # (sunna#117).
+      &put_act(&2, &1, status: "pending", waits_on: nil, approved_pin: nil, handed_off: false)
     )
   end
 
@@ -628,7 +705,74 @@ defmodule Oneiroi.Sunna.Queue do
       note: c.note
     }
 
-    completing(s, [decided], c)
+    if merge_awaited?(s, task, act),
+      do:
+        completing(
+          s,
+          [
+            decided,
+            %E.MergeAwaited{
+              actor: c.actor,
+              at: c.at,
+              id: c.id,
+              task: c.task,
+              act: c.act,
+              pin: c.pin
+            }
+          ],
+          c
+        ),
+      else: completing(s, [decided], c)
+  end
+
+  # A pull request's review with no merge step after it is the merge
+  # (sunna#118; the witness, 2026-11-27: "the conclusion of the pr review
+  # is the merge"): approving it waits for the merge, at the pin approved.
+  # A task that still has its merge step keeps it.
+  defp merge_awaited?(s, task, review) do
+    i = G.layer_of(task, review.id)
+
+    review.action == "merge" and is_binary(review.artifact) and
+      not Enum.any?(
+        Enum.at(task.layers, i + 1) || [],
+        &(s.acts[&1].type == "merge" and guards?(review, s.acts[&1]))
+      )
+  end
+
+  # A merge is settled by what the platform reads off GitHub, never by a
+  # person's word.
+  defp platform_only(%{kind: kind}) when kind in [:job, :platform], do: :ok
+
+  defp platform_only(_actor),
+    do: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_merge_settle_not_yours)}
+
+  defp awaiting_merge(act) do
+    if Map.get(act, :awaiting_merge) == true and act.status == "active",
+      do: :ok,
+      else: {:error, Error.new(:sunna_queue_not_ready, :sunna_queue_merge_not_awaited)}
+  end
+
+  defp short(sha) when is_binary(sha), do: String.slice(sha, 0, 7)
+  defp short(_none), do: "an unknown head"
+
+  # A Claude Code activity is handed off once, while it is ready, by the
+  # resident whose Claude Code it is or a witness (sunna#117).
+  defp hand_off_ok(s, task, act, actor) do
+    hers = claude_code_of(act.assignee)
+
+    cond do
+      is_nil(hers) ->
+        {:error, Error.new(:sunna_queue_invalid, :sunna_queue_hand_off_not_claude_code)}
+
+      Map.get(act, :handed_off) == true ->
+        {:error, Error.new(:sunna_queue_not_ready, :sunna_queue_hand_off_done)}
+
+      not (actor.kind == :witness or me(actor) == hers) ->
+        {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_hand_off_not_yours)}
+
+      true ->
+        ready(s, task, act)
+    end
   end
 
   # What a refusal sends back (§7): the target, an earlier activity of
@@ -865,9 +1009,6 @@ defmodule Oneiroi.Sunna.Queue do
       import_gated?(layers, start) ->
         {:error, Error.new(:sunna_queue_import_gated, :sunna_queue_task_import_gated)}
 
-      not routed?(layers) ->
-        {:error, Error.new(:sunna_queue_route_required, :sunna_queue_task_route)}
-
       true ->
         :ok
     end
@@ -889,24 +1030,28 @@ defmodule Oneiroi.Sunna.Queue do
   defp import_gated?(layers, start),
     do: start > 0 and Enum.any?(Enum.at(layers, start), &(&1.type in G.gated_types()))
 
-  # No one reaches a resident's Claude Code but through her reviewed
-  # deliver step (§3): each `claude-code:<id>` activity has, in the layer
-  # before it, a deliver by `resident:<id>`, the one whose memories it is.
-  defp routed?(layers) do
-    layers
-    |> Enum.with_index()
-    |> Enum.all?(fn {layer, i} -> Enum.all?(layer, &delivered?(layers, &1, i)) end)
+  # Who builds (sunna#117; the witness, 2026-11-27: "implementation
+  # tickets should only be assignable to residents with a coding agent
+  # attached"): an implement is held by a resident's Claude Code, or by
+  # nobody yet; and a Claude Code is one its resident has attached
+  # (`builders`, the residents with a Claude Code conversation, read by
+  # the caller). The deliver step that once stood before it is gone: her
+  # handoff is the activity's own first turn.
+  defp builders_ok?(specs, builders),
+    do: Enum.all?(specs, &builder_ok?(get(&1, :type), get(&1, :assignee), builders))
+
+  defp builder_ok?(type, assignee, builders) do
+    case claude_code_of(assignee) do
+      nil -> type != "implement" or assignee in [nil, "unknown"]
+      "resident:" <> id -> id in List.wrap(builders)
+    end
   end
 
-  defp delivered?(layers, a, i) do
-    case claude_code_of(a.assignee) do
-      nil ->
-        true
-
-      hers ->
-        i > 0 and
-          Enum.any?(Enum.at(layers, i - 1), &(&1.type == "deliver" and &1.assignee == hers))
-    end
+  # What an edit has yet to start: new activities and pending ones.
+  defp not_started(s, layers) do
+    for spec <- List.flatten(layers),
+        match?(nil, s.acts[spec.id]) or s.acts[spec.id].status == "pending",
+        do: spec
   end
 
   # A task's layers as given, each activity numbered `<task>.<k>`, a
@@ -1081,8 +1226,17 @@ defmodule Oneiroi.Sunna.Queue do
       status: if(imported?, do: "done", else: "pending"),
       imported: imported?,
       waits_on: nil,
-      approved_pin: nil
+      approved_pin: nil,
+      handed_off: false,
+      awaiting_merge: false
     }
+  end
+
+  # An edit that gives a Claude Code activity another holder starts it
+  # from that holder's handoff (sunna#117).
+  defp edited_act(old, new) do
+    merged = Map.merge(old, Map.take(new, @spec_fields))
+    if merged.assignee == old.assignee, do: merged, else: Map.put(merged, :handed_off, false)
   end
 
   defp put_act(s, id, kv), do: %{s | acts: Map.update!(s.acts, id, &Enum.into(kv, &1))}
@@ -1259,31 +1413,16 @@ defmodule Oneiroi.Sunna.Queue do
       else: {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_assign_not_yours)}
   end
 
-  defp assignee_ok(s, task, act, assignee) do
+  defp assignee_ok(act, assignee, builders) do
     cond do
       not assignee?(assignee) ->
         {:error, Error.new(:sunna_queue_invalid, :sunna_queue_assign_assignee)}
 
-      # claude-code only behind its deliver step (§3).
-      claude_code_of(assignee) != nil and deliverer(s, task, act) != claude_code_of(assignee) ->
-        {:error, Error.new(:sunna_queue_route_required, :sunna_queue_assign_route)}
+      not builder_ok?(act.type, assignee, builders) ->
+        {:error, Error.new(:sunna_queue_builder_required, :sunna_queue_assign_builder)}
 
       true ->
         :ok
-    end
-  end
-
-  # Who delivers to the claude-code activity: the deliver's assignee in
-  # the layer before it, or nil.
-  defp deliverer(s, task, act) do
-    case G.layer_of(task, act.id) do
-      i when is_integer(i) and i > 0 ->
-        task.layers
-        |> Enum.at(i - 1)
-        |> Enum.find_value(&(s.acts[&1].type == "deliver" && s.acts[&1].assignee))
-
-      _first ->
-        nil
     end
   end
 
@@ -1344,10 +1483,11 @@ defmodule Oneiroi.Sunna.Queue do
          true <- kept_in_place?(s, task, layers, open) || :refused,
          removed = before -- ids,
          true <- Enum.all?(removed, &(s.acts[&1].status == "pending")) || :refused,
-         true <- throwbacks_earlier?(layers) || :invalid do
+         true <- throwbacks_earlier?(layers) || :throwback do
       {:ok, layers, removed}
     else
       :refused -> {:error, Error.new(:sunna_queue_edit_refused, :sunna_queue_edit_started)}
+      :throwback -> {:error, Error.new(:sunna_queue_throwback_order, :sunna_queue_edit_throwback)}
       _invalid -> {:error, Error.new(:sunna_queue_invalid, :sunna_queue_edit_layers)}
     end
   end
@@ -1452,16 +1592,9 @@ defmodule Oneiroi.Sunna.Queue do
   end
 
   defp edited_shape_ok(layers) do
-    cond do
-      shape_bad?(layers) ->
-        {:error, Error.new(:sunna_queue_shape, :sunna_queue_edit_shape)}
-
-      not routed?(layers) ->
-        {:error, Error.new(:sunna_queue_route_required, :sunna_queue_edit_route)}
-
-      true ->
-        :ok
-    end
+    if shape_bad?(layers),
+      do: {:error, Error.new(:sunna_queue_shape, :sunna_queue_edit_shape)},
+      else: :ok
   end
 
   defp owner_or_witness(task, actor) do

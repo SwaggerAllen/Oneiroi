@@ -237,7 +237,11 @@ browser's back steps through: `task/<n>`, `task/<n>/act/<id>`,
   starts its count over and opens it again when running out is what
   blocked it, sunna#106; Reopen is not offered for that block). A done or skipped activity offers
   **Reopen…** alone, with a note, while nothing after it has moved, to its
-  owner or a witness (sunna#116). **The activity**: its name read-only ("Named in
+  owner or a witness (sunna#116). A Claude Code's ready step says it
+  waits on its resident's handoff, or that she has handed it over; a
+  witness may **Hand it over for her** (sunna#117). An approved PR review
+  says it is done when the pull request merges at that revision, and its
+  status reads "approved; waiting on the merge" (sunna#118). **The activity**: its name read-only ("Named in
   the template", with a link to the template), then type, held by, layer
   (the open layer on, or a new layer), works on (the task's documents, or
   another citation), and for a review what approving lets happen, its
@@ -346,7 +350,7 @@ detaching a slot's document; the deeper "…" back navigation.
 - **A new subject starts at its root.** Choosing another subject resets every tab and rewrites the address to `#/chat`, so the new subject never opens the old one's record.
 - **Tapping the tab you are on** takes it back to its root (on a record, Records is the file view again; in sessions, Chat is the chat).
 - **The queue's one switch** (sunna#94): Work says whether the queue is running or paused (and since when); a witness pauses or resumes it for every resident, with an optional note. There is no per-resident arming on the house queue; a resident's old work page says her line runs with it.
-- **A template's holders are members** (sunna#93): "Held by" lists each member, each resident's Claude Code and not known yet; a step still held by an old role says so until one is chosen. On a task, changing a Claude Code's or a deliver's holder says its pair goes too, and Save or "Assign both" changes both.
+- **A template's holders are members** (sunna#93): "Held by" lists each member, the Claude Code of each resident who has one attached, and not known yet; an implement lists only those Claude Codes and not known yet (sunna#117), on a template, a task's activity and Assign to alike, its present holder kept in the list. A step still held by an old role says so until one is chosen. The deliver pairing (Assign both) is gone with the deliver step.
 - **A task's document can be changed** (sunna#95): Change on a document row takes the citation it should be; pending activities move to it, started work keeps what it worked on. A citation that names no file is refused, naming the house's copy when there is one.
 - **A resident's line** (sunna#96): her view of the queue says what her line runs, or why it rests (her free time, nothing ready, paused); while it waits on her free time a witness has "Start work now" with a note she reads (sunna#76), here since her Work queue page is retired (sunna#106).
 - **Each card says where its step stands** (2026-11-23): under each in-progress step, its state in words and since when (ready, ready for review, being worked, taken, blocked or failed with the reason, waiting on an earlier layer); for a resident's step, what her line is doing about it: starting it, after another step, or resting and why (her free time, paused). The activity read carries each card's `line`.

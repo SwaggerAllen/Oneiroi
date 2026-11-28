@@ -39,7 +39,8 @@ defmodule Oneiroi.Sunna.QueueCommands do
         :template,
         :layers,
         :start_layer,
-        :links
+        :links,
+        :builders
       ],
       bounds: [slug: 64, title: 200, template: 64]
   end
@@ -69,12 +70,24 @@ defmodule Oneiroi.Sunna.QueueCommands do
     use Oneiroi.Command, fields: [:id, :task, :act], decision: true
   end
 
+  # A Claude Code activity handed to it (sunna#117): by the resident whose
+  # Claude Code it is, at the end of her handoff turn, or by a witness.
+  defmodule HandOffActivity do
+    use Oneiroi.Command, fields: [:id, :task, :act], decision: true
+  end
+
+  # The platform saw the pull request a review approved merged (sunna#118):
+  # `sha` the head it merged at.
+  defmodule SettleMerge do
+    use Oneiroi.Command, fields: [:id, :task, :act, :sha]
+  end
+
   defmodule FailActivity do
     use Oneiroi.Command, fields: [:id, :task, :act, :what]
   end
 
   defmodule AssignActivity do
-    use Oneiroi.Command, fields: [:id, :task, :act, :assignee, :note]
+    use Oneiroi.Command, fields: [:id, :task, :act, :assignee, :note, :builders]
   end
 
   # `outcome` approved, changes or declined (§1, §7); `pin` the revision
@@ -99,7 +112,7 @@ defmodule Oneiroi.Sunna.QueueCommands do
   # activity by `id` (with any fields to change while it is pending) or a
   # new activity's spec.
   defmodule EditLayers do
-    use Oneiroi.Command, fields: [:id, :task, :layers], decision: true
+    use Oneiroi.Command, fields: [:id, :task, :layers, :builders], decision: true
   end
 
   # A document beside the task's activities' (sunna#91): a source, or a

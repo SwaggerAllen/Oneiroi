@@ -800,6 +800,8 @@ export interface QueueMember {
   kind: 'resident' | 'witness';
   id: string;
   name: string;
+  /** A resident with a Claude Code attached, whose Claude Code may build (sunna#117). */
+  builder?: boolean;
 }
 
 export interface QueueActivity {
@@ -825,6 +827,10 @@ export interface QueueActivity {
   reason: string | null;
   pin: string | null;
   approved_pin: string | null;
+  /** A Claude Code activity handed to it by its resident (sunna#117). */
+  handed_off?: boolean;
+  /** An approved pull request review waiting on its merge (sunna#118). */
+  awaiting_merge?: boolean;
   result: string | null;
   note: string | null;
   ready_at: string | null;
@@ -865,6 +871,8 @@ export interface QueueCard {
   reason: string | null;
   pin: string | null;
   approved_pin: string | null;
+  handed_off?: boolean;
+  awaiting_merge?: boolean;
   note: string | null;
   ready_at: string | null;
   updated_at: string;
@@ -1010,7 +1018,7 @@ export interface ResidentThread {
   doc: { path: string; commit: string | null; present: boolean } | null;
 }
 
-export type QueueMove = 'take' | 'finish' | 'skip' | 'block' | 'reopen' | 'fail' | 'assign' | 'decide' | 'runs_back';
+export type QueueMove = 'take' | 'finish' | 'skip' | 'block' | 'reopen' | 'hand_off' | 'fail' | 'assign' | 'decide' | 'runs_back';
 
 // ---- Succession (janus#3 to #5, screen:next-succession) ----
 

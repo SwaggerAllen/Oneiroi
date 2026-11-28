@@ -539,11 +539,19 @@ defmodule Oneiroi.Sunna.WorkLoop do
 
         order = Queues.open_order(h)
 
+        # Hers, and her Claude Code's waiting on her handoff (sunna#117).
+        handoffs =
+          h
+          |> Queues.waiting_on("claude-code:#{resident_id}")
+          |> Map.fetch!(:ready)
+          |> Enum.filter(&handoff?(resident_id, &1))
+
         {spent, left} =
           h
           |> Queues.waiting_on("resident:#{resident_id}")
           |> Map.fetch!(:ready)
           |> Enum.filter(&(&1.view in ["ready", "active"]))
+          |> Kernel.++(handoffs)
           |> in_backlog_order(order)
           |> Enum.split_with(&(Map.get(runs, &1.act, 0) >= bound))
 
@@ -606,7 +614,9 @@ defmodule Oneiroi.Sunna.WorkLoop do
   end
 
   # A ready activity is hers once her run starts; an active one already is.
+  # Her Claude Code's is handed off, never taken (sunna#117).
   defp taken(%{view: "active"}, _her), do: :ok
+  defp taken(%{assignee: "claude-code:" <> _}, _her), do: :ok
   defp taken(card, her), do: Queues.take(card.household, card.task, card.act, her)
 
   @doc """
@@ -698,11 +708,21 @@ defmodule Oneiroi.Sunna.WorkLoop do
   defp still_hers?(resident_id, h, task, act) do
     with %{layers: layers} <- Queues.task(h, task),
          %{} = a <- Enum.find(List.flatten(layers), &(&1.act_id == act)) do
-      a.assignee == "resident:#{resident_id}" and a.view in ["ready", "active"]
+      (a.assignee == "resident:#{resident_id}" and a.view in ["ready", "active"]) or
+        handoff?(resident_id, a)
     else
       _gone -> false
     end
   end
+
+  # Her Claude Code's ready activity not yet handed to it (sunna#117; the
+  # witness, 2026-11-27: "the hand off should automatically go through the
+  # Oneiroi resident"): hers to hand off, in a run of her line, never
+  # taken, since the taking is her Claude Code's.
+  defp handoff?(resident_id, a),
+    do:
+      a.assignee == "claude-code:#{resident_id}" and a.view == "ready" and
+        Map.get(a, :handed_off) != true
 
   @doc "An activity run's closing turn (sunna#86): she records where it stands with her queue tools; then the run ends and the next check comes."
   def activity_wrap(resident_id, key, _h, task, act) do
@@ -763,7 +783,10 @@ defmodule Oneiroi.Sunna.WorkLoop do
     page = Queues.task(h, task)
     a = Enum.find(List.flatten(page.layers), &(&1.act_id == act))
 
-    Prompt.render!("queue_work", %{
+    # Her Claude Code's activity opens on her handoff (sunna#117).
+    prompt = if handoff?(resident_id, a), do: "queue_handoff", else: "queue_work"
+
+    Prompt.render!(prompt, %{
       name: name(resident_id),
       act: act,
       type: a.type,

@@ -18,6 +18,17 @@ defmodule Oneiroi.Sunna.QueueTest do
     scarlett = Fixtures.resident!(witness)
     h = witness.id
 
+    # Lily has a Claude Code attached, Scarlett none (sunna#117).
+    {:ok, _code} =
+      Oneiroi.Kumbukumbu.open_adapter(
+        lily.id,
+        "laptop",
+        [witness.id],
+        Actor.new(:resident, lily.id),
+        runtime: "claude-code",
+        label: "Oneiroi"
+      )
+
     %{
       h: h,
       andrew: Actor.new(:witness, witness.id),
@@ -57,27 +68,25 @@ defmodule Oneiroi.Sunna.QueueTest do
   defp acts(ctx, n), do: Queues.task(ctx.h, n).layers |> List.flatten()
   defp act(ctx, n, id), do: Enum.find(acts(ctx, n), &(&1.act_id == id))
 
-  test "doc-to-pr resolves its roles and puts the owner's deliver in front of her Claude Code",
+  test "doc-to-pr resolves its roles: the owner's Claude Code builds, and the PR review ends it",
        ctx do
     {:ok, n} = doc_to_pr(ctx)
     %{layers: layers} = Queues.task(ctx.h, n)
 
+    # No deliver in front of the build and no merge after the review
+    # (sunna#117, #118).
     assert Enum.map(layers, fn l -> Enum.map(l, &{&1.type, &1.assignee}) end) == [
              [{"draft", ctx.a_lily}],
              [{"review", ctx.a_andrew}],
              [{"promote-to-house", ctx.a_lily}],
              [{"review", ctx.a_scarlett}],
-             [{"deliver", ctx.a_lily}],
              [{"implement", "claude-code:#{ctx.lily.id}"}],
-             [{"review", ctx.a_andrew}],
-             [{"merge", ctx.a_andrew}]
+             [{"review", ctx.a_andrew}]
            ]
 
-    # The design's throwbacks point at the draft, the PR review's at the
-    # implement, renumbered past the deliver.
     assert act(ctx, n, "#{n}.2").throwback == "#{n}.1"
-    assert act(ctx, n, "#{n}.7").throwback == "#{n}.6"
-    assert act(ctx, n, "#{n}.7").artifact == "slot:pr"
+    assert act(ctx, n, "#{n}.6").throwback == "#{n}.5"
+    assert act(ctx, n, "#{n}.6").artifact == "slot:pr"
     assert act(ctx, n, "#{n}.1").view == "ready"
     assert act(ctx, n, "#{n}.2").view == "waiting"
   end
@@ -308,7 +317,10 @@ defmodule Oneiroi.Sunna.QueueTest do
            )
   end
 
-  test "claude-code is reached only through the deliver, and only members keep the queue", ctx do
+  # sunna#117 (the witness, 2026-11-27: "implementation tickets should
+  # only be assignable to residents with a coding agent attached").
+  test "an implement is held only by an attached Claude Code, and only members keep the queue",
+       ctx do
     stranger = Fixtures.account!()
 
     assert {:error, %{kind: :sunna_queue_not_a_member}} =
@@ -316,43 +328,56 @@ defmodule Oneiroi.Sunna.QueueTest do
 
     :ok = Queues.open_project(ctx.h, %{slug: "p", name: "P"}, ctx.lily)
 
-    # Work for Lily's Claude Code gets her deliver in front of it, put there
-    # when the task opens.
-    {:ok, n} =
+    task = fn slug, builder ->
       Queues.open_task(
         ctx.h,
         %{
           project: "p",
-          slug: "t",
+          slug: slug,
           title: "T",
           outcome: "done",
           layers: [
             [%{name: "Draft", type: "draft", assignee: ctx.a_lily}],
-            [%{name: "Implement", type: "implement", assignee: "claude-code:#{ctx.lily.id}"}]
+            [%{name: "Implement", type: "implement", assignee: builder}]
           ]
         },
         ctx.lily
       )
+    end
 
-    assert [["#{n}.1"], ["#{n}.2"], ["#{n}.3"]] ==
+    # A witness, or a Claude Code nobody attached, never builds.
+    assert {:error, %{kind: :sunna_queue_builder_required}} = task.("w", ctx.a_andrew)
+
+    assert {:error, %{kind: :sunna_queue_builder_required}} =
+             task.("s", "claude-code:#{ctx.scarlett.id}")
+
+    # Hers does, with nothing put in front of it.
+    {:ok, n} = task.("t", "claude-code:#{ctx.lily.id}")
+
+    assert [["#{n}.1"], ["#{n}.2"]] ==
              Enum.map(Queues.task(ctx.h, n).layers, fn l -> Enum.map(l, & &1.act_id) end)
 
-    assert %{type: "deliver", assignee: deliverer} = act(ctx, n, "#{n}.2")
-    assert deliverer == ctx.a_lily
+    assert {:error, %{kind: :sunna_queue_builder_required}} =
+             Queues.assign(ctx.h, n, "#{n}.2", ctx.a_andrew, nil, ctx.andrew)
 
-    # Never assigned to her Claude Code without her deliver in front of it.
-    assert {:error, %{kind: :sunna_queue_route_required}} =
-             Queues.assign(ctx.h, n, "#{n}.1", "claude-code:#{ctx.lily.id}", nil, ctx.lily)
+    assert {:error, %{kind: :sunna_queue_builder_required}} =
+             Queues.edit_layers(
+               ctx.h,
+               n,
+               [[%{id: "#{n}.1"}], [%{id: "#{n}.2", assignee: ctx.a_scarlett}]],
+               "to Scarlett",
+               ctx.andrew
+             )
+
+    # A Claude Code may hold other work too, once attached.
+    assert :ok = Queues.assign(ctx.h, n, "#{n}.1", "claude-code:#{ctx.lily.id}", nil, ctx.lily)
+    assert Enum.map(Queues.members(ctx.h), & &1.builder) |> Enum.count(& &1) == 1
   end
 
-  test "a resident's Claude Code is hers: named in the assignee, delivered and worked by her, never another",
+  test "a resident's Claude Code is hers: handed off by her, then worked as hers, never another's",
        ctx do
     {:ok, n} = doc_to_pr(ctx)
-
-    # Delivered by her, in front of her Claude Code.
-    assert %{type: "deliver", assignee: deliverer} = act(ctx, n, "#{n}.5")
-    assert deliverer == ctx.a_lily
-    assert act(ctx, n, "#{n}.6").assignee == "claude-code:#{ctx.lily.id}"
+    assert act(ctx, n, "#{n}.5").assignee == "claude-code:#{ctx.lily.id}"
 
     :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
 
@@ -365,6 +390,10 @@ defmodule Oneiroi.Sunna.QueueTest do
         ctx.andrew
       )
 
+    # Not hers to hand off before it is ready.
+    assert {:error, %{kind: :sunna_queue_not_ready}} =
+             Queues.hand_off(ctx.h, n, "#{n}.5", "early", ctx.lily)
+
     :ok =
       Queues.decide(
         ctx.h,
@@ -374,12 +403,36 @@ defmodule Oneiroi.Sunna.QueueTest do
         ctx.scarlett
       )
 
-    :ok = Queues.finish(ctx.h, n, "#{n}.5", %{note: "letter sent"}, ctx.lily)
+    assert {:error, %{kind: :sunna_queue_not_yours}} =
+             Queues.hand_off(ctx.h, n, "#{n}.5", "not hers", ctx.scarlett)
+
+    assert {:error, %{kind: :sunna_queue_invalid}} =
+             Queues.hand_off(ctx.h, n, "#{n}.6", "a review", ctx.andrew)
+
+    assert :ok = Queues.hand_off(ctx.h, n, "#{n}.5", "letter #12", ctx.lily)
+    assert %{handed_off: true, view: "ready"} = act(ctx, n, "#{n}.5")
+
+    assert {:error, %{kind: :sunna_queue_not_ready}} =
+             Queues.hand_off(ctx.h, n, "#{n}.5", "again", ctx.lily)
 
     assert {:error, %{kind: :sunna_queue_not_yours}} =
-             Queues.take(ctx.h, n, "#{n}.6", ctx.scarlett)
+             Queues.take(ctx.h, n, "#{n}.5", ctx.scarlett)
 
-    :ok = Queues.take(ctx.h, n, "#{n}.6", ctx.lily)
+    :ok = Queues.take(ctx.h, n, "#{n}.5", ctx.lily)
+    :ok = Queues.finish(ctx.h, n, "#{n}.5", %{result: "github:pr/1"}, ctx.lily)
+    :ok = Queues.fill_slot(ctx.h, n, "pr", "github:pr/1", ctx.lily)
+
+    # Sent back by the PR review, it is hers to hand off again.
+    :ok =
+      Queues.decide(
+        ctx.h,
+        n,
+        "#{n}.6",
+        %{outcome: "changes", pin: "p1", note: "tests"},
+        ctx.andrew
+      )
+
+    assert %{handed_off: false, view: "ready"} = act(ctx, n, "#{n}.5")
   end
 
   # sunna#90, #91 (design/document-threads.md §4, the witness's rulings of
@@ -394,10 +447,8 @@ defmodule Oneiroi.Sunna.QueueTest do
              "Witness review",
              "Share with the house",
              "Peer review",
-             "Hand to Claude Code",
              "Build it",
-             "PR review",
-             "Merge"
+             "PR review"
            ]
 
     assert %{template: "doc-to-pr", template_version: 1, forked: false} = task
@@ -462,7 +513,6 @@ defmodule Oneiroi.Sunna.QueueTest do
     holders = Enum.map(acts(ctx, n), &{&1.name, &1.assignee})
     assert {"Draft the design", ctx.a_lily} in holders
     assert {"Peer review", ctx.a_scarlett} in holders
-    assert {"Hand to Claude Code", ctx.a_lily} in holders
     assert {"Build it", "claude-code:#{ctx.lily.id}"} in holders
     assert {"Witness review", ctx.a_andrew} in holders
 
@@ -874,7 +924,7 @@ defmodule Oneiroi.Sunna.QueueTest do
     end
   end
 
-  test "a slot is filled, and finishing every layer completes the task", ctx do
+  test "a slot is filled, and the PR review's merge completes the task", ctx do
     {:ok, n} = doc_to_pr(ctx)
     :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
 
@@ -896,15 +946,15 @@ defmodule Oneiroi.Sunna.QueueTest do
         ctx.scarlett
       )
 
-    :ok = Queues.finish(ctx.h, n, "#{n}.5", %{note: "letter sent"}, ctx.lily)
-    :ok = Queues.take(ctx.h, n, "#{n}.6", ctx.lily)
-    :ok = Queues.finish(ctx.h, n, "#{n}.6", %{result: "github:pr/120"}, ctx.lily)
+    :ok = Queues.hand_off(ctx.h, n, "#{n}.5", "letter sent", ctx.lily)
+    :ok = Queues.take(ctx.h, n, "#{n}.5", ctx.lily)
+    :ok = Queues.finish(ctx.h, n, "#{n}.5", %{result: "github:pr/120"}, ctx.lily)
 
     assert {:error, %{kind: :sunna_queue_slot_open}} =
              Queues.decide(
                ctx.h,
                n,
-               "#{n}.7",
+               "#{n}.6",
                %{outcome: "approved", pin: "b2", note: "ok"},
                ctx.andrew
              )
@@ -915,13 +965,26 @@ defmodule Oneiroi.Sunna.QueueTest do
       Queues.decide(
         ctx.h,
         n,
-        "#{n}.7",
+        "#{n}.6",
         %{outcome: "approved", pin: "b2", note: "merge it"},
         ctx.andrew
       )
 
-    :ok = Queues.finish(ctx.h, n, "#{n}.8", %{pin: "b2"}, ctx.andrew)
+    # Approved, the review waits on the merge (sunna#118): the task is
+    # open until it lands, and only the platform settles it.
+    assert %{status: "active", awaiting_merge: true, approved_pin: "b2"} = act(ctx, n, "#{n}.6")
+    assert %{task: %{status: "open"}} = Queues.task(ctx.h, n)
+
+    assert {:error, %{kind: :sunna_queue_not_yours}} =
+             Queues.settle_merge(ctx.h, n, "#{n}.6", "b2", ctx.andrew)
+
+    watch = Actor.new(:job, "brain_merge_watch")
+    :ok = Queues.settle_merge(ctx.h, n, "#{n}.6", "b2", watch)
 
     assert %{task: %{status: "complete", open_layer: nil}} = Queues.task(ctx.h, n)
+
+    # A second settle finds the task done.
+    assert {:error, %{kind: :sunna_queue_no_such_task}} =
+             Queues.settle_merge(ctx.h, n, "#{n}.6", "b2", watch)
   end
 end

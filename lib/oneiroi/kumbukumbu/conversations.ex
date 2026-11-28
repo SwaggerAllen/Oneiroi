@@ -112,6 +112,15 @@ defmodule Oneiroi.Kumbukumbu.Conversations do
     with {:ok, _} <- dispatch(command), do: {:ok, key}
   end
 
+  @doc "Whether a resident has a session another runtime opened as `runtime` (sunna#117)."
+  @spec runtime_attached?(String.t(), String.t()) :: boolean()
+  def runtime_attached?(resident_id, runtime)
+      when is_binary(resident_id) and is_binary(runtime) do
+    Scope.resident(resident_id, fn -> Store.runtime_attached?(resident_id, runtime) end)
+  end
+
+  def runtime_attached?(_resident_id, _runtime), do: false
+
   @label_chars 64
   @runtime ~r/\A[a-z][a-z0-9-]{1,31}\z/
 

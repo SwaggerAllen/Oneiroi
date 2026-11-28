@@ -63,6 +63,26 @@ defmodule Oneiroi.Sunna.Events.Queue do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :task, :act, :released]
   end
 
+  defmodule ActivityHandedOff do
+    # A resident's Claude Code activity handed to it (sunna#117): by her,
+    # with what she wrote it, or by a witness; her Claude Code works it
+    # from here.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :task, :act]
+  end
+
+  defmodule MergeAwaited do
+    # A pull request's review approved with no merge step after it
+    # (sunna#118): the review stays open, approved at `pin`, until the
+    # pull request merges.
+    use Oneiroi.Event, version: 1, fields: [:id, :task, :act, :pin]
+  end
+
+  defmodule MergeSettled do
+    # The pull request merged at the head its review approved (sunna#118):
+    # the review is done.
+    use Oneiroi.Event, version: 1, fields: [:id, :task, :act, :sha]
+  end
+
   defmodule ActivityFailed do
     use Oneiroi.Event, version: 1, fields: [:id, :task, :act, :what]
   end

@@ -204,7 +204,7 @@ defmodule OneiroiWeb.QueueController do
 
   operation(:move,
     summary:
-      "Moves an activity: take, finish (note, result), skip (note), block (reason, waits_on), reopen (note), fail (reason), runs_back (note: the witness gives a resident's activity its runs back, sunna#106), assign (assignee, note), or decide a review (outcome approved, changes or declined; pin, return_to, withhold, note)",
+      "Moves an activity: take, finish (note, result), skip (note), block (reason, waits_on), reopen (note), hand_off (note: a resident's Claude Code activity handed to it, by her or a witness, sunna#117), fail (reason), runs_back (note: the witness gives a resident's activity its runs back, sunna#106), assign (assignee, note), or decide a review (outcome approved, changes or declined; pin, return_to, withhold, note)",
     parameters: [
       number: [in: :path, type: :integer],
       act: [in: :path, type: :string],
@@ -402,6 +402,10 @@ defmodule OneiroiWeb.QueueController do
     do: Sunna.queue_block(h, n, act, p["reason"], int(p["waits_on"]), a)
 
   defp apply_move("reopen", p, {h, n, act}, a), do: Sunna.queue_reopen(h, n, act, p["note"], a)
+
+  defp apply_move("hand_off", p, {h, n, act}, a),
+    do: Sunna.queue_hand_off(h, n, act, blank(p["note"]), a)
+
   defp apply_move("fail", p, {h, n, act}, a), do: Sunna.queue_fail(h, n, act, p["reason"], a)
 
   defp apply_move("runs_back", p, {h, n, act}, a),
@@ -493,6 +497,8 @@ defmodule OneiroiWeb.QueueController do
         :reason,
         :pin,
         :approved_pin,
+        :handed_off,
+        :awaiting_merge,
         :result,
         :note,
         :ready_at,

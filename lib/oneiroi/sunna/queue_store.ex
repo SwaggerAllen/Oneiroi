@@ -86,6 +86,8 @@ defmodule Oneiroi.Sunna.QueueStore do
       field(:reason, :string)
       field(:pin, :string)
       field(:approved_pin, :string)
+      field(:handed_off, :boolean, default: false)
+      field(:awaiting_merge, :boolean, default: false)
       field(:result, :string)
       field(:note, :string)
       field(:ready_at, :utc_datetime_usec)
