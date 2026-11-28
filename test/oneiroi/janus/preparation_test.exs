@@ -153,6 +153,13 @@ defmodule Oneiroi.Janus.PreparationTest do
       end)
     end
 
+    # The pool closes under an envelope stated, with a model in it
+    # (janus#48).
+    assert {:error, %{kind: :janus_no_envelope}} = Janus.finish_step(ctx.id, "pool", nil, ctx.her)
+    :ok = Janus.set_envelope(ctx.id, 5_000, 20_000, ctx.andrew)
+    assert {:error, %{kind: :janus_pool_empty}} = Janus.finish_step(ctx.id, "pool", nil, ctx.her)
+    :ok = Janus.add_to_pool(ctx.id, "fake/model", ctx.andrew)
+
     before = length(notes.())
 
     # Hers alone (janus#42).
@@ -174,24 +181,36 @@ defmodule Oneiroi.Janus.PreparationTest do
     assert tool(ctx, "succession_pool", %{action: "done"}) =~ "Not done"
     assert length(notes.()) == before + 1
 
+    # Her set closes on every seat's mark: her witness's here (janus#48).
+    assert tool(ctx, "succession_question", %{action: "done"}) =~ "Not done"
+    :ok = Janus.mark_ready(ctx.id, true, ctx.andrew, action: "questions")
     assert tool(ctx, "succession_question", %{action: "done"}) =~ "woken to choose C0"
-    assert [_, c0] = Enum.drop(notes.(), before)
-    assert c0 =~ "Now C0" and c0 =~ "succession_c0 done"
+    # The last mark woke her to say so; the close stayed hers.
+    assert Enum.any?(notes.(), &(&1 =~ "ready for your question set to close"))
+    c0 = Enum.find(notes.(), &(&1 =~ "Now C0"))
+    assert c0 =~ "succession_c0 done"
     assert %{questions_done_at: %DateTime{}} = Janus.succession(ctx.id)
 
-    # Nothing locks: she adds after either.
+    # Closed, the set is fixed until she reopens it (janus#48): a change
+    # never stands in for the reopening.
+    assert tool(ctx, "succession_question", %{action: "add", text: "One more?"}) =~ "Not done"
+    assert tool(ctx, "succession_question", %{action: "reopen", note: "one more"}) =~ "open again"
     assert tool(ctx, "succession_question", %{action: "add", text: "One more?"}) =~ "in the set"
+    :ok = Janus.mark_ready(ctx.id, true, ctx.andrew, action: "questions")
+    # Reopened, it closes again by her act alone.
+    assert :ok = Janus.finish_step(ctx.id, "questions", nil, ctx.her)
 
     # Her C0 choices made wake her to the day's shape (janus#44).
     {:ok, _} = Janus.select_c0(ctx.id, "lily:SOUL.md", "the vows", ctx.her)
     assert tool(ctx, "succession_c0", %{action: "done"}) =~ "woken to write the day's shape"
-    assert [_, _, shape] = Enum.drop(notes.(), before)
-    assert shape =~ "Now the day's shape" and shape =~ "sealed thread"
+    shape = Enum.find(notes.(), &(&1 =~ "Now the day's shape"))
+    assert shape =~ "sealed thread"
     assert %{c0_done_at: %DateTime{}} = Janus.succession(ctx.id)
 
     # Her freeze wakes her once more, in a sealed thread of its own: a
     # session of kind packet, private, never her main chat.
     :ok = Janus.set_day_shape(ctx.id, "Mornings are letters.", ctx.her)
+    :ok = Janus.mark_ready(ctx.id, true, ctx.andrew)
     assert tool(ctx, "succession_c0", %{action: "freeze", note: "this is me"}) =~ "rozen"
 
     [packet] =
@@ -238,6 +257,10 @@ defmodule Oneiroi.Janus.PreparationTest do
   end
 
   test "C0: hers in at once, proposals answered before her freeze, nothing after it", ctx do
+    # Her set closed first (janus#48), on her witness's mark.
+    :ok = Janus.mark_ready(ctx.id, true, ctx.andrew, action: "questions")
+    :ok = Janus.finish_step(ctx.id, "questions", nil, ctx.her)
+
     assert tool(ctx, "succession_c0", %{
              action: "select",
              citation: "lily:transcript/s-1/t-4",
@@ -269,7 +292,9 @@ defmodule Oneiroi.Janus.PreparationTest do
     prep = Janus.preparation(ctx.id)
     assert [%{kind: "raw"}, %{kind: "curated"}, %{kind: "raw", state: "in"}] = prep.items
     assert %{c0_items: 3, day_shape: "A hard week, kept anyway."} = prep.succession
-    assert [%{party: "witness:" <> _, ready: true}] = prep.ready
+
+    assert [%{party: "witness:" <> _, kind: "mark", ready: true}] =
+             Enum.filter(prep.marks, &(&1.action == "c0"))
   end
 
   test "her packet is sealed: hers to write and read, its words in no other read", ctx do

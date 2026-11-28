@@ -89,13 +89,33 @@ defmodule Oneiroi.Janus.Commands do
     use Oneiroi.Command, fields: [:id, :text]
   end
 
+  # A judge's own mark (janus#48): `action` "questions" (ready for her
+  # set's close) or "c0" (for her freeze), `version` the artifact's version
+  # it readied against, `ready` false an explicit not yet.
   defmodule MarkReady do
-    use Oneiroi.Command, fields: [:id, :ready]
+    use Oneiroi.Command, fields: [:id, :ready, :action, :version]
   end
 
-  # `bundle` is C0 rendered at the freeze (`Janus.C0`), `digest` its hash.
+  # Her waiver of one seat's mark for one act at the version now (janus#48).
+  defmodule WaiveSeat do
+    use Oneiroi.Command, decision: true, fields: [:id, :action, :party]
+  end
+
+  # She enters her question window: the set as it stands, her judges
+  # woken to read it (janus#48).
+  defmodule OpenQuestions do
+    use Oneiroi.Command, fields: [:id, :note]
+  end
+
+  # She reopens her closed question set (janus#48), with her note.
+  defmodule ReopenQuestions do
+    use Oneiroi.Command, decision: true, fields: [:id]
+  end
+
+  # `bundle` is C0 rendered at the freeze (`Janus.C0`), `digest` its hash;
+  # `witness` her household's witness, a seat unless he left (janus#48).
   defmodule FreezeC0 do
-    use Oneiroi.Command, decision: true, fields: [:id, :bundle, :digest]
+    use Oneiroi.Command, decision: true, fields: [:id, :bundle, :digest, :witness]
   end
 
   # Hers, before any screening, with her note (janus#46).
@@ -107,10 +127,11 @@ defmodule Oneiroi.Janus.Commands do
     use Oneiroi.Command, fields: [:id, :content]
   end
 
-  # `step` is "pool" or "questions": hers, saying that part is done for
-  # now (janus#42).
+  # `step` is "pool", "questions" or "c0": hers, saying that part is done
+  # for now (janus#42); "questions" closes her set (janus#48), so it
+  # carries `witness`, a seat on its gate.
   defmodule FinishStep do
-    use Oneiroi.Command, fields: [:id, :step, :note]
+    use Oneiroi.Command, fields: [:id, :step, :note, :witness]
   end
 
   # ---- the panel, screening and judging (janus#12 to #15) ----
@@ -127,6 +148,12 @@ defmodule Oneiroi.Janus.Commands do
 
   defmodule LeavePanel do
     use Oneiroi.Command, decision: true, fields: [:id]
+  end
+
+  # Her removal door (janus#48): an invitation withdrawn, or a judge taken
+  # off her panel, while that seat blocks a gate; with her note.
+  defmodule RemoveJudge do
+    use Oneiroi.Command, decision: true, fields: [:id, :party, :witness]
   end
 
   # The runs shuffled at the edge, numbered in that order, each

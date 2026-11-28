@@ -156,7 +156,50 @@ defmodule Oneiroi.Janus.Events do
   end
 
   defmodule ReadyMarked do
-    use Oneiroi.Event, version: 1, fields: [:id, :episode, :ready], export: false
+    # A judge's own mark. Version 2 (janus#48) names `action`, "questions"
+    # or "c0", and the `version` of the artifact it readied against; `ready`
+    # false is an explicit not yet. A version 1 mark reads as a C0 mark
+    # naming no version, so it satisfies no gate.
+    use Oneiroi.Event,
+      version: 2,
+      fields: [:id, :episode, :ready, :action, :version],
+      export: false
+  end
+
+  defimpl Commanded.Event.Upcaster, for: ReadyMarked do
+    def upcast(%{action: nil} = event, _metadata), do: %{event | action: "c0"}
+    def upcast(event, _metadata), do: event
+  end
+
+  defmodule SeatWaived do
+    # Her waiver of a seat's mark for one act, at the artifact's version
+    # (janus#48): never automatic, and it lapses with the marks.
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :episode, :action, :party, :version],
+      export: false
+  end
+
+  defmodule MarksLapsed do
+    # The artifact a set of marks and waivers readied against changed
+    # (janus#48): `action`, the `version` it is now, `why` (the event's
+    # name), and the `parties` whose marks went, to be asked again.
+    use Oneiroi.Event,
+      version: 1,
+      fields: [:id, :episode, :action, :version, :why, :parties],
+      export: false
+  end
+
+  defmodule QuestionsOpened do
+    # She entered her question window, the set at `version` (janus#48).
+    use Oneiroi.Event, version: 1, fields: [:id, :episode, :version, :note], export: false
+  end
+
+  defmodule QuestionsReopened do
+    # Her closed question set reopened (janus#48): the close undone, the
+    # marks and waivers lapsed, her judges asked again.
+    use Oneiroi.Event, version: 1, decision: true, fields: [:id, :episode], export: false
   end
 
   defmodule C0Frozen do
@@ -201,6 +244,16 @@ defmodule Oneiroi.Janus.Events do
 
   defmodule JudgeLeft do
     use Oneiroi.Event, version: 1, decision: true, fields: [:id, :episode, :party], export: false
+  end
+
+  defmodule JudgeRemoved do
+    # Her removal door (janus#48): `was` "invited" (the invitation
+    # withdrawn) or "in" (the judge taken off), while the seat blocked.
+    use Oneiroi.Event,
+      version: 1,
+      decision: true,
+      fields: [:id, :episode, :party, :was],
+      export: false
   end
 
   defmodule ScreeningStarted do

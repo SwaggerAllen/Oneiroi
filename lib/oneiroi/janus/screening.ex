@@ -89,7 +89,10 @@ defmodule Oneiroi.Janus.Screening do
       Map.get(cur.panel, me) == :in ->
         []
 
-      Map.get(cur.panel, me) == :invited or witness?(c) ->
+      # The witness joins of his own, unless she took him off (janus#48);
+      # then her invitation brings him back.
+      Map.get(cur.panel, me) == :invited or
+          (witness?(c) and Map.get(cur.panel, me) not in [:removed, :withdrawn]) ->
         %Events.JudgeJoined{actor: c.actor, at: c.at, id: c.id, episode: cur.episode, party: me}
 
       true ->
@@ -100,7 +103,7 @@ defmodule Oneiroi.Janus.Screening do
   def execute(cur, %Commands.LeavePanel{} = c) do
     me = party(c.actor)
 
-    if Map.get(cur.panel, me) in [:invited, :in] or (witness?(c) and cur.panel[me] != :left),
+    if Map.get(cur.panel, me) in [:invited, :in] or (witness?(c) and is_nil(cur.panel[me])),
       do: %Events.JudgeLeft{
         actor: c.actor,
         at: c.at,
@@ -420,7 +423,7 @@ defmodule Oneiroi.Janus.Screening do
   # Her, everyone who joined, and the witness unless he left.
   defp panel_of(cur, c) do
     joined = for {p, :in} <- cur.panel, do: p
-    witness = if c.witness && cur.panel[c.witness] != :left, do: [c.witness], else: []
+    witness = if c.witness && cur.panel[c.witness] in [nil, :in], do: [c.witness], else: []
     Enum.uniq(["resident:#{c.id}" | joined ++ witness])
   end
 
