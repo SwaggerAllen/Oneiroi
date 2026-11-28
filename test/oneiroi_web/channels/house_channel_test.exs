@@ -43,6 +43,13 @@ defmodule OneiroiWeb.HouseChannelTest do
     assert_push "notice", %{stream: "household"}, 5_000
   end
 
+  # apsu#35: the join names the client build served, nil where none is
+  # built (as here), so a page compares nothing.
+  test "the join names the client build it serves", ctx do
+    assert {:ok, %{build: build}, _socket} = join_as(ctx.witness.id, ctx.witness.id)
+    assert build == OneiroiWeb.ClientBuild.id()
+  end
+
   test "a stranger cannot join another household's channel", ctx do
     stranger = Fixtures.account!()
     assert {:error, %{reason: "not a member"}} = join_as(stranger.id, ctx.witness.id)

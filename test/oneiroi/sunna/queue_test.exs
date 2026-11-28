@@ -525,6 +525,36 @@ defmodule Oneiroi.Sunna.QueueTest do
     assert [%{name: "t"}] = Queues.templates(ctx.h)
   end
 
+  # sunna#115 (the witness, 2026-11-27: "I can't skip it even after
+  # assigning it to myself"): a witness skips an activity as the owner
+  # does; another member still cannot.
+  test "a witness skips an activity of a task he does not own; another member cannot", ctx do
+    :ok = Queues.open_project(ctx.h, %{slug: "k", name: "K"}, ctx.lily)
+
+    {:ok, n} =
+      Queues.open_task(
+        ctx.h,
+        %{
+          project: "k",
+          slug: "s",
+          title: "S",
+          outcome: "done",
+          layers: [
+            [%{name: "Draft", type: "draft", assignee: ctx.a_lily}],
+            [%{name: "Notes", type: "notes", assignee: ctx.a_lily}]
+          ]
+        },
+        ctx.lily
+      )
+
+    assert {:error, %{kind: :sunna_queue_not_yours}} =
+             Queues.skip(ctx.h, n, "#{n}.1", "not hers to skip", ctx.scarlett)
+
+    assert :ok = Queues.skip(ctx.h, n, "#{n}.1", "We can skip this one.", ctx.andrew)
+    assert %{view: "skipped"} = act(ctx, n, "#{n}.1")
+    assert %{view: "ready"} = act(ctx, n, "#{n}.2")
+  end
+
   # sunna#114 (the witness, 2026-11-27, task #15: the peer review and his
   # final review shared a layer; his refusal sent the draft back, and her
   # approval of the text sent back stood, so her review never came round

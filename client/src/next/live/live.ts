@@ -138,7 +138,9 @@ export class Live {
     });
     channel
       .join()
-      .receive('ok', ({ position }: { position: number }) => {
+      .receive('ok', ({ position, build }: { position: number; build?: string | null }) => {
+        // The build the server serves (apsu#35): after a deploy the rejoin names another.
+        useShell.getState().sawBuild(build);
         // First visit on this device: nothing to replay, start from now.
         if (since === null) {
           useShell.getState().setCursor(position);
@@ -230,7 +232,10 @@ export class Live {
       channel = this.socket.channel(`house:${householdId}`);
       channel.on('notice', (n: Notice) => want(houseKeys(n)));
       // A rejoin after an outage: what moved meanwhile is read again.
-      channel.join().receive('ok', () => want([['household'], ['unread']]));
+      channel.join().receive('ok', (reply?: { build?: string | null }) => {
+        useShell.getState().sawBuild(reply?.build);
+        want([['household'], ['unread']]);
+      });
     });
     return {
       count: 0,

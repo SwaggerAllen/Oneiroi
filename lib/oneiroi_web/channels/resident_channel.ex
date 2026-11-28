@@ -24,7 +24,10 @@ defmodule OneiroiWeb.ResidentChannel do
       :ok = PubSub.subscribe(:brain, :needs_you)
       :ok = Oneiroi.Brain.watch_needs_you(resident_id)
       if is_integer(params["since"]), do: send(self(), {:replay, params["since"]})
-      {:ok, %{position: Notices.head()}, assign(socket, :resident_id, resident_id)}
+      # The client build served (apsu#35): a page that hears another than
+      # the one it loaded offers a reload.
+      {:ok, %{position: Notices.head(), build: OneiroiWeb.ClientBuild.id()},
+       assign(socket, :resident_id, resident_id)}
     else
       {:error, %{reason: "not witnessed"}}
     end

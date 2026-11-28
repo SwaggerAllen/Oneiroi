@@ -1187,10 +1187,15 @@ defmodule Oneiroi.Sunna.Queue do
       (not is_nil(mine) and mine == claude_code_of(act.assignee))
   end
 
+  # The task's owner, a witness (sunna#115, the witness, 2026-11-27: he
+  # could work an activity but never skip one), or an optional
+  # activity's assignee. A review guarding the next layer stays unskipped
+  # whoever asks (sunna#82).
   defp may_skip(task, act, actor) do
     mine = me(actor)
 
     cond do
+      actor.kind == :witness -> :ok
       not is_nil(mine) and mine == task.owner -> :ok
       act.optional and not is_nil(mine) and mine == act.assignee -> :ok
       true -> {:error, Error.new(:sunna_queue_not_yours, :sunna_queue_skip_not_yours)}

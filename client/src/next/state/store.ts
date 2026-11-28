@@ -23,6 +23,10 @@ interface ShellState {
   connection: Connection;
   offlineSince: number | null;
   cursor: number | null; // the last notice position seen (apsu#24)
+  /** The client build the server named when this page first joined (apsu#35), or null. */
+  build: string | null;
+  /** The server has since named another build: this page runs code from before a deploy. */
+  newBuild: boolean;
   presence: Presence;
   /** Each resident's own indicator, kept while you are elsewhere (2026-11-23). */
   presences: Record<string, Presence>;
@@ -48,6 +52,8 @@ interface ShellState {
   setTab: (tab: Tab) => void;
   setConnection: (c: Connection, now?: number) => void;
   setCursor: (p: number) => void;
+  /** A channel joined and named the build it serves (apsu#35). */
+  sawBuild: (b: string | null | undefined) => void;
   setPresence: (p: Presence) => void;
   setSearchOpen: (open: boolean) => void;
 }
@@ -57,6 +63,8 @@ const roots = () => Object.fromEntries(TABS.map((t) => [t, ['']])) as Record<Tab
 export const useShell = create<ShellState>((set) => ({
   tab: 'chat',
   stacks: roots(),
+  build: null,
+  newBuild: false,
   connection: 'connecting',
   offlineSince: null,
   cursor: null,
@@ -115,6 +123,12 @@ export const useShell = create<ShellState>((set) => ({
       connection,
       offlineSince: connection === 'connected' ? null : (s.offlineSince ?? now),
     })),
+  sawBuild: (b) =>
+    set((s) => {
+      if (!b) return {};
+      if (s.build === null) return { build: b };
+      return b === s.build ? {} : { newBuild: true };
+    }),
   setCursor: (cursor) => set((s) => ({ cursor: Math.max(cursor, s.cursor ?? 0) })),
   setPresence: (presence) =>
     set((s) => (presence.residentId ? { presence, presences: { ...s.presences, [presence.residentId]: presence } } : { presence })),

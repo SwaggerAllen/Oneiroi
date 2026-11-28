@@ -704,3 +704,6 @@ The guard is only as good as the two readings it compares; once the platform cou
 
 ## #114
 Work that sat beside the refusing review acted on the same revision as everything before it; leaving it finished lets an approval of withdrawn text ride into the next round unread, which is the one thing a review exists to prevent.
+
+## #115
+The witness can take, finish, block and reassign any activity; refusing him the skip alone left a blocked step with no way past it but a resident's turn.

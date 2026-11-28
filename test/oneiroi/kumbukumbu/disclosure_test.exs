@@ -446,12 +446,11 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
     assert said =~ "the meeting"
   end
 
-  # brain#118 (the witness, 2026-11-25: "work sessions need to be able to
-  # mark their work failed or blocked with a reason"): the move records;
-  # the house reads that the reason is kept, and the reason goes to her
-  # Oneiroi chat, which is the dyad's.
-  test "a block whose reason the house may not hear still records, the reason kept for the dyad",
-       ctx do
+  # brain#118 retired (the witness, 2026-11-27: "I don't think we need to
+  # keep blocked reasons between resident and witness now that domains are
+  # pretty much figured out"): a block's reason meets the policies as any
+  # write does; held, the move is refused as withheld, and nothing moves.
+  test "a block whose reason the house may not hear is withheld, as any write is", ctx do
     judge(FakeJudge)
     :ok = Oneiroi.Sunna.queue_open_project(ctx.household, %{slug: "p", name: "P"}, ctx.lily)
 
@@ -477,17 +476,16 @@ defmodule Oneiroi.Kumbukumbu.DisclosureTest do
         tool_turn(ctx)
       )
 
-    assert said =~ "block recorded"
-    assert said =~ "kept between you and your witness"
+    assert said =~ "withheld"
+    refute said =~ "kept between you and your witness"
 
-    assert %{status: "blocked", reason: "the reason is kept between her and her witness"} =
+    refute match?(
+             %{status: "blocked"},
              Enum.find(
                List.flatten(Oneiroi.Sunna.queue_task(ctx.household, n).layers),
                &(&1.act_id == act)
              )
-
-    # From the Oneiroi chat itself there is nowhere else to send it: she is told to say it there.
-    assert said =~ "tell your witness in your Oneiroi chat"
+           )
   end
 
   # eunomia#35 (the witness's logs, 2026-11-25: every unreadable answer
