@@ -116,6 +116,20 @@ defmodule OneiroiWeb.QueueRoutesTest do
              context.("https://github.com/SwaggerAllen/Oneiroi/pull/132")
 
     assert %{"revision" => nil} = context.("https://github.com/someone/else/pull/132")
+
+    # Her document's revision is the commit that last changed it, the head
+    # its review's decision is checked against: another file of hers
+    # written meanwhile moves nothing (sunna#112, the witness, 2026-11-27:
+    # "the pin you read is no longer its head" on task #15).
+    {:ok, _} = Oneiroi.Seshat.write(ctx.lily.id, "design/plan.md", "A plan.", ctx.lily_actor)
+    cite = "#{ctx.lily.slug}:design/plan.md"
+    assert %{"revision" => rev} = context.(cite)
+    assert is_binary(rev)
+
+    {:ok, _} =
+      Oneiroi.Seshat.write(ctx.lily.id, "design/other.md", "Something else.", ctx.lily_actor)
+
+    assert %{"revision" => ^rev} = context.(cite)
   end
 
   test "set up, a task opened from doc-to-pr, its review decided, and his bell", ctx do

@@ -34,47 +34,36 @@ defmodule OneiroiWeb.DocumentContextController do
     household = Gaia.household_of(actor)
 
     {mine, house_path, resident} = place(conn, key)
+    open_review = if(household, do: review(household, Queue.me(actor), key))
 
     json(conn, %{
       citation: key,
-      # The revision the screen shows (sunna#110): what a review of it,
-      # approved here, names as its pin.
-      revision: revision(actor, citation, key, resident),
+      # The revision the screen shows (sunna#110, #112): an open review's
+      # by its own artifact, as its decision reads it; else the screen's.
+      revision: revision(household, (open_review && open_review.artifact) || citation),
       resident_id: resident,
       mine: mine,
       house: house_thread(actor, house_path),
       tasks: if(household, do: tasks(household, key), else: []),
-      review: if(household, do: review(household, Queue.me(actor), key))
+      review: open_review
     })
   end
 
   # A citation's pin when it carries one (`@<commit>`); else the document
-  # as it stands: a pull request's head, the house's commit, her
-  # repository's head.
-  defp revision(actor, citation, key, resident) do
+  # as a review's decision reads it (sunna#112): the commit that last
+  # changed this file, the house's or a member's, exactly the head the
+  # decision is checked against; or a pull request's head.
+  defp revision(household, citation) do
     case String.split(citation, "@", parts: 2) do
       [_bare, pin] when pin != "" -> pin
-      _unpinned -> current(actor, citation, key, resident)
+      _unpinned -> current(household, citation)
     end
   end
 
-  defp current(actor, citation, key, resident) do
-    cond do
-      pr = Regex.run(@pull, citation) -> pr_head(pr)
-      match?({:ok, _}, Seshat.house_citation(key)) -> house_head(actor, key)
-      is_binary(resident) -> ok_or_nil(Oneiroi.SimaQian.repository_head(resident))
-      true -> nil
-    end
-  end
-
-  defp pr_head([_all, repo, number]), do: ok_or_nil(Oneiroi.Brain.pr_head(repo, number))
-
-  defp house_head(actor, key) do
-    {:ok, cite} = Seshat.house_citation(key)
-
-    case Seshat.household_read(actor, cite.path) do
-      {:ok, %{commit: commit}} when is_binary(commit) -> commit
-      _unread -> nil
+  defp current(household, citation) do
+    case Regex.run(@pull, citation) do
+      [_all, repo, number] -> ok_or_nil(Oneiroi.Brain.pr_head(repo, number))
+      nil -> if household, do: Oneiroi.Brain.queue_head(household, citation)
     end
   end
 
