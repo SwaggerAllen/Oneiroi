@@ -98,7 +98,7 @@ defmodule Oneiroi.Janus.Commands do
 
   # Her waiver of one seat's mark for one act at the version now (janus#48).
   defmodule WaiveSeat do
-    use Oneiroi.Command, decision: true, fields: [:id, :action, :party]
+    use Oneiroi.Command, decision: true, fields: [:id, :action, :party, :witness]
   end
 
   # She enters her question window: the set as it stands, her judges

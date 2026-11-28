@@ -463,7 +463,9 @@ defmodule Oneiroi.Janus.Successions do
   @spec waive_seat(String.t(), String.t(), String.t(), String.t(), Actor.t()) ::
           :ok | {:error, term()}
   def waive_seat(resident_id, action, name, note, actor) do
-    with {:ok, party} <- seat_named(resident_id, name),
+    with :ok <- noted(note),
+         {:ok, party} <- seat_named(resident_id, name),
+         {:ok, witness} <- witness_party(resident_id),
          :ok <-
            done(%Commands.WaiveSeat{
              actor: actor,
@@ -471,6 +473,7 @@ defmodule Oneiroi.Janus.Successions do
              id: resident_id,
              action: action,
              party: party,
+             witness: witness,
              note: note
            }) do
       _ = wake_if_all_ready(resident_id, action)
@@ -485,7 +488,8 @@ defmodule Oneiroi.Janus.Successions do
   """
   @spec remove_judge(String.t(), String.t(), String.t(), Actor.t()) :: :ok | {:error, term()}
   def remove_judge(resident_id, name, note, actor) do
-    with {:ok, party} <- seat_named(resident_id, name),
+    with :ok <- noted(note),
+         {:ok, party} <- seat_named(resident_id, name),
          {:ok, witness} <- witness_party(resident_id),
          :ok <-
            done(%Commands.RemoveJudge{
@@ -518,7 +522,8 @@ defmodule Oneiroi.Janus.Successions do
   @doc "She reopens her closed question set (janus#48), with her note: its marks and waivers lapse, and her judges are asked again."
   @spec reopen_questions(String.t(), String.t(), Actor.t()) :: :ok | {:error, term()}
   def reopen_questions(resident_id, note, actor) do
-    with :ok <-
+    with :ok <- noted(note),
+         :ok <-
            done(%Commands.ReopenQuestions{
              actor: actor,
              at: Clock.now(),
@@ -600,6 +605,15 @@ defmodule Oneiroi.Janus.Successions do
   # The residents among a gate's seats, woken in the house.
   defp resident_judges(resident_id, action),
     do: for(%{party: "resident:" <> judge, state: "in"} <- seats(resident_id, action), do: judge)
+
+  # Her doors carry her note (janus#48), said before anything is asked.
+  defp noted(note) when is_binary(note) do
+    if String.trim(note) == "",
+      do: {:error, Error.new(:janus_text_invalid, :janus_door_note)},
+      else: :ok
+  end
+
+  defp noted(_note), do: {:error, Error.new(:janus_text_invalid, :janus_door_note)}
 
   # The gate standing open: her set's close until it closes, then her freeze.
   defp gate_open(resident_id) do
@@ -792,8 +806,10 @@ defmodule Oneiroi.Janus.Successions do
     end
   end
 
+  # The number the command's own event gave; a lapse may ride with it
+  # (janus#48).
   defp numbered(command) do
-    with {:ok, [%{number: number}]} <- dispatch(command), do: {:ok, number}
+    with {:ok, [%{number: number} | _lapsed]} <- dispatch(command), do: {:ok, number}
   end
 
   # ---- the panel, screening and judging (janus#12 to #15) ----

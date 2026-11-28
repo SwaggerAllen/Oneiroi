@@ -429,7 +429,7 @@ defmodule Oneiroi.Janus.Preparation do
       closed?(cur, action) ->
         {:error, Error.new(:janus_questions_closed, :janus_waive_closed, action: action)}
 
-      seat(cur, c.party, nil) != :in ->
+      seat(cur, c.party, c.witness) != :in ->
         {:error, Error.new(:janus_not_a_seat, :janus_waive_seat, party: c.party)}
 
       cur.waivers[action][c.party] == version(cur, action) ->
