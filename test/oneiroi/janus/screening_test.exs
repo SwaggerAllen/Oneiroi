@@ -415,6 +415,15 @@ defmodule Oneiroi.Janus.ScreeningTest do
     assert %{counts: %{"fake/model" => %{observed: 2}}} =
              Janus.judging(id, "witness:#{ctx.witness.id}")
 
+    # Revealed opens who answered, never another judge's raw judgment
+    # (janus#49): a judge's view holds every answered run with its
+    # baseline beside it, and her own judgments alone.
+    scarlett = "resident:#{ctx.scarlett.id}"
+    view = Janus.judging(id, scarlett)
+    assert view.runs != []
+    assert Enum.all?(view.runs, &(is_binary(&1.content) and Map.has_key?(&1, :baseline)))
+    assert Enum.all?(view.runs, &(&1.judgment.party == scarlett))
+
     assert Enum.any?(Oneiroi.Brain.needs_you(id), &(&1.kind == "succession_results"))
 
     # Ready locks; the last ready closes judging.

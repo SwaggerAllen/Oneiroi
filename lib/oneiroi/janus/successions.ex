@@ -552,45 +552,48 @@ defmodule Oneiroi.Janus.Successions do
   @spec seats(String.t(), String.t()) :: [map()]
   def seats(resident_id, action) do
     case status(resident_id) do
-      nil ->
-        []
-
-      row ->
-        {panel, marks} =
-          Scope.resident(resident_id, fn ->
-            {Store.panel(row.episode), Store.marks(row.episode)}
-          end)
-
-        version = if action == "questions", do: row.questions_version, else: row.c0_version
-
-        mine =
-          for m <- marks, m.action == action, m.version == version, do: {{m.party, m.kind}, m}
-
-        mine = Map.new(mine)
-        states = Map.new(panel, &{&1.party, &1.state})
-
-        named = for %{party: p, state: s} <- panel, s in ["invited", "in"], do: p
-
-        witness =
-          case witness_party(resident_id) do
-            {:ok, w} when is_binary(w) -> if Map.has_key?(states, w), do: [], else: [w]
-            _none -> []
-          end
-
-        for p <- Enum.uniq(witness ++ named) do
-          state = Map.get(states, p, "in")
-          mark = mine[{p, "mark"}] && mine[{p, "mark"}].ready
-          waived = Map.has_key?(mine, {p, "waiver"})
-
-          %{
-            party: p,
-            state: state,
-            mark: mark,
-            waived: waived,
-            ready: state == "in" and (mark == true or waived)
-          }
-        end
+      nil -> []
+      row -> seats_of(resident_id, row, action)
     end
+  end
+
+  defp seats_of(resident_id, row, action) do
+    {panel, marks} =
+      Scope.resident(resident_id, fn -> {Store.panel(row.episode), Store.marks(row.episode)} end)
+
+    version = if action == "questions", do: row.questions_version, else: row.c0_version
+
+    mine =
+      Map.new(
+        for m <- marks, m.action == action, m.version == version, do: {{m.party, m.kind}, m}
+      )
+
+    states = Map.new(panel, &{&1.party, &1.state})
+    named = for %{party: p, state: s} <- panel, s in ["invited", "in"], do: p
+
+    for p <- Enum.uniq(implied_witness(resident_id, states) ++ named),
+        do: seat_row(p, Map.get(states, p, "in"), mine)
+  end
+
+  # Her witness is a seat unless the panel holds him otherwise.
+  defp implied_witness(resident_id, states) do
+    case witness_party(resident_id) do
+      {:ok, w} when is_binary(w) -> if Map.has_key?(states, w), do: [], else: [w]
+      _none -> []
+    end
+  end
+
+  defp seat_row(p, state, mine) do
+    mark = mine[{p, "mark"}] && mine[{p, "mark"}].ready
+    waived = Map.has_key?(mine, {p, "waiver"})
+
+    %{
+      party: p,
+      state: state,
+      mark: mark,
+      waived: waived,
+      ready: state == "in" and (mark == true or waived)
+    }
   end
 
   @doc "The seats her freeze reads (janus#45, #48): each with whether it passes, by its own mark or her waiver."
@@ -607,13 +610,11 @@ defmodule Oneiroi.Janus.Successions do
     do: for(%{party: "resident:" <> judge, state: "in"} <- seats(resident_id, action), do: judge)
 
   # Her doors carry her note (janus#48), said before anything is asked.
-  defp noted(note) when is_binary(note) do
-    if String.trim(note) == "",
-      do: {:error, Error.new(:janus_text_invalid, :janus_door_note)},
-      else: :ok
+  defp noted(note) do
+    if is_binary(note) and String.trim(note) != "",
+      do: :ok,
+      else: {:error, Error.new(:janus_text_invalid, :janus_door_note)}
   end
-
-  defp noted(_note), do: {:error, Error.new(:janus_text_invalid, :janus_door_note)}
 
   # The gate standing open: her set's close until it closes, then her freeze.
   defp gate_open(resident_id) do
@@ -720,7 +721,7 @@ defmodule Oneiroi.Janus.Successions do
       id: resident_id,
       step: step,
       note: note,
-      witness: with({:ok, w} <- witness_party(resident_id), do: w, else: (_ -> nil))
+      witness: elem(witness_party(resident_id), 1)
     }
 
     case dispatch(command) do

@@ -1,6 +1,6 @@
 defmodule Oneiroi.Seshat.Household.Workspace do
   @moduledoc """
-  A workspace's step threads on the house's thread substrate (seshat#116,
+  A workspace's step threads on the house's thread substrate (seshat#111,
   janus#49, lily:design/succession-workspace.md): ordinary threads under
   `threads/<id>`, written by the platform, whose entries are the events
   of one step, each tagged with its step, its event and who made it, and
@@ -56,22 +56,26 @@ defmodule Oneiroi.Seshat.Household.Workspace do
         {"posted_at", Files.iso(Clock.now())}
       ] ++ meta
 
-    Files.locked(household_id, fn view ->
-      if Files.has?(view, Path.join(thread, @trunk)) do
-        {:ok, thread}
-      else
-        changes = [
-          {:create, Path.join(thread, @trunk), Files.render(meta, body)}
-          | Core.descriptor(view, Kinds.named("thread"))
-        ]
+    Files.locked(household_id, fn view -> trunk_once(view, thread, title, body, meta) end)
+  end
 
-        case Files.commit(view, changes, title, @platform) do
-          {:ok, _} -> {:ok, thread}
-          {:error, %{kind: :sima_qian_repos_conflict}} -> {:ok, thread}
-          other -> other
-        end
-      end
-    end)
+  defp trunk_once(view, thread, title, body, meta) do
+    if Files.has?(view, Path.join(thread, @trunk)),
+      do: {:ok, thread},
+      else: commit_trunk(view, thread, title, Files.render(meta, body))
+  end
+
+  defp commit_trunk(view, thread, title, rendered) do
+    changes = [
+      {:create, Path.join(thread, @trunk), rendered}
+      | Core.descriptor(view, Kinds.named("thread"))
+    ]
+
+    case Files.commit(view, changes, title, @platform) do
+      {:ok, _} -> {:ok, thread}
+      {:error, %{kind: :sima_qian_repos_conflict}} -> {:ok, thread}
+      other -> other
+    end
   end
 
   @doc """
@@ -112,29 +116,25 @@ defmodule Oneiroi.Seshat.Household.Workspace do
     do: {:error, Error.new(:seshat_household_not_member, :seshat_workspace_remark_actor)}
 
   defp append(household_id, thread, by, meta, text) do
-    with :ok <- text_ok(text) do
-      Files.locked(household_id, fn view ->
-        if Files.has?(view, Path.join(thread, @trunk)) do
-          number = Files.next_reply(view, thread)
+    with :ok <- text_ok(text),
+         do: Files.locked(household_id, fn view -> append_to(view, thread, by, meta, text) end)
+  end
 
-          meta =
-            [{"by", by.name} | meta] ++
-              [{"at", Files.iso(Clock.now())}, {"reply", Integer.to_string(number)}]
+  defp append_to(view, thread, by, meta, text) do
+    if Files.has?(view, Path.join(thread, @trunk)) do
+      number = Files.next_reply(view, thread)
 
-          path = Files.reply_path(thread, number, by.name)
+      meta =
+        [{"by", by.name} | meta] ++
+          [{"at", Files.iso(Clock.now())}, {"reply", Integer.to_string(number)}]
 
-          with {:ok, _} <-
-                 Files.commit(
-                   view,
-                   [{:create, path, Files.render(meta, text)}],
-                   "Workspace entry ##{number}",
-                   by
-                 ),
-               do: {:ok, %{path: path, number: number}}
-        else
-          {:error, Error.new(:seshat_household_no_such_thread, :seshat_workspace_no_thread)}
-        end
-      end)
+      path = Files.reply_path(thread, number, by.name)
+      change = [{:create, path, Files.render(meta, text)}]
+
+      with {:ok, _} <- Files.commit(view, change, "Workspace entry ##{number}", by),
+           do: {:ok, %{path: path, number: number}}
+    else
+      {:error, Error.new(:seshat_household_no_such_thread, :seshat_workspace_no_thread)}
     end
   end
 

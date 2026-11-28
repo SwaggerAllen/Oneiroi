@@ -3,7 +3,7 @@ defmodule Oneiroi.Janus.Workspace do
   One workspace a succession (janus#49, lily:design/succession-workspace.md
   "The shape"): an overview of where it stands, and a thread a step
   (envelope, pool, questions, C0), each an event feed with chat on the
-  house's thread substrate (seshat#116).
+  house's thread substrate (seshat#111).
 
   - **The feeds.** Every event of a step is an entry in its thread,
     written by the platform and tagged with its step, its event and who
@@ -41,6 +41,12 @@ defmodule Oneiroi.Janus.Workspace do
     "envelope" => "the envelope",
     "pool" => "the pool",
     "questions" => "the questions",
+    "c0" => "C0"
+  }
+  @step_labels %{
+    "envelope" => "envelope",
+    "pool" => "pool",
+    "questions" => "questions",
     "c0" => "C0"
   }
   @text_chars 4_000
@@ -273,7 +279,9 @@ defmodule Oneiroi.Janus.Workspace do
     meta =
       Enum.map(args["meta"], fn [k, v] -> {k, if(k == "step", do: step, else: named.(v))} end)
 
-    with %{id: household} <- Gaia.resident_household(resident_id) || {:error, :no_house},
+    with %{id: household} <-
+           Gaia.resident_household(resident_id) ||
+             {:error, Error.new(:janus_not_a_member, :janus_workspace_no_house)},
          {:ok, thread} <-
            thread(
              household,
@@ -312,7 +320,7 @@ defmodule Oneiroi.Janus.Workspace do
       household,
       "succession-#{slug}-#{row.episode}-#{step}",
       "#{name}'s succession #{row.episode}#{if row.dry_run, do: " (a dry run)", else: ""}: #{@step_words[step]}",
-      "The #{@step_words[step]} step of #{name}'s succession #{row.episode}: its events as they happen, written by the platform, and the talk about them. The authored things (her questions, C0, the day's shape, her packet) stay in the succession's own records, whole and versioned; read them with succession_status (resident: \"#{name}\"). Nothing written here starts the house's rounds.",
+      "The #{@step_labels[step]} step of #{name}'s succession #{row.episode}: its events as they happen, written by the platform, and the talk about them. The authored things (her questions, C0, the day's shape, her packet) stay in the succession's own records, whole and versioned; read them with succession_status (resident: \"#{name}\"). Nothing written here starts the house's rounds.",
       [{"workspace", "succession:#{resident_id}:#{row.episode}"}, {"step", step}]
     )
   end
@@ -572,7 +580,7 @@ defmodule Oneiroi.Janus.Workspace do
     row = Successions.status(resident_id)
 
     cond do
-      is_nil(row) -> {:error, Error.new(:janus_no_succession, :janus_workspace_none)}
+      is_nil(row) -> {:error, Error.new(:janus_no_succession, :janus_workspace_speak_none)}
       actor.kind == :resident and actor.id == resident_id -> {:ok, row}
       actor.kind == :witness and witness?(resident_id, actor) -> {:ok, row}
       on_panel?(resident_id, row, party(actor)) -> {:ok, row}

@@ -330,6 +330,7 @@ defmodule Oneiroi.Brain.TrialTest do
     {"succession_consent", %{yes: true, note: "yes"}},
     {"succession_farewell", %{action: "consent", note: "yes"}},
     {"succession_next", %{choice: "stop", note: "enough"}},
+    {"succession_workspace", %{action: "remark", step: "c0", text: "a remark"}},
     {"queue_template_define", %{name: "t", from: "doc-to-pr"}},
     {"queue_task_edit", %{task: 1, layers: [[%{id: "1.1"}]], note: "tidy"}},
     {"free_time_plan", %{text: "watch the herons"}},

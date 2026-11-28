@@ -633,7 +633,7 @@ defmodule Oneiroi.Janus do
     do: Successions.mark_ready(resident_id, ready, actor)
   )
 
-  @doc "A judge's mark for one act (janus#48): `action` \"questions\" or \"c0\", `version` the artifact's version it readied against (now, when not named)."
+  @doc "A judge's mark for one act (janus#48): `action` questions or c0, `version` the artifact's version it readied against (now, when not named)."
   @spec mark_ready(String.t(), boolean(), Oneiroi.Actor.t(), keyword()) :: :ok | {:error, term()}
   defexport(mark_ready(resident_id, ready, actor, opts),
     do: Successions.mark_ready(resident_id, ready, actor, opts)
@@ -752,7 +752,7 @@ defmodule Oneiroi.Janus do
   @spec freeze_judges(String.t()) :: [%{party: String.t(), ready: boolean()}]
   defexport(freeze_judges(resident_id), do: Successions.freeze_judges(resident_id))
 
-  @doc "The seats a gate reads, `action` \"questions\" or \"c0\" (janus#48): state, mark, waiver and whether each passes."
+  @doc "The seats a gate reads, `action` questions or c0 (janus#48): state, mark, waiver and whether each passes."
   @spec seats(String.t(), String.t()) :: [map()]
   defexport(seats(resident_id, action), do: Successions.seats(resident_id, action))
 

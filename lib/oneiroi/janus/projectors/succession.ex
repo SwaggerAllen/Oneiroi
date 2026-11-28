@@ -17,11 +17,11 @@ defmodule Oneiroi.Janus.Projectors.Succession do
     Goodbye,
     Item,
     Judgment,
+    Mark,
     Packet,
     Panel,
     Pool,
     Post,
-    Mark,
     Question,
     Run,
     Succession

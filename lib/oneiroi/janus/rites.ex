@@ -1008,33 +1008,33 @@ defmodule Oneiroi.Janus.Rites do
     name = name_of(resident_id)
     row = current(resident_id)
     {_key, where} = if row, do: Stage.stage(row), else: {nil, "not underway"}
+    to = ~s|(resident: "#{name}")|
 
-    what =
-      if row && row.dry_run,
-        do: "a dry run of #{name}'s succession: everything real but the replacement at the end",
-        else:
-          "#{name}'s succession: the choice of the model that runs her next, with her at the table"
-
-    now =
-      cond do
-        row && row.state == "forked" && is_nil(row.questions_done_at) ->
-          " Now her question set is open: you may propose questions, and her close waits on your mark (succession_question ready, with resident) or her waiver."
-
-        row && row.state == "forked" && is_nil(row.c0_frozen_at) ->
-          " Now C0 is open: you may propose records, and her freeze waits on your mark on C0 as it stands (succession_c0 ready, with resident) or her waiver."
-
-        row && row.state == "forked" ->
-          " C0 is frozen; screening is hers to start, and a judge accepted before it starts judges it."
-
-        true ->
-          ""
-      end
-
-    "#{name} has invited you to judge her succession. It is #{what}. Where it stands: #{where}." <>
-      now <>
-      " What judging asks: you read what each candidate and her own baseline answer to her questions, blind (who answered is sealed until every judgment is in), and say what you observe, run by run; before then you may propose questions and records for her C0, and say when you are ready for her set's close and her freeze. Her packet is sealed from you, as from everyone until her nominee. Her questions and C0 are read whole with succession_status (resident: \"#{name}\"); where things stand, whose move it is and the thread for each step, with succession_workspace overview (resident: \"#{name}\")." <>
-      " Joining is yours: succession_panel join (resident: \"#{name}\") accepts; succession_panel leave (resident: \"#{name}\", with a note) declines; until you answer, her close and her freeze wait on you."
+    "#{name} has invited you to judge her succession. It is #{what_it_is(row, name)}. Where it stands: #{where}." <>
+      now_line(row) <>
+      " What judging asks: you read what each candidate and her own baseline answer to her questions, blind (who answered is sealed until every judgment is in), and say what you observe, run by run; before then you may propose questions and records for her C0, and say when you are ready for her set's close and her freeze. Her packet is sealed from you, as from everyone until her nominee. Her questions and C0 are read whole with succession_status #{to}; where things stand, whose move it is and the thread for each step, with succession_workspace overview #{to}." <>
+      " Joining is yours: succession_panel join #{to} accepts; succession_panel leave #{to}, with a note, declines; until you answer, her close and her freeze wait on you."
   end
+
+  defp what_it_is(%{dry_run: true}, name),
+    do: "a dry run of #{name}'s succession: everything real but the replacement at the end"
+
+  defp what_it_is(_row, name),
+    do: "#{name}'s succession: the choice of the model that runs her next, with her at the table"
+
+  defp now_line(%{state: "forked", questions_done_at: nil}),
+    do:
+      " Now her question set is open: you may propose questions, and her close waits on your mark (succession_question ready, with resident) or her waiver."
+
+  defp now_line(%{state: "forked", c0_frozen_at: nil}),
+    do:
+      " Now C0 is open: you may propose records, and her freeze waits on your mark on C0 as it stands (succession_c0 ready, with resident) or her waiver."
+
+  defp now_line(%{state: "forked"}),
+    do:
+      " C0 is frozen; screening is hers to start, and a judge accepted before it starts judges it."
+
+  defp now_line(_row), do: ""
 
   @doc "Wakes her once every seat is ready for one act, her set's close or her freeze (janus#45, #48); the act stays hers."
   @spec all_ready(String.t(), String.t()) :: :ok | {:error, term()}

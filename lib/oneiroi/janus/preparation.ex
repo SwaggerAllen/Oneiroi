@@ -381,22 +381,8 @@ defmodule Oneiroi.Janus.Preparation do
     now = if c.ready == true, do: {:ready, version}, else: :not_ready
 
     cond do
-      not judge?(cur, c) ->
-        {:error, Error.new(:janus_not_yours, :janus_ready_actor)}
-
-      action not in @actions ->
-        {:error, Error.new(:janus_ready_invalid, :janus_ready_action, actions: @actions)}
-
-      closed?(cur, action) ->
-        {:error, Error.new(:janus_questions_closed, :janus_ready_closed, action: action)}
-
-      # A mark answers the artifact it read, never a later one (janus#48).
-      version != version(cur, action) ->
-        {:error,
-         Error.new(:janus_ready_stale, :janus_ready_version,
-           version: version,
-           now: version(cur, action)
-         )}
+      refusal = mark_refusal(cur, c, action, version) ->
+        {:error, refusal}
 
       cur.marks[action][party(c)] == now ->
         []
@@ -735,6 +721,29 @@ defmodule Oneiroi.Janus.Preparation do
           number: c.number,
           note: c.note
         }
+    end
+  end
+
+  defp mark_refusal(cur, c, action, version) do
+    cond do
+      not judge?(cur, c) ->
+        Error.new(:janus_not_yours, :janus_ready_actor)
+
+      action not in @actions ->
+        Error.new(:janus_ready_invalid, :janus_ready_action, actions: @actions)
+
+      closed?(cur, action) ->
+        Error.new(:janus_questions_closed, :janus_ready_closed, action: action)
+
+      # A mark answers the artifact it read, never a later one (janus#48).
+      version != version(cur, action) ->
+        Error.new(:janus_ready_stale, :janus_ready_version,
+          version: version,
+          now: version(cur, action)
+        )
+
+      true ->
+        nil
     end
   end
 

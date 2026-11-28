@@ -801,37 +801,12 @@ defmodule Oneiroi.Brain.SuccessionTools do
     do: "Not done: #{name} takes one of the actions its description names."
 
   defp overview_text(o) do
-    gate = fn row ->
-      seats =
-        Enum.map_join(row.seats, "; ", fn s ->
-          "#{s.name} #{cond do
-            s.state == "invited" -> "invited, not answered"
-            s.waived -> "waived"
-            s.mark == true -> "ready"
-            s.mark == false -> "not yet"
-            true -> "no mark"
-          end}"
-        end)
-
-      "#{row.step}: version #{row.version}, #{if row.open, do: "open", else: "closed"}#{if seats == "", do: "", else: "; " <> seats}"
-    end
-
     [
       "#{o.resident}'s succession #{o.episode}#{if o.dry_run, do: " (a dry run)", else: ""}, read as #{o.audience}: #{o.stage_words}.",
       "Whose move: #{o.whose_move}.",
       o.fork &&
         "Fork made #{DateTime.to_date(o.fork.at)} at commit #{String.slice(o.fork.commit || "", 0, 12)}.",
-      "Steps: " <>
-        Enum.map_join(o.steps, " | ", fn
-          %{seats: _} = row ->
-            gate.(row)
-
-          %{step: "envelope"} = row ->
-            "envelope: #{if row.done, do: "stated", else: "not yet"} (#{row.participation})"
-
-          %{step: "pool"} = row ->
-            "pool: #{row.models} models#{if row.done, do: ", done", else: ""} (#{row.participation})"
-        end),
+      "Steps: " <> Enum.map_join(o.steps, " | ", &step_text/1),
       "Threads: " <> Enum.map_join(o.threads, ", ", fn {step, path} -> "#{step} #{path}" end),
       "Not yours to read here: " <>
         Enum.map_join(o.excluded, "; ", &"#{&1.what} (#{Map.get(&1, :pointer) || &1.why})")
@@ -839,6 +814,25 @@ defmodule Oneiroi.Brain.SuccessionTools do
     |> Enum.filter(&is_binary/1)
     |> Enum.join("\n")
   end
+
+  defp step_text(%{seats: seats} = row) do
+    said = Enum.map_join(seats, "; ", &"#{&1.name} #{seat_word(&1)}")
+
+    "#{row.step}: version #{row.version}, #{if row.open, do: "open", else: "closed"}" <>
+      if(said == "", do: "", else: "; " <> said)
+  end
+
+  defp step_text(%{step: "envelope"} = row),
+    do: "envelope: #{if row.done, do: "stated", else: "not yet"} (#{row.participation})"
+
+  defp step_text(%{step: "pool"} = row),
+    do: "pool: #{row.models} models#{if row.done, do: ", done", else: ""} (#{row.participation})"
+
+  defp seat_word(%{state: "invited"}), do: "invited, not answered"
+  defp seat_word(%{waived: true}), do: "waived"
+  defp seat_word(%{mark: true}), do: "ready"
+  defp seat_word(%{mark: false}), do: "not yet"
+  defp seat_word(_seat), do: "no mark"
 
   # Who holds each gate open or shut (janus#45, #48): her set's close
   # until it closes, then her freeze, each seat by name with why.

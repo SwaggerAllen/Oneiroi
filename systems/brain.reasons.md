@@ -1016,3 +1016,6 @@ With domains settled, a reason the house may not read is a choice of words, not 
 
 ## #127
 The merge is a fact on GitHub, not a claim anyone makes on Oneiroi; reading it is the only honest way to close the review, and a minute's delay costs nothing a person would notice.
+
+## #128
+A gate the witness holds shut with nothing on his bell is a gate he never hears of; and a door she cannot reach from her turns is a rule wearing a door's name.
