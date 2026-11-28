@@ -60,6 +60,23 @@ defmodule Oneiroi.Brain.QueueHeads do
     end
   end
 
+  @doc """
+  Whether the pull request a citation names has merged, and at which head
+  (sunna#118): `{:merged, sha}`, `:open`, or `:unknown` when the platform
+  cannot read it.
+  """
+  @spec merge_state(String.t() | nil) :: {:merged, String.t()} | :open | :unknown
+  def merge_state(citation) when is_binary(citation) do
+    with [_all, repo, number] <- Regex.run(@pull, citation),
+         {:ok, %{merged: merged, head: sha}} <- Pulls.merged(repo, number) do
+      if merged and is_binary(sha), do: {:merged, sha}, else: :open
+    else
+      _cannot_read -> :unknown
+    end
+  end
+
+  def merge_state(_none), do: :unknown
+
   defp pull([_all, repo, number]) do
     case Pulls.head(repo, number) do
       {:ok, sha} -> sha

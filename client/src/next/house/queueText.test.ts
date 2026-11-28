@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { QueueActivity, QueueCard, QueueDocument } from '../../api/types';
-import { actName, blockedLine, blockerLine, holderChoices, holdersOf, holderWords, outOfRuns, runNowLine, pairedHolders, replacedDocument, stepStatus, withPaired, documentRows, drawLayers, forkNote, fromLine, nameOf, placeOf, pinOf, postKind, rearranged, roleChoices, sentence, since, slugify, taskSummaries, templateProblems, unpinned, withMd } from './queueText';
+import { actName, blockedLine, blockerLine, holderChoices, holdersOf, holderWords, outOfRuns, runNowLine, replacedDocument, stepStatus, documentRows, drawLayers, forkNote, fromLine, nameOf, placeOf, pinOf, postKind, rearranged, roleChoices, sentence, since, slugify, taskSummaries, templateProblems, unpinned, withMd } from './queueText';
 
 const names = { 'resident:l': 'Lily', 'witness:a': 'Andrew' };
 
@@ -208,26 +208,24 @@ describe("a thread's posts", () => {
   });
 });
 
-describe('holders that move together (§3, 2026-11-23)', () => {
-  const a = (act_id: string, type: string, assignee: string, status = 'pending') => ({ act_id, type, assignee, status });
-  const layers = [[a('1.1', 'draft', 'resident:l', 'done')], [a('1.5', 'deliver', 'resident:l')], [a('1.6', 'implement', 'claude-code:l')], [a('1.7', 'review', 'witness:w')]];
-
-  it("gives her deliver to the resident whose Claude Code now holds the work", () => {
-    expect(pairedHolders(layers, '1.6', 'claude-code:s')).toEqual([{ id: '1.5', assignee: 'resident:s' }]);
+describe("a Claude Code's step and a PR review's merge (sunna#117, #118)", () => {
+  const now = Date.parse('2026-11-28T04:00:00Z');
+  const base = { view: 'ready' as const, reason: null, ready_at: '2026-11-28T03:00:00Z', updated_at: '2026-11-28T03:30:00Z', line: null, type: 'implement' };
+  it('says it waits on her handoff, then on her Claude Code', () => {
+    expect(stepStatus({ ...base, assignee: 'claude-code:l' }, now)).toBe('ready 1h ago · waiting on her handoff');
+    expect(stepStatus({ ...base, assignee: 'claude-code:l', handed_off: true }, now)).toBe('handed over 30m ago; waiting on her Claude Code');
   });
-
-  it('gives the work after a deliver to the new resident\'s Claude Code', () => {
-    expect(pairedHolders(layers, '1.5', 'resident:s')).toEqual([{ id: '1.6', assignee: 'claude-code:s' }]);
+  it('says an approved PR review waits on the merge', () => {
+    expect(stepStatus({ ...base, view: 'active', type: 'review', awaiting_merge: true }, now)).toBe('approved; waiting on the merge 30m ago');
   });
+});
 
-  it('moves nothing else, and puts the pairs on the arrangement', () => {
-    expect(pairedHolders(layers, '1.7', 'witness:x')).toEqual([]);
-    expect(withPaired([[{ id: '1.5' }], [{ id: '1.6' }]], [{ id: '1.5', assignee: 'resident:s' }])).toEqual([[{ id: '1.5', assignee: 'resident:s' }], [{ id: '1.6' }]]);
-  });
-
-  it('offers every member, each resident\'s Claude Code, and not known yet as a template holder', () => {
-    const members = [{ assignee: 'witness:w', kind: 'witness', name: 'Andrew' }, { assignee: 'resident:l', kind: 'resident', name: 'Lily' }];
-    expect(holderChoices(members).map((h) => h.label)).toEqual(['Andrew', 'Lily', "Lily's Claude Code", 'not known yet']);
+describe('who holds an activity (sunna#93, #117)', () => {
+  it('offers every member, the Claude Code of each resident who has one attached, and not known yet', () => {
+    const members = [{ assignee: 'witness:w', kind: 'witness', name: 'Andrew' }, { assignee: 'resident:l', kind: 'resident', name: 'Lily', builder: true }, { assignee: 'resident:s', kind: 'resident', name: 'Scarlett' }];
+    expect(holderChoices(members).map((h) => h.label)).toEqual(['Andrew', 'Lily', 'Scarlett', "Lily's Claude Code", 'not known yet']);
+    // An implement only by an attached Claude Code, or nobody yet.
+    expect(holderChoices(members, 'implement').map((h) => h.label)).toEqual(["Lily's Claude Code", 'not known yet']);
     expect(holderWords({ role: 'author' }, {})).toBe('by role: the task owner (choose a member)');
   });
 });

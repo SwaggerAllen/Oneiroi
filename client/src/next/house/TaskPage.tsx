@@ -6,7 +6,7 @@ import { Confirm, Field, Said, Select, TextArea } from '../settings/common';
 import * as css from '../settings/settings.css';
 import { useAct } from '../settings/useAct';
 import { HOUSE } from './keys';
-import { actName, documentRows, outOfRuns, runNowLine, drawLayers, forkNote, fromLine, GATED, glyph, LETS, nameOf, pairedHolders, pin, rearranged, replacedDocument, roleChoices, since, TYPES, withPaired, type DrawnLayer, type Names } from './queueText';
+import { actName, documentRows, outOfRuns, runNowLine, drawLayers, forkNote, fromLine, GATED, glyph, LETS, holderChoices, nameOf, pin, rearranged, replacedDocument, roleChoices, since, TYPES, type DrawnLayer, type Names } from './queueText';
 import * as w from './work.css';
 import { useWorkNav, workPath } from './workRoutes';
 import { PUSHED_FALLBACK_MS } from '../live/notices';
@@ -268,23 +268,17 @@ function TaskDocuments({ number, documents, layers, mayEdit }: { number: number;
   );
 }
 
-/** Everyone an activity can be held by: the members, each resident's Claude Code, or not known yet. */
-export function HolderOptions({ overview, names }: { overview: QueueOverview; names: Names }) {
+/** Everyone an activity can be held by (holderChoices): an implement only by an attached Claude Code (sunna#117). The holder it has now stays listed. */
+export function HolderOptions({ overview, names, type, current }: { overview: QueueOverview; names: Names; type?: string; current?: string }) {
+  const choices = holderChoices(overview.members, type);
+  const kept = current && !choices.some((c) => c.value === current) ? [{ value: current, label: nameOf(names, current) }] : [];
   return (
     <>
-      {overview.members.map((m) => (
-        <option key={m.assignee} value={m.assignee}>
-          {nameOf(names, m.assignee)}
+      {[...kept, ...choices].map((c) => (
+        <option key={c.value} value={c.value}>
+          {c.label}
         </option>
       ))}
-      {overview.members
-        .filter((m) => m.kind === 'resident')
-        .map((m) => (
-          <option key={`cc-${m.id}`} value={`claude-code:${m.id}`}>
-            {m.name}'s Claude Code
-          </option>
-        ))}
-      <option value="unknown">not known yet</option>
     </>
   );
 }
@@ -339,12 +333,13 @@ export function ActivityPage({ number, actId, names, overview }: { number: numbe
           {a.view === 'ready' && mine ? 'Ready for you' : `${a.view[0].toUpperCase()}${a.view.slice(1)}`}
           <span className={css.meta}> · {nameOf(names, a.assignee)}{a.ready_at && live ? ` · ready ${since(a.ready_at)} ago` : ''}</span>
         </p>
+        {handoffLine(a, names) && <p className={css.note}>{handoffLine(a, names)}</p>}
         {a.type === 'review' && a.artifact && !a.artifact.startsWith('slot:') && (
           <p className={css.note}>
             Approving authorizes {a.artifact}
             {pin(a.approved_pin ?? a.pin)}
             {a.action ? ` for ${a.action}` : ''}
-            {a.destination ? ` to ${a.destination}` : ''}. If it changes after you approve, this opens again.
+            {a.destination ? ` to ${a.destination}` : ''}. {a.awaiting_merge ? 'Approved: it is done when the pull request merges at that revision.' : a.action === 'merge' ? 'Approving waits for the merge on GitHub, and is done when it merges at the revision approved.' : 'If it changes after you approve, this opens again.'}
           </p>
         )}
         {(a.reason || a.note) && <p className={css.meta}>{a.reason ?? a.note}</p>}
@@ -399,12 +394,10 @@ export function ActivityForm({ task, layers, a, layer, names, overview }: { task
     };
     return a ? { id: a.act_id, ...fields } : { name: name.trim(), ...fields };
   };
-  // A Claude Code and its deliver change holders together (§3).
-  const pairs = a && f.assignee !== a.assignee ? pairedHolders(layers, a.act_id, f.assignee) : [];
   const save = (to: number | null, said: string, note: string) =>
     void act.run(
       () =>
-        api.queueEditLayers(task.number, withPaired(rearranged(layers, { id: a?.act_id ?? null, to, entry: to === null ? null : entry() }), to === null ? [] : pairs), note).then(() => {
+        api.queueEditLayers(task.number, rearranged(layers, { id: a?.act_id ?? null, to, entry: to === null ? null : entry() }), note).then(() => {
           nav(workPath.task(task.number));
           return said;
         }),
@@ -448,13 +441,8 @@ export function ActivityForm({ task, layers, a, layer, names, overview }: { task
         </Select>
         <Select label="Held by" value={f.assignee} onChange={(v) => set({ assignee: v })}>
           {!f.assignee && <option value="">Choose…</option>}
-          <HolderOptions overview={overview} names={names} />
+          <HolderOptions overview={overview} names={names} type={f.type} current={a?.assignee} />
         </Select>
-        {pairs.length > 0 && (
-          <p className={w.warnNote}>
-            {pairs.map((p) => `${p.id} goes to ${nameOf(names, p.assignee)} too`).join('; ')}: a Claude Code is reached only through its resident's deliver step, so they change together.
-          </p>
-        )}
         <Select label="Layer" value={String(f.layer)} onChange={(v) => set({ layer: Number(v) })}>
           {pending ? (
             layerChoices.map((i) => (
@@ -556,6 +544,13 @@ export function NewActivityPage({ number, names, overview }: { number: number; n
  * The moves an activity allows (sunna#80): take, finish, failed, block,
  * reopen, skip, assign; a review's decision is on its document's screen.
  */
+/** Where a Claude Code's step stands between its resident and it (sunna#117), or null. */
+function handoffLine(a: QueueActivity, names: Names): string | null {
+  if (!a.assignee.startsWith('claude-code:') || a.view !== 'ready') return null;
+  const hers = nameOf(names, `resident:${a.assignee.slice('claude-code:'.length)}`);
+  return a.handed_off ? `${hers} has handed it over; it waits on her Claude Code to take it.` : `Waiting on ${hers} to hand it to her Claude Code, in a run of her work line.`;
+}
+
 function Moves({ task, a, names, overview, layers, mayReopen }: { task: number; a: QueueActivity; names: Names; overview: QueueOverview; layers: QueueActivity[][]; mayReopen: boolean }) {
   const act = useAct();
   const [open, setOpen] = useState(false);
@@ -565,19 +560,10 @@ function Moves({ task, a, names, overview, layers, mayReopen }: { task: number; 
   const move = (m: QueueMove, fields: Record<string, unknown> = {}, said = `${actName(a)}: ${m}.`) => void act.run(() => api.queueMove(task, a.act_id, m, fields).then(() => said), QUEUE);
   const live = a.view === 'ready' || a.view === 'active';
   const stuck = a.view === 'blocked' || a.view === 'failed';
-  // A Claude Code and its deliver change holders together (§3): one edit
-  // of the layers carries both, since either alone is refused.
-  const pairs = assignee !== a.assignee ? pairedHolders(layers, a.act_id, assignee) : [];
-  const assign = () =>
-    pairs.length === 0
-      ? move('assign', { assignee, note: note || undefined }, `${actName(a)} is ${nameOf(names, assignee)}'s.`)
-      : void act.run(
-          () =>
-            api
-              .queueEditLayers(task, withPaired(layers.map((l) => l.map((x) => ({ id: x.act_id }))), [{ id: a.act_id, assignee }, ...pairs]), note || `${actName(a)} and its pair change holders`)
-              .then(() => `${actName(a)} is ${nameOf(names, assignee)}'s, and ${pairs.map((p) => `${p.id} ${nameOf(names, p.assignee)}'s`).join(', ')}.`),
-          QUEUE,
-        );
+  const assign = () => move('assign', { assignee, note: note || undefined }, `${actName(a)} is ${nameOf(names, assignee)}'s.`);
+  // Her Claude Code's step waits on her handoff (sunna#117); a witness may
+  // hand it over for her.
+  const awaitsHandoff = a.assignee.startsWith('claude-code:') && a.view === 'ready' && !a.handed_off;
   if (a.view === 'done' || a.view === 'skipped') {
     // A finished step reopens while nothing after it has moved (sunna#116,
     // the witness, 2026-11-27: Finish hit meaning Reassign).
@@ -660,13 +646,17 @@ function Moves({ task, a, names, overview, layers, mayReopen }: { task: number; 
           <div className={css.row}>
             <Confirm label="Skip" confirm="Skip it, with the note?" disabled={act.busy || !note.trim()} onConfirm={() => move('skip', { note }, `${actName(a)} skipped.`)} />
             <Select label="Assign to" value={assignee} onChange={setAssignee}>
-              <HolderOptions overview={overview} names={names} />
+              <HolderOptions overview={overview} names={names} type={a.type} current={a.assignee} />
             </Select>
             <button type="button" className={css.quiet} disabled={act.busy || assignee === a.assignee} onClick={assign}>
-              {pairs.length > 0 ? 'Assign both' : 'Assign'}
+              Assign
             </button>
           </div>
-          {pairs.length > 0 && <p className={w.warnNote}>{pairs.map((p) => `${p.id} goes to ${nameOf(names, p.assignee)} too`).join('; ')}: a Claude Code is reached only through its resident's deliver step.</p>}
+          {awaitsHandoff && overview.me.startsWith('witness:') && (
+            <button type="button" className={css.secondary} disabled={act.busy} onClick={() => move('hand_off', { note: note || 'handed off by the witness' }, `${actName(a)} is with ${nameOf(names, a.assignee)} now.`)}>
+              Hand it over for her
+            </button>
+          )}
         </div>
       )}
       <Said said={act.said} />

@@ -63,6 +63,24 @@ defmodule Oneiroi.Brain.Pulls do
     end
   end
 
+  @doc """
+  Whether a pull request has merged, and the head it merged at (sunna#118):
+  `{:ok, %{merged: boolean, head: sha}}` for the platform's own repository,
+  `:other` for any other.
+  """
+  @spec merged(String.t(), term(), term()) ::
+          {:ok, %{merged: boolean(), head: String.t() | nil}} | :other | {:error, Error.t()}
+  def merged(repo, number, token \\ nil) do
+    if String.downcase(repo) == String.downcase(repo()) do
+      with {:ok, n} <- number(number),
+           {:ok, %{} = pr} <- call(:pull, [repo(), n, token(token)]) do
+        {:ok, %{merged: pr["merged"] == true, head: get_in(pr, ["head", "sha"])}}
+      end
+    else
+      :other
+    end
+  end
+
   @doc "The diffs of the files named in a pull request, exactly those, each cut at `BRAIN_PULLS_DIFF_CHARS` from `from` with the way on said."
   @spec diffs(term(), term(), term(), term()) :: {:ok, String.t()} | {:error, Error.t()}
   def diffs(number, names, from \\ 0, token \\ nil) do

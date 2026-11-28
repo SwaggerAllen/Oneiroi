@@ -9,6 +9,7 @@ defmodule Oneiroi.Brain.HouseQueue do
   """
 
   alias Oneiroi.Actor
+  alias Oneiroi.Brain.MergeWatchWorker
   alias Oneiroi.Brain.QueueHeads
   alias Oneiroi.Seshat
   alias Oneiroi.Sunna
@@ -34,7 +35,26 @@ defmodule Oneiroi.Brain.HouseQueue do
     given = attrs[:pin] || head || cited_pin(household_id, task, act)
     pin = settled(household_id, task, act, given, head, actor)
     attrs = attrs |> Map.put(:head, head) |> Map.put(:pin, pin)
-    Sunna.queue_decide(household_id, task, act, attrs, actor)
+
+    with :ok <- Sunna.queue_decide(household_id, task, act, attrs, actor) do
+      _ = merged_already(household_id, task, act)
+      :ok
+    end
+  end
+
+  # A pull request merged before its review was approved settles at once
+  # (sunna#118), rather than at the watch's next minute.
+  defp merged_already(household_id, task, act) do
+    with %{layers: layers} <- Sunna.queue_task(household_id, task),
+         %{awaiting_merge: true, artifact: artifact} <-
+           Enum.find(List.flatten(layers), &(&1.act_id == act)) do
+      MergeWatchWorker.settle(%{
+        household: household_id,
+        task: task,
+        act: act,
+        artifact: artifact
+      })
+    end
   end
 
   # A house document's citation is pinned at the house's commit when it

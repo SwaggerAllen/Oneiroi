@@ -1752,4 +1752,11 @@ defmodule Oneiroi.Kumbukumbu.Store do
   @doc "Whether a house letter of that number exists (kumbukumbu#56)."
   @spec letter?(integer()) :: boolean()
   def letter?(number), do: Repo.exists?(from(l in HouseLetter, where: l.number == ^number))
+
+  @doc "Whether a resident has a session another runtime opened as `runtime` (sunna#117); under her scope."
+  def runtime_attached?(resident_id, runtime),
+    do:
+      Repo.exists?(
+        from(s in Session, where: s.resident_id == ^resident_id and s.runtime == ^runtime)
+      )
 end

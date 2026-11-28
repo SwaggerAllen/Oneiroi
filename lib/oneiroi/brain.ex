@@ -323,7 +323,9 @@ defmodule Oneiroi.Brain do
       {:brain_oracle, []},
       # A forward out of a sealed mail wake (kumbukumbu#98).
       {:brain_forward, []},
-      {:brain_needs_you, cron: [{"* * * * *", Oneiroi.Brain.NeedsYouPushWorker}]}
+      {:brain_needs_you, cron: [{"* * * * *", Oneiroi.Brain.NeedsYouPushWorker}]},
+      # A PR review settled by its merge on GitHub (sunna#118).
+      {:brain_merge_watch, cron: [{"* * * * *", Oneiroi.Brain.MergeWatchWorker}]}
     ]
 
   @impl Oneiroi.Component

@@ -10,6 +10,7 @@ defmodule OneiroiWeb.QueueRoutesTest do
 
   alias Ecto.Adapters.SQL.Sandbox
   alias Oneiroi.Actor
+  alias Oneiroi.Brain.MergeWatchWorker
   alias Oneiroi.Fixtures
 
   setup do
@@ -19,6 +20,17 @@ defmodule OneiroiWeb.QueueRoutesTest do
     account = Fixtures.account!()
     lily = Fixtures.resident!(account)
     scarlett = Fixtures.resident!(account)
+
+    # Lily has a Claude Code attached, so hers builds (sunna#117).
+    {:ok, _code} =
+      Oneiroi.Kumbukumbu.open_adapter(
+        lily.id,
+        "laptop",
+        [account.id],
+        Actor.new(:resident, lily.id),
+        runtime: "claude-code",
+        label: "Oneiroi"
+      )
 
     {:ok,
      conn: signed_in(account),
@@ -137,7 +149,11 @@ defmodule OneiroiWeb.QueueRoutesTest do
   # approved it): the merge's head is read the way the review's was, the
   # pull request's head, so the approved revision merges, and a moved one
   # does not.
-  test "a pull request approved on the screen merges on the revision approved", ctx do
+  # sunna#118 (the witness, 2026-11-27: "the conclusion of the pr review
+  # is the merge"): the PR review waits for the merge on GitHub, and is
+  # done when the PR merged at the revision approved.
+  test "a pull request's review is its merge: approved, it waits, and the merge settles it",
+       ctx do
     alias Oneiroi.Brain.Pulls.Fake, as: Pulls
 
     conn = ctx.conn
@@ -175,6 +191,10 @@ defmodule OneiroiWeb.QueueRoutesTest do
       Enum.find(List.flatten(layers), &(&1.name == name))
     end
 
+    # No hand-off step and no merge step: the template ends at the PR review.
+    refute named.("Hand to Claude Code")
+    refute named.("Merge")
+
     :ok = Oneiroi.Sunna.queue_finish(h, n, named.("Draft the design").act_id, %{}, ctx.lily_actor)
 
     assert %{"ok" => true} =
@@ -203,47 +223,43 @@ defmodule OneiroiWeb.QueueRoutesTest do
         reviewer
       )
 
-    :ok = Oneiroi.Sunna.queue_fill_slot(h, n, "pr", pr, Actor.new(:witness, h))
-    # The hand-off and the build are hers and her Claude Code's.
-    :ok =
-      Oneiroi.Sunna.queue_finish(h, n, named.("Hand to Claude Code").act_id, %{}, ctx.lily_actor)
+    # The build is her Claude Code's, handed off by her first.
+    build = named.("Build it")
+    assert build.assignee == "claude-code:#{ctx.lily.id}"
+    assert %{"ok" => true} = move.(build.act_id, "hand_off", %{note: "letter #1"})
+    assert %{handed_off: true} = named.("Build it")
 
-    :ok =
-      Oneiroi.Sunna.queue_finish(
-        h,
-        n,
-        named.("Build it").act_id,
-        %{},
-        Actor.new(:witness, h)
-      )
+    :ok = Oneiroi.Sunna.queue_fill_slot(h, n, "pr", pr, Actor.new(:witness, h))
+    :ok = Oneiroi.Sunna.queue_finish(h, n, build.act_id, %{}, ctx.lily_actor)
 
     pr_review = named.("PR review").act_id
-    merge = named.("Merge").act_id
 
-    # The screen names the PR's head; the approval records it.
     assert %{"revision" => "aaaa1111bbbb"} =
              conn |> get("/v1/documents/context", %{citation: pr}) |> json_response(200)
 
     assert %{"ok" => true} =
              move.(pr_review, "decide", %{outcome: "approved", note: "ship", pin: "aaaa1111bbbb"})
 
-    # A push after the approval lapses it: the merge is refused, and the
-    # review waits again, on the new head (Scarlett's first guard).
-    Pulls.put(77, %{"number" => 77, "head" => %{"sha" => "cccc2222dddd"}}, [])
+    # Approved, it waits for the merge; the watch finds the PR still open.
+    assert %{status: "active", awaiting_merge: true} = named.("PR review")
+    MergeWatchWorker.run(%{})
+    assert %{status: "active"} = named.("PR review")
 
-    assert %{"error" => %{"site" => "sunna_queue_approval_lapsed"}} =
-             conn
-             |> post("/v1/household/queue/tasks/#{n}/activities/#{merge}/finish", %{})
-             |> json_response(422)
+    # A push after the approval, then a merge: what merged was never
+    # approved, and the review is blocked for a person to settle.
+    Pulls.put(77, %{"number" => 77, "merged" => true, "head" => %{"sha" => "cccc2222dddd"}}, [])
+    MergeWatchWorker.run(%{})
+    assert %{status: "blocked", reason: reason} = named.("PR review")
+    assert reason =~ "cccc222"
 
-    # Approved again as the screen now shows it, the merge is done.
-    assert %{"revision" => "cccc2222dddd"} =
-             conn |> get("/v1/documents/context", %{citation: pr}) |> json_response(200)
+    # Reopened and approved as it merged, it settles at once.
+    assert %{"ok" => true} = move.(pr_review, "reopen", %{note: "approve what merged"})
 
     assert %{"ok" => true} =
-             move.(pr_review, "decide", %{outcome: "approved", note: "again", pin: "cccc2222dddd"})
+             move.(pr_review, "decide", %{outcome: "approved", note: "fine", pin: "cccc2222dddd"})
 
-    assert %{"ok" => true} = move.(merge, "finish", %{})
+    assert %{status: "done", awaiting_merge: false} = named.("PR review")
+    assert %{task: %{status: "complete"}} = Oneiroi.Sunna.queue_task(h, n)
   end
 
   test "set up, a task opened from doc-to-pr, its review decided, and his bell", ctx do

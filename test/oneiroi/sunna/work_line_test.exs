@@ -318,6 +318,50 @@ defmodule Oneiroi.Sunna.WorkLineTest do
     assert %{running_act: ^act} = Sunna.work_queue(ctx.id)
   end
 
+  # sunna#117 (the witness, 2026-11-27: "the hand off should
+  # automatically go through the Oneiroi resident").
+  test "her Claude Code's activity opens on her handoff: a run of her line, never taken", ctx do
+    {:ok, _code} =
+      Kumbukumbu.open_adapter(ctx.id, "laptop", [ctx.h], ctx.me,
+        runtime: "claude-code",
+        label: "Oneiroi"
+      )
+
+    m = ctx.n
+
+    :ok =
+      Sunna.queue_edit_layers(
+        ctx.h,
+        m,
+        [
+          [%{id: ctx.act}],
+          [%{name: "Build", type: "implement", assignee: "claude-code:#{ctx.id}"}]
+        ],
+        "her Claude Code builds it",
+        ctx.andrew
+      )
+
+    :ok = Sunna.queue_skip(ctx.h, m, ctx.act, "not this one", ctx.andrew)
+    act = "#{m}.3"
+    assert {:started, ^act} = WorkLoop.check(ctx.id)
+
+    # Started for her handoff, the activity stays untaken: taking it is
+    # her Claude Code's.
+    assert %{layers: [_draft, [%{status: "pending", view: "ready", handed_off: false}]]} =
+             Sunna.queue_task(ctx.h, m)
+
+    key = key(ctx.id)
+    flush()
+    assert :ok = WorkLoop.activity_turn(ctx.id, key, ctx.h, m, act, 1)
+    assert_received {:asked, messages}
+    assert inspect(messages) =~ "hand_off"
+
+    # Handed off, it leaves her line: the next turn closes the run.
+    :ok = Sunna.queue_hand_off(ctx.h, m, act, "letter #1", ctx.me)
+    assert :ok = WorkLoop.activity_turn(ctx.id, key, ctx.h, m, act, 2)
+    assert %{running_act: nil} = Sunna.work_queue(ctx.id)
+  end
+
   test "work_list reads her line: what runs or why it rests, and its runs", ctx do
     turn = %{resident_id: ctx.id, session_key: "k", turn_ref: "t", resident: ctx.me}
     assert Tools.run("work_list", "{}", turn) =~ "Your line has not run yet. Runs today: 0 of"

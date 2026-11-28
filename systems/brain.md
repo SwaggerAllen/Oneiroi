@@ -53,7 +53,9 @@ repository (`Oneiroi.Brain.Introspection`), the oracle
 (`Oneiroi.Brain.NeedsYou`, `OneiroiWeb.NeedsYouController`, #65), its
 other side, what waits on her (`Oneiroi.Brain.WaitingOnHer`, #76), and
 the push for what waits on him (`Oneiroi.Brain.NeedsYouPushWorker` on
-the `brain_needs_you` queue, #77);
+the `brain_needs_you` queue, #77); the merge watch that settles a pull
+request's review (`Oneiroi.Brain.MergeWatchWorker` on the
+`brain_merge_watch` queue, #127);
 the brain's prompt files (the prompt, the fixture's prompt, the budget
 stop, the memory flush, compaction, drafting, the adapter's parts, the
 runtime notes, `where`, and the once-only notices of a model change, the
@@ -221,6 +223,7 @@ letters, an import and a lapse); the socket and the session channel.
 
 - **#125 Her succession tools are in her turns only while a succession needs them; the catalog is searched.** (The witness, 2026-11-26: "succession related tools should probably only be injected while it's active"; the catalog "is just too darn big".) `SuccessionTools.out_of_reach/1`, from Janus's `involvement/1` (janus#36), is added to what `definitions_for/2` leaves out and what `run_guarded` refuses: with none underway and no panel or nomination elsewhere, all but `succession_status` and `succession_propose`; with her witness's proposal waiting, all but status, `succession_open` and `succession_decline`; opened with no fork yet, those three and the preparation's (`succession_catalog`, `succession_pool`, `succession_question`, `succession_c0`, `succession_packet`; janus#39); underway after the fork, only propose, open and decline; invited to or on a housemate's panel, or the fork copy of a succession underway (its nominee), none. A call out of reach is answered not done, naming status and propose. `succession_catalog` (supersedes #121's "forty at most, cheapest first") takes `query` (every word in the slug, name or blurb), `provider`, `sort` (cheapest, context, measured, name), `offset` and `limit` (40 by default, at most 100), still inside the envelope and tool-capable only; it says how many match and which page this is, and each line names the model and its context; its first line is her model now with its month at her pace and what her calls have cost a month (janus#38).
 - **#126 A block's or a fail's reason meets the house's policies as any write does.** (Supersedes #118. The witness, 2026-11-27: "I don't think we need to keep blocked reasons between resident and witness now that domains are pretty much figured out".) The fallback that recorded the move with "the reason is kept between her and her witness" and sent the reason to her Oneiroi chat is gone: a reason the policies hold refuses the move as withheld, as any write is, and she says it in words the house may read, or says it in her chat and moves without a held reason.
+- **#127 The merge watch settles a pull request's review by what GitHub says.** (sunna#118.) `MergeWatchWorker`, each minute on `brain_merge_watch`: for every review awaiting its merge (`Sunna.queue_awaiting_merge/0`, under the platform scope), it reads the pull request through the pull requests port (`Pulls.merged/3`, `QueueHeads.merge_state/1`: the platform's own repository only) and, once merged, settles it with the head it merged at, as the job `brain_merge_watch`; an open or unreadable one is left to the next minute. A poll, with its reason: the merge happens on GitHub and the platform's token cannot merge, so asking is the only way to know. `HouseQueue.decide` settles a review at once when its pull request had already merged.
 
 ## #8 Initial vs target
 

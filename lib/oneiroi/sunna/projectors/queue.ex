@@ -195,7 +195,15 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
 
   fold(%E.ActivityReopened{} = e, _metadata, fn multi ->
     multi
-    |> act(e, status: "pending", waits_on: nil, reason: nil, approved_pin: nil, note: e.note)
+    |> act(e,
+      status: "pending",
+      waits_on: nil,
+      reason: nil,
+      approved_pin: nil,
+      handed_off: false,
+      awaiting_merge: false,
+      note: e.note
+    )
     # A finished activity reopened reopens a completed task (sunna#116).
     |> Multi.update_all(
       :reopened_task,
@@ -218,8 +226,35 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
 
   fold(%E.ActivityAssigned{} = e, _metadata, fn multi ->
     multi
-    |> act(e, assignee: e.assignee)
+    |> act(e, assignee: e.assignee, handed_off: false)
     |> history(e, e.act, "assigned", e.assignee, nil, e.note)
+  end)
+
+  fold(%E.ActivityHandedOff{} = e, _metadata, fn multi ->
+    multi
+    |> act(e, handed_off: true, note: e.note)
+    |> history(e, e.act, "handed off", nil, nil, e.note)
+    |> refresh(e.id, e.task, e.at)
+  end)
+
+  fold(%E.MergeAwaited{} = e, _metadata, fn multi ->
+    multi
+    |> act(e, status: "active", approved_pin: e.pin, awaiting_merge: true)
+    |> refresh(e.id, e.task, e.at)
+  end)
+
+  fold(%E.MergeSettled{} = e, _metadata, fn multi ->
+    multi
+    |> act(e, status: "done", awaiting_merge: false, pin: e.sha)
+    |> history(
+      e,
+      e.act,
+      "merged",
+      nil,
+      e.sha,
+      "The pull request merged at the revision approved."
+    )
+    |> refresh(e.id, e.task, e.at)
   end)
 
   fold(%E.ReviewDecided{outcome: "approved"} = e, _metadata, fn multi ->
@@ -241,7 +276,7 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
     returned = List.wrap(e.returned)
 
     multi
-    |> act(e, status: "pending", approved_pin: nil, pin: nil, note: e.note)
+    |> act(e, status: "pending", approved_pin: nil, pin: nil, awaiting_merge: false, note: e.note)
     |> history(e, e.act, "decided", e.outcome, e.pin, e.note)
     |> Multi.update_all(
       :returned,
@@ -252,6 +287,7 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
         waits_on: nil,
         reason: nil,
         approved_pin: nil,
+        handed_off: false,
         note: e.note,
         updated_at: e.at
       ]
@@ -432,6 +468,15 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
       throwback: Queue.get(spec, :throwback),
       updated_at: e.at
     ]
+
+    # A new holder starts from her own handoff (sunna#117).
+    assignee = set[:assignee]
+
+    set =
+      case repo.get_by(S.Activity, household_id: e.id, act_id: id) do
+        %{assignee: old} when old != assignee -> set ++ [handed_off: false]
+        _same_or_new -> set
+      end
 
     repo.insert(
       struct(

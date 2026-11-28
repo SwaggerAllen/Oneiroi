@@ -21,6 +21,7 @@ defmodule Oneiroi.Sunna.Queues do
   alias Oneiroi.Actor
   alias Oneiroi.Apsu.Clock
   alias Oneiroi.Gaia
+  alias Oneiroi.Kumbukumbu
   alias Oneiroi.Repo
   alias Oneiroi.Scope
   alias Oneiroi.Sunna.Error
@@ -86,8 +87,7 @@ defmodule Oneiroi.Sunna.Queues do
               action: "merge",
               throwback: "5.1"
             }
-          ],
-          [%{name: "Merge", type: "merge", role: "witness", artifact: "pr", destination: "main"}]
+          ]
         ]
       }
     }
@@ -102,6 +102,9 @@ defmodule Oneiroi.Sunna.Queues do
   # Her work line's job (sunna#109), failing the activity a stop ended in
   # the household whose activity it was running.
   defp member(_household_id, %Actor{kind: :job, id: "sunna_work"}), do: :ok
+  # The platform's merge watch (sunna#118), settling a review by what
+  # GitHub says.
+  defp member(_household_id, %Actor{kind: :job, id: "brain_merge_watch"}), do: :ok
 
   defp member(household_id, %Actor{} = actor) do
     if is_binary(household_id) and Gaia.household_member?(household_id, actor),
@@ -111,8 +114,25 @@ defmodule Oneiroi.Sunna.Queues do
 
   @doc "The members as the queue names them: `resident:<id>` or `witness:<id>`, with the house's name for each."
   def members(household_id) do
-    for m <- Gaia.household_members(household_id),
-        do: %{assignee: "#{m.kind}:#{m.id}", kind: m.kind, id: m.id, name: m.name}
+    for m <- Gaia.household_members(household_id) do
+      %{
+        assignee: "#{m.kind}:#{m.id}",
+        kind: m.kind,
+        id: m.id,
+        name: m.name,
+        builder:
+          to_string(m.kind) == "resident" and Kumbukumbu.runtime_attached?(m.id, "claude-code")
+      }
+    end
+  end
+
+  @doc """
+  The residents who build (sunna#117): those with a Claude Code attached,
+  a Claude Code conversation of theirs on the platform. Only their Claude
+  Code holds an implement.
+  """
+  def builders(household_id) do
+    for %{builder: true, id: id} <- members(household_id), do: id
   end
 
   # ---- commands ----
@@ -220,7 +240,8 @@ defmodule Oneiroi.Sunna.Queues do
         template: attrs[:template],
         layers: layers,
         start_layer: start(attrs[:start_layer], layers),
-        links: List.wrap(attrs[:links])
+        links: List.wrap(attrs[:links]),
+        builders: builders(household_id)
       }
 
       with {:ok, events} <- send_command(command) do
@@ -334,7 +355,36 @@ defmodule Oneiroi.Sunna.Queues do
         task: task,
         act: act,
         assignee: assignee,
+        note: note,
+        builders: builders(household_id)
+      })
+
+  @doc """
+  Hands a resident's Claude Code activity to it (sunna#117): hers, at the
+  end of her handoff turn, once she has written it what it needs; or a
+  witness's. A note says what was handed.
+  """
+  def hand_off(household_id, task, act, note, %Actor{} = actor),
+    do:
+      dispatch(household_id, actor, %C.HandOffActivity{
+        actor: actor,
+        at: Clock.now(),
+        id: household_id,
+        task: task,
+        act: act,
         note: note
+      })
+
+  @doc "Settles a review awaiting its pull request's merge (sunna#118): `sha` the head it merged at."
+  def settle_merge(household_id, task, act, sha, %Actor{} = actor),
+    do:
+      dispatch(household_id, actor, %C.SettleMerge{
+        actor: actor,
+        at: Clock.now(),
+        id: household_id,
+        task: task,
+        act: act,
+        sha: sha
       })
 
   @doc """
@@ -385,7 +435,8 @@ defmodule Oneiroi.Sunna.Queues do
         id: household_id,
         task: task,
         layers: layers,
-        note: note
+        note: note,
+        builders: builders(household_id)
       })
 
   @doc "Attaches a document to a task (sunna#91): `role` a slot name or `source` (the default)."
@@ -617,7 +668,7 @@ defmodule Oneiroi.Sunna.Queues do
   defp layers_for(household_id, attrs, owner) do
     case {attrs[:layers], attrs[:template]} do
       {layers, _} when is_list(layers) ->
-        {:ok, route_claude_code(layers)}
+        {:ok, layers}
 
       {nil, name} when is_binary(name) ->
         case template(household_id, name) do
@@ -627,7 +678,7 @@ defmodule Oneiroi.Sunna.Queues do
           t ->
             household_id
             |> resolve(t.layers["layers"], owner, attrs[:roles] || %{}, attrs[:slots] || %{})
-            |> then(&{:ok, route_claude_code(&1)})
+            |> then(&{:ok, &1})
         end
 
       _neither ->
@@ -643,7 +694,7 @@ defmodule Oneiroi.Sunna.Queues do
       "author" => owner,
       "witness" => first(members, "witness"),
       "peer" => peer(members, owner),
-      "builder" => claude_code(owner),
+      "builder" => claude_code(owner, builders(household_id)),
       "unknown" => "unknown"
     }
 
@@ -681,71 +732,39 @@ defmodule Oneiroi.Sunna.Queues do
     end
   end
 
-  # The owner's Claude Code when the owner is a resident (§3): it runs on
-  # her memories. A witness-owned task names its builder in `roles`.
-  defp claude_code("resident:" <> id), do: "claude-code:" <> id
-  defp claude_code(_other), do: "unknown"
+  # The owner's Claude Code when the owner is a resident who has one
+  # attached (§3, sunna#117): it runs on her memories. Otherwise nobody
+  # yet; a witness-owned task names its builder in `roles`.
+  defp claude_code("resident:" <> id, builders),
+    do: if(id in builders, do: "claude-code:" <> id, else: "unknown")
 
-  # A deliver by the resident whose Claude Code it is, in its own layer
-  # before every layer holding Claude Code work (§3), throwbacks
-  # renumbered past it.
-  defp route_claude_code(layers) do
-    {out, shifts} =
-      layers
-      |> Enum.with_index(1)
-      |> Enum.reduce({[], %{}}, &route_layer/2)
-
-    Enum.map(out, fn layer -> Enum.map(layer, &renumber_throwback(&1, shifts)) end)
-  end
-
-  defp route_layer({layer, i}, {acc, shifts}) do
-    layer = Enum.map(layer, &Map.new(&1, fn {k, v} -> {atom(k), v} end))
-    shifts = Map.put(shifts, i, length(acc) + 1)
-
-    case for(a <- layer, hers = Queue.claude_code_of(a[:assignee]), do: {a, hers}) do
-      [] ->
-        {acc ++ [layer], shifts}
-
-      theirs ->
-        deliver =
-          for {a, hers} <- theirs,
-              do: %{
-                name: "Hand to Claude Code",
-                type: "deliver",
-                assignee: hers,
-                artifact: a[:artifact],
-                slot: a[:slot],
-                inserted: true
-              }
-
-        {acc ++ [deliver, layer], Map.put(shifts, i, length(acc) + 2)}
-    end
-  end
-
-  defp renumber_throwback(a, shifts) do
-    case a[:throwback] do
-      pos when is_binary(pos) -> %{a | throwback: renumber(pos, shifts)}
-      _none -> a
-    end
-  end
-
-  defp renumber(pos, shifts) do
-    with [l, j] <- String.split(pos, "."),
-         {l, ""} <- Integer.parse(l),
-         %{^l => moved} <- shifts do
-      "#{moved}.#{j}"
-    else
-      _ -> pos
-    end
-  end
-
-  @known ~w(type assignee artifact destination action optional throwback inserted role id)a
-  defp atom(k) when is_atom(k), do: k
-
-  defp atom(k) when is_binary(k),
-    do: Enum.find(@known, k, &(Atom.to_string(&1) == k))
+  defp claude_code(_other, _builders), do: "unknown"
 
   # ---- reads ----
+
+  @doc """
+  Every review waiting on its pull request's merge, in every household
+  (sunna#118), for the platform's watch: household, task, act, the PR's
+  citation and the approved pin.
+  """
+  def awaiting_merge do
+    Scope.platform(fn ->
+      Repo.all(
+        from(a in S.Activity,
+          join: t in S.Task,
+          on: t.household_id == a.household_id and t.number == a.task,
+          where: a.awaiting_merge and a.status == "active" and t.status == "open",
+          select: %{
+            household: a.household_id,
+            task: a.task,
+            act: a.act_id,
+            artifact: a.artifact,
+            pin: a.approved_pin
+          }
+        )
+      )
+    end)
+  end
 
   @doc "The queue's state: paused or not (sunna#94)."
   def state(household_id), do: QueueState.get(household_id)
@@ -1094,6 +1113,8 @@ defmodule Oneiroi.Sunna.Queues do
       reason: a.reason,
       pin: a.pin,
       approved_pin: a.approved_pin,
+      handed_off: a.handed_off,
+      awaiting_merge: a.awaiting_merge,
       note: a.note,
       ready_at: a.ready_at,
       updated_at: a.updated_at,

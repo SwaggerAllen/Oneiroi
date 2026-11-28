@@ -104,11 +104,11 @@ defmodule Oneiroi.Brain.QueueTools do
       ),
       tool(
         "queue_move",
-        "Move an activity of the house queue (task and act, as 12 and \"12.3\"): take (you are on it), finish (with note; result a citation of what it made, a PR say), skip (explicitly, with note: an optional activity, or any in a task you own; never a review in front of a gated activity still to run), block (reason, and waits_on a task number when it waits on that task's completion: it clears by itself when that task is done or dropped), reopen (a blocked or failed one, with note), fail (reason says what failed; it keeps its place; a block or fail always records, and a reason the house may not hear goes to your Oneiroi chat instead, the house reading only that it is kept between you and your witness, brain#118) or assign (assignee: a member, a resident's Claude Code as claude-code:<her id>, or unknown). A promote-to-house activity finishes by household_promote with its task and act, never here. Reviews are decided with queue_decide.",
+        "Move an activity of the house queue (task and act, as 12 and \"12.3\"): take (you are on it), finish (with note; result a citation of what it made, a PR say), skip (explicitly, with note: an optional activity, or any in a task you own; never a review in front of a gated activity still to run), block (reason, and waits_on a task number when it waits on that task's completion: it clears by itself when that task is done or dropped), reopen (a blocked or failed one, or a finished one nothing after has moved past, with note), hand_off (your Claude Code's activity, once you have written it what it needs: a letter to claude-code citing the task and its document; note says what you handed, sunna#117), fail (reason says what failed; it keeps its place; a block or fail always records, and a reason the house may not hear goes to your Oneiroi chat instead, the house reading only that it is kept between you and your witness, brain#118) or assign (assignee: a member, a resident's Claude Code as claude-code:<her id>, or unknown; an implement goes only to the Claude Code of a resident who has one attached). A promote-to-house activity finishes by household_promote with its task and act, never here. Reviews are decided with queue_decide.",
         Map.merge(act, %{
           move: %{
             type: "string",
-            enum: ["take", "finish", "skip", "block", "reopen", "fail", "assign"]
+            enum: ["take", "finish", "skip", "block", "reopen", "hand_off", "fail", "assign"]
           },
           note: %{type: "string"},
           reason: %{type: "string"},
@@ -213,7 +213,7 @@ defmodule Oneiroi.Brain.QueueTools do
 
     members = Enum.map_join(Sunna.queue_members(h), ", ", &"#{&1.name} (#{&1.assignee})")
 
-    "Templates in the house:\n#{templates}\n\nStarters the platform ships:\n#{starters}\n\nMembers: #{members}. A resident's Claude Code is claude-code:<her id>, reached through her own deliver step."
+    "Templates in the house:\n#{templates}\n\nStarters the platform ships:\n#{starters}\n\nMembers: #{members}. A resident's Claude Code is claude-code:<her id>; an implement is held only by the Claude Code of a resident who has one attached, and she hands it to it in a turn of her own when it opens (sunna#117)."
   end
 
   defp run("queue_template_define", args, h, actor, _me) do
@@ -387,6 +387,9 @@ defmodule Oneiroi.Brain.QueueTools do
   defp move("reopen", args, {h, task, act}, actor),
     do: Sunna.queue_reopen(h, task, act, to_string(args["note"] || ""), actor)
 
+  defp move("hand_off", args, {h, task, act}, actor),
+    do: Sunna.queue_hand_off(h, task, act, blank(args["note"]), actor)
+
   defp move("fail", args, {h, task, act}, actor),
     do: Sunna.queue_fail(h, task, act, args["reason"] || args["note"], actor)
 
@@ -395,7 +398,7 @@ defmodule Oneiroi.Brain.QueueTools do
 
   defp move(other, _args, _where, _actor) do
     @not_done <>
-      "#{inspect(other)} is not a move: take, finish, skip, block, reopen, fail or assign."
+      "#{inspect(other)} is not a move: take, finish, skip, block, reopen, hand_off, fail or assign."
   end
 
   defp task_text(%{task: t, layers: layers, history: history, waiting: waiting}, names, docs) do

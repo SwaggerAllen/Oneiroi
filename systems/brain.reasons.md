@@ -1013,3 +1013,6 @@ A tool with nothing to act on is noise in every turn's context and an invitation
 
 ## #126
 With domains settled, a reason the house may not read is a choice of words, not a wall; an activity marked blocked for a reason nobody on the house can read tells the house nothing it can act on.
+
+## #127
+The merge is a fact on GitHub, not a claim anyone makes on Oneiroi; reading it is the only honest way to close the review, and a minute's delay costs nothing a person would notice.
