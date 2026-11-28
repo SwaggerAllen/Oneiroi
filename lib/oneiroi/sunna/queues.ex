@@ -300,7 +300,7 @@ defmodule Oneiroi.Sunna.Queues do
         waits_on: waits_on
       })
 
-  @doc "Reopens a blocked or failed activity by hand, with a note."
+  @doc "Reopens a blocked or failed activity, or a finished one nothing after has moved past (sunna#116), with a note."
   def reopen(household_id, task, act, note, %Actor{} = actor),
     do:
       dispatch(household_id, actor, %C.ReopenActivity{

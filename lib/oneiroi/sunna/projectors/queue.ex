@@ -195,7 +195,16 @@ defmodule Oneiroi.Sunna.Projectors.Queue do
 
   fold(%E.ActivityReopened{} = e, _metadata, fn multi ->
     multi
-    |> act(e, status: "pending", waits_on: nil, reason: nil, note: e.note)
+    |> act(e, status: "pending", waits_on: nil, reason: nil, approved_pin: nil, note: e.note)
+    # A finished activity reopened reopens a completed task (sunna#116).
+    |> Multi.update_all(
+      :reopened_task,
+      # oneiroi:allow projector_scope: the household's id is unique across the store, and every row is within it
+      from(t in S.Task,
+        where: t.household_id == ^e.id and t.number == ^e.task and t.status == "complete"
+      ),
+      set: [status: "open", completed_at: nil]
+    )
     |> history(e, e.act, if(e.released, do: "released", else: "reopened"), nil, nil, e.note)
     |> refresh(e.id, e.task, e.at)
   end)

@@ -555,6 +555,63 @@ defmodule Oneiroi.Sunna.QueueTest do
     assert %{view: "ready"} = act(ctx, n, "#{n}.2")
   end
 
+  # sunna#116 (the witness, 2026-11-27, task #15: Finish hit on 15.6 when
+  # he meant Reassign).
+  defp two_steps(ctx) do
+    :ok =
+      case Queues.open_project(ctx.h, %{slug: "r", name: "R"}, ctx.lily) do
+        :ok -> :ok
+        {:error, %{kind: :sunna_queue_project_exists}} -> :ok
+      end
+
+    Queues.open_task(
+      ctx.h,
+      %{
+        project: "r",
+        slug: "s#{System.unique_integer([:positive])}",
+        title: "S",
+        outcome: "done",
+        layers: [
+          [%{name: "Draft", type: "draft", assignee: ctx.a_lily}],
+          [%{name: "Notes", type: "notes", assignee: ctx.a_lily}]
+        ]
+      },
+      ctx.lily
+    )
+  end
+
+  test "a finished step reopens while nothing after it has moved, by its owner or a witness",
+       ctx do
+    {:ok, n} = two_steps(ctx)
+    :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
+    assert %{view: "ready"} = act(ctx, n, "#{n}.2")
+
+    assert {:error, %{kind: :sunna_queue_not_yours}} =
+             Queues.reopen(ctx.h, n, "#{n}.1", "not hers", ctx.scarlett)
+
+    assert :ok = Queues.reopen(ctx.h, n, "#{n}.1", "Finish meant Reassign.", ctx.andrew)
+    assert %{view: view} = act(ctx, n, "#{n}.1")
+    assert view in ["ready", "active"]
+    assert %{view: "waiting"} = act(ctx, n, "#{n}.2")
+
+    :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
+    :ok = Queues.take(ctx.h, n, "#{n}.2", ctx.lily)
+
+    assert {:error, %{kind: :sunna_queue_not_ready, site: :sunna_queue_reopen_moved_on}} =
+             Queues.reopen(ctx.h, n, "#{n}.1", "too late", ctx.andrew)
+  end
+
+  test "reopening the last step of a completed task opens the task again", ctx do
+    {:ok, n} = two_steps(ctx)
+    :ok = Queues.finish(ctx.h, n, "#{n}.1", %{}, ctx.lily)
+    :ok = Queues.finish(ctx.h, n, "#{n}.2", %{}, ctx.lily)
+    assert %{task: %{status: "complete"}} = Queues.task(ctx.h, n)
+
+    assert :ok = Queues.reopen(ctx.h, n, "#{n}.2", "not done after all", ctx.lily)
+    assert %{task: %{status: "open", completed_at: nil}} = Queues.task(ctx.h, n)
+    assert %{view: "ready"} = act(ctx, n, "#{n}.2")
+  end
+
   # sunna#114 (the witness, 2026-11-27, task #15: the peer review and his
   # final review shared a layer; his refusal sent the draft back, and her
   # approval of the text sent back stood, so her review never came round

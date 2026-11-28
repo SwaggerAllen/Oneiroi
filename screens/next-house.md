@@ -235,7 +235,9 @@ browser's back steps through: `task/<n>`, `task/<n>/act/<id>`,
   reopen, skip, assign; for a witness on a resident's activity, how many
   runs it has had since it last moved and **Give the runs back**, which
   starts its count over and opens it again when running out is what
-  blocked it, sunna#106; Reopen is not offered for that block). **The activity**: its name read-only ("Named in
+  blocked it, sunna#106; Reopen is not offered for that block). A done or skipped activity offers
+  **Reopen…** alone, with a note, while nothing after it has moved, to its
+  owner or a witness (sunna#116). **The activity**: its name read-only ("Named in
   the template", with a link to the template), then type, held by, layer
   (the open layer on, or a new layer), works on (the task's documents, or
   another citation), and for a review what approving lets happen, its
