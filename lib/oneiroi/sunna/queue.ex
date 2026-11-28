@@ -502,7 +502,13 @@ defmodule Oneiroi.Sunna.Queue do
 
   def apply(%__MODULE__{} = s, %E.ReviewDecided{} = e) do
     s = put_act(s, e.act, status: "pending", approved_pin: nil)
-    Enum.reduce(List.wrap(e.returned), s, &put_act(&2, &1, status: "pending", waits_on: nil))
+    # A returned review's approval goes with it (sunna#114): it approved
+    # a revision that has just been sent back.
+    Enum.reduce(
+      List.wrap(e.returned),
+      s,
+      &put_act(&2, &1, status: "pending", waits_on: nil, approved_pin: nil)
+    )
   end
 
   def apply(%__MODULE__{} = s, %E.ApprovalLapsed{} = e) do
@@ -629,8 +635,11 @@ defmodule Oneiroi.Sunna.Queue do
 
   # What a refusal sends back (§7): the target, an earlier activity of
   # the same task, ready again; everything finished between it and the
-  # review back to waiting. The review itself opens again (a new review,
-  # the refused one kept in history).
+  # review back to waiting, and everything finished beside the review in
+  # its own layer (sunna#114, the witness, 2026-11-27: a peer review
+  # sharing the final review's layer kept its approval of the text sent
+  # back). The review itself opens again (a new review, the refused one
+  # kept in history).
   defp returned(_s, _task, _act, nil), do: :error
 
   defp returned(s, task, act, target) do
@@ -639,8 +648,9 @@ defmodule Oneiroi.Sunna.Queue do
 
     if is_integer(from) and from < to do
       between =
-        for i <- (from + 1)..(to - 1)//1,
+        for i <- (from + 1)..to//1,
             id <- Enum.at(task.layers, i),
+            id != act.id,
             s.acts[id].status in ~w(done skipped),
             do: id
 
