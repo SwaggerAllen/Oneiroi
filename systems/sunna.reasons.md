@@ -707,3 +707,6 @@ Work that sat beside the refusing review acted on the same revision as everythin
 
 ## #115
 The witness can take, finish, block and reassign any activity; refusing him the skip alone left a blocked step with no way past it but a resident's turn.
+
+## #116
+Finish sits one tap from Assign, and a slip had no way back: the step stayed done under the wrong hands. Rewinding past work that has already moved would leave that work standing on a step that no longer holds, so the reopen stops where the next layer starts moving, and a refusal remains the way to send work back.

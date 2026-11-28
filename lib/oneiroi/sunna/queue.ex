@@ -231,19 +231,17 @@ defmodule Oneiroi.Sunna.Queue do
   end
 
   def execute(%__MODULE__{} = s, %C.ReopenActivity{} = c) do
-    with {:ok, task, act} <- activity(s, c.task, c.act),
-         :ok <- may_work(task, act, c.actor) do
-      if act.status in ~w(blocked failed),
-        do: %E.ActivityReopened{
-          actor: c.actor,
-          at: c.at,
-          id: c.id,
-          task: c.task,
-          act: c.act,
-          released: false,
-          note: c.note
-        },
-        else: {:error, Error.new(:sunna_queue_not_ready, :sunna_queue_reopen_not_stuck)}
+    with {:ok, task, act} <- any_activity(s, c.task, c.act),
+         :ok <- may_reopen(s, task, act, c.actor) do
+      %E.ActivityReopened{
+        actor: c.actor,
+        at: c.at,
+        id: c.id,
+        task: c.task,
+        act: c.act,
+        released: false,
+        note: c.note
+      }
     end
   end
 
@@ -487,7 +485,7 @@ defmodule Oneiroi.Sunna.Queue do
     do: put_act(s, e.act, status: "blocked", waits_on: e.waits_on)
 
   def apply(%__MODULE__{} = s, %E.ActivityReopened{} = e),
-    do: put_act(s, e.act, status: "pending", waits_on: nil)
+    do: put_act(s, e.act, status: "pending", waits_on: nil, approved_pin: nil)
 
   def apply(%__MODULE__{} = s, %E.ActivityFailed{} = e),
     do: put_act(s, e.act, status: "failed")
@@ -1108,6 +1106,57 @@ defmodule Oneiroi.Sunna.Queue do
         _none -> {:error, Error.new(:sunna_queue_no_such_activity, :sunna_queue_activity_absent)}
       end
     end
+  end
+
+  # A task's activity whether the task is open or complete (a finished
+  # activity reopened can reopen its task, sunna#116); never a dropped one.
+  defp any_activity(s, n, id) do
+    case {s.tasks[n], s.acts[id]} do
+      {%{status: "dropped"}, _act} ->
+        {:error, Error.new(:sunna_queue_no_such_task, :sunna_queue_task_dropped)}
+
+      {%{} = task, %{task: ^n} = act} ->
+        {:ok, task, act}
+
+      {nil, _act} ->
+        {:error, Error.new(:sunna_queue_no_such_task, :sunna_queue_reopen_task_absent)}
+
+      _none ->
+        {:error, Error.new(:sunna_queue_no_such_activity, :sunna_queue_reopen_act_absent)}
+    end
+  end
+
+  # Stuck work (blocked or failed) reopens for whoever may work it. A
+  # finished one (done or skipped) reopens for a witness or the task's
+  # owner, and only while nothing after it has moved (sunna#116, the
+  # witness, 2026-11-27: he finished 15.6 meaning to reassign it): undoing
+  # it must not leave later work resting on undone work.
+  defp may_reopen(s, task, act, actor) do
+    cond do
+      act.status in ~w(blocked failed) ->
+        may_work(task, act, actor)
+
+      act.status in ~w(done skipped) ->
+        with :ok <- may_edit(task, actor), do: nothing_after(s, task, act)
+
+      true ->
+        {:error, Error.new(:sunna_queue_not_ready, :sunna_queue_reopen_not_stuck)}
+    end
+  end
+
+  defp nothing_after(s, task, act) do
+    i = G.layer_of(task, act.id)
+
+    moved =
+      for later <- Enum.drop(task.layers, i + 1),
+          id <- later,
+          s.acts[id].status != "pending",
+          do: id
+
+    if moved == [],
+      do: :ok,
+      else:
+        {:error, Error.new(:sunna_queue_not_ready, :sunna_queue_reopen_moved_on, moved: moved)}
   end
 
   # Ready: pending in the open layer.

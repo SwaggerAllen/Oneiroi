@@ -355,7 +355,7 @@ export function ActivityPage({ number, actId, names, overview }: { number: numbe
             </button>
           </div>
         )}
-        <Moves task={number} a={a} names={names} overview={overview} layers={layers} />
+        <Moves task={number} a={a} names={names} overview={overview} layers={layers} mayReopen={task.owner === overview.me || overview.me.startsWith('witness:')} />
       </section>
       {mayEdit && <ActivityForm key={a.act_id} task={task} layers={layers} a={a} layer={layer} names={names} overview={overview} />}
       <section className={css.card} aria-label="History">
@@ -556,7 +556,7 @@ export function NewActivityPage({ number, names, overview }: { number: number; n
  * The moves an activity allows (sunna#80): take, finish, failed, block,
  * reopen, skip, assign; a review's decision is on its document's screen.
  */
-function Moves({ task, a, names, overview, layers }: { task: number; a: QueueActivity; names: Names; overview: QueueOverview; layers: QueueActivity[][] }) {
+function Moves({ task, a, names, overview, layers, mayReopen }: { task: number; a: QueueActivity; names: Names; overview: QueueOverview; layers: QueueActivity[][]; mayReopen: boolean }) {
   const act = useAct();
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState('');
@@ -578,7 +578,31 @@ function Moves({ task, a, names, overview, layers }: { task: number; a: QueueAct
               .then(() => `${actName(a)} is ${nameOf(names, assignee)}'s, and ${pairs.map((p) => `${p.id} ${nameOf(names, p.assignee)}'s`).join(', ')}.`),
           QUEUE,
         );
-  if (a.view === 'done' || a.view === 'skipped') return null;
+  if (a.view === 'done' || a.view === 'skipped') {
+    // A finished step reopens while nothing after it has moved (sunna#116,
+    // the witness, 2026-11-27: Finish hit meaning Reassign).
+    const at = layers.findIndex((l) => l.some((x) => x.act_id === a.act_id));
+    const movedOn = layers.slice(at + 1).some((l) => l.some((x) => x.view !== 'waiting' && x.view !== 'ready'));
+    if (movedOn || !mayReopen) return null;
+    return (
+      <>
+        <div className={css.row}>
+          <button type="button" className={css.secondary} aria-expanded={open} onClick={() => setOpen(!open)}>
+            {open ? 'Fewer moves' : 'Reopen…'}
+          </button>
+        </div>
+        {open && (
+          <div className={css.column}>
+            <TextArea label="Why it reopens" value={note} onChange={(e) => setNote(e.target.value)} />
+            <button type="button" className={css.secondary} disabled={act.busy || !note.trim()} onClick={() => move('reopen', { note }, `${actName(a)} is open again.`)}>
+              Reopen it
+            </button>
+          </div>
+        )}
+        <Said said={act.said} />
+      </>
+    );
+  }
   return (
     <>
       <div className={css.row}>
