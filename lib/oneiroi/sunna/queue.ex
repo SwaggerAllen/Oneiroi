@@ -151,7 +151,7 @@ defmodule Oneiroi.Sunna.Queue do
          {:ok, layers, removed} <- edited_layers(s, task, c.layers),
          :ok <- edited_shape_ok(layers),
          true <-
-           builders_ok?(not_started(s, layers), c.builders) ||
+           builders_ok?(changed_holders(s, layers), c.builders) ||
              {:error, Error.new(:sunna_queue_builder_required, :sunna_queue_edit_builder)} do
       edited = %E.LayersEdited{
         actor: c.actor,
@@ -1047,11 +1047,20 @@ defmodule Oneiroi.Sunna.Queue do
     end
   end
 
-  # What an edit has yet to start: new activities and pending ones.
-  defp not_started(s, layers) do
-    for spec <- List.flatten(layers),
-        match?(nil, s.acts[spec.id]) or s.acts[spec.id].status == "pending",
-        do: spec
+  # What an edit gives a holder or a type: new activities, and pending
+  # ones whose holder or type it changes. One it leaves as it was is not
+  # its to answer for (the witness, 2026-11-27: removing #15's deliver was
+  # refused for the implement beside it, held by him before #117).
+  defp changed_holders(s, layers) do
+    Enum.filter(List.flatten(layers), fn spec ->
+      case s.acts[spec.id] do
+        nil ->
+          true
+
+        old ->
+          old.status == "pending" and (old.assignee != spec.assignee or old.type != spec.type)
+      end
+    end)
   end
 
   # A task's layers as given, each activity numbered `<task>.<k>`, a

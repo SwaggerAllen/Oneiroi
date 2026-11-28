@@ -369,9 +369,42 @@ defmodule Oneiroi.Sunna.QueueTest do
                ctx.andrew
              )
 
+    # An edit answers only for the holders it gives: the rest of a task
+    # is edited around what it leaves as it was.
+    {:ok, m} = task.("old", "unknown")
+
+    :ok =
+      Queues.edit_layers(
+        ctx.h,
+        m,
+        [
+          [%{id: "#{m}.1"}],
+          [%{id: "#{m}.2"}],
+          [%{name: "Notes", type: "notes", assignee: ctx.a_lily}]
+        ],
+        "notes",
+        ctx.andrew
+      )
+
+    assert {:error, %{kind: :sunna_queue_builder_required}} =
+             Queues.edit_layers(
+               ctx.h,
+               m,
+               [[%{id: "#{m}.1"}], [%{name: "Build", type: "implement", assignee: ctx.a_andrew}]],
+               "a witness builds",
+               ctx.andrew
+             )
+
+    # A conversation her adapter opened before sessions named their
+    # runtime still attaches her Claude Code.
+    {:ok, _old} =
+      Oneiroi.Kumbukumbu.open_adapter(ctx.scarlett.id, "laptop", [ctx.h], ctx.scarlett, [])
+
+    assert ctx.scarlett.id in Queues.builders(ctx.h)
+
     # A Claude Code may hold other work too, once attached.
     assert :ok = Queues.assign(ctx.h, n, "#{n}.1", "claude-code:#{ctx.lily.id}", nil, ctx.lily)
-    assert Enum.map(Queues.members(ctx.h), & &1.builder) |> Enum.count(& &1) == 1
+    assert Enum.map(Queues.members(ctx.h), & &1.builder) |> Enum.count(& &1) == 2
   end
 
   test "a resident's Claude Code is hers: handed off by her, then worked as hers, never another's",

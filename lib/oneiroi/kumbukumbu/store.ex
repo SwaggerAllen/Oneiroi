@@ -1753,10 +1753,20 @@ defmodule Oneiroi.Kumbukumbu.Store do
   @spec letter?(integer()) :: boolean()
   def letter?(number), do: Repo.exists?(from(l in HouseLetter, where: l.number == ^number))
 
-  @doc "Whether a resident has a session another runtime opened as `runtime` (sunna#117); under her scope."
+  @doc """
+  Whether a resident has a session another runtime opened as `runtime`
+  (sunna#117); under her scope. An adapter's session opened before
+  sessions named their runtime (kumbukumbu#40) names none, and counts:
+  the adapter that opened it is the one runtime that did then, and a
+  conversation she has kept going since was never opened again.
+  """
   def runtime_attached?(resident_id, runtime),
     do:
       Repo.exists?(
-        from(s in Session, where: s.resident_id == ^resident_id and s.runtime == ^runtime)
+        from(s in Session,
+          where:
+            s.resident_id == ^resident_id and
+              (s.runtime == ^runtime or (is_nil(s.runtime) and s.kind == "adapter"))
+        )
       )
 end
