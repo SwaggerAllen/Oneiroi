@@ -60,12 +60,18 @@ defmodule OneiroiWeb.DocumentContextController do
     end
   end
 
+  # Through the brain's queue_head/2 for every kind it reads, a pull
+  # request's head among them (sunna#113): one reading for the screen,
+  # the decision and the merge.
   defp current(household, citation) do
-    case Regex.run(@pull, citation) do
-      [_all, repo, number] -> ok_or_nil(Oneiroi.Brain.pr_head(repo, number))
-      nil -> if household, do: Oneiroi.Brain.queue_head(household, citation)
+    cond do
+      household -> Oneiroi.Brain.queue_head(household, citation)
+      pr = Regex.run(@pull, citation) -> pr_head(pr)
+      true -> nil
     end
   end
+
+  defp pr_head([_all, repo, number]), do: ok_or_nil(Oneiroi.Brain.pr_head(repo, number))
 
   defp ok_or_nil({:ok, sha}) when is_binary(sha), do: sha
   defp ok_or_nil(_other), do: nil
