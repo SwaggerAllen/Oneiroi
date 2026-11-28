@@ -174,6 +174,7 @@ defmodule Oneiroi.Seshat do
   alias Oneiroi.Seshat.Externals
   alias Oneiroi.Seshat.HouseCheckins
   alias Oneiroi.Seshat.Household
+  alias Oneiroi.Seshat.Household.Workspace
   alias Oneiroi.Seshat.HouseholdBeats
   alias Oneiroi.Seshat.Index
   alias Oneiroi.Seshat.IndexWorker
@@ -850,6 +851,27 @@ defmodule Oneiroi.Seshat do
   @doc "The household documents shared from a file of the resident's own, with the posts on each (seshat#84)."
   @spec household_shared_from(Oneiroi.Actor.t(), String.t()) :: [map()]
   defexport(household_shared_from(actor, path), do: Household.shared_from(actor, path))
+
+  @doc "Opens a workspace's step thread once, written by the platform, tagged with `meta` (seshat#111)."
+  @spec workspace_open(String.t(), String.t(), String.t(), String.t(), [{String.t(), String.t()}]) ::
+          {:ok, String.t()} | {:error, term()}
+  defexport(workspace_open(household_id, id, title, body, meta),
+    do: Workspace.open(household_id, id, title, body, meta)
+  )
+
+  @doc "A machine-written workspace entry, the platform's, tagged with its step, event and who made it (seshat#111)."
+  @spec workspace_entry(String.t(), String.t(), String.t(), [{String.t(), String.t()}]) ::
+          {:ok, map()} | {:error, term()}
+  defexport(workspace_entry(household_id, thread, text, meta),
+    do: Workspace.entry(household_id, thread, text, meta)
+  )
+
+  @doc "A member's remark in a workspace thread, by name, never a turn of the beats or rounds (seshat#111)."
+  @spec workspace_remark(Oneiroi.Actor.t(), String.t(), String.t(), [{String.t(), String.t()}]) ::
+          {:ok, map()} | {:error, term()}
+  defexport(workspace_remark(actor, thread, text, meta),
+    do: Workspace.remark(actor, thread, text, meta)
+  )
 
   @doc "A member appends to a thread: a resident's words or vote, a witness's vote (seshat#59, #60, #63)."
   @spec household_reply(Oneiroi.Actor.t(), String.t(), map()) :: {:ok, map()} | {:error, term()}

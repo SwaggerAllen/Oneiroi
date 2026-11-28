@@ -17,12 +17,12 @@ defmodule Oneiroi.Janus.Projectors.Succession do
     Goodbye,
     Item,
     Judgment,
+    Mark,
     Packet,
     Panel,
     Pool,
     Post,
     Question,
-    Ready,
     Run,
     Succession
   }
@@ -133,39 +133,82 @@ defmodule Oneiroi.Janus.Projectors.Succession do
     )
   end)
 
-  fold(%Events.QuestionAdded{} = e, _metadata, fn multi -> question(multi, e, "in") end)
+  fold(%Events.QuestionAdded{} = e, _metadata, fn multi ->
+    multi |> question(e, "in") |> bump(e, :questions_version)
+  end)
+
   fold(%Events.QuestionProposed{} = e, _metadata, fn multi -> question(multi, e, "proposed") end)
 
+  # A change to her set or C0 moves its version (janus#48); the marks it
+  # lapses go with MarksLapsed.
   fold(%Events.QuestionAccepted{} = e, _metadata, fn multi ->
-    decided(multi, Question, e, "in")
+    multi |> decided(Question, e, "in") |> bump(e, :questions_version)
   end)
 
   fold(%Events.QuestionDeclined{} = e, _metadata, fn multi ->
-    decided(multi, Question, e, "declined")
+    multi |> decided(Question, e, "declined") |> bump(e, :questions_version)
   end)
 
   fold(%Events.QuestionRemoved{} = e, _metadata, fn multi ->
-    decided(multi, Question, e, "removed")
+    multi |> decided(Question, e, "removed") |> bump(e, :questions_version)
   end)
 
-  fold(%Events.C0Selected{} = e, _metadata, fn multi -> item(multi, e, "in") end)
+  fold(%Events.C0Selected{} = e, _metadata, fn multi ->
+    multi |> item(e, "in") |> bump(e, :c0_version)
+  end)
+
   fold(%Events.C0Proposed{} = e, _metadata, fn multi -> item(multi, e, "proposed") end)
-  fold(%Events.C0Accepted{} = e, _metadata, fn multi -> decided(multi, Item, e, "in") end)
-  fold(%Events.C0Declined{} = e, _metadata, fn multi -> decided(multi, Item, e, "declined") end)
-  fold(%Events.C0Removed{} = e, _metadata, fn multi -> decided(multi, Item, e, "removed") end)
+
+  fold(%Events.C0Accepted{} = e, _metadata, fn multi ->
+    multi |> decided(Item, e, "in") |> bump(e, :c0_version)
+  end)
+
+  fold(%Events.C0Declined{} = e, _metadata, fn multi ->
+    multi |> decided(Item, e, "declined") |> bump(e, :c0_version)
+  end)
+
+  fold(%Events.C0Removed{} = e, _metadata, fn multi ->
+    multi |> decided(Item, e, "removed") |> bump(e, :c0_version)
+  end)
 
   fold(%Events.DayShapeSet{} = e, _metadata, fn multi ->
-    set(multi, e, day_shape: e.text, day_shape_at: e.at)
+    multi |> set(e, day_shape: e.text, day_shape_at: e.at) |> bump(e, :c0_version)
   end)
 
   fold(%Events.ReadyMarked{} = e, _metadata, fn multi ->
-    Multi.insert(
+    mark(multi, e, e.action || "c0", by(e.actor), "mark", e.ready, e.version, nil)
+  end)
+
+  fold(%Events.SeatWaived{} = e, _metadata, fn multi ->
+    mark(multi, e, e.action, e.party, "waiver", nil, e.version, e.note)
+  end)
+
+  fold(%Events.MarksLapsed{} = e, _metadata, fn multi ->
+    Multi.delete_all(
       multi,
-      :ready,
-      %Ready{resident_id: e.id, episode: e.episode, party: by(e.actor), ready: e.ready, at: e.at},
-      on_conflict: [set: [ready: e.ready, at: e.at]],
-      conflict_target: [:resident_id, :episode, :party]
+      :lapsed,
+      from(m in Mark,
+        where: m.resident_id == ^e.id and m.episode == ^e.episode and m.action == ^e.action
+      )
     )
+  end)
+
+  fold(%Events.QuestionsOpened{} = e, _metadata, fn multi ->
+    set(multi, e, questions_opened_at: e.at)
+  end)
+
+  fold(%Events.QuestionsReopened{} = e, _metadata, fn multi ->
+    multi
+    |> set(e,
+      questions_done_at: nil,
+      questions_reopened_at: e.at,
+      questions_reopened_note: e.note
+    )
+    |> bump(e, :questions_version)
+  end)
+
+  fold(%Events.JudgeRemoved{} = e, _metadata, fn multi ->
+    panel(multi, e, if(e.was == "invited", do: "withdrawn", else: "removed"), e.note)
   end)
 
   fold(%Events.C0Frozen{} = e, _metadata, fn multi ->
@@ -191,7 +234,9 @@ defmodule Oneiroi.Janus.Projectors.Succession do
     )
     |> Multi.delete_all(
       :unready,
-      from(r in Ready, where: r.resident_id == ^e.id and r.episode == ^e.episode)
+      from(m in Mark,
+        where: m.resident_id == ^e.id and m.episode == ^e.episode and m.action == "c0"
+      )
     )
   end)
 
@@ -709,6 +754,35 @@ defmodule Oneiroi.Janus.Projectors.Succession do
       set: fields
     )
   end
+
+  defp bump(multi, e, field),
+    do:
+      Multi.update_all(
+        multi,
+        {:bump, field},
+        from(x in Succession, where: x.resident_id == ^e.id and x.episode == ^e.episode),
+        inc: [{field, 1}]
+      )
+
+  defp mark(multi, e, action, party, kind, ready, version, note),
+    do:
+      Multi.insert(
+        multi,
+        :mark,
+        %Mark{
+          resident_id: e.id,
+          episode: e.episode,
+          action: action,
+          party: party,
+          kind: kind,
+          ready: ready,
+          version: version,
+          note: note,
+          at: e.at
+        },
+        on_conflict: [set: [ready: ready, version: version, note: note, at: e.at]],
+        conflict_target: [:resident_id, :episode, :action, :party, :kind]
+      )
 
   defp by(%{kind: kind, id: id}), do: "#{kind}:#{id}"
   defp by(_actor), do: "unknown"

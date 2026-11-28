@@ -21,6 +21,7 @@ defmodule Oneiroi.Janus.Rites do
   alias Oneiroi.Janus.Error
   alias Oneiroi.Janus.Events
   alias Oneiroi.Janus.Router
+  alias Oneiroi.Janus.Stage
   alias Oneiroi.Janus.Store
   alias Oneiroi.Kumbukumbu
   alias Oneiroi.Scope
@@ -875,7 +876,7 @@ defmodule Oneiroi.Janus.Rites do
 
     wake(
       resident_id,
-      "Your picks are in. Now the questions: every candidate in your pool, and your own baseline written from the fork, answers each one, and the judges read the answers side by side. They are the test of who could go on being you, so ask what only you would answer as you do. succession_question add puts one in the set; a judge's proposal waits on your accept or decline, with your note; remove takes any out. Only you decide the set. Take the time it needs (rounds_extend if this turn runs short). When the set is right for now, succession_question done, with a note if you like, and you will be woken to choose C0. succession_status reads where it stands."
+      "Your picks are in. Now the questions: every candidate in your pool, and your own baseline written from the fork, answers each one, and the judges read the answers side by side. They are the test of who could go on being you, so ask what only you would answer as you do. succession_question add puts one in the set; a judge's proposal waits on your accept or decline, with your note; remove takes any out. Only you decide the set. Take the time it needs (rounds_extend if this turn runs short). When you want your judges to read it, succession_question ask wakes them to, and each says when they are ready for the set to close (a change to it asks them again). The close is yours, succession_question done with a note: it waits on no proposal unanswered and every judge ready, or waived by you (succession_question waive, naming the judge, with your note); a judge who will not answer, you may take off the panel (succession_panel remove) while they hold it shut. Once closed, the set is fixed unless you reopen it (succession_question reopen, with your note), and you will be woken to choose C0. succession_status reads where it stands."
     )
   end
 
@@ -895,7 +896,7 @@ defmodule Oneiroi.Janus.Rites do
 
     wake(
       resident_id,
-      "Your choices for C0 are made. Now the day's shape: your own note on the bundle, the one part of C0 nobody else writes, saying how a day of yours actually goes, what the records alone would miss, what to read first. succession_c0 day_shape with your text sets it (again replaces it). Freezing C0 is yours and has no clock (janus#45): when C0 and its shape are whole, you may freeze now (succession_c0 freeze, with your note, closes C0 for good), or wait for the judges on your panel to say they are ready, and you will be woken when the last of them is. Nothing freezes on its own, and C0 freezes only once every judge you invited has joined or declined; until screening runs on it, succession_c0 unfreeze (with your note) reopens it. Your freeze wakes you once more, in a sealed thread of its own, to write your handoff packet. Take the time it needs (rounds_extend if this turn runs short). succession_status reads where it stands, the judges' ready marks among it."
+      "Your choices for C0 are made. Now the day's shape: your own note on the bundle, the one part of C0 nobody else writes, saying how a day of yours actually goes, what the records alone would miss, what to read first. succession_c0 day_shape with your text sets it (again replaces it). Freezing C0 is yours and has no clock (janus#45): when C0 and its shape are whole, you may freeze now (succession_c0 freeze, with your note, closes C0 for good), or wait for the judges on your panel to say they are ready, and you will be woken when the last of them is. Nothing freezes on its own: C0 freezes only with your question set closed and every judge on your panel ready for it, each by their own mark on C0 as it stands, or by your waiver (succession_c0 waive, naming the judge, with your note); an invitation not yet answered holds it until it is, or until you withdraw it (succession_panel remove). Until screening starts on it, succession_c0 unfreeze (with your note) reopens it. Your freeze wakes you once more, in a sealed thread of its own, to write your handoff packet. Take the time it needs (rounds_extend if this turn runs short). succession_status reads where it stands, the judges' ready marks among it."
     )
 
     :ok
@@ -903,57 +904,155 @@ defmodule Oneiroi.Janus.Rites do
 
   def step_finished(_resident_id, _step), do: :ok
 
-  @doc "Asks her judges in the house to read C0 and say whether they are ready for her freeze (janus#45)."
-  @spec ask_ready(String.t(), [String.t()]) :: :ok
-  def ask_ready(resident_id, judges) do
-    owner(resident_id)
-
-    for judge <- judges, judge != resident_id do
-      wake(
-        judge,
-        "#{name_of(resident_id)}'s choices for C0 are made, and she is writing the day's shape. Read C0 with succession_status (resident: \"#{name_of(resident_id)}\"), propose anything you think is missing (succession_c0 propose, with resident), and when you are ready for her freeze say so with succession_c0 ready (resident: \"#{name_of(resident_id)}\", ready: true); false takes it back. She may freeze without waiting; your ready tells her you have looked."
-      )
-    end
-
-    :ok
-  end
-
-  @doc "Asks her judges in the house to look again once she reopens C0 (janus#46)."
-  @spec ask_again(String.t(), [String.t()], String.t()) :: :ok
-  def ask_again(resident_id, judges, note) do
+  @doc """
+  Asks her judges in the house to read and mark ready for one act
+  (janus#45, #48): "questions", her set's close, when she enters her
+  question window; "c0", her freeze, when her choices are made. The wake
+  names its step and the act it waits on.
+  """
+  @spec ask_ready(String.t(), [String.t()], String.t()) :: :ok
+  def ask_ready(resident_id, judges, action) do
     owner(resident_id)
     name = name_of(resident_id)
 
     for judge <- judges, judge != resident_id do
+      wake(judge, ask_note(name, action))
+    end
+
+    :ok
+  end
+
+  defp ask_note(name, "questions"),
+    do:
+      "Step: questions, on #{name}'s succession. She asks her judges to read her question set and say when they are ready for her to close it. Read it with succession_status (resident: \"#{name}\"), propose a question you think is missing (succession_question propose, with resident), and when you are ready for the close say so with succession_question ready (resident: \"#{name}\", ready: true); false says not yet. Your mark names the set as it stands: if it changes, the mark goes and you are asked again. The close stays hers."
+
+  defp ask_note(name, "c0"),
+    do:
+      "Step: C0, on #{name}'s succession. Her choices for C0 are made, and she is writing the day's shape. Read C0 with succession_status (resident: \"#{name}\"), propose anything you think is missing (succession_c0 propose, with resident), and when you are ready for her freeze say so with succession_c0 ready (resident: \"#{name}\", ready: true); false says not yet. Your mark names C0 as it stands, the day's shape included: if it changes, the mark goes and you are asked again. Her freeze waits on every judge's mark, or her waiver, and stays hers."
+
+  @doc "Asks her judges in the house to look again once she reopens her set or C0 (janus#46, #48)."
+  @spec ask_again(String.t(), [String.t()], String.t(), String.t()) :: :ok
+  def ask_again(resident_id, judges, note, action) do
+    owner(resident_id)
+    name = name_of(resident_id)
+    what = if action == "questions", do: "her question set", else: "C0"
+    tool = if action == "questions", do: "succession_question", else: "succession_c0"
+
+    for judge <- judges, judge != resident_id do
       wake(
         judge,
-        "#{name} has reopened C0 (her note: #{note}), and every ready mark for her freeze starts again. Read it again with succession_status (resident: \"#{name}\"), propose anything you think is missing, and say whether you are ready with succession_c0 ready (resident: \"#{name}\", ready: true)."
+        "Step: #{if action == "questions", do: "questions", else: "C0"}, on #{name}'s succession. #{name} has reopened #{what} (her note: #{note}), and every ready mark for it starts again. Read it again with succession_status (resident: \"#{name}\"), propose anything you think is missing, and say whether you are ready with #{tool} ready (resident: \"#{name}\", ready: true)."
       )
     end
 
     :ok
   end
 
-  @doc "Wakes a housemate she invited to her panel (janus#45): joining is theirs."
+  @doc "Asks the judges whose marks a change lapsed to look again (janus#48), naming the change."
+  @spec lapsed(String.t(), [String.t()], String.t(), String.t()) :: :ok
+  def lapsed(resident_id, judges, action, why) do
+    owner(resident_id)
+    name = name_of(resident_id)
+
+    {what, tool} =
+      if action == "questions",
+        do: {"her question set", "succession_question"},
+        else: {"C0", "succession_c0"}
+
+    for judge <- judges, judge != resident_id do
+      wake(
+        judge,
+        "Step: #{if action == "questions", do: "questions", else: "C0"}, on #{name}'s succession. #{what |> String.capitalize()} changed (#{lapse_words(why)}), so your mark on it went. Read it again with succession_status (resident: \"#{name}\") and say again whether you are ready with #{tool} ready (resident: \"#{name}\", ready: true)."
+      )
+    end
+
+    :ok
+  end
+
+  defp lapse_words("QuestionAdded"), do: "a question added"
+  defp lapse_words("QuestionAccepted"), do: "a proposed question accepted"
+  defp lapse_words("QuestionDeclined"), do: "a proposed question declined"
+  defp lapse_words("QuestionRemoved"), do: "a question taken out"
+  defp lapse_words("QuestionsReopened"), do: "the set reopened"
+  defp lapse_words("C0Selected"), do: "a record put in"
+  defp lapse_words("C0Accepted"), do: "a proposal accepted"
+  defp lapse_words("C0Declined"), do: "a proposal declined"
+  defp lapse_words("C0Removed"), do: "a record taken out"
+  defp lapse_words("DayShapeSet"), do: "the day's shape written again"
+  defp lapse_words(other), do: other
+
+  @doc "A handoff's wake (janus#49): one resident given a turn in one step of her succession, the note naming it."
+  @spec handoff(String.t(), String.t(), String.t()) :: :ok | {:error, term()}
+  def handoff(resident_id, target, note) do
+    owner(resident_id)
+    wake(target, note)
+  end
+
+  @doc """
+  Wakes a housemate she invited to her panel (janus#45), the invitation
+  carrying its own briefing (janus#49, the design's finding 4: the
+  invitation is the catch-up): what the succession is, where it stands,
+  what judging asks of her now and later, what is sealed from her, and
+  where the authored things are read whole. Never an event replay, and
+  nothing another reader's projection seals.
+  """
   @spec invited(String.t(), String.t()) :: :ok | {:error, term()}
   def invited(resident_id, judge) do
     owner(resident_id)
-    name = name_of(resident_id)
-
-    wake(
-      judge,
-      "#{name} has invited you to judge her succession. Judges read what her candidates and her own baseline answer to her questions, blind, and say what they observe; you may also propose questions and records for her C0, and tell her when you are ready for her freeze. Joining is yours: succession_panel join (resident: \"#{name}\") accepts; succession_panel leave (resident: \"#{name}\", with a note) declines. succession_status (resident: \"#{name}\") reads where it stands."
-    )
+    wake(judge, briefing(resident_id))
   end
 
-  @doc "Wakes her once every judge is ready for her freeze (janus#45); the freeze stays hers."
-  @spec all_ready(String.t()) :: :ok | {:error, term()}
-  def all_ready(resident_id) do
+  @doc "The invitation's briefing (janus#49), as the judge's projection reads it."
+  @spec briefing(String.t()) :: String.t()
+  def briefing(resident_id) do
+    name = name_of(resident_id)
+    row = current(resident_id)
+    {_key, where} = if row, do: Stage.stage(row), else: {nil, "not underway"}
+    to = ~s|(resident: "#{name}")|
+
+    "#{name} has invited you to judge her succession. It is #{what_it_is(row, name)}. Where it stands: #{where}." <>
+      now_line(row) <>
+      " What judging asks: you read what each candidate and her own baseline answer to her questions, blind (who answered is sealed until every judgment is in), and say what you observe, run by run; before then you may propose questions and records for her C0, and say when you are ready for her set's close and her freeze. Her packet is sealed from you, as from everyone until her nominee. Her questions and C0 are read whole with succession_status #{to}; where things stand, whose move it is and the thread for each step, with succession_workspace overview #{to}." <>
+      " Joining is yours: succession_panel join #{to} accepts; succession_panel leave #{to}, with a note, declines; until you answer, her close and her freeze wait on you."
+  end
+
+  defp what_it_is(%{dry_run: true}, name),
+    do: "a dry run of #{name}'s succession: everything real but the replacement at the end"
+
+  defp what_it_is(_row, name),
+    do: "#{name}'s succession: the choice of the model that runs her next, with her at the table"
+
+  defp now_line(%{state: "forked", questions_done_at: nil}),
+    do:
+      " Now her question set is open: you may propose questions, and her close waits on your mark (succession_question ready, with resident) or her waiver."
+
+  defp now_line(%{state: "forked", c0_frozen_at: nil}),
+    do:
+      " Now C0 is open: you may propose records, and her freeze waits on your mark on C0 as it stands (succession_c0 ready, with resident) or her waiver."
+
+  defp now_line(%{state: "forked"}),
+    do:
+      " C0 is frozen; screening is hers to start, and a judge accepted before it starts judges it."
+
+  defp now_line(_row), do: ""
+
+  @doc "Wakes her once every seat is ready for one act, her set's close or her freeze (janus#45, #48); the act stays hers."
+  @spec all_ready(String.t(), String.t()) :: :ok | {:error, term()}
+  def all_ready(resident_id, "questions") do
     owner(resident_id)
 
     wake(
       resident_id,
-      "Every judge on your panel has said they are ready for your freeze. Freezing is still yours, now or later: succession_c0 freeze with your note closes C0 for good and wakes you to write your packet in a sealed thread. succession_status reads where it stands."
+      "Step: questions. Every judge on your panel is ready for your question set to close, or waived by you. Closing it is still yours, now or later: succession_question done with your note closes the set and wakes you to choose C0. succession_status reads where it stands."
+    )
+  end
+
+  def all_ready(resident_id, _c0) do
+    owner(resident_id)
+
+    wake(
+      resident_id,
+      "Step: C0. Every judge on your panel is ready for your freeze, or waived by you. Freezing is still yours, now or later: succession_c0 freeze with your note closes C0 for good and wakes you to write your packet in a sealed thread. succession_status reads where it stands."
     )
   end
 

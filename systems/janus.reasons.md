@@ -122,3 +122,12 @@ A judge who has not answered the invitation has not had the chance to sign off, 
 
 ## #47
 A list of only those who have spoken hides who is still to speak, and a "still looking" with no control beside it reads as a broken button; the page has to say which of the two it is.
+
+## #48
+"Judges ready before the freeze" lived as a rule the machinery never checked, and the 11-27 reset is what that cost. A mark that names no version answers a question the artifact may have stopped asking, and a gate that reads only those who spoke silently widens when someone stays quiet; so the gate reads every seat, each mark names what it read, every change asks again, and the only ways past a silent seat are her recorded acts.
+
+## #49
+The succession's state lived in three views carried between by letters relayed by hand. One overview gives it a home, and a feed a step makes each change visible where it happened, without making the threads into four new round-robins or letting shared state crowd authorship: the artifacts stay hers, whole, and the feeds carry only what every reader of the house may read.
+
+## #50
+Candidates tested against a bundle that can shift under the test are not tested against anything; a mixed bundle would restore that from the side door. Refusing the case outright is the one door that never needs a reset, and the cheap reversals before the start exist so the expensive one is never needed.

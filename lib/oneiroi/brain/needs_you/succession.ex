@@ -4,7 +4,8 @@ defmodule Oneiroi.Brain.NeedsYou.Succession do
   2026-11-26: succession alerts go to the top of the bell): his envelope
   and the backup repository before anything can rest on them; runs to
   judge; his results to mark ready; his turn in the room; her question
-  to the panel; his goodbye. Each opens the succession on its page.
+  to the panel; his goodbye; and his mark, when his seat holds shut her
+  question set's close or her freeze (janus#48), once a version. Each opens the succession on its page.
   Read through Janus's own reads, as he would read them on its screens.
   """
   @behaviour Oneiroi.Brain.NeedsYou.Source
@@ -13,7 +14,7 @@ defmodule Oneiroi.Brain.NeedsYou.Succession do
   alias Oneiroi.Brain.NeedsYou.Entry
   alias Oneiroi.Janus
 
-  @kinds ~w(succession_envelope succession_backup succession_judge succession_results succession_room succession_question succession_goodbye)
+  @kinds ~w(succession_envelope succession_backup succession_ready succession_judge succession_results succession_room succession_question succession_goodbye)
 
   @impl true
   def stages, do: Enum.map(@kinds, &%{kind: &1, screen: "succession"})
@@ -27,6 +28,7 @@ defmodule Oneiroi.Brain.NeedsYou.Succession do
 
       [
         preparation(row),
+        mark(resident_id, row, party),
         judging(resident_id, row, party),
         room(resident_id, row, party),
         goodbye(resident_id, row, party)
@@ -64,6 +66,31 @@ defmodule Oneiroi.Brain.NeedsYou.Succession do
   end
 
   defp preparation(_row), do: []
+
+  # His seat holds the gate standing open shut (janus#48): her set's close
+  # until it closes, then her freeze; one entry a version, so a change
+  # that lapses his mark asks him again.
+  defp mark(id, %{state: "forked", c0_frozen_at: nil} = row, party) do
+    {gate, version, page, words} =
+      if is_nil(row.questions_done_at),
+        do: {"questions", row.questions_version, "questions", "Your mark on her questions"},
+        else: {"c0", row.c0_version, "c0", "Your mark on her C0"}
+
+    if Enum.any?(Janus.seats(id, gate), &(&1.party == party and not &1.ready)),
+      do: [
+        entry(
+          "succession_ready",
+          row,
+          row.forked_at,
+          page,
+          words,
+          "#{row.episode}:#{gate}:#{version}"
+        )
+      ],
+      else: []
+  end
+
+  defp mark(_id, _row, _party), do: []
 
   defp judging(id, %{state: state} = row, party) when state in ["screening", "judging"] do
     case Janus.judging(id, party) do

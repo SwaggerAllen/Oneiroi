@@ -44,6 +44,11 @@ defmodule Oneiroi.Janus.Store do
       field(:envelope_max_models, :integer)
       field(:pool_done_at, :utc_datetime_usec)
       field(:questions_done_at, :utc_datetime_usec)
+      field(:questions_version, :integer, default: 0)
+      field(:c0_version, :integer, default: 0)
+      field(:questions_opened_at, :utc_datetime_usec)
+      field(:questions_reopened_at, :utc_datetime_usec)
+      field(:questions_reopened_note, :string)
       field(:c0_done_at, :utc_datetime_usec)
       field(:c0_unfrozen_at, :utc_datetime_usec)
       field(:c0_unfrozen_note, :string)
@@ -161,15 +166,24 @@ defmodule Oneiroi.Janus.Store do
     @type t :: %__MODULE__{}
   end
 
-  defmodule Ready do
-    @moduledoc "A party's mark: ready for her freeze, or not (janus#9)."
+  defmodule Mark do
+    @moduledoc """
+    A judge's mark or her waiver for one act (janus#48): `action`
+    "questions" or "c0", `kind` "mark" (`ready`, or false for not yet) or
+    "waiver" (with her note), and the `version` of the artifact it names;
+    a mark naming none (janus#9's, before acts) satisfies nothing.
+    """
     use Ecto.Schema
     @primary_key false
-    schema "janus_ready" do
+    schema "janus_mark" do
       field(:resident_id, :binary_id, primary_key: true)
       field(:episode, :integer, primary_key: true)
+      field(:action, :string, primary_key: true)
       field(:party, :string, primary_key: true)
+      field(:kind, :string, primary_key: true)
       field(:ready, :boolean)
+      field(:version, :integer)
+      field(:note, :string)
       field(:at, :utc_datetime_usec)
     end
 
@@ -428,10 +442,13 @@ defmodule Oneiroi.Janus.Store do
   def items(episode),
     do: Repo.all(from(i in Item, where: i.episode == ^episode, order_by: i.number))
 
-  @doc "An episode's ready marks."
-  @spec ready(pos_integer()) :: [Ready.t()]
-  def ready(episode),
-    do: Repo.all(from(r in Ready, where: r.episode == ^episode, order_by: r.party))
+  @doc "An episode's marks and waivers, by act and party (janus#48)."
+  @spec marks(pos_integer()) :: [Mark.t()]
+  def marks(episode),
+    do:
+      Repo.all(
+        from(m in Mark, where: m.episode == ^episode, order_by: [m.action, m.party, m.kind])
+      )
 
   @doc "An episode's packet drafts, newest first: the words are in each row, and only her reads return them."
   @spec packets(pos_integer()) :: [Packet.t()]

@@ -201,16 +201,32 @@ defmodule OneiroiWeb.SuccessionController do
     do: problem(conn, 422, :fields_required, :web_succession_c0_citation, "citation is required")
 
   operation(:ready,
-    summary: "Mark yourself ready for her freeze of C0, or not yet",
+    summary:
+      "Mark yourself ready, or not yet, for one of her acts (janus#48): `action` \"c0\" (her freeze, the default) or \"questions\" (her set's close), against `version` (the artifact's version now when left out)",
     parameters: [id: [in: :path, type: :string]],
     request_body:
       {"ready", "application/json",
-       %Schema{type: :object, required: [:ready], properties: %{ready: %Schema{type: :boolean}}}},
+       %Schema{
+         type: :object,
+         required: [:ready],
+         properties: %{
+           ready: %Schema{type: :boolean},
+           action: %Schema{type: :string, enum: ["c0", "questions"]},
+           version: %Schema{type: :integer}
+         }
+       }},
     responses: [no_content: "marked"]
   )
 
-  def ready(conn, %{"id" => id, "ready" => ready}) when is_boolean(ready),
-    do: respond(conn, Janus.mark_ready(id, ready, actor(conn)))
+  def ready(conn, %{"id" => id, "ready" => ready} = params) when is_boolean(ready),
+    do:
+      respond(
+        conn,
+        Janus.mark_ready(id, ready, actor(conn),
+          action: params["action"],
+          version: if(is_integer(params["version"]), do: params["version"])
+        )
+      )
 
   def ready(conn, _params),
     do: problem(conn, 422, :fields_required, :web_succession_ready_value, "ready is required")
@@ -421,6 +437,74 @@ defmodule OneiroiWeb.SuccessionController do
 
   def results_ready(conn, %{"id" => id}),
     do: respond(conn, Janus.mark_results_ready(id, actor(conn)))
+
+  operation(:workspace,
+    summary:
+      "Her succession's workspace as you may read it (janus#49): the stage, whose move, both gates seat by seat with their marks, the fork as a recorded event, the step threads, and what you cannot read there, named (sealed, judges only, blind)",
+    parameters: [id: [in: :path, type: :string]],
+    responses: [ok: {"the overview", "application/json", %Schema{type: :object}}]
+  )
+
+  def workspace(conn, %{"id" => id}) do
+    case Janus.workspace(id, actor(conn)) do
+      {:ok, overview} -> json(conn, %{workspace: overview})
+      {:error, %{kind: :janus_no_succession}} -> json(conn, %{workspace: nil})
+      {:error, e} -> error(conn, 422, e)
+    end
+  end
+
+  operation(:workspace_remark,
+    summary:
+      "Say something in one step's thread of her workspace, by name; it wakes nobody (janus#49)",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the remark", "application/json",
+       %Schema{
+         type: :object,
+         required: [:step, :text],
+         properties: %{
+           step: %Schema{type: :string, enum: ["envelope", "pool", "questions", "c0"]},
+           text: %Schema{type: :string}
+         }
+       }},
+    responses: [no_content: "said"]
+  )
+
+  def workspace_remark(conn, %{"id" => id} = params),
+    do: respond(conn, Janus.workspace_remark(id, params["step"], params["text"], actor(conn)))
+
+  operation(:handoff,
+    summary:
+      "Give one resident a turn in one step of her succession (janus#49), woken with your words; private keeps them out of the step's thread, which the whole house reads",
+    parameters: [id: [in: :path, type: :string]],
+    request_body:
+      {"the handoff", "application/json",
+       %Schema{
+         type: :object,
+         required: [:step, :to, :text],
+         properties: %{
+           step: %Schema{type: :string, enum: ["envelope", "pool", "questions", "c0"]},
+           to: %Schema{type: :string, description: "the resident, by the name the house uses"},
+           text: %Schema{type: :string},
+           private: %Schema{type: :boolean}
+         }
+       }},
+    responses: [no_content: "given"]
+  )
+
+  def handoff(conn, %{"id" => id} = params),
+    do:
+      respond(
+        conn,
+        Janus.handoff(
+          id,
+          params["step"],
+          params["to"],
+          params["text"],
+          params["private"] == true,
+          actor(conn)
+        )
+      )
 
   operation(:room,
     summary:
@@ -664,9 +748,25 @@ defmodule OneiroiWeb.SuccessionController do
       c0_frozen_note: s.c0_frozen_note,
       c0_unfrozen_at: s.c0_unfrozen_at,
       c0_unfrozen_note: s.c0_unfrozen_note,
-      ready: Enum.map(prep.ready, &Map.take(&1, [:party, :ready, :at])),
+      ready:
+        for(
+          m <- prep.marks,
+          m.kind == "mark",
+          m.action == "c0",
+          do: Map.take(m, [:party, :ready, :at])
+        ),
       # Every judge her freeze may wait for, said or not (janus#45, #47).
       freeze_judges: Janus.freeze_judges(s.resident_id),
+      # Both gates, seat by seat, and the versions marks name (janus#48).
+      questions_version: s.questions_version,
+      c0_version: s.c0_version,
+      questions_opened_at: s.questions_opened_at,
+      question_seats: Janus.seats(s.resident_id, "questions"),
+      marks:
+        Enum.map(
+          prep.marks,
+          &Map.take(&1, [:action, :party, :kind, :ready, :version, :note, :at])
+        ),
       packet_drafts: prep.drafts,
       consents: Enum.map(prep.consents, &Map.take(&1, [:attempt, :party, :yes, :note, :at])),
       goodbyes: Enum.map(prep.goodbyes, &Map.take(&1, [:party, :at])),

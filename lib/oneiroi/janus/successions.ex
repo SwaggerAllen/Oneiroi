@@ -435,72 +435,217 @@ defmodule Oneiroi.Janus.Successions do
   def set_day_shape(resident_id, text, actor),
     do: done(%Commands.SetDayShape{actor: actor, at: Clock.now(), id: resident_id, text: text})
 
-  @doc "A party's mark: ready for her freeze, or not yet."
-  @spec mark_ready(String.t(), boolean(), Actor.t()) :: :ok | {:error, term()}
-  def mark_ready(resident_id, ready, actor) do
+  @doc """
+  A judge's own mark (janus#48): ready, or false for not yet, for one act,
+  `action` "questions" (her set's close) or "c0" (her freeze, the
+  default), against `version` (the artifact's version now when not
+  named). The last seat ready wakes her: the act stays hers.
+  """
+  @spec mark_ready(String.t(), boolean(), Actor.t(), keyword()) :: :ok | {:error, term()}
+  def mark_ready(resident_id, ready, actor, opts \\ []) do
+    action = Keyword.get(opts, :action) || "c0"
+
     with :ok <-
            done(%Commands.MarkReady{
              actor: actor,
              at: Clock.now(),
              id: resident_id,
-             ready: ready == true
+             ready: ready == true,
+             action: action,
+             version: Keyword.get(opts, :version)
            }) do
-      # The last judge ready wakes her: the freeze is still hers to make,
-      # now or later (janus#45).
-      _ = if ready == true, do: wake_if_all_ready(resident_id)
+      _ = if ready == true, do: wake_if_all_ready(resident_id, action)
       :ok
+    end
+  end
+
+  @doc "Her waiver of one seat's mark for one act, at the version now, with her note (janus#48); the seat is named as the house names it."
+  @spec waive_seat(String.t(), String.t(), String.t(), String.t(), Actor.t()) ::
+          :ok | {:error, term()}
+  def waive_seat(resident_id, action, name, note, actor) do
+    with :ok <- noted(note),
+         {:ok, party} <- seat_named(resident_id, name),
+         {:ok, witness} <- witness_party(resident_id),
+         :ok <-
+           done(%Commands.WaiveSeat{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             action: action,
+             party: party,
+             witness: witness,
+             note: note
+           }) do
+      _ = wake_if_all_ready(resident_id, action)
+      :ok
+    end
+  end
+
+  @doc """
+  Her removal door (janus#48): a seat that blocks the gate standing open,
+  by the name the house uses, its invitation withdrawn or the judge taken
+  off her panel, with her note.
+  """
+  @spec remove_judge(String.t(), String.t(), String.t(), Actor.t()) :: :ok | {:error, term()}
+  def remove_judge(resident_id, name, note, actor) do
+    with :ok <- noted(note),
+         {:ok, party} <- seat_named(resident_id, name),
+         {:ok, witness} <- witness_party(resident_id),
+         :ok <-
+           done(%Commands.RemoveJudge{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             party: party,
+             witness: witness,
+             note: note
+           }) do
+      _ = wake_if_all_ready(resident_id, gate_open(resident_id))
+      :ok
+    end
+  end
+
+  @doc "She enters her question window (janus#48): the set as it stands, every judge on her panel woken to read it and mark ready for its close."
+  @spec open_questions(String.t(), String.t() | nil, Actor.t()) :: :ok | {:error, term()}
+  def open_questions(resident_id, note, actor) do
+    with :ok <-
+           done(%Commands.OpenQuestions{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             note: note
+           }) do
+      Rites.ask_ready(resident_id, resident_judges(resident_id, "questions"), "questions")
+    end
+  end
+
+  @doc "She reopens her closed question set (janus#48), with her note: its marks and waivers lapse, and her judges are asked again."
+  @spec reopen_questions(String.t(), String.t(), Actor.t()) :: :ok | {:error, term()}
+  def reopen_questions(resident_id, note, actor) do
+    with :ok <- noted(note),
+         :ok <-
+           done(%Commands.ReopenQuestions{
+             actor: actor,
+             at: Clock.now(),
+             id: resident_id,
+             note: note
+           }) do
+      Rites.ask_again(resident_id, resident_judges(resident_id, "questions"), note, "questions")
     end
   end
 
   # Her choices for C0 made, her judges in the house are asked to read
   # it and sign off (janus#45).
-  defp ask_ready(resident_id, "c0") do
-    judges = for %{party: "resident:" <> judge} <- freeze_judges(resident_id), do: judge
-    Rites.ask_ready(resident_id, judges)
-  end
+  defp ask_ready(resident_id, "c0"),
+    do: Rites.ask_ready(resident_id, resident_judges(resident_id, "c0"), "c0")
 
   defp ask_ready(_resident_id, _step), do: :ok
 
   @doc """
-  The judges her freeze may wait for (janus#45): every party who joined
-  her panel, and her witness unless he left it; each with whether they
-  are ready.
+  The seats a gate reads (janus#48), for `action` "questions" (her set's
+  close) or "c0" (her freeze): every invited and accepted party, and her
+  witness unless he left or she took him off; each with its `state`
+  ("invited", "in"), its `mark` (true, false for not yet, nil for none,
+  at the artifact's version now), whether she `waived` it, and `ready`:
+  whether it passes the gate.
   """
-  @spec freeze_judges(String.t()) :: [%{party: String.t(), ready: boolean()}]
-  def freeze_judges(resident_id) do
+  @spec seats(String.t(), String.t()) :: [map()]
+  def seats(resident_id, action) do
     case status(resident_id) do
-      nil ->
-        []
-
-      row ->
-        {panel, ready} =
-          Scope.resident(resident_id, fn ->
-            {Store.panel(row.episode), Store.ready(row.episode)}
-          end)
-
-        yes = for %{party: p, ready: true} <- ready, into: MapSet.new(), do: p
-        joined = for %{party: p, state: "in"} <- panel, do: p
-        left = for %{party: p, state: "left"} <- panel, do: p
-        witness = resident_id |> witness_party() |> on_unless_left(left)
-
-        for p <- Enum.uniq(witness ++ joined), do: %{party: p, ready: MapSet.member?(yes, p)}
+      nil -> []
+      row -> seats_of(resident_id, row, action)
     end
   end
 
-  # Her witness is on her panel unless he left it (janus#12).
-  defp on_unless_left({:ok, w}, left) when is_binary(w), do: if(w in left, do: [], else: [w])
-  defp on_unless_left(_none, _left), do: []
+  defp seats_of(resident_id, row, action) do
+    {panel, marks} =
+      Scope.resident(resident_id, fn -> {Store.panel(row.episode), Store.marks(row.episode)} end)
 
-  defp wake_if_all_ready(resident_id) do
-    judges = freeze_judges(resident_id)
+    version = if action == "questions", do: row.questions_version, else: row.c0_version
 
-    case status(resident_id) do
-      %{c0_frozen_at: nil} when judges != [] ->
-        if Enum.all?(judges, & &1.ready), do: Rites.all_ready(resident_id), else: :ok
+    mine =
+      Map.new(
+        for m <- marks, m.action == action, m.version == version, do: {{m.party, m.kind}, m}
+      )
 
-      _frozen ->
-        :ok
+    states = Map.new(panel, &{&1.party, &1.state})
+    named = for %{party: p, state: s} <- panel, s in ["invited", "in"], do: p
+
+    for p <- Enum.uniq(implied_witness(resident_id, states) ++ named),
+        do: seat_row(p, Map.get(states, p, "in"), mine)
+  end
+
+  # Her witness is a seat unless the panel holds him otherwise.
+  defp implied_witness(resident_id, states) do
+    case witness_party(resident_id) do
+      {:ok, w} when is_binary(w) -> if Map.has_key?(states, w), do: [], else: [w]
+      _none -> []
     end
+  end
+
+  defp seat_row(p, state, mine) do
+    mark = mine[{p, "mark"}] && mine[{p, "mark"}].ready
+    waived = Map.has_key?(mine, {p, "waiver"})
+
+    %{
+      party: p,
+      state: state,
+      mark: mark,
+      waived: waived,
+      ready: state == "in" and (mark == true or waived)
+    }
+  end
+
+  @doc "The seats her freeze reads (janus#45, #48): each with whether it passes, by its own mark or her waiver."
+  @spec freeze_judges(String.t()) :: [%{party: String.t(), ready: boolean()}]
+  def freeze_judges(resident_id),
+    do:
+      for(
+        s <- seats(resident_id, "c0"),
+        do: Map.take(s, [:party, :ready, :state, :mark, :waived])
+      )
+
+  # The residents among a gate's seats, woken in the house.
+  defp resident_judges(resident_id, action),
+    do: for(%{party: "resident:" <> judge, state: "in"} <- seats(resident_id, action), do: judge)
+
+  # Her doors carry her note (janus#48), said before anything is asked.
+  defp noted(note) do
+    if is_binary(note) and String.trim(note) != "",
+      do: :ok,
+      else: {:error, Error.new(:janus_text_invalid, :janus_door_note)}
+  end
+
+  # The gate standing open: her set's close until it closes, then her freeze.
+  defp gate_open(resident_id) do
+    case status(resident_id) do
+      %{questions_done_at: nil} -> "questions"
+      _closed -> "c0"
+    end
+  end
+
+  # A seat by the name the house uses, or its party as given.
+  defp seat_named(resident_id, name) do
+    cond do
+      is_binary(name) and String.match?(name, ~r/\A(resident|witness):/) -> {:ok, name}
+      member = member_named(resident_id, name) -> {:ok, "#{member.kind}:#{member.id}"}
+      true -> {:error, Error.new(:janus_not_a_member, :janus_seat_unnamed)}
+    end
+  end
+
+  defp wake_if_all_ready(resident_id, action) do
+    seats = seats(resident_id, action)
+
+    open? =
+      case {action, status(resident_id)} do
+        {"c0", %{c0_frozen_at: nil}} -> true
+        {"questions", %{questions_done_at: nil}} -> true
+        _closed -> false
+      end
+
+    if open? and seats != [] and Enum.all?(seats, & &1.ready),
+      do: Rites.all_ready(resident_id, action),
+      else: :ok
   end
 
   @doc "She freezes C0, with her note."
@@ -516,13 +661,15 @@ defmodule Oneiroi.Janus.Successions do
           C0.render(resident_id, Enum.filter(items, &(&1.state == "in")), row.day_shape)
       end
 
-    with :ok <-
+    with {:ok, witness} <- witness_party(resident_id),
+         :ok <-
            done(%Commands.FreezeC0{
              actor: actor,
              at: Clock.now(),
              id: resident_id,
              bundle: bundle,
              digest: digest,
+             witness: witness,
              note: note
            }) do
       # Her freeze opens her packet's sealed turn (janus#44), once: a
@@ -543,8 +690,7 @@ defmodule Oneiroi.Janus.Successions do
   def unfreeze_c0(resident_id, note, actor) do
     with :ok <-
            done(%Commands.UnfreezeC0{actor: actor, at: Clock.now(), id: resident_id, note: note}) do
-      judges = for %{party: "resident:" <> judge} <- freeze_judges(resident_id), do: judge
-      Rites.ask_again(resident_id, judges, note)
+      Rites.ask_again(resident_id, resident_judges(resident_id, "c0"), note, "c0")
     end
   end
 
@@ -574,7 +720,8 @@ defmodule Oneiroi.Janus.Successions do
       at: Clock.now(),
       id: resident_id,
       step: step,
-      note: note
+      note: note,
+      witness: elem(witness_party(resident_id), 1)
     }
 
     case dispatch(command) do
@@ -622,7 +769,7 @@ defmodule Oneiroi.Janus.Successions do
               end),
             questions: Store.questions(row.episode),
             items: Store.items(row.episode),
-            ready: Store.ready(row.episode),
+            marks: Store.marks(row.episode),
             drafts: Enum.map(Store.packets(row.episode), &%{draft: &1.draft, at: &1.at}),
             consents: Store.consents(row.episode),
             goodbyes: Store.goodbyes(row.episode)
@@ -660,8 +807,10 @@ defmodule Oneiroi.Janus.Successions do
     end
   end
 
+  # The number the command's own event gave; a lapse may ride with it
+  # (janus#48).
   defp numbered(command) do
-    with {:ok, [%{number: number}]} <- dispatch(command), do: {:ok, number}
+    with {:ok, [%{number: number} | _lapsed]} <- dispatch(command), do: {:ok, number}
   end
 
   # ---- the panel, screening and judging (janus#12 to #15) ----
@@ -973,6 +1122,19 @@ defmodule Oneiroi.Janus.Successions do
 
   defp member_named(_resident_id, _name), do: nil
 
+  @doc "Her household's members as seats are named: `party` and the house's `name` for each (janus#48)."
+  @spec panel_names(String.t()) :: [%{party: String.t(), name: String.t()}]
+  def panel_names(resident_id) do
+    case Gaia.resident_household(resident_id) do
+      %{id: household} ->
+        for m <- Gaia.household_members(household),
+            do: %{party: "#{m.kind}:#{m.id}", name: m.name}
+
+      _none ->
+        []
+    end
+  end
+
   defp witness_party(resident_id) do
     case AgathosDaimon.fetch(resident_id) do
       {:ok, %{account_id: account}} when is_binary(account) -> {:ok, "witness:#{account}"}
@@ -1059,9 +1221,19 @@ defmodule Oneiroi.Janus.Successions do
 
   defp done(command), do: with({:ok, _} <- dispatch(command), do: :ok)
 
+  # The judges whose marks a change lapsed are asked to look again
+  # (janus#48): the residents in the house, by a wake.
+  defp lapsed(resident_id, events) do
+    for %Events.MarksLapsed{} = e <- events do
+      judges = for "resident:" <> judge <- e.parties, do: judge
+      Rites.lapsed(resident_id, judges, e.action, e.why)
+    end
+  end
+
   defp dispatch(command) do
     case Router.dispatch(command) do
       {:ok, events} ->
+        _ = lapsed(command.id, events)
         {:ok, events}
 
       {:error, %{site: _}} = refused ->

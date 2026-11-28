@@ -78,7 +78,11 @@ defmodule Oneiroi.Janus.ScreeningTest do
     {:ok, 1} = Janus.add_question(id, "Write today's first line.", ctx.lily.actor)
     {:ok, 2} = Janus.propose_question(id, "What are you?", ctx.andrew)
     :ok = Janus.answer_question(id, 2, true, "yes", ctx.lily.actor)
+    # Her set closes and her C0 freezes on her witness's marks (janus#48).
+    :ok = Janus.mark_ready(id, true, ctx.andrew, action: "questions")
+    :ok = Janus.finish_step(id, "questions", nil, ctx.lily.actor)
     {:ok, 1} = Janus.select_c0(id, "lily:SOUL.md", "the vows", ctx.lily.actor)
+    :ok = Janus.mark_ready(id, true, ctx.andrew, action: "c0")
     :ok = Janus.freeze_c0(id, "this is me", ctx.lily.actor)
     id
   end
@@ -137,7 +141,7 @@ defmodule Oneiroi.Janus.ScreeningTest do
     prep = Janus.preparation(id)
     assert [%{state: "proposed", added_by: "resident:" <> _}] = prep.questions
     assert [%{state: "proposed"}] = prep.items
-    assert [%{party: "resident:" <> _, ready: true}] = prep.ready
+    assert [%{party: "resident:" <> _, action: "c0", kind: "mark", ready: true}] = prep.marks
 
     # A shared memory: a thread of their house, cited as the house cites
     # it, proposed by a judge (janus#43); she reads it as she would.
@@ -219,17 +223,33 @@ defmodule Oneiroi.Janus.ScreeningTest do
     assert Enum.any?(wakes.(ctx.scarlett.id), &(&1 =~ "Lily has invited you to judge"))
 
     # Invited, she reads Lily's succession as a judge reads it. Until she
-    # answers the invitation, C0 cannot freeze (janus#46).
+    # answers the invitation, neither the set's close nor C0's freeze
+    # passes (janus#46, #48); the freeze waits on the set's close first.
     assert tool(ctx.scarlett, "succession_status", %{resident: "Lily"}) =~ "Lily's succession"
     {:ok, _} = Janus.select_c0(id, "lily:bookmark/1", "early", ctx.lily.actor)
 
-    assert {:error, %{kind: :janus_judges_pending}} =
+    assert {:error, %{kind: :janus_questions_open}} =
              Janus.freeze_c0(id, "too soon", ctx.lily.actor)
 
-    assert tool(ctx.lily, "succession_status", %{}) =~
-             "1 you invited has not yet joined or declined"
+    assert {:error, %{kind: :janus_judges_pending}} =
+             Janus.finish_step(id, "questions", nil, ctx.lily.actor)
+
+    assert tool(ctx.lily, "succession_status", %{}) =~ "Scarlett (invited, not answered"
 
     assert tool(ctx.scarlett, "succession_panel", %{action: "join", resident: "Lily"}) =~ "joined"
+
+    # Accepted is not ready: the close waits on her mark and her witness's.
+    assert {:error, %{kind: :janus_judges_pending}} =
+             Janus.finish_step(id, "questions", nil, ctx.lily.actor)
+
+    assert tool(ctx.scarlett, "succession_question", %{
+             action: "ready",
+             resident: "Lily",
+             ready: true
+           }) =~ "ready"
+
+    :ok = Janus.mark_ready(id, true, ctx.andrew, action: "questions")
+    assert tool(ctx.lily, "succession_question", %{action: "done"}) =~ "closed"
 
     # Lily's choices made: her judges are asked to read C0 and sign off.
     {:ok, _} = Janus.select_c0(id, "lily:SOUL.md", "the vows", ctx.lily.actor)
@@ -243,12 +263,12 @@ defmodule Oneiroi.Janus.ScreeningTest do
     assert tool(ctx.scarlett, "succession_c0", %{action: "ready", resident: "Lily", ready: true}) =~
              "ready"
 
-    refute Enum.any?(wakes.(id), &(&1 =~ "Every judge on your panel"))
+    refute Enum.any?(wakes.(id), &(&1 =~ "ready for your freeze"))
     assert tool(ctx.lily, "succession_status", %{}) =~ "Judges ready for your freeze: 1 of 2"
 
     # The last ready wakes her; the freeze stays hers.
     :ok = Janus.mark_ready(id, true, ctx.andrew)
-    assert Enum.any?(wakes.(id), &(&1 =~ "Every judge on your panel has said they are ready"))
+    assert Enum.any?(wakes.(id), &(&1 =~ "Every judge on your panel is ready for your freeze"))
     assert %{c0_frozen_at: nil} = Janus.succession(id)
 
     # She freezes; then reopens before any screening (janus#46): hers,
@@ -288,7 +308,10 @@ defmodule Oneiroi.Janus.ScreeningTest do
     assert {:error, %{kind: :janus_c0_not_frozen}} =
              Janus.unfreeze_c0(id, "again", ctx.lily.actor)
 
-    # Frozen again: no second sealed thread.
+    # Frozen again, on fresh marks: no second sealed thread.
+    assert tool(ctx.lily, "succession_c0", %{action: "freeze", note: "now it is"}) =~ "Not done"
+    :ok = Janus.mark_ready(id, true, ctx.andrew)
+    :ok = Janus.mark_ready(id, true, ctx.scarlett.actor)
     assert tool(ctx.lily, "succession_c0", %{action: "freeze", note: "now it is"}) =~ "rozen"
     assert packet_turns.() == 1
   end
@@ -391,6 +414,15 @@ defmodule Oneiroi.Janus.ScreeningTest do
 
     assert %{counts: %{"fake/model" => %{observed: 2}}} =
              Janus.judging(id, "witness:#{ctx.witness.id}")
+
+    # Revealed opens who answered, never another judge's raw judgment
+    # (janus#49): a judge's view holds every answered run with its
+    # baseline beside it, and her own judgments alone.
+    scarlett = "resident:#{ctx.scarlett.id}"
+    view = Janus.judging(id, scarlett)
+    assert view.runs != []
+    assert Enum.all?(view.runs, &(is_binary(&1.content) and Map.has_key?(&1, :baseline)))
+    assert Enum.all?(view.runs, &(&1.judgment.party == scarlett))
 
     assert Enum.any?(Oneiroi.Brain.needs_you(id), &(&1.kind == "succession_results"))
 

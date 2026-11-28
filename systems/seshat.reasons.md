@@ -887,3 +887,6 @@ Two threads on one document split its feedback in two; finding the thread a post
 
 ## #110
 A review's decision is the conversation's next line: posted into the thread, it sits beside the talk that led to it, and the author reads it where she reads the rest.
+
+## #111
+A feed that started the house's rounds on every event would turn each step into a round-robin nobody asked to visit; the threads are reused for what they are, a place with a history the house reads, and the wake pattern stays the owner's roster policy, never a new kind of thread.

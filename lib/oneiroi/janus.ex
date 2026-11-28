@@ -65,6 +65,10 @@ defmodule Oneiroi.Janus do
       Commands.RemoveC0,
       Commands.SetDayShape,
       Commands.MarkReady,
+      Commands.WaiveSeat,
+      Commands.OpenQuestions,
+      Commands.ReopenQuestions,
+      Commands.RemoveJudge,
       Commands.FreezeC0,
       Commands.WritePacket,
       Commands.InviteJudge,
@@ -172,6 +176,11 @@ defmodule Oneiroi.Janus do
       Events.C0Removed,
       Events.DayShapeSet,
       Events.ReadyMarked,
+      Events.SeatWaived,
+      Events.MarksLapsed,
+      Events.QuestionsOpened,
+      Events.QuestionsReopened,
+      Events.JudgeRemoved,
       Events.C0Frozen,
       Events.PacketDrafted,
       Events.StepFinished,
@@ -195,7 +204,7 @@ defmodule Oneiroi.Janus do
       Store.Pool,
       Store.Question,
       Store.Item,
-      Store.Ready,
+      Store.Mark,
       Store.Packet,
       Store.ToolUse,
       Store.Succession
@@ -247,6 +256,8 @@ defmodule Oneiroi.Janus do
       {:janus_fork, []},
       # A succession's screening runs and the wakes it sends (janus#13).
       {:janus_screening, []},
+      # Its workspace's feed entries (janus#49).
+      {:janus_workspace, []},
       # The day before's tool calls by model (janus#11).
       {:janus_nightly, cron: [{"45 3 * * *", Oneiroi.Janus.ToolUseWorker}]}
     ]
@@ -278,7 +289,12 @@ defmodule Oneiroi.Janus do
       {Oneiroi.Janus.Events.C0Declined, 1},
       {Oneiroi.Janus.Events.C0Removed, 1},
       {Oneiroi.Janus.Events.DayShapeSet, 1},
-      {Oneiroi.Janus.Events.ReadyMarked, 1},
+      {Oneiroi.Janus.Events.ReadyMarked, 2},
+      {Oneiroi.Janus.Events.SeatWaived, 1},
+      {Oneiroi.Janus.Events.MarksLapsed, 1},
+      {Oneiroi.Janus.Events.QuestionsOpened, 1},
+      {Oneiroi.Janus.Events.QuestionsReopened, 1},
+      {Oneiroi.Janus.Events.JudgeRemoved, 1},
       {Oneiroi.Janus.Events.C0Frozen, 1},
       {Oneiroi.Janus.Events.PacketDrafted, 1},
       {Oneiroi.Janus.Events.StepFinished, 1},
@@ -363,9 +379,30 @@ defmodule Oneiroi.Janus do
        remedy:
          "swap rather than add: take one of your own picks out first (succession_pool remove, with a note), or the witness restates the envelope with a higher count"},
       {:janus_judges_pending,
-       "a judge she invited has not yet joined or declined, and C0 freezes only once every invitation is answered",
+       "a seat on her panel holds this act shut (janus#48): an invitation not yet answered, or an accepted judge with no ready mark on the artifact as it stands now and no waiver of hers",
        remedy:
-         "wait for each invited judge to join or leave; succession_status says who is still invited"},
+         "wait for each judge's mark; or waive one, with her note; or, for a seat that will not answer, withdraw the invitation or take the judge off (succession_panel remove); succession_status names each seat and why"},
+      {:janus_questions_open,
+       "her question set is still open: its close comes before her freeze (janus#48)",
+       remedy: "close the set first (succession_question done)"},
+      {:janus_questions_closed,
+       "her question set is closed, and fixed until she reopens it (janus#48)",
+       remedy: "reopen the set, with her note (succession_question reopen), before changing it"},
+      {:janus_questions_pending, "proposed questions wait on her answer",
+       remedy: "accept or decline each, then close the set"},
+      {:janus_ready_invalid,
+       "a ready mark names one act: questions (her set's close) or c0 (her freeze)",
+       remedy: "name the act"},
+      {:janus_ready_stale,
+       "the mark names a version of the artifact that is no longer the one standing: it changed since it was read (janus#48)",
+       remedy: "read it again, then mark ready on it as it stands"},
+      {:janus_not_a_seat, "that party holds no seat on her panel that this door acts on",
+       remedy: "succession_status lists the seats"},
+      {:janus_not_blocking,
+       "her removal door opens only on a seat holding shut the act now standing open (janus#48), never before",
+       remedy: "wait until the seat blocks her close or her freeze; the seat may still answer"},
+      {:janus_pool_empty, "the pool closes with at least one model in it (janus#48)",
+       remedy: "add a model first"},
       {:janus_c0_not_frozen, "C0 is not frozen", remedy: "nothing to unfreeze"},
       {:janus_c0_screened, "screening has run on this C0, so it stays as it was",
        remedy: "a new succession starts a new C0"},
@@ -435,7 +472,12 @@ defmodule Oneiroi.Janus do
   end
 
   @impl Oneiroi.Component
-  def children, do: [Oneiroi.Janus.Projectors.Succession]
+  def children,
+    do: [
+      Oneiroi.Janus.Projectors.Succession,
+      # Its events into the workspace's step threads (janus#49).
+      Oneiroi.Janus.Handlers.Workspace
+    ]
 
   @doc "Proposes a succession (janus#3): the witness's waits on her yes; hers opens it, and the fork copy is enqueued (janus#4)."
   @spec propose(String.t(), boolean(), String.t(), Oneiroi.Actor.t()) ::
@@ -585,10 +627,42 @@ defmodule Oneiroi.Janus do
     do: Successions.set_day_shape(resident_id, text, actor)
   )
 
-  @doc "A party's mark, ready for her freeze or not yet (janus#9)."
+  @doc "A judge's mark, ready or not yet, for her freeze (janus#9)."
   @spec mark_ready(String.t(), boolean(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
   defexport(mark_ready(resident_id, ready, actor),
     do: Successions.mark_ready(resident_id, ready, actor)
+  )
+
+  @doc "A judge's mark for one act (janus#48): `action` questions or c0, `version` the artifact's version it readied against (now, when not named)."
+  @spec mark_ready(String.t(), boolean(), Oneiroi.Actor.t(), keyword()) :: :ok | {:error, term()}
+  defexport(mark_ready(resident_id, ready, actor, opts),
+    do: Successions.mark_ready(resident_id, ready, actor, opts)
+  )
+
+  @doc "Her waiver of one seat's mark for one act, at the version now, with her note (janus#48)."
+  @spec waive_seat(String.t(), String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(waive_seat(resident_id, action, name, note, actor),
+    do: Successions.waive_seat(resident_id, action, name, note, actor)
+  )
+
+  @doc "Her removal door (janus#48): a blocking seat's invitation withdrawn or the judge taken off, with her note."
+  @spec remove_judge(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(remove_judge(resident_id, name, note, actor),
+    do: Successions.remove_judge(resident_id, name, note, actor)
+  )
+
+  @doc "She enters her question window, waking her judges to read and mark ready for its close (janus#48)."
+  @spec open_questions(String.t(), String.t() | nil, Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(open_questions(resident_id, note, actor),
+    do: Successions.open_questions(resident_id, note, actor)
+  )
+
+  @doc "She reopens her closed question set, with her note (janus#48)."
+  @spec reopen_questions(String.t(), String.t(), Oneiroi.Actor.t()) :: :ok | {:error, term()}
+  defexport(reopen_questions(resident_id, note, actor),
+    do: Successions.reopen_questions(resident_id, note, actor)
   )
 
   @doc "She freezes C0 (janus#9)."
@@ -674,9 +748,37 @@ defmodule Oneiroi.Janus do
   @spec judging(String.t(), String.t()) :: map() | nil
   defexport(judging(resident_id, party), do: Successions.judging(resident_id, party))
 
-  @doc "The judges her freeze may wait for, each with whether they are ready (janus#45)."
+  @doc "The seats her freeze reads, each with whether it passes (janus#45, #48)."
   @spec freeze_judges(String.t()) :: [%{party: String.t(), ready: boolean()}]
   defexport(freeze_judges(resident_id), do: Successions.freeze_judges(resident_id))
+
+  @doc "The seats a gate reads, `action` questions or c0 (janus#48): state, mark, waiver and whether each passes."
+  @spec seats(String.t(), String.t()) :: [map()]
+  defexport(seats(resident_id, action), do: Successions.seats(resident_id, action))
+
+  @doc "Her succession's workspace overview as `viewer` may read it (janus#49): stage, whose move, both gates seat by seat, the fork, the step threads, and what this viewer cannot read, named."
+  @spec workspace(String.t(), Oneiroi.Actor.t()) :: {:ok, map()} | {:error, term()}
+  defexport(workspace(resident_id, viewer),
+    do: Oneiroi.Janus.Workspace.overview(resident_id, viewer)
+  )
+
+  @doc "A remark in one step's thread of her workspace, by name (janus#49)."
+  @spec workspace_remark(String.t(), String.t(), String.t(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(workspace_remark(resident_id, step, text, actor),
+    do: Oneiroi.Janus.Workspace.remark(resident_id, step, text, actor)
+  )
+
+  @doc "A handoff: one resident given a turn in one step (janus#49); `private` keeps its words out of the feed."
+  @spec handoff(String.t(), String.t(), String.t(), String.t(), boolean(), Oneiroi.Actor.t()) ::
+          :ok | {:error, term()}
+  defexport(handoff(resident_id, step, to, text, private, actor),
+    do: Oneiroi.Janus.Workspace.handoff(resident_id, step, to, text, private, actor)
+  )
+
+  @doc "Her household's members as seats are named (janus#48)."
+  @spec panel_names(String.t()) :: [%{party: String.t(), name: String.t()}]
+  defexport(panel_names(resident_id), do: Successions.panel_names(resident_id))
 
   @doc "Her panel (janus#12)."
   @spec panel(String.t()) :: list()
