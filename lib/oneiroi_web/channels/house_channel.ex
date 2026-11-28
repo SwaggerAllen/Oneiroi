@@ -38,7 +38,7 @@ defmodule OneiroiWeb.HouseChannel do
 
     if Oneiroi.Gaia.household_of(Actor.new(:witness, account_id)) == household_id do
       :ok = PubSub.subscribe(:apsu, :notices)
-      {:ok, assign(socket, :household_id, household_id)}
+      {:ok, %{build: OneiroiWeb.ClientBuild.id()}, assign(socket, :household_id, household_id)}
     else
       {:error, %{reason: "not a member"}}
     end

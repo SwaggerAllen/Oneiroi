@@ -71,6 +71,10 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
 - **Offline.** After two seconds disconnected, a bar reads "Offline" or
   "Reconnecting…", says what time the data on screen is from, and
   offers Reconnect, which re-mints the token and reconnects at once.
+- **Updated.** When a deploy has replaced the client this page runs
+  (the server names its build when the socket rejoins, apsu#35), a bar
+  reads "Oneiroi has been updated · this page is running the version
+  before it" with **Reload**. Never automatic: what is being typed stays.
 - **Search.** One sheet, from the header icon or ⌘K, with scope chips.
   It answers from the cross-kind search (kumbukumbu#59): every scope,
   typed results with their kind, title, day and snippet. A record or a

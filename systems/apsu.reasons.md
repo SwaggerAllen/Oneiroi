@@ -201,3 +201,6 @@ different scrape changes them, not the code.
 
 ## #34
 A timer is wrong twice: late when something changed, and a read for nothing when nothing did. The log already says when something changed; a page that listens reads exactly when it should.
+
+## #35
+A page that runs old code against a new server fails in ways that look like new bugs, and the witness spent a day of them on one restart; the rejoin after a deploy is the moment the page can know, so it is told then.

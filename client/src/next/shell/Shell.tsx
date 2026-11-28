@@ -7,6 +7,7 @@ import { elsewhere, useUnread } from './unread';
 import { Header } from './Header';
 import { usePushSlide, useTabDissolve } from './motion';
 import { OfflineBar } from './OfflineBar';
+import { UpdateBar } from './UpdateBar';
 import { Overlays } from './Overlays';
 import { HouseSearchSheet } from './HouseSearchSheet';
 import { SearchSheet } from './SearchSheet';
@@ -93,6 +94,7 @@ export function Shell({ residentId, residentName, waiting, failing = false, onRe
       />
       <div className={css.bar}>
         <OfflineBar onReconnect={onReconnect} />
+        <UpdateBar />
       </div>
       <main className={css.main}>
         {TABS.map((t) => (
