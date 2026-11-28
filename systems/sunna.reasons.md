@@ -716,3 +716,6 @@ A step that exists only to carry work from a resident to her own Claude Code is 
 
 ## #118
 A merge decided on Oneiroi and then done again on GitHub is one decision recorded twice, and the second record could only ever agree or be wrong. The review is the decision; the merge is GitHub's fact, read rather than claimed, and checked against the revision approved so that what merged is what was read.
+
+## #119
+A rule that judges the whole task on every edit makes yesterday's arrangement a lock on today's fix; an edit should answer for what it changes. And a conversation kept going for weeks is the clearest sign of an attached runtime there is, so the record's missing field cannot be what decides it.

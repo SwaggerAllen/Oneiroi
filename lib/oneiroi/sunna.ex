@@ -541,9 +541,8 @@ defmodule Oneiroi.Sunna do
        "an imported task carries no approvals (Scarlett's third guard): it cannot start at a layer holding a gated activity, since its review would be imported",
        remedy: "start the task one layer earlier, at the review, so the review is given afresh"},
       {:sunna_queue_builder_required,
-       "an implement activity is held by a resident's Claude Code (claude-code:<id>), and a Claude Code is one its resident has attached: a Claude Code conversation of hers on the platform (sunna#117)",
-       remedy:
-         "assign it to the Claude Code of a resident who has one attached, or leave it not known yet"},
+       "the step being added or reassigned is an implement, and only a resident's Claude Code builds: a member cannot hold one, and a resident's Claude Code only once she has a Claude Code conversation on the platform (sunna#117)",
+       remedy: "give that implement to a Claude Code the holder list offers, or to not known yet"},
       {:sunna_queue_throwback_order,
        "a review sends work back to an activity in an earlier layer: the activity its throwback names cannot sit in the review's layer or after it",
        remedy:
