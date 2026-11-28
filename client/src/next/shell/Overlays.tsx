@@ -428,6 +428,8 @@ function Settings() {
       )}
       <nav className={css.group} aria-label="You">
         <Row label="Send feedback" onClick={() => setOverlay('feedback')} />
+        {/* The installed app has no browser reload (the witness, 2026-11-27): this is it (apsu#35). */}
+        <Row label="Reload the app" onClick={() => window.location.reload()} />
         {operator && <Row href="#/operator" label="Operator" onClick={() => setOverlay(null)} />}
       </nav>
       <div className={css.account}>

@@ -75,6 +75,8 @@ The rebuilt client's shell (`design/ui-build.md`, phase P0), served at
   (the server names its build when the socket rejoins, apsu#35), a bar
   reads "Oneiroi has been updated · this page is running the version
   before it" with **Reload**. Never automatic: what is being typed stays.
+  The Settings sheet's **Reload the app** does the same at any time: the
+  installed app (the PWA) has no browser reload of its own.
 - **Search.** One sheet, from the header icon or ⌘K, with scope chips.
   It answers from the cross-kind search (kumbukumbu#59): every scope,
   typed results with their kind, title, day and snippet. A record or a
